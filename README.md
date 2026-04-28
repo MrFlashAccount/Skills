@@ -3,9 +3,12 @@
 Local self-contained repository for copied skills and their packaged `.skill` artifacts.
 
 ## Current skills
+- `code-review-orchestrator`
+- `design-taste-frontend`
 - `dev-harness`
 - `devrel-copywriter`
 - `docs-writer`
+- `vercel-react-best-practices`
 
 ## Rebuild dist packages
 From this repo root:
@@ -13,7 +16,7 @@ From this repo root:
 ```bash
 PKG="/path/to/openclaw/skills/skill-creator/scripts/package_skill.py"  # set this for your machine
 rm -f dist/*.skill
-for skill in dev-harness devrel-copywriter docs-writer; do
+for skill in code-review-orchestrator design-taste-frontend dev-harness devrel-copywriter docs-writer vercel-react-best-practices; do
   python3 "$PKG" "$PWD/$skill" "$PWD/dist"
 done
 ```
@@ -24,4 +27,4 @@ done
 3. Commit the source folder and `dist/` changes together.
 
 ## Notes
-Dependency audit and path normalization are intentionally a later, separate step.
+Critical cross-skill dependencies for the core skills in this repo are copied locally and packaged into `dist/`.
