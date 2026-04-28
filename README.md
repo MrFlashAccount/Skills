@@ -1,6 +1,6 @@
 # Skills Repo
 
-Local self-contained skill repository for copied skills and their packaged `dist/` artifacts.
+Local self-contained repository for copied skills and their packaged `.skill` artifacts.
 
 ## Current skills
 - `dev-harness`
@@ -11,15 +11,16 @@ Local self-contained skill repository for copied skills and their packaged `dist
 From this repo root:
 
 ```bash
+PKG="/path/to/openclaw/skills/skill-creator/scripts/package_skill.py"  # set this for your machine
 rm -f dist/*.skill
 for skill in dev-harness devrel-copywriter docs-writer; do
-  tar -czf "dist/${skill}.skill" "$skill"
+  python3 "$PKG" "$PWD/$skill" "$PWD/dist"
 done
 ```
 
 ## Add a new skill
 1. Copy the full skill folder into the repo root as a sibling of the existing skills.
-2. Rebuild `dist/` so the new skill also has a packaged `.skill` artifact.
+2. Package it into `dist/` with the same `package_skill.py` flow.
 3. Commit the source folder and `dist/` changes together.
 
 ## Notes
