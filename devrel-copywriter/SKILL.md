@@ -90,7 +90,7 @@ Defaults:
 
 ### 5. Run the built-in humanizer pass
 
-After the first draft, and after each meaningful fix pass, do a humanizer-style polish pass inside this skill.
+After the first draft, and after each meaningful fix pass, do a humanizer-style polish pass inside this skill. Treat it as an internal pass, not a dependency on the separate `humanizer` companion skill.
 
 Use it to:
 - soften AI-ish, corporate, smug, or over-produced phrasing
