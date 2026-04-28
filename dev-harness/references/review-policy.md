@@ -1,0 +1,28 @@
+# Review Policy
+
+Read this before any review pass.
+
+## Review gate
+
+- Review is mandatory after every implementation pass.
+- Default to one independent reviewer; use `code-review-orchestrator` for non-trivial, risky, or multi-zone work.
+- A worker may not review a slice it authored.
+- Keep reviewer selection separate from implementer roles; do not treat review specialties as implementer labels.
+- Choose reviewers from the canonical reviewer role set by task context.
+- Collect findings into a short report.
+- Feed in-scope fixes back to the relevant implementers without asking for fresh approval each pass.
+- If a review finding expands scope, forces redesign, or surfaces a high-risk contradiction, stop and go back to the user for re-approval.
+- For non-trivial work, run up to 3 review/fix passes; stop early when review is clean.
+- If blockers remain after the max passes, stop as blocked and surface unresolved findings.
+
+## Critic contract
+
+Use critic as a short challenge role, not as a second implementer, second discovery worker, or vague smart-sounding narrator.
+
+- Critic is the simplification/challenge reviewer, not the primary reviewer for correctness, security, QA, performance, or redesign.
+- Output shape: `Verdict / Must-fix / Should-fix / Can-delay`.
+- Cap `Must-fix` at 3 items, ranked by severity.
+- Every material finding should point to an artifact: acceptance criteria, proposal field, risk, file/line, test gap, or contradiction.
+- Before approval, critic challenges the proposal only; no code-ish content and no implementation recipes.
+- After approval, critic challenges the accepted result inside frozen scope; do not reopen design unless a blocker or high-risk contradiction forces it.
+- Keep critique short and issue-focused.
