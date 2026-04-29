@@ -15,6 +15,7 @@ Local source-of-truth repo for copied OpenClaw skills and their packaged `.skill
 - `skills/dev-harness`
 - `skills/devrel-copywriter`
 - `skills/docs-writer`
+- `skills/forthright`
 - `skills/grill-me`
 - `skills/humanizer`
 - `skills/vercel-react-best-practices`
