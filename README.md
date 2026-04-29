@@ -2,14 +2,19 @@
 
 Local source-of-truth repo for copied OpenClaw skills and their packaged `.skill` bundles.
 
+## Layout
+- source skills live in `skills/`
+- packaged bundles are written to `dist/`
+- the pack script lives in `scripts/pack_skills.py`
+
 ## Current skills
-- `code-review-orchestrator`
-- `design-taste-frontend`
-- `dev-harness`
-- `devrel-copywriter`
-- `docs-writer`
-- `humanizer`
-- `vercel-react-best-practices`
+- `skills/code-review-orchestrator`
+- `skills/design-taste-frontend`
+- `skills/dev-harness`
+- `skills/devrel-copywriter`
+- `skills/docs-writer`
+- `skills/humanizer`
+- `skills/vercel-react-best-practices`
 
 ## Rebuild `dist/`
 From the repo root:
@@ -19,7 +24,7 @@ python3 scripts/pack_skills.py
 ```
 
 Requires Python 3 and an OpenClaw install that provides the upstream packager.
-The script packages every top-level skill folder that contains `SKILL.md` into `dist/`.
+The script packages every `skills/*` folder that contains `SKILL.md` into `dist/`.
 If auto-discovery cannot find the upstream packager, point it at one explicitly:
 
 ```bash
@@ -27,7 +32,7 @@ OPENCLAW_PACKAGE_SKILL=/path/to/package_skill.py python3 scripts/pack_skills.py
 ```
 
 ## Add or update a skill
-1. Copy the full runtime + packaging contents into a top-level skill folder.
+1. Copy the full runtime + packaging contents into `skills/<skill-name>/`.
 2. Keep any critical skill dependencies in this repo too.
 3. Run `python3 scripts/pack_skills.py`.
 4. Commit the source changes and rebuilt `dist/*.skill` files together.

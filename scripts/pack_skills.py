@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+SKILLS_DIR = REPO_ROOT / "skills"
 DIST_DIR = REPO_ROOT / "dist"
 EXCLUDED_DIRS = {".git", "dist", "scripts", "__pycache__"}
 ENV_VAR = "OPENCLAW_PACKAGE_SKILL"
@@ -47,8 +48,11 @@ def find_package_script() -> Path:
 
 
 def discover_skills() -> list[Path]:
+    if not SKILLS_DIR.is_dir():
+        return []
+
     skills: list[Path] = []
-    for path in sorted(REPO_ROOT.iterdir()):
+    for path in sorted(SKILLS_DIR.iterdir()):
         if not path.is_dir() or path.name.startswith(".") or path.name in EXCLUDED_DIRS:
             continue
         if (path / "SKILL.md").is_file():
@@ -90,7 +94,7 @@ def package_skill(package_script: Path, skill_dir: Path) -> None:
 def main() -> int:
     targets = resolve_targets(sys.argv[1:])
     if not targets:
-        raise SystemExit("No skill folders found in repo root.")
+        raise SystemExit(f"No skill folders found in {SKILLS_DIR}.")
 
     package_script = find_package_script()
     print(f"Using packager: {package_script}", flush=True)
