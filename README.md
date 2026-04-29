@@ -8,11 +8,13 @@ Local source-of-truth repo for copied OpenClaw skills and their packaged `.skill
 - the pack script lives in `scripts/pack_skills.py`
 
 ## Current skills
+- `skills/caveman`
 - `skills/code-review-orchestrator`
 - `skills/design-taste-frontend`
 - `skills/dev-harness`
 - `skills/devrel-copywriter`
 - `skills/docs-writer`
+- `skills/grill-me`
 - `skills/humanizer`
 - `skills/vercel-react-best-practices`
 
