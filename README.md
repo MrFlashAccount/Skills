@@ -10,6 +10,7 @@ Local source-of-truth repo for copied OpenClaw skills and their packaged `.skill
 ## Current skills
 - `skills/caveman`
 - `skills/code-review-orchestrator`
+- `skills/cover-letter-writer`
 - `skills/create-skill`
 - `skills/design-taste-frontend`
 - `skills/dev-harness`
@@ -18,6 +19,7 @@ Local source-of-truth repo for copied OpenClaw skills and their packaged `.skill
 - `skills/forthright`
 - `skills/grill-me`
 - `skills/humanizer`
+- `skills/obsidian`
 - `skills/vercel-react-best-practices`
 
 ## Rebuild `dist/`

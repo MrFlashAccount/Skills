@@ -1,0 +1,117 @@
+---
+name: cover-letter-writer
+description: Write or rewrite short, high-conviction cover letters for jobs, recruiter outreach, warm intros, HH/Vastrik/Telegram posts, and direct messages to hiring managers. Use when the user wants a cover letter, opener, outreach message, or reply that must quickly explain fit, reduce distrust, and earn a call without sounding corporate, needy, or fake-inflated.
+---
+
+# Cover Letter Writer
+
+Write short cover letters and outreach messages that help a strong candidate get past an overloaded, skeptical front gate.
+
+For detailed style rules, read `references/style-guide.md`.
+For Sergey-specific fit checks and cover letters, use the canonical Obsidian profile at `/Users/sergeygarin/Library/Mobile Documents/iCloud~md~obsidian/Documents/Career/Sergey master profile.md`.
+If needed, load it through `scripts/read_sergey_profile.py`.
+
+## Workflow
+
+### 1. Extract the essentials
+Identify fast:
+- target role
+- company / post / source of contact
+- candidate level and sweet spot
+- 1–2 concrete proof points
+- likely hiring pain
+
+If the user already provided resume/context, do not ask for everything again.
+If the user is Sergey and no fresh resume is attached, use `/Users/sergeygarin/Library/Mobile Documents/iCloud~md~obsidian/Documents/Career/Sergey master profile.md` as the default candidate profile.
+
+### 2. Solve the actual front-gate problem
+The letter must answer quickly:
+1. Who is this person?
+2. Why are they relevant?
+3. What problem do they solve?
+4. Why should the reader trust them enough to continue?
+5. Why should the reader reply or call?
+
+### 3. Keep the shape tight
+Default shape:
+- opening context
+- role / level positioning
+- pain solved
+- 1–2 proof points
+- calm CTA
+
+### 4. Keep the tone human
+Default:
+- short
+- adult
+- specific
+- non-corporate
+- not needy
+- not overhyped
+- not obviously AI-polished
+
+Run a humanizer pass mentally before finalizing:
+- remove inflated language
+- remove corporate filler
+- remove over-smooth rhythm
+- remove self-mythologizing
+- keep the letter sounding like a real person wrote it in one shot
+
+### 5. Avoid the common failure modes
+Do not write letters that are:
+- generic
+- flattering for no reason
+- self-mythologizing
+- too long
+- packed with buzzwords
+- begging for attention
+- fake-enthusiastic about the vacancy/company in an AI-ish way
+
+## Output rules
+
+### Default output
+Unless the user asks otherwise, provide:
+- **Main version**
+- **Shorter version**
+- optional **1-line note** on why this version should work
+
+When the output is meant to be copied and sent manually (especially into Telegram), format each ready-to-send version inside fenced code blocks so it is easy to tap/copy without dragging extra commentary.
+
+### If the user wants variation
+Offer variants like:
+- calmer / more adult
+- sharper / more direct
+- startup-oriented
+- product-company-oriented
+- Vastrik/Telegram DM style
+
+## Special instruction for Sergey
+When writing for Sergey:
+- optimize for trust and speed of reading
+- show strong frontend leadership fast
+- emphasize hands-on technical depth
+- mention concrete proof points early
+- reduce any fake-hero / "wolf" vibe
+- keep the letter sounding real, grounded, and competent
+
+## Good default skeleton
+Use a structure close to this:
+
+```text
+Привет. Увидел [пост/вакансию/сообщение] и решил написать.
+
+Я [роль/уровень]. Обычно я полезен там, где нужно [pain solved].
+
+Из последнего: [proof point 1]. [Proof point 2].
+
+Если вам нужен человек такого профиля, думаю, есть смысл созвониться.
+```
+
+Do not append mechanical tails like:
+- `Резюме: <cv>`
+- `Прикладываю резюме`
+- `Буду рад ответить на вопросы`
+
+unless the user explicitly asks for that style.
+
+Adapt naturally; do not force this exact wording.
