@@ -10,6 +10,7 @@ Local source-of-truth repo for copied OpenClaw skills and their packaged `.skill
 ## Current skills
 - `skills/caveman`
 - `skills/code-review-orchestrator`
+- `skills/create-skill`
 - `skills/design-taste-frontend`
 - `skills/dev-harness`
 - `skills/devrel-copywriter`
