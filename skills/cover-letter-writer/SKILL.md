@@ -18,16 +18,27 @@ If the user already attached a fresh resume or pasted current context in chat, u
 If the request is for Sergey and no fresh resume is attached:
 - run `scripts/check_local_resume.py`
 - if `status=missing`, ask the user to upload the current resume or paste the missing profile details
-- if `status=stale`, say the local resume is older than 90 days and ask whether it should be updated before drafting
+- if `status=ambiguous`, tell the user there is more than one plausible local resume file and ask which one to use
+- if `status=stale`, say the local resume is older than 90 days and ask which path to take:
+  - use the old local resume as-is
+  - paste only the changed facts in chat
+  - upload a new resume
 - if `status=fresh`, load the referenced local file from this skill's `private/` folder and use it as the default candidate profile
 
 Preferred local filenames inside `private/`:
 - `resume.md`
 - `resume.txt`
 - `cv.md`
+- `cv.txt`
 - `sergey-profile.md`
+- `sergey-profile.txt`
 
-Prefer markdown or text files for local stored resumes.
+Support only markdown or plain-text local resumes for the default deterministic flow.
+If the user uploads a PDF/DOC/DOCX, use it only when you have a reliable extraction path in the current environment; otherwise ask for markdown, text, or pasted key facts.
+
+If the user uploads a new resume and wants it remembered for future cover-letter work, ask explicit permission before saving it into `private/`.
+If the user does not explicitly ask for persistent storage, use the uploaded resume only for the current task.
+
 Never reveal absolute filesystem paths, internal storage locations, or script paths in the user-facing reply.
 
 ### 1. Extract the essentials

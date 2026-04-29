@@ -8,20 +8,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 STALE_AFTER_DAYS = 90
+SUPPORTED_EXTENSIONS = {".md", ".txt"}
 PREFERRED_NAMES = (
     "resume",
     "cv",
     "profile",
     "sergey-profile",
 )
-PREFERRED_EXTENSIONS = {
-    ".md",
-    ".txt",
-    ".pdf",
-    ".doc",
-    ".docx",
-    ".rtf",
-}
 
 
 @dataclass(order=True)
@@ -39,10 +32,26 @@ def resolve_search_dir() -> tuple[Path, Path]:
     return skill_dir, search_dir
 
 
+def relative_to_skill(skill_dir: Path, path: Path) -> str:
+    try:
+        return str(path.relative_to(skill_dir))
+    except ValueError:
+        return path.name
+
+
+def isoformat(ts: float) -> str:
+    return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def age_days_for(path: Path) -> int:
+    return int((datetime.now(timezone.utc).timestamp() - path.stat().st_mtime) // 86400)
+
+
 def candidate_score(path: Path) -> tuple[int, float, str]:
     stem = path.stem.lower()
-    name_bonus = 1 if any(token in stem for token in PREFERRED_NAMES) else 0
-    return (name_bonus, path.stat().st_mtime, path.name.lower())
+    exact_bonus = 1 if stem in PREFERRED_NAMES else 0
+    partial_bonus = 1 if any(token in stem for token in PREFERRED_NAMES) else 0
+    return (exact_bonus + partial_bonus, path.stat().st_mtime, path.name.lower())
 
 
 def discover_files(search_dir: Path) -> list[CandidateFile]:
@@ -53,21 +62,19 @@ def discover_files(search_dir: Path) -> list[CandidateFile]:
     for path in search_dir.iterdir():
         if not path.is_file() or path.name.startswith("."):
             continue
-        if path.suffix.lower() not in PREFERRED_EXTENSIONS:
+        if path.suffix.lower() not in SUPPORTED_EXTENSIONS:
             continue
         files.append(CandidateFile(score=candidate_score(path), path=path))
     return sorted(files, reverse=True)
 
 
-def isoformat(ts: float) -> str:
-    return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat().replace("+00:00", "Z")
-
-
-def relative_to_skill(skill_dir: Path, path: Path) -> str:
-    try:
-        return str(path.relative_to(skill_dir))
-    except ValueError:
-        return path.name
+def file_payload(skill_dir: Path, path: Path) -> dict[str, object]:
+    return {
+        "relative_path": relative_to_skill(skill_dir, path),
+        "file_name": path.name,
+        "updated_at": isoformat(path.stat().st_mtime),
+        "age_days": age_days_for(path),
+    }
 
 
 def main() -> int:
@@ -78,26 +85,37 @@ def main() -> int:
         payload = {
             "status": "missing",
             "search_dir": relative_to_skill(skill_dir, search_dir),
+            "supported_extensions": sorted(SUPPORTED_EXTENSIONS),
             "stale_after_days": STALE_AFTER_DAYS,
             "recommended_action": "ask_for_upload",
-            "message": "No local resume/profile file found.",
+            "message": "No local markdown or text resume/profile file found.",
+        }
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0
+
+    if len(files) > 1:
+        payload = {
+            "status": "ambiguous",
+            "search_dir": relative_to_skill(skill_dir, search_dir),
+            "supported_extensions": sorted(SUPPORTED_EXTENSIONS),
+            "stale_after_days": STALE_AFTER_DAYS,
+            "recommended_action": "ask_user_to_choose",
+            "candidates": [file_payload(skill_dir, candidate.path) for candidate in files[:10]],
         }
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         return 0
 
     selected = files[0].path
-    age_days = int((datetime.now(timezone.utc).timestamp() - selected.stat().st_mtime) // 86400)
-    is_stale = age_days > STALE_AFTER_DAYS
+    payload = file_payload(skill_dir, selected)
+    payload["stale_after_days"] = STALE_AFTER_DAYS
 
-    payload = {
-        "status": "stale" if is_stale else "fresh",
-        "relative_path": relative_to_skill(skill_dir, selected),
-        "file_name": selected.name,
-        "updated_at": isoformat(selected.stat().st_mtime),
-        "age_days": age_days,
-        "stale_after_days": STALE_AFTER_DAYS,
-        "recommended_action": "ask_to_confirm_update" if is_stale else "read_local_resume",
-    }
+    if payload["age_days"] > STALE_AFTER_DAYS:
+        payload["status"] = "stale"
+        payload["recommended_action"] = "ask_to_confirm_update"
+    else:
+        payload["status"] = "fresh"
+        payload["recommended_action"] = "read_local_resume"
+
     print(json.dumps(payload, ensure_ascii=False, indent=2))
     return 0
 
