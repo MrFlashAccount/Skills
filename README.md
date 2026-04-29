@@ -1,6 +1,6 @@
 # Skills Repo
 
-Local self-contained repository for copied skills and their packaged `.skill` artifacts.
+Local source-of-truth repo for copied OpenClaw skills and their packaged `.skill` bundles.
 
 ## Current skills
 - `code-review-orchestrator`
@@ -11,22 +11,29 @@ Local self-contained repository for copied skills and their packaged `.skill` ar
 - `humanizer`
 - `vercel-react-best-practices`
 
-## Rebuild dist packages
-From this repo root:
+## Rebuild `dist/`
+From the repo root:
 
 ```bash
-PKG="/path/to/openclaw/skills/skill-creator/scripts/package_skill.py"  # set this for your machine
-rm -f dist/*.skill
-for skill in code-review-orchestrator design-taste-frontend dev-harness devrel-copywriter docs-writer humanizer vercel-react-best-practices; do
-  python3 "$PKG" "$PWD/$skill" "$PWD/dist"
-done
+python3 scripts/pack_skills.py
 ```
 
-## Add a new skill
-1. Copy the runtime-required skill contents into the repo root as a sibling of the existing skills.
-2. Package it into `dist/` with the same `package_skill.py` flow.
-3. Commit the source folder and `dist/` changes together.
+Requires Python 3 and an OpenClaw install that provides the upstream packager.
+The script packages every top-level skill folder that contains `SKILL.md` into `dist/`.
+If auto-discovery cannot find the upstream packager, point it at one explicitly:
 
-## Notes
-Critical cross-skill dependencies for the core skills in this repo are copied locally and packaged into `dist/`.
-Auxiliary repo/editor docs that are not part of the skill package may be omitted on import.
+```bash
+OPENCLAW_PACKAGE_SKILL=/path/to/package_skill.py python3 scripts/pack_skills.py
+```
+
+## Add or update a skill
+1. Copy the full runtime + packaging contents into a top-level skill folder.
+2. Keep any critical skill dependencies in this repo too.
+3. Run `python3 scripts/pack_skills.py`.
+4. Commit the source changes and rebuilt `dist/*.skill` files together.
+
+## Repo rules
+- Keep the repo self-contained.
+- Do not rely on external skill dependencies for runtime-critical behavior.
+- Rebuild `dist/` whenever a source skill changes.
+- Commit source folders and packaged artifacts in the same change.
