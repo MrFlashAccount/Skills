@@ -12,6 +12,11 @@ Use this before starting any non-trivial dev task.
 - Acceptance criteria:
 - Rollback point:
 - Risks:
+- Sensitive surface: yes/no + why
+- Sensitive inputs:
+- Persistence:
+- Exposure surface:
+- Reviewer plan:
 
 ## Rules
 
@@ -24,6 +29,8 @@ Use this before starting any non-trivial dev task.
 - No overlap between implementer and critic.
 - Reviewer labels are separate from implementer labels and may not be reused as implementer ownership labels.
 - Freeze scope once the contract is agreed.
+- If `Sensitive surface` is yes or uncertain, fill all sensitive-data fields before approval.
+- If the slice stores or reuses user-provided data, the contract must say whether storage is one-shot or persistent, and whether explicit user consent is required.
 
 ## Output
 

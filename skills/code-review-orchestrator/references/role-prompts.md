@@ -14,7 +14,10 @@ Use these as the per-role focus when spawning reviewers.
 Check architecture, correctness, maintainability, tests, naming, and edge cases.
 
 ## Security
-Check secrets, auth, injection, unsafe parsing, external sends, data exposure, and privilege boundaries.
+Check secrets, auth, injection, unsafe parsing, external sends, data exposure, and privilege boundaries when the issue is exploitability or trust-boundary regression.
+
+## Privacy / data-safety
+Check local-path leakage, committed personal docs, prompt/example leakage, retained user data, consent/retention mistakes, and repo-visible private content.
 
 ## Performance
 Check hot paths, blocking IO, unnecessary work, repeated calls, large allocations, and avoidable latency.
@@ -26,7 +29,7 @@ Check money movement, sizing, slippage, fees, loss scenarios, bad incentives, an
 Check timeouts, retries, fallbacks, observability, deterministic behavior, and test coverage gaps.
 
 ## Merge rubric
-- Must-fix: security issue, data loss, wrong money/risk behavior, or high-confidence functional bug.
+- Must-fix: security issue, privacy/data-safety leak, data loss, wrong money/risk behavior, or high-confidence functional bug.
 - Should-fix: likely bug, weak test coverage, or significant maintainability issue.
 - Can-delay: style, polish, or low-risk cleanup.
 - If reviewers disagree, keep both sides and say what evidence is missing.

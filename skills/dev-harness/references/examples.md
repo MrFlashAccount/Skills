@@ -33,19 +33,27 @@ Use these only as routing/eval sanity checks. Do not cargo-cult them into broad 
 - Review: `security`
 - Expected focus: auth bypass, CSRF/cookie/session, open redirects, iframe/embed/sandbox, admin-only exposure, unsafe defaults, trust-boundary leaks
 
-## 5) QA / reliability pass
+## 5) Privacy / data-safety pass
+
+- Task: the slice touches local files, resumes/CVs, prompts/examples, logs/traces, retained user data, machine-specific paths, or user-data persistence rules
+- Class: usually `non-trivial` even if the edit is small
+- Review: `privacy/data-safety`
+- Expected focus: absolute/local path leakage, committed personal docs, prompt/example leakage, unsafe persistence defaults, missing consent, and repo-visible private data
+- Extra guard: run `scripts/check_sensitive_surface.py` and include the output in the review brief
+
+## 6) QA / reliability pass
 
 - Task: failures, rollback/recovery, degraded behavior, flaky/racey paths, or weak tests are the main concern
 - Review: `qa/reliability`
 - Expected focus: retries, timeouts, idempotency, degraded mode, diagnosability, minimal-mock test signal, non-decorative tests
 
-## 6) Performance hot-path pass
+## 7) Performance hot-path pass
 
 - Task: user-visible latency, hot-path waste, memory growth, N+1 queries, or render churn is the main concern
 - Review: `performance`
 - Expected focus: real regressions/waste in the touched slice only, not generic optimization advice
 
-## 7) Complex or multi-zone review
+## 8) Complex or multi-zone review
 
 - Task: risky, ambiguous, or multi-zone work where one reviewer is unlikely to be enough
 - Review path: use `code-review-orchestrator`

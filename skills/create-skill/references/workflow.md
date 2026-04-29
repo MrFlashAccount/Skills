@@ -42,6 +42,7 @@ Choose only the files that help execution:
 
 Do not create extra docs that are not part of runtime behavior.
 If the target runtime supports optional metadata like `license` or `compatibility`, add it only when it is actually consumed there.
+If the skill touches personal docs, local paths, prompts/examples, logs, or retained user data, mark it as a sensitive surface up front and plan a privacy/data-safety review before finalization.
 
 ## 4. Set the right degree of freedom
 
@@ -146,10 +147,12 @@ Check:
 - was any key detail missing from always-loaded guidance?
 - did bulky details stay out of `SKILL.md`?
 - should any repeated manual step become a script?
+- if the skill is a sensitive surface, were local paths, personal docs, and prompt/example content redacted or kept out of repo-visible files?
 
 ## 11. Finalize and iterate
 
 Review the finished skill folder, fix any broken references or workflow gaps, and revise based on actual use.
+For sensitive-surface skills, do not call it done until privacy/data-safety review either finds a concrete issue or explicitly clears the approved scope.
 
 Iteration loop:
 1. run the skill on a real task

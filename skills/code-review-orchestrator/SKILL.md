@@ -1,6 +1,6 @@
 ---
 name: code-review-orchestrator
-description: Orchestrate multi-role code reviews for any repository, branch, PR, or diff. Use when the user asks for code review / кодревью, wants a review of a repo/path/branch/PR, or wants a merged report from specialist perspectives such as staff engineer, security, performance, financial/risk, reliability/QA, or frontend design taste. Also use when the user wants one global review command that fans out to several reviewers and returns one merged must-fix / should-fix / can-delay report.
+description: Orchestrate multi-role code reviews for any repository, branch, PR, or diff. Use when the user asks for code review / кодревью, wants a review of a repo/path/branch/PR, or wants a merged report from specialist perspectives such as staff engineer, security, privacy/data-safety, performance, financial/risk, reliability/QA, or frontend design taste. Also use when the user wants one global review command that fans out to several reviewers and returns one merged must-fix / should-fix / can-delay report.
 ---
 
 # Code Review Orchestrator
@@ -15,32 +15,36 @@ This is the post-implementation critic gate. The pre-implementation critic/debat
 2. Read the target repo’s `AGENTS.md` first, then gather compact context, `git status`, current branch, `git diff --stat`, touched files, relevant tests, docs, and config.
 3. Build one shared brief, then spawn the core reviewers:
    - staff engineer,
-   - security,
    - performance,
    - financial/risk,
    - reliability/QA.
+   Add `security` when exploitability/auth/trust-boundary risk is present.
+   Add `privacy/data-safety` when the diff is `sensitive-surface`: local files, personal docs, prompt/example content, logs/traces, retained user data, machine-specific paths, or external sends carrying user content.
    If the diff is frontend, UI, UX, visual, motion, or user-facing output, also spawn a designer reviewer using the `design-taste-frontend` skill.
-4. Ask each reviewer for:
+4. For `sensitive-surface` diffs, run `skills/dev-harness/scripts/check_sensitive_surface.py <repo-path> [<base-rev>]` first and include its output in the shared brief.
+5. Ask each reviewer for:
    - blocker or not,
    - evidence,
    - file and line when possible,
    - confidence,
    - must-fix / should-fix / can-delay.
    Add a simplification check to the critic voice: can this be simpler, cheaper, or better optimized?
-5. Merge results:
+6. Merge results:
    - dedupe repeated issues,
    - elevate only evidence-backed blockers,
    - preserve disagreements,
    - group by file/theme,
    - put must-fix first.
-6. Return a short report with a clear verdict and next step.
-7. When the user wants an iterative loop, feed the report back into the same review process and repeat up to 3 passes total.
-8. For every code task, keep a review gate in the loop; the question is only how much review depth is needed.
+7. Return a short report with a clear verdict and next step.
+8. When the user wants an iterative loop, feed the report back into the same review process and repeat up to 3 passes total.
+9. For every code task, keep a review gate in the loop; the question is only how much review depth is needed.
 
 ## Role selection rules
 - Always include staff engineer.
 - Always include reliability/QA.
-- Include security if the diff touches auth, secrets, external sends, parsers, access control, or user input.
+- Include security if the diff touches auth, secrets, external sends, parsers, access control, or user input in a way that could change exploitability or trust boundaries.
+- Include `privacy/data-safety` if the diff touches local files, personal docs, prompts/examples, logs/traces, retained user data, machine-specific paths, or external sends that may carry user/private content.
+- For `sensitive-surface` diffs, run the scanner and do not call the review clean until `privacy/data-safety` explicitly clears the approved scope or reports a concrete risk.
 - Include performance if the diff touches hot paths, loops, IO, or large data handling.
 - Include financial/risk if the repo is trading, payments, sizing, slippage, fees, or loss-sensitive logic.
 - Include a designer reviewer if the diff is frontend, UI, UX, visual, motion, or user-facing output. Use the `design-taste-frontend` skill for that reviewer.
@@ -73,3 +77,4 @@ Ask only for the missing target, repo path, branch, or PR.
 - Treat one high-confidence blocker as enough to stop the line.
 - Do not collapse disagreements into mush, keep both sides.
 - If all reviewers are clean, say that plainly and mention the highest-risk area that was checked.
+- For `sensitive-surface` diffs, say explicitly whether `privacy/data-safety` and `security` were run, and which one cleared the slice.
