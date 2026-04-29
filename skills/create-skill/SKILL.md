@@ -25,7 +25,7 @@ Work from concrete usage, not abstract summaries.
    - `scripts/` for repeated deterministic work
    - `assets/` only for output resources
 4. Keep `SKILL.md` lean. Move everything non-core out of the always-loaded file.
-5. If the skill touches personal docs, local paths, prompts/examples, logs, or retained user data, treat it as a sensitive surface: redact aggressively, prefer local-only/private storage, and require privacy/data-safety review before calling it done.
+5. If the skill is a sensitive surface, keep repo-visible content redacted/local-safe and run privacy/data-safety review before calling it done.
 6. Write frontmatter carefully:
    - `name`: short, lowercase, hyphenated
    - `description`: what the skill does, when it should trigger, and likely user phrasings

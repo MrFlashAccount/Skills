@@ -43,7 +43,7 @@ This is the post-implementation critic gate. The pre-implementation critic/debat
 - Always include staff engineer.
 - Always include reliability/QA.
 - Include security if the diff touches auth, secrets, external sends, parsers, access control, or user input in a way that could change exploitability or trust boundaries.
-- Include `privacy/data-safety` if the diff touches local files, personal docs, prompts/examples, logs/traces, retained user data, machine-specific paths, or external sends that may carry user/private content.
+- Include `privacy/data-safety` for `sensitive-surface` diffs.
 - For `sensitive-surface` diffs, run the scanner and do not call the review clean until `privacy/data-safety` explicitly clears the approved scope or reports a concrete risk.
 - Include performance if the diff touches hot paths, loops, IO, or large data handling.
 - Include financial/risk if the repo is trading, payments, sizing, slippage, fees, or loss-sensitive logic.
