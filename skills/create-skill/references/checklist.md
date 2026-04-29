@@ -54,7 +54,7 @@
 - trigger quality and false-positive rate were reviewed explicitly
 - at least one with-skill vs without-skill comparison was checked on a representative task
 
-## Packaging
-- skill validates successfully
-- packaged `.skill` artifact rebuilt after source changes
-- source and packaged artifact kept in sync
+## Finalization
+- skill folder is complete and internally consistent
+- all referenced files/scripts/assets actually exist
+- source-only repo workflow stays consistent with the surrounding repo rules

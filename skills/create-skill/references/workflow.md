@@ -4,7 +4,7 @@ Use this file when building or rewriting a skill from source material such as a 
 
 This workflow starts after initial scoping. If the target skill is still fuzzy, route that first-pass discovery through `grill-me`, then come back here for execution.
 
-Hard gate: after scoping and before implementation, present the proposed skill shape and wait for the user's explicit `ПОДТВЕРЖДАЮ`. Do not start creating the skill package before that approval.
+Hard gate: after scoping and before implementation, present the proposed skill shape and wait for the user's explicit `ПОДТВЕРЖДАЮ`. Do not start creating the skill structure before that approval.
 
 ## 1. Start from concrete examples
 
@@ -31,7 +31,7 @@ Minimum checks:
 
 Use `references/testing-and-troubleshooting.md` for the detailed test matrix and failure modes.
 
-## 3. Plan the package before writing
+## 3. Plan the skill structure before writing
 
 Choose only the files that help execution:
 
@@ -110,7 +110,7 @@ Do not add scripts only because code would look impressive.
 
 ## 9. Run the critic/fix loop
 
-After the first draft, do a structured review pass before packaging.
+After the first draft, do a structured review pass before finalizing.
 
 Default loop:
 1. draft the skill
@@ -123,7 +123,7 @@ Stop after 2 review/fix iterations if the skill is clean.
 Run a 3rd review/fix iteration when:
 - trigger wording is still fuzzy
 - `SKILL.md` is still bloated
-- package boundaries are still unclear
+- file boundaries are still unclear
 - references are still carrying duplicate material
 - the workflow still feels ambiguous on real prompts
 
@@ -147,12 +147,12 @@ Check:
 - did bulky details stay out of `SKILL.md`?
 - should any repeated manual step become a script?
 
-## 11. Package and iterate
+## 11. Finalize and iterate
 
-Package the skill, fix validation errors, and revise based on actual use.
+Review the finished skill folder, fix any broken references or workflow gaps, and revise based on actual use.
 
 Iteration loop:
 1. run the skill on a real task
 2. note where it was weak, bloated, or ambiguous
 3. tighten the flow or split material better
-4. repackage
+4. retest
