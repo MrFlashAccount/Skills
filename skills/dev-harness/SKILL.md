@@ -20,6 +20,7 @@ Keep path small. Use the full harness only when needed.
 Read only the references needed for the current phase; do not load every role by default.
 
 - Before proposal for non-trivial or ownership-unclear work, read [references/task-contract.md](references/task-contract.md).
+- If the slice may touch local files, personal docs, prompts/examples, logs, retained user data, or machine-specific paths, read [references/sensitive-surfaces.md](references/sensitive-surfaces.md) before proposal.
 - After approval, read only the relevant implementer sections in [references/roles/implementers.md](references/roles/implementers.md).
 - Before review, read [references/review-policy.md](references/review-policy.md) and only the relevant reviewer sections in [references/roles/reviewers.md](references/roles/reviewers.md).
 - If routing is ambiguous or you want a sanity check on expected worker/reviewer choice, read [references/examples.md](references/examples.md).
@@ -31,7 +32,7 @@ Read only the references needed for the current phase; do not load every role by
 ## Task class
 
 - `tiny`: obvious, narrow, low-risk, usually one file / one intent.
-- `non-trivial`: risky, ambiguous, multi-zone, user-facing, security-sensitive, or easy to get subtly wrong.
+- `non-trivial`: risky, ambiguous, multi-zone, user-facing, security-sensitive, privacy/data-sensitive, or easy to get subtly wrong.
 - If unsure, treat the task as `non-trivial`.
 
 ## Workflow
@@ -44,10 +45,12 @@ Read only the references needed for the current phase; do not load every role by
    - every material claim should be evidence-backed with file/line/symbol when practical; otherwise mark it as an assumption or unknown
    - use safe reads/searches only; no edits, no patches, and no builds/tests/scripts unless explicitly required for inspection
    - stop when there are enough facts for proposal, or when remaining gaps are real unknowns/blockers; do not keep touring the repo
-   - discovery output shape: `Facts / Evidence / Risks / Unknowns / Questions for user / Candidate file zones`
+   - discovery output shape: `Facts / Evidence / Risks / Unknowns / Questions for user / Candidate file zones / Sensitive-surface classification`
 3. Write one short proposal from the discovered facts, then run proposal critique against it.
    - default proposal template: `Goal / Non-goals / File zones / Acceptance / Rollback / Unknowns-or-assumptions`
    - for `tiny` work, use a 3-4 bullet proposal instead of the full template
+   - if the slice is or might be `sensitive-surface`, extend the proposal with: `Sensitive inputs / Persistence / Exposure surface / Reviewer plan`
+   - classify as `sensitive-surface` by default when the slice touches any of: local files, personal docs, `references/`, `assets/`, prompts/examples, logs/traces, retained user data, external sends, or machine-specific paths
    - keep one recommended path; add at most one alternative only if it materially changes risk or scope
    - show one cleaned proposal to the user before coding
    - this gate is mandatory for every code task, even tiny ones
@@ -55,7 +58,7 @@ Read only the references needed for the current phase; do not load every role by
    - approval means `ПОДТВЕРЖДАЮ` or an equally explicit go-ahead; `ок`, `ага`, `ясно`, and similar weak acknowledgements are not approval
    - before approval, proposals may include goals, risks, and architecture, but not code blocks, pseudocode, function/class skeletons, exact file-by-file edit recipes, command sequences, SQL/migrations, exact signatures, patch-like diffs, or ready-to-apply code
 4. Choose the lightest viable implementation path after approval.
-   - simple one-file / low-risk fix: launch one narrow implementer worker, minimal scope
+   - simple one-file / low-risk fix: launch one narrow implementer worker, minimal scope only if the slice is not `sensitive-surface`
    - ambiguous, multi-file, multi-domain, or risky work: use the fuller pipeline
    - canonical implementer role labels are only `backend` and `frontend`
    - use only the implementers actually needed for the approved slice
@@ -68,16 +71,20 @@ Read only the references needed for the current phase; do not load every role by
    - `feature slice` is valid only when it maps to one closed, exclusive file set with one owner
    - if the task cannot be partitioned into clean non-overlapping file zones, collapse it to one implementer instead of inventing pseudo-slices
    - run the smallest meaningful verification before review and report what ran or what could not run
+   - for `sensitive-surface` slices, run `scripts/check_sensitive_surface.py <repo-path> [<base-rev>]` before review and include its result in the review brief
    - do not dump raw subagent output, logs, or transcripts into chat; summarize in your own words
 6. Result review gate: after implementation, run review.
    - review is mandatory after every implementation pass
-   - default to one independent reviewer; use `code-review-orchestrator` for non-trivial, risky, or multi-zone work
+   - for `sensitive-surface` work, `privacy/data-safety` review is mandatory even if the code diff is tiny
+   - keep `security` separate: it covers exploitability/auth/trust-boundary regressions; `privacy/data-safety` covers local paths, personal docs, retained user data, prompt/example leakage, and consent/retention mistakes
+   - default to one independent reviewer; use `code-review-orchestrator` for non-trivial, risky, multi-zone, or `sensitive-surface` work
    - choose reviewers from the canonical reviewer role set by task context
    - a worker may not review a slice it authored
    - collect findings into a short report
    - feed in-scope fixes back to the relevant workers without asking for fresh approval each pass
    - if a review finding expands scope, forces redesign, or surfaces a high-risk contradiction, stop and go back to the user for re-approval
    - for non-trivial work, run up to 3 review/fix passes; stop early when review is clean; findings are blockers unless explicitly waived
+   - `sensitive-surface` slices are not clean until the scanner is clean or explicitly dispositioned, and the relevant reviewer states either a concrete risk or that the approved slice is clean within scope
    - if blockers remain after the max passes, stop as blocked and surface unresolved findings
 7. Stop when acceptance criteria are met; do not widen scope mid-flight.
 8. Append to the knowledge base only when the task produced a durable fact, lesson, or open question.
@@ -94,6 +101,7 @@ Reviewers:
 - `staff frontend`
 - `frontend taste`
 - `security`
+- `privacy/data-safety`
 - `qa/reliability`
 - `performance`
 
@@ -105,8 +113,10 @@ Notes:
 ## Rules
 
 - Do not let two agents edit the same file zone.
-- Do not mix auth, UI, importer, and security changes in one slice.
+- Do not mix auth, UI, importer, security, and privacy/data-retention changes in one slice.
 - Keep the critic separate from implementers.
+- If a slice touches local files, personal docs, prompts/examples, logs/traces, retained user data, or machine-specific paths, treat it as `sensitive-surface` until proven otherwise.
+- Do not commit real user documents, machine-specific paths, or retained private data into repo-visible `references/`, `assets/`, examples, fixtures, or logs.
 - If the task is ambiguous, clarify the contract before starting.
 - Before approval, only discovery / proposal work is allowed.
 - Before approval, do not spawn implementer workers, do not start implementation runs, do not prepare patches, and do not edit files.

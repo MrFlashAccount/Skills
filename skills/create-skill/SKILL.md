@@ -25,15 +25,16 @@ Work from concrete usage, not abstract summaries.
    - `scripts/` for repeated deterministic work
    - `assets/` only for output resources
 4. Keep `SKILL.md` lean. Move everything non-core out of the always-loaded file.
-5. Write frontmatter carefully:
+5. If the skill is a sensitive surface, keep repo-visible content redacted/local-safe and run privacy/data-safety review before calling it done.
+6. Write frontmatter carefully:
    - `name`: short, lowercase, hyphenated
    - `description`: what the skill does, when it should trigger, and likely user phrasings
    - fail if the description is generic, missing trigger language, contains `<` or `>`, or is too long
-6. Write the body as direct operating instructions.
-7. Run a critic/fix loop after the first draft:
+7. Write the body as direct operating instructions.
+8. Run a critic/fix loop after the first draft:
    - 2 review/fix iterations by default
    - 3 iterations when the skill is high-risk, bloated, or still ambiguous after round 2
-8. Review and test before calling it done.
+9. Review and test before calling it done.
 
 Read `references/workflow.md` for the full conversion flow.
 Read `references/checklist.md` before final review and after each review pass.

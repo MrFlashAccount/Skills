@@ -30,6 +30,7 @@
 - anti-patterns or boundaries are named when they matter
 - duplicate content between `SKILL.md` and references has been removed
 - the always-loaded file is concise relative to the task
+- sensitive-surface risks were checked when the skill touches personal docs, local paths, prompts/examples, logs, or retained user data
 
 ## Progressive disclosure
 - each reference file is linked directly from `SKILL.md`
@@ -57,4 +58,6 @@
 ## Finalization
 - skill folder is complete and internally consistent
 - all referenced files/scripts/assets actually exist
+- real user docs, absolute machine paths, and repo-visible private data are not embedded in references/assets/examples/logs
+- privacy/data-safety review was run when the skill handles personal docs, local paths, prompt/example content, or retained user data
 - source-only repo workflow stays consistent with the surrounding repo rules

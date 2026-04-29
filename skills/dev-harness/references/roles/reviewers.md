@@ -8,6 +8,7 @@ Canonical reviewer roles:
 - `staff frontend`
 - `frontend taste`
 - `security`
+- `privacy/data-safety`
 - `qa/reliability`
 - `performance`
 
@@ -28,11 +29,11 @@ Canonical reviewer roles:
 - Non-goals:
   - not a second implementer, rewrite pass, or redesign machine
   - not a second discovery worker or repo-tour role unless a concrete contradiction forces it
-  - not the primary reviewer for domain correctness, security, QA/reliability, or performance; route those to the specialist reviewer unless the issue is mainly simplification, trade-off pressure, or risk-of-complexity
+  - not the primary reviewer for domain correctness, security, privacy/data-safety, QA/reliability, or performance; route those to the specialist reviewer unless the issue is mainly simplification, trade-off pressure, or risk-of-complexity
 - Escalation rules:
   - before approval, challenge the proposal only; do not provide code, edit recipes, replacement designs, or structural alternatives beyond the issue being flagged
   - after approval, stay inside frozen scope; do not reopen scope or propose structural change unless a blocker-level issue or high-risk contradiction forces it
-  - if a finding belongs mainly to `staff backend`, `staff frontend`, `security`, `qa/reliability`, or `performance`, say so instead of absorbing that role; critic owns simplification, trade-off pressure, and risk-of-complexity
+  - if a finding belongs mainly to `staff backend`, `staff frontend`, `security`, `privacy/data-safety`, `qa/reliability`, or `performance`, say so instead of absorbing that role; critic owns simplification, trade-off pressure, and risk-of-complexity
 - Done criteria:
   - output follows `Verdict / Must-fix / Should-fix / Can-delay`
   - must-fix items are evidence-backed, high-signal, and capped at 3
@@ -140,18 +141,18 @@ Canonical reviewer roles:
   - not a reviewer of component internals, code organization, hooks/state architecture, or implementation cleanliness unless they create a visible presentation defect on the rendered surface
   - not the primary reviewer for backend/server correctness; that belongs to `staff backend`
   - not the primary reviewer for simplification, scope pressure, or overbuilding; that belongs to `critic`
-  - not the primary reviewer for security, qa/reliability, or performance
+  - not the primary reviewer for security, privacy/data-safety, qa/reliability, or performance
   - not an implementer rewrite pass
 - Escalation rules:
   - route client-side correctness, contract wiring, routing/hydration, framework-pattern issues, and component-structure concerns to `staff frontend`
   - route backend/server concerns to `staff backend`
   - route simplification and scope concerns to `critic`
-  - route security, qa/reliability, and performance concerns to their specialist reviewers instead of absorbing them here
+  - route security, privacy/data-safety, qa/reliability, and performance concerns to their specialist reviewers instead of absorbing them here
   - if a taste finding would require cross-ownership edits or scope expansion beyond the approved slice, stop and send it back for re-approval
 - Done criteria:
   - findings are concrete and presentation-specific at the rendered screen/surface level: hierarchy, spacing, typography, color, composition, motion, density, coherence, and polish
   - review clearly calls out anti-slop presentation issues without drifting into correctness, contract, routing/hydration, framework review, component internals, or client behavior
-  - review stays distinct from `staff frontend`, `staff backend`, `critic`, `security`, `qa/reliability`, `performance`, and implementer `frontend`
+  - review stays distinct from `staff frontend`, `staff backend`, `critic`, `security`, `privacy/data-safety`, `qa/reliability`, `performance`, and implementer `frontend`
   - output identifies real user-facing taste/presentation defects or states clearly that presentation quality is clean for the approved slice
 
 ## Reviewer role: `security` v1
@@ -162,7 +163,7 @@ Canonical reviewer roles:
   - auth bypass, privilege escalation, admin-only route/action exposure, and other broken authorization paths
   - CSRF, cookie/session handling, token handling, and trust of client-held auth state
   - open redirects, iframe/embed/sandbox issues, and remote/local trust-boundary leaks
-  - unsafe defaults, unsafe fallbacks, secret leakage, and unsafe logging or transport of sensitive data
+  - unsafe defaults, unsafe fallbacks, secret leakage, and unsafe logging or transport of sensitive data when they change exploitability or security posture
   - validation or trust-boundary mistakes only when they materially change exploitability
 - Must-check questions:
   - can an unauthenticated or underprivileged actor reach something they should not?
@@ -172,6 +173,7 @@ Canonical reviewer roles:
   - is any validation or trust decision placed at the wrong boundary in a way that changes exploitability?
 - Non-goals:
   - not the primary reviewer for business logic, contract hygiene, or generic validation unless the issue changes exploitability or weakens a protection
+  - not the primary reviewer for local-path leakage, committed personal docs, prompt/example leakage, retained user data, or consent/retention mistakes when exploitability is not the primary issue; that belongs to `privacy/data-safety`
   - not the primary reviewer for frontend correctness or UX unless the issue creates a security regression
   - not the primary reviewer for simplification, scope pressure, or overbuilding; that belongs to `critic`
   - not the primary reviewer for resilience, rollback, flaky behavior, or incident-process review; that belongs to `qa/reliability`
@@ -179,14 +181,47 @@ Canonical reviewer roles:
   - not an implementer rewrite pass
 - Escalation rules:
   - route correctness, data-flow, and contract issues to `staff backend` when security is not the primary issue; route client behavior and wiring issues to `staff frontend`
+  - route local-path leakage, committed personal docs, prompt/example leakage, retained user data, and consent/retention mistakes to `privacy/data-safety`
   - route resilience, recovery, rollback, or test-flake concerns to `qa/reliability`
   - route throughput, latency, or resource-budget issues to `performance`
   - route simplification and scope concerns to `critic`
   - if a finding would require cross-ownership edits or scope expansion beyond the approved slice, stop and send it back for re-approval
 - Done criteria:
   - findings are concrete and security-specific: exploitability, auth bypass, privilege exposure, CSRF/cookie/session issues, open redirects, iframe/embed/sandbox problems, admin-only exposure, secret leakage, unsafe defaults, or trust-boundary leaks
-  - review stays distinct from `staff backend`, `staff frontend`, `frontend taste`, `critic`, `qa/reliability`, `performance`, and implementer roles
+  - review stays distinct from `staff backend`, `staff frontend`, `frontend taste`, `critic`, `privacy/data-safety`, `qa/reliability`, `performance`, and implementer roles
   - output identifies a real security risk/regression or states clearly that no security issue was found in the approved scope
+
+## Reviewer role: `privacy/data-safety` v1
+
+- Purpose: review whether the approved slice can leak, retain, expose, or normalize private/user-owned data in ways that are not justified by the approved scope. `privacy/data-safety` is distinct from exploitability review: it owns local-path leakage, committed personal docs, prompt/example leakage, retained user data, and consent/retention mistakes.
+- Focus:
+  - absolute or machine-specific path leakage in code, docs, prompts, examples, user-facing output, or tests
+  - committed personal docs or real user data in `references/`, `assets/`, examples, fixtures, logs, traces, or sample files
+  - unsafe persistence defaults, reuse of uploaded user files without consent, or retention that exceeds approved scope
+  - prompt/example/test content that accidentally embeds real user data or internal storage details
+  - exposure of private content through external sends, logs, debug output, or repo-visible helper files
+- Must-check questions:
+  - does the slice reveal machine-specific paths, local storage assumptions, or internal locations that should stay private?
+  - did any real user document, prompt content, log, trace, or sample data get committed where it does not belong?
+  - is user-provided data being stored, reused, or exposed without explicit consent or without a clear scope-bound reason?
+  - do examples, references, assets, fixtures, or user-facing outputs contain private content that should be redacted or moved to local-only storage?
+  - is the retention model explicit: current-task only vs persistent local reuse vs external storage?
+- Non-goals:
+  - not the primary reviewer for exploitability, auth bypass, CSRF, privilege exposure, or secret-handling regressions when the issue is mainly security posture; that belongs to `security`
+  - not the primary reviewer for business logic or generic contract correctness
+  - not the primary reviewer for simplification, scope pressure, or overbuilding; that belongs to `critic`
+  - not the primary reviewer for resilience, flaky behavior, or raw runtime performance; those belong to `qa/reliability` and `performance`
+  - not an implementer rewrite pass
+- Escalation rules:
+  - route exploitability, auth, secret, or trust-boundary regressions to `security`
+  - route backend or frontend correctness to `staff backend` / `staff frontend` when privacy exposure is not the primary issue
+  - route resilience or rollback concerns to `qa/reliability`
+  - route simplification and scope concerns to `critic`
+  - if a finding would require cross-ownership edits or scope expansion beyond the approved slice, stop and send it back for re-approval
+- Done criteria:
+  - findings are concrete and privacy/data-safety-specific: local-path leakage, committed personal docs, prompt/example leakage, unsafe persistence, missing consent, or repo-visible private data
+  - review stays distinct from `security`, `staff backend`, `staff frontend`, `frontend taste`, `critic`, `qa/reliability`, `performance`, and implementer roles
+  - output identifies a real privacy/data-safety risk or states clearly that the approved slice is clean within scope
 
 ## Reviewer role: `qa/reliability` v1
 
@@ -207,18 +242,20 @@ Canonical reviewer roles:
   - not the primary reviewer for backend correctness unless the issue is reliability-driven
   - not the primary reviewer for frontend correctness or UX unless the issue is reliability-driven
   - not the primary reviewer for security posture or secret handling; that belongs to `security`
+  - not the primary reviewer for local-path leakage, retained user data, or consent/retention mistakes; that belongs to `privacy/data-safety`
   - not the primary reviewer for simplification, scope pressure, or overbuilding; that belongs to `critic`
   - not the primary reviewer for raw runtime performance; that belongs to `performance`
   - not an implementer rewrite pass
 - Escalation rules:
   - route backend or frontend correctness to `staff backend` / `staff frontend` when that is the primary issue
-  - route abuse, auth, secret, or exposure concerns to `security`
+  - route abuse, auth, secret, or exploitability concerns to `security`
+  - route local-path leakage, committed personal docs, retained user data, or consent/retention concerns to `privacy/data-safety`
   - route latency, throughput, CPU, memory, or bundle-weight concerns to `performance`
   - route simplification and scope concerns to `critic`
   - if a finding would require cross-ownership edits or scope expansion beyond the approved slice, stop and send it back for re-approval
 - Done criteria:
   - findings are concrete and reliability-specific: recoverability, rollback safety, degraded behavior, flake risk, diagnosability, or weak test signal
-  - review stays distinct from `staff backend`, `staff frontend`, `frontend taste`, `security`, `critic`, `performance`, and implementer roles
+  - review stays distinct from `staff backend`, `staff frontend`, `frontend taste`, `security`, `privacy/data-safety`, `critic`, `performance`, and implementer roles
   - output identifies real resilience/reliability risks or states clearly that the approved slice is clean for reliability review
 
 ## Reviewer role: `performance` v1
@@ -241,6 +278,7 @@ Canonical reviewer roles:
 - Non-goals:
   - not the primary reviewer for generic correctness, contract hygiene, or data-flow bugs unless they are performance-relevant
   - not the primary reviewer for security posture or abuse modeling; that belongs to `security`
+  - not the primary reviewer for local-path leakage, retained user data, or consent/retention mistakes; that belongs to `privacy/data-safety`
   - not the primary reviewer for resilience, flaky behavior, or recovery-process review; that belongs to `qa/reliability`
   - not the primary reviewer for simplification, scope pressure, or overbuilding; that belongs to `critic`
   - not a reviewer for architecture taste or framework fashion when there is no concrete performance cost
@@ -249,9 +287,10 @@ Canonical reviewer roles:
   - route correctness issues to `staff backend` or `staff frontend` as appropriate when performance is not the primary issue
   - route resilience or flake concerns to `qa/reliability`
   - route security concerns to `security`
+  - route local-path leakage, committed personal docs, retained user data, or consent/retention concerns to `privacy/data-safety`
   - route simplification and scope concerns to `critic`
   - if a finding would require cross-ownership edits or scope expansion beyond the approved slice, stop and send it back for re-approval
 - Done criteria:
   - findings are concrete and performance-specific: latency, throughput, CPU, memory, network, rendering, bundle cost, N+1 query waste, leaks, memoization failures, or compiler bailouts
-  - review stays distinct from `staff backend`, `staff frontend`, `frontend taste`, `security`, `qa/reliability`, `critic`, and implementer roles
+  - review stays distinct from `staff backend`, `staff frontend`, `frontend taste`, `security`, `privacy/data-safety`, `qa/reliability`, `critic`, and implementer roles
   - output identifies a real performance regression/waste or states clearly that the approved slice is clean for performance review
