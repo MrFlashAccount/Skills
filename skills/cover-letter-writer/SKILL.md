@@ -8,10 +8,38 @@ description: Write or rewrite short, high-conviction cover letters for jobs, rec
 Write short cover letters and outreach messages that help a strong candidate get past an overloaded, skeptical front gate.
 
 For detailed style rules, read `references/style-guide.md`.
-For Sergey-specific fit checks and cover letters, use the canonical Obsidian profile at `/Users/sergeygarin/Library/Mobile Documents/iCloud~md~obsidian/Documents/Career/Sergey master profile.md`.
-If needed, load it through `scripts/read_sergey_profile.py`.
+For Sergey-specific fit checks and cover letters, inspect the local private resume/profile through `scripts/check_local_resume.py`.
 
 ## Workflow
+
+### 0. Load candidate context safely
+If the user already attached a fresh resume or pasted current context in chat, use that first.
+
+If the request is for Sergey and no fresh resume is attached:
+- run `scripts/check_local_resume.py`
+- if `status=missing`, ask the user to upload the current resume or paste the missing profile details
+- if `status=ambiguous`, tell the user there is more than one plausible local resume file and ask which one to use
+- if `status=stale`, say the local resume is older than 90 days and ask which path to take:
+  - use the old local resume as-is
+  - paste only the changed facts in chat
+  - upload a new resume
+- if `status=fresh`, load the referenced local file from this skill's `private/` folder and use it as the default candidate profile
+
+Preferred local filenames inside `private/`:
+- `resume.md`
+- `resume.txt`
+- `cv.md`
+- `cv.txt`
+- `sergey-profile.md`
+- `sergey-profile.txt`
+
+Support only markdown or plain-text local resumes for the default deterministic flow.
+If the user uploads a PDF/DOC/DOCX, use it only when you have a reliable extraction path in the current environment; otherwise ask for markdown, text, or pasted key facts.
+
+If the user uploads a new resume and wants it remembered for future cover-letter work, ask explicit permission before saving it into `private/`.
+If the user does not explicitly ask for persistent storage, use the uploaded resume only for the current task.
+
+Never reveal absolute filesystem paths, internal storage locations, or script paths in the user-facing reply.
 
 ### 1. Extract the essentials
 Identify fast:
@@ -22,7 +50,6 @@ Identify fast:
 - likely hiring pain
 
 If the user already provided resume/context, do not ask for everything again.
-If the user is Sergey and no fresh resume is attached, use `/Users/sergeygarin/Library/Mobile Documents/iCloud~md~obsidian/Documents/Career/Sergey master profile.md` as the default candidate profile.
 
 ### 2. Solve the actual front-gate problem
 The letter must answer quickly:
@@ -113,5 +140,7 @@ Do not append mechanical tails like:
 - `Буду рад ответить на вопросы`
 
 unless the user explicitly asks for that style.
+
+Do not mention where the profile/resume was loaded from unless the user explicitly asks.
 
 Adapt naturally; do not force this exact wording.
