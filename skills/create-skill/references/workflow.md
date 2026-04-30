@@ -4,7 +4,7 @@ Use this file when building or rewriting a skill from source material such as a 
 
 This workflow starts after initial scoping. If the target skill is still fuzzy, route that first-pass discovery through `grill-me`, then come back here for execution.
 
-Hard gate: after scoping and before implementation, present the proposed skill shape and wait for the user's explicit `ПОДТВЕРЖДАЮ`. Do not start creating the skill structure before that approval.
+Hard gate: after scoping and before implementation, present the proposed skill shape and wait for the user's explicit `APPROVED` or `LGTM`. Do not start creating the skill structure before that approval.
 
 ## 1. Start from concrete examples
 

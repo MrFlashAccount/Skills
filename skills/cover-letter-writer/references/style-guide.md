@@ -96,24 +96,24 @@ The goal is:
 
 ### Avoid dead closing tails
 Unless explicitly requested, do not add dead generic endings such as:
-- `Резюме: <cv>`
-- `Прикладываю резюме`
-- `Буду рад ответить на вопросы`
-- `Спасибо за внимание`
+- `Resume: <cv>`
+- `Attaching my resume`
+- `Happy to answer any questions`
+- `Thank you for your time`
 
 Prefer ending on a calm, direct CTA.
 
 ### Avoid AI-ish vacancy praise
 Do not write lines that sound like fake enthusiasm or product-review copy, such as:
-- `Вакансия X понравилась`
-- `Ваша вакансия выглядит очень близкой`
-- `Это не просто еще одна вакансия`
-- `Ваш продукт выглядит очень интересным` (unless the user truly wants this angle and there is a real specific reason)
+- `I liked role X`
+- `Your role feels very aligned`
+- `This is not just another vacancy`
+- `Your product looks very interesting` (unless the user truly wants this angle and there is a real specific reason)
 
 Prefer simpler, more human openings such as:
-- `Увидел вашу вакансию и решил написать.`
-- `Увидел пост и решил откликнуться.`
-- `Решил написать напрямую.`
+- `I saw your role and decided to write.`
+- `I saw the post and decided to apply.`
+- `I decided to reach out directly.`
 
 The opening should feel natural, not performative.
 
@@ -152,8 +152,8 @@ When generating final ready-to-send versions for chat apps, especially Telegram:
 - do not mix explanations into the message body
 - optimize for one-tap copy/send
 
-## Default style for Sergey
-When writing for Sergey:
+## Default style for the current candidate
+When writing for the current candidate:
 - keep it short and human
 - avoid corporate language
 - make it sound adult and capable
@@ -164,4 +164,4 @@ When writing for Sergey:
 - do not sound like a fake overpackaged "wolf"
 
 ## Example formula
-"Привет. Увидел [пост/вакансию]. Я [роль/уровень]. Обычно я полезен там, где нужно [pain solved]. Из последнего: [proof point 1], [proof point 2]. Если вам нужен человек такого профиля, думаю, есть смысл созвониться."
+"Hi. I saw [the post / role]. I am a [role / level]. I am usually most useful where teams need [pain solved]. Most recently: [proof point 1], [proof point 2]. If you need someone with that profile, I think a call would make sense."

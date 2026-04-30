@@ -8,14 +8,14 @@ description: Write or rewrite short, high-conviction cover letters for jobs, rec
 Write short cover letters and outreach messages that help a strong candidate get past an overloaded, skeptical front gate.
 
 For detailed style rules, read `references/style-guide.md`.
-For Sergey-specific fit checks and cover letters, inspect the local private resume/profile through `scripts/check_local_resume.py`.
+For local fit checks and cover letters, inspect the local private resume/profile through `scripts/check_local_resume.py`.
 
 ## Workflow
 
 ### 0. Load candidate context safely
 If the user already attached a fresh resume or pasted current context in chat, use that first.
 
-If the request is for Sergey and no fresh resume is attached:
+If no fresh resume is attached:
 - run `scripts/check_local_resume.py`
 - if `status=missing`, ask the user to upload the current resume or paste the missing profile details
 - if `status=ambiguous`, tell the user there is more than one plausible local resume file and ask which one to use
@@ -30,8 +30,8 @@ Preferred local filenames inside `private/`:
 - `resume.txt`
 - `cv.md`
 - `cv.txt`
-- `sergey-profile.md`
-- `sergey-profile.txt`
+- `candidate-profile.md`
+- `candidate-profile.txt`
 
 Support only markdown or plain-text local resumes for the default deterministic flow.
 If the user uploads a PDF/DOC/DOCX, use it only when you have a reliable extraction path in the current environment; otherwise ask for markdown, text, or pasted key facts.
@@ -112,8 +112,8 @@ Offer variants like:
 - product-company-oriented
 - Vastrik/Telegram DM style
 
-## Special instruction for Sergey
-When writing for Sergey:
+## Special instruction for the current candidate
+When writing for the current candidate:
 - optimize for trust and speed of reading
 - show strong frontend leadership fast
 - emphasize hands-on technical depth
@@ -125,19 +125,19 @@ When writing for Sergey:
 Use a structure close to this:
 
 ```text
-Привет. Увидел [пост/вакансию/сообщение] и решил написать.
+Hi. I saw [the post / role / message] and decided to reach out.
 
-Я [роль/уровень]. Обычно я полезен там, где нужно [pain solved].
+I am a [role / level]. I am usually most useful where teams need [pain solved].
 
-Из последнего: [proof point 1]. [Proof point 2].
+Most recently: [proof point 1]. [Proof point 2].
 
-Если вам нужен человек такого профиля, думаю, есть смысл созвониться.
+If you need someone with that profile, I think a call would make sense.
 ```
 
 Do not append mechanical tails like:
-- `Резюме: <cv>`
-- `Прикладываю резюме`
-- `Буду рад ответить на вопросы`
+- `Resume: <cv>`
+- `Attaching my resume`
+- `Happy to answer any questions`
 
 unless the user explicitly asks for that style.
 

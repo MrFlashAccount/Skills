@@ -3,7 +3,7 @@
 ## Scope handoff
 - initial discovery/scoping is already done, or was explicitly routed through `grill-me`
 - the target skill is defined enough to execute, not just discuss
-- the user explicitly approved implementation with `ПОДТВЕРЖДАЮ` before file creation started
+- the user explicitly approved implementation with `APPROVED` or `LGTM` before file creation started
 
 ## Frontmatter
 - `name` exists and matches the folder name

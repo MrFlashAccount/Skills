@@ -13,7 +13,7 @@ PREFERRED_NAMES = (
     "resume",
     "cv",
     "profile",
-    "sergey-profile",
+    "candidate-profile",
 )
 
 
