@@ -50,6 +50,7 @@ Read only the references needed for the current phase; do not load every role by
    - default proposal template: `Goal / Non-goals / File zones / Acceptance / Rollback / Unknowns-or-assumptions`
    - for `tiny` work, use a 3-4 bullet proposal instead of the full template
    - if the slice is or might be `sensitive-surface`, extend the proposal with: `Sensitive inputs / Persistence / Exposure surface / Reviewer plan`
+   - if the slice touches backend request-path, persistence, or async runtime behavior, also name: `Request-path impact / Contract touchpoints / Docs-to-update`
    - classify as `sensitive-surface` by default when the slice touches any of: local files, personal docs, `references/`, `assets/`, prompts/examples, logs/traces, retained user data, external sends, or machine-specific paths
    - keep one recommended path; add at most one alternative only if it materially changes risk or scope
    - show one cleaned proposal to the user before coding
@@ -79,6 +80,7 @@ Read only the references needed for the current phase; do not load every role by
    - keep `security` separate: it covers exploitability/auth/trust-boundary regressions; `privacy/data-safety` covers local paths, personal docs, retained user data, prompt/example leakage, and consent/retention mistakes
    - default to one independent reviewer; use `code-review-orchestrator` for non-trivial, risky, multi-zone, or `sensitive-surface` work
    - choose reviewers from the canonical reviewer role set by task context
+   - backend slices that touch request-path, persistence, or async runtime behavior must include `staff backend`; add `performance` when the path is user-visible, hot, or can block on storage/network/process work; add `qa/reliability` when retries/timeouts/recovery/duplicate-delivery semantics materially change
    - a worker may not review a slice it authored
    - collect findings into a short report
    - feed in-scope fixes back to the relevant workers without asking for fresh approval each pass
@@ -114,6 +116,7 @@ Notes:
 
 - Do not let two agents edit the same file zone.
 - Do not mix auth, UI, importer, security, and privacy/data-retention changes in one slice.
+- Do not treat backend request-shape or persistence changes as implementation-only details; contract and docs impact must be checked before approval and before closing review.
 - Keep the critic separate from implementers.
 - If a slice touches local files, personal docs, prompts/examples, logs/traces, retained user data, or machine-specific paths, treat it as `sensitive-surface` until proven otherwise.
 - Do not commit real user documents, machine-specific paths, or retained private data into repo-visible `references/`, `assets/`, examples, fixtures, or logs.

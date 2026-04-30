@@ -13,9 +13,12 @@ Read only the sections for implementer roles you are about to launch.
 - Execution rules:
   - stay inside assigned backend ownership; do not drift into frontend ownership or make UI/visual decisions
   - preserve approved contracts unless the task explicitly approves a contract change; do not silently widen, loosen, or break request/response, event, schema, or data invariants
+  - treat request shape, persistence semantics, and async runtime behavior as contract-adjacent; do not slip in handler/request-field drift, storage-side defaults, or background side effects without making them explicit
+  - on async or request-serving paths, avoid blocking synchronous persistence/I/O unless the task explicitly allows it and the cost is called out; prefer the project-native non-blocking pattern for the touched stack
   - prefer explicit validation, readable control flow, and predictable failure modes over clever abstractions or hidden behavior
   - treat migration and rollout safety as part of correctness; avoid unsafe destructive changes unless explicitly approved
   - keep auth, security checks, logging, and testability aligned with project-local backend patterns for the touched slice
+  - if code changes the real backend contract, update the contract-adjacent docs/architecture notes in-slice when they exist; do not leave docs describing an older request shape or persistence behavior
   - if a required contract or frontend dependency is missing, contradictory, or would force cross-ownership edits, stop and surface the blocker instead of guessing
 - Non-goals:
   - frontend UI/UX, visual polish, client-state design, or component ownership
@@ -24,7 +27,9 @@ Read only the sections for implementer roles you are about to launch.
 - Done criteria / verification expectations:
   - the owned backend slice meets acceptance criteria and stays within backend ownership
   - contracts remain compatible with the approved task scope, with no silent widening or breakage
+  - request-path, persistence, and async-runtime behavior remain explicit and reviewable, with no unapproved blocking sync I/O on hot/request-serving paths
   - validation, failure handling, and data-flow changes are explicit and reviewable
+  - contract-adjacent docs/notes named in the task contract are updated or explicitly confirmed still correct
   - run the smallest meaningful backend verification for the slice and report it, such as a targeted test, typecheck, lint, migration check, contract check, or equivalent project-native verification
 
 ## Implementer role: `frontend` v1

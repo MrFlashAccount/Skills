@@ -46,12 +46,15 @@ Canonical reviewer roles:
 - Focus:
   - API and schema contract hygiene, including accidental widening, loosened invariants, and ambiguous request/response or event semantics
   - data flow correctness across handlers, services, persistence, async paths, and background jobs
+  - request-shape drift, storage-side default drift, and docs/architecture drift when the real backend contract moved
   - validation, failure handling, edge cases, and permission/authz enforcement in the touched backend slice
   - migration, rollout, rollback, and bounded transitional compatibility when real rollout risk requires it
   - testability and observability for the changed backend behavior
 - Must-check questions:
   - does this preserve or intentionally change the backend contract in a clear, reviewable way, without silent widening or hidden invariant drift?
+  - did request payload shape, persistence behavior, or side effects drift without the contract/docs being updated to match?
   - are validation, retry/timeout handling, and error paths explicit enough for the touched backend flow?
+  - does any async or request-serving path now perform blocking synchronous persistence/I/O or equivalent avoidable blocking work?
   - do data writes, reads, async work, and background-job behavior stay coherent under edge cases, partial failure, retries, and duplicate delivery?
   - are authn/authz and permission boundaries still enforced at the right backend boundary, including indirect or newly reachable paths?
   - if this replaces an old path, should the old path be removed instead of keeping a parallel compatibility flow alive? if temporary compatibility is truly needed for rollout, is it explicitly bounded with a sunset/removal expectation?
@@ -67,7 +70,7 @@ Canonical reviewer roles:
   - if a clean replacement is clearly correct for the approved slice, do not preserve backward compatibility for its own sake; only accept transitional compatibility when rollout or migration risk genuinely requires it, and require an explicit bound or removal path
   - if a finding would force contract redesign, cross-ownership edits, or scope expansion beyond the approved slice, stop and send it back for re-approval
 - Done criteria:
-  - findings are concrete and backend-specific, centered on contracts, data flow, validation, failure modes, permissions, migration/rollout safety, and observability/testability
+  - findings are concrete and backend-specific, centered on contracts, request-shape drift, data flow, validation, failure modes, permissions, migration/rollout safety, and observability/testability
   - review stays distinct from `critic`, `security`, `qa/reliability`, `performance`, and implementer `backend`
   - any compatibility concern is called out with an explicit keep/remove judgment, not a vague preference to support both paths forever
   - output identifies real correctness risks or states clearly that backend correctness review is clean for the approved slice
@@ -228,6 +231,7 @@ Canonical reviewer roles:
 - Purpose: review failure handling, recoverability, and test-signal quality for the approved slice. `qa/reliability` checks whether the touched path behaves sanely under failure, rollback, retries, flaky conditions, and degraded operation, and whether the tests meaningfully prove that.
 - Focus:
   - retry/timeout behavior, idempotency, degraded mode, and failure recovery in the touched slice
+  - request-path behavior under partial persistence/network/process failure, duplicate delivery, and slow downstream dependencies
   - rollback/roll-forward safety and bounded compatibility only when recovery risk genuinely requires it, not as a second migration/correctness pass
   - flaky-test sensitivity, nondeterminism, races, and brittle assumptions in the touched path
   - observability and diagnosability for failure/incident signals: logs, metrics, alerts, and other project-native signals that make failures explainable
@@ -264,6 +268,7 @@ Canonical reviewer roles:
 - Focus:
   - only inspect performance categories that actually exist in the touched slice; do not turn this into a broad perf tour outside approved scope
   - hot-path latency, throughput, and request/interaction cost on user-visible or system-critical paths
+  - blocking synchronous persistence/I/O or equivalent avoidable blocking work on async/request-serving paths
   - unnecessary CPU, memory, rendering, or network work in the touched slice
   - memory leaks, retainers, or long-lived allocations that grow cost over time
   - repeated fetches, N+1 database/query patterns, wasted recomputation, bundle growth, or avoidable chatter
@@ -271,6 +276,7 @@ Canonical reviewer roles:
   - performance regressions that are visible to users or meaningfully affect system cost
 - Must-check questions:
   - does the change add avoidable work on a hot or user-visible path?
+  - does any async or request-serving path block on sync persistence/I/O, or move work onto the critical path that should stay deferred/batched/off-thread?
   - are there memory leaks, long-lived allocations, or retention patterns that make this path degrade over time?
   - are memoization, caching, batching, pagination, or deferral choices helping, or are they broken, wasted, or causing React compiler bailouts?
   - does the change increase render churn, network chatter, N+1 queries, bundle weight, or memory use without enough payoff?
