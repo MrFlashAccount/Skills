@@ -11,6 +11,9 @@ Read this before any review pass.
 - A worker may not review a slice it authored.
 - Keep reviewer selection separate from implementer roles; do not treat review specialties as implementer labels.
 - Choose reviewers from the canonical reviewer role set by task context.
+- Backend slices that touch request-path, persistence, or async runtime behavior must include `staff backend`.
+- Add `performance` review when the touched backend path is user-visible, hot, or can block on sync storage/network/process work.
+- Add `qa/reliability` review when retries, timeouts, duplicate-delivery, rollback, or degraded-mode behavior materially changes.
 - Collect findings into a short report.
 - Feed in-scope fixes back to the relevant implementers without asking for fresh approval each pass.
 - If a review finding expands scope, forces redesign, or surfaces a high-risk contradiction, stop and go back to the user for re-approval.

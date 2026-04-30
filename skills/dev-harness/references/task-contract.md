@@ -16,6 +16,9 @@ Use this before starting any non-trivial dev task.
 - Sensitive inputs:
 - Persistence:
 - Exposure surface:
+- Request-path impact:
+- Contract touchpoints:
+- Docs to update:
 - Reviewer plan:
 
 ## Rules
@@ -31,6 +34,7 @@ Use this before starting any non-trivial dev task.
 - Freeze scope once the contract is agreed.
 - If `Sensitive surface` is yes or uncertain, fill all sensitive-data fields before approval.
 - If the slice stores or reuses user-provided data, the contract must say whether storage is one-shot or persistent, and whether explicit user consent is required.
+- If the slice touches backend request-path, persistence, or async runtime behavior, the contract must say whether any blocking sync I/O exists on the request path, which contract/request-shape surfaces can drift, and which docs/architecture notes must stay in sync.
 
 ## Output
 

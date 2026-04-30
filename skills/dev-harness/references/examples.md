@@ -16,7 +16,8 @@ Use these only as routing/eval sanity checks. Do not cargo-cult them into broad 
 - Class: `non-trivial`
 - Read first: `task-contract.md`
 - Implementers: one `backend`, or multiple `backend` owners only if file zones are fully non-overlapping
-- Review: `staff backend`; add `security`, `qa/reliability`, or `performance` only if their risk is primary
+- Contract extras: name request-path impact, contract touchpoints, and docs/architecture notes that must stay aligned
+- Review: always `staff backend`; add `performance` when the touched path is user-visible/hot or can block on sync storage/network/process work; add `qa/reliability` when retries/timeouts/recovery/duplicate-delivery semantics materially change; add `security` only when exploitability/auth/trust-boundary risk is primary
 
 ## 3) Frontend correctness plus visual quality
 
@@ -51,7 +52,7 @@ Use these only as routing/eval sanity checks. Do not cargo-cult them into broad 
 
 - Task: user-visible latency, hot-path waste, memory growth, N+1 queries, or render churn is the main concern
 - Review: `performance`
-- Expected focus: real regressions/waste in the touched slice only, not generic optimization advice
+- Expected focus: real regressions/waste in the touched slice only, including blocking sync persistence/I/O on async request paths, not generic optimization advice
 
 ## 8) Complex or multi-zone review
 
