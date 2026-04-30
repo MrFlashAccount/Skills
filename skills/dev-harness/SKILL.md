@@ -56,7 +56,7 @@ Read only the references needed for the current phase; do not load every role by
    - show one cleaned proposal to the user before coding
    - this gate is mandatory for every code task, even tiny ones
    - after proposal, stop; continue only after explicit approval
-   - approval means `ПОДТВЕРЖДАЮ` or an equally explicit go-ahead; `ок`, `ага`, `ясно`, and similar weak acknowledgements are not approval
+   - approval means an explicit `APPROVED` or `LGTM`, or the same level of unmistakable go-ahead in the user's language; `ok`, `yeah`, `got it`, and similar weak acknowledgements are not approval
    - before approval, proposals may include goals, risks, and architecture, but not code blocks, pseudocode, function/class skeletons, exact file-by-file edit recipes, command sequences, SQL/migrations, exact signatures, patch-like diffs, or ready-to-apply code
 4. Choose the lightest viable implementation path after approval.
    - simple one-file / low-risk fix: launch one narrow implementer worker, minimal scope only if the slice is not `sensitive-surface`

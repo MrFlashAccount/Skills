@@ -12,4 +12,4 @@ Format:
 - 2026-04-23 — review mandate: every code task keeps a review gate; simple fixes get the lightest review, not no review.
 - 2026-04-23 — orchestration-only rule: even simple fixes should be routed through at least one subagent; the harness itself should not do the coding manually.
 - 2026-04-23 — two critic stages: `dev-harness` owns the pre-implementation critic/debate, while `code-review-orchestrator` is the post-implementation review gate.
-- 2026-04-23 — approval gate clarification: after discovery/proposal, dev-harness must pause and wait for explicit user approval (`ПОДТВЕРЖДАЮ` or equivalent) before any edits.
+- 2026-04-23 — approval gate clarification: after discovery/proposal, dev-harness must pause and wait for explicit user approval (`APPROVED`, `LGTM`, or an equally explicit localized equivalent) before any edits.

@@ -8,7 +8,7 @@ Turn this source material into a real source-first skill folder.
 This is execution stage, not initial discovery stage.
 If scope is still fuzzy, use `grill-me` first to determine what actually needs to be built. Start this skill only after the target skill shape is clear enough to execute.
 
-After scoping and before any real skill implementation work, stop and wait for the user's explicit `ПОДТВЕРЖДАЮ`.
+After scoping and before any real skill implementation work, stop and wait for the user's explicit `APPROVED` or `LGTM`.
 Do not draft files, create the skill structure, or start fix/review passes before that approval.
 
 Work from concrete usage, not abstract summaries.
