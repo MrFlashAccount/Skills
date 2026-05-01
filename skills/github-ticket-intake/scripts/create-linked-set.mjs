@@ -22,12 +22,14 @@ import { renderIssueBody } from './render-checklist.mjs';
  * @property {string[]} [openQuestions]
  * @property {(string|{title:string, done?:boolean})[]} [subtasks]
  * @property {'parent'|'child'|'peer'} [role]
+ * @property {string} [template]
  */
 
 /**
  * @typedef {Object} TicketSetContract
  * @property {string} repo
  * @property {string[]} [labels]
+ * @property {string} [template]
  * @property {TicketDraft[]} issues
  */
 
@@ -99,7 +101,10 @@ const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'github-ticket-intake-set-
 const created = [];
 
 for (let index = 0; index < contract.issues.length; index += 1) {
-  const issue = contract.issues[index];
+  const issue = {
+    ...contract.issues[index],
+    template: contract.issues[index].template || contract.template,
+  };
   const bodyPath = path.join(tempDir, `issue-${index + 1}.md`);
   fs.writeFileSync(bodyPath, renderFullBody(issue, ''), 'utf8');
 
@@ -120,7 +125,10 @@ for (let index = 0; index < contract.issues.length; index += 1) {
 
 const output = [];
 for (let index = 0; index < contract.issues.length; index += 1) {
-  const issue = contract.issues[index];
+  const issue = {
+    ...contract.issues[index],
+    template: contract.issues[index].template || contract.template,
+  };
   const relationSection = buildRelationSection(created, index);
   const bodyPath = path.join(tempDir, `issue-${index + 1}-linked.md`);
   const fullBody = renderFullBody(issue, relationSection);

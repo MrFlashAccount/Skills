@@ -19,6 +19,7 @@ Use this before drafting or creating any GitHub ticket or project artifact.
 - Labels:
 - Priority:
 - Checklist or ticket split:
+- Issue body template:
 - Acceptance criteria:
 - Risks:
 - Open questions:
@@ -33,6 +34,7 @@ Use this before drafting or creating any GitHub ticket or project artifact.
 - If one ticket is enough, prefer one ticket.
 - Prefer one ticket with a checklist before splitting into multiple tickets.
 - Split into multiple tickets only when the work clearly benefits from separate tracked units.
+- Template choice is optional. Default to the skill's standard template unless the user or repo convention wants a different issue-body shape.
 - Research-program shaping such as Vikra research is out of scope here.
 - If the repo or board target is unknown, stop at `draft-only`.
 - If the request mixes multiple unrelated outcomes, split it into separate task candidates before writing anything.

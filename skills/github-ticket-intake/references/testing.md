@@ -46,6 +46,26 @@ cat <<'JSON' | node scripts/render-checklist.mjs
 JSON
 ```
 
+### Render checklist with named template
+
+```bash
+cat <<'JSON' | node scripts/render-checklist.mjs
+{
+  "title": "Template smoke",
+  "summary": "Use the brief template",
+  "template": "brief",
+  "inScope": ["Ticket shape"],
+  "outOfScope": ["Writes"],
+  "acceptanceCriteria": ["Brief sections render"],
+  "subtasks": ["Check output"]
+}
+JSON
+```
+
+Confirm that:
+- default render uses the default template
+- `template: "brief"` switches section layout without editing JS
+
 ### Write-ready preflight
 
 ```bash
@@ -62,9 +82,10 @@ Expected result:
 cat <<'JSON' | node scripts/create-linked-set.mjs --dry-run
 {
   "repo": "owner/repo",
+  "template": "default",
   "issues": [
     {"title": "Parent issue", "summary": "Parent", "role": "parent"},
-    {"title": "Child issue", "summary": "Child", "role": "child"}
+    {"title": "Child issue", "summary": "Child", "role": "child", "template": "brief"}
   ]
 }
 JSON
@@ -74,6 +95,7 @@ Confirm that the output shape is:
 - both issues are present
 - the parent body gets a child link
 - the child body gets a parent link
+- the set-level template defaults the parent body and the child can override it
 - the returned summary contains both URLs
 
 ## With-skill vs without-skill comparison

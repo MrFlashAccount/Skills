@@ -53,8 +53,9 @@ Default to `draft-only` unless the user clearly wants the GitHub side created no
    - do not fabricate issue URLs, board IDs, labels, or project mappings
 7. For `write-ready` work:
    - run [scripts/gh-preflight.mjs](scripts/gh-preflight.mjs) before attempting GitHub writes
+   - render the issue body with [scripts/render-checklist.mjs](scripts/render-checklist.mjs), choosing a named template when the contract calls for one; otherwise use the default template from `templates/`
    - use [scripts/create-issue.mjs](scripts/create-issue.mjs) for one issue or one issue with a checklist
-   - use [scripts/create-linked-set.mjs](scripts/create-linked-set.mjs) for a small linked ticket set
+   - use [scripts/create-linked-set.mjs](scripts/create-linked-set.mjs) for a small linked ticket set; it can take a set-level default template and per-issue overrides
    - add created issues to the project with [scripts/add-to-project.mjs](scripts/add-to-project.mjs) only when project placement is requested and the target project is known
 8. Return a compact summary:
    - title or ticket set
@@ -69,6 +70,7 @@ Default to `draft-only` unless the user clearly wants the GitHub side created no
 - Never tie trigger logic to voice notes specifically.
 - Always produce a task contract before GitHub writes.
 - Ask only for the smallest blocker: repo, project placement, labels, project mapping, or missing write intent.
+- Treat issue-body template choice as optional. If nobody asked for a special shape, use the default template.
 - Keep decomposition boring and implementation-friendly.
 - Prefer one ticket unless the work clearly wants a split.
 - Prefer a checklist over multiple tickets when separate tracking would not add real value.
