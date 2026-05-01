@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * @fileoverview Create a GitHub issue from a normalized task contract.
+ * @fileoverview Create a GitHub issue from a normalized task contract and a pre-rendered body on stdin.
  */
 
 import fs from 'node:fs';

@@ -29,42 +29,13 @@ Use this when validating or revising `github-ticket-intake`.
 
 ## Smoke tests
 
-### Render checklist
+### Manual template use
 
-```bash
-cat <<'JSON' | node scripts/render-checklist.mjs
-{
-  "title": "Test issue",
-  "summary": "Small smoke test",
-  "desiredOutcome": "A usable GitHub issue body",
-  "inScope": ["One issue"],
-  "outOfScope": ["Implementation"],
-  "acceptanceCriteria": ["Markdown renders"],
-  "risks": ["None"],
-  "subtasks": ["First task", {"title": "Done task", "done": true}]
-}
-JSON
-```
-
-### Render checklist with named template
-
-```bash
-cat <<'JSON' | node scripts/render-checklist.mjs
-{
-  "title": "Template smoke",
-  "summary": "Use the brief template",
-  "template": "brief",
-  "inScope": ["Ticket shape"],
-  "outOfScope": ["Writes"],
-  "acceptanceCriteria": ["Brief sections render"],
-  "subtasks": ["Check output"]
-}
-JSON
-```
+Read `templates/default.md` or `templates/brief.md`, then hand-write a body from one of them.
 
 Confirm that:
-- default render uses the default template
-- `template: "brief"` switches section layout without editing JS
+- templates are plain markdown guidance files
+- the assistant, not a script, chooses the template and fills the body
 
 ### Write-ready preflight
 
@@ -82,10 +53,17 @@ Expected result:
 cat <<'JSON' | node scripts/create-linked-set.mjs --dry-run
 {
   "repo": "owner/repo",
-  "template": "default",
   "issues": [
-    {"title": "Parent issue", "summary": "Parent", "role": "parent"},
-    {"title": "Child issue", "summary": "Child", "role": "child", "template": "brief"}
+    {
+      "title": "Parent issue",
+      "body": "## Summary\nParent issue body\n\n## Checklist\n- [ ] Parent task",
+      "role": "parent"
+    },
+    {
+      "title": "Child issue",
+      "body": "## Problem\nChild issue body\n\n## Delivery checklist\n- [ ] Child task",
+      "role": "child"
+    }
   ]
 }
 JSON
@@ -95,7 +73,7 @@ Confirm that the output shape is:
 - both issues are present
 - the parent body gets a child link
 - the child body gets a parent link
-- the set-level template defaults the parent body and the child can override it
+- the returned bodies preserve the pre-rendered markdown and only append related links
 - the returned summary contains both URLs
 
 ## With-skill vs without-skill comparison

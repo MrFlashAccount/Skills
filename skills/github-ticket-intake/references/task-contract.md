@@ -19,7 +19,8 @@ Use this before drafting or creating any GitHub ticket or project artifact.
 - Labels:
 - Priority:
 - Checklist or ticket split:
-- Issue body template:
+- Issue body template to read manually:
+- Final issue body or bodies:
 - Acceptance criteria:
 - Risks:
 - Open questions:
@@ -35,6 +36,7 @@ Use this before drafting or creating any GitHub ticket or project artifact.
 - Prefer one ticket with a checklist before splitting into multiple tickets.
 - Split into multiple tickets only when the work clearly benefits from separate tracked units.
 - Template choice is optional. Default to the skill's standard template unless the user or repo convention wants a different issue-body shape.
+- Read templates from `templates/`, but fill the markdown body yourself. Do not ask scripts to render placeholders.
 - Research-program shaping such as Vikra research is out of scope here.
 - If the repo or board target is unknown, stop at `draft-only`.
 - If the request mixes multiple unrelated outcomes, split it into separate task candidates before writing anything.
@@ -49,6 +51,7 @@ Use this before drafting or creating any GitHub ticket or project artifact.
 Return a short package with:
 - issue-title candidate or ticket set
 - one-paragraph summary
+- final issue body or bodies
 - checklist or split
 - labels and board target
 - blockers or missing GitHub context

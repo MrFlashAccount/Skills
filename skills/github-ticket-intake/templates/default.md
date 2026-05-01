@@ -1,20 +1,26 @@
+# Default issue body template
+
+Use this when the request wants the standard full shape.
+
+Fill it manually before calling any script:
+
 ## Summary
-{{summary}}
+One short paragraph on the task and why it exists.
 
 ## Desired outcome
-{{desiredOutcome}}
+State the end condition in plain language.
 
 ## In scope
-{{inScope}}
+- concrete item
 
 ## Out of scope
-{{outOfScope}}
+- explicit non-goal
 
 ## Acceptance criteria
-{{acceptanceCriteria}}
+- observable done condition
 
 ## Risks / open questions
-{{risksOpenQuestions}}
+- risk or unanswered question
 
 ## Checklist
-{{checklist}}
+- [ ] implementation step or follow-up

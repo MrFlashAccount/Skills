@@ -1,18 +1,24 @@
+# Brief issue body template
+
+Use this when the repo prefers a tighter issue body.
+
+Fill it manually before calling any script:
+
 ## Problem
-{{summary}}
+One short paragraph on the task/problem.
 
 ## Done when
-{{acceptanceCriteria}}
+- observable done condition
 
 ## Scope notes
 ### In scope
-{{inScope}}
+- concrete item
 
 ### Out of scope
-{{outOfScope}}
+- explicit non-goal
 
 ## Delivery checklist
-{{checklist}}
+- [ ] implementation step or follow-up
 
 ## Risks / questions
-{{risksOpenQuestions}}
+- risk or open question

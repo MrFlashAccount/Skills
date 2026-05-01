@@ -31,11 +31,12 @@ Steps:
    - if required, is the project known?
    - write now, or draft first?
 3. Decide whether this is one ticket, one ticket with a checklist, or a small linked set.
-4. Run [../scripts/gh-preflight.mjs](../scripts/gh-preflight.mjs) for auth sanity, and for project sanity when project placement is required.
-5. Create the issue with `create-issue.mjs` for one issue or one issue with a checklist.
-6. Create the ticket set with `create-linked-set.mjs` when the shape is a small linked set.
-7. Add each created issue to the project board only when project placement is requested and the target project is known.
-8. Return titles, labels, URLs, project target if used, and blockers if any destination step stopped the write path.
+4. Choose the markdown template manually from `templates/` if needed, then write the final issue body or bodies yourself.
+5. Run [../scripts/gh-preflight.mjs](../scripts/gh-preflight.mjs) for auth sanity, and for project sanity when project placement is required.
+6. Create the issue with `create-issue.mjs` for one issue or one issue with a checklist. The script only writes the body you pass on stdin.
+7. Create the ticket set with `create-linked-set.mjs` when the shape is a small linked set. Each issue must already contain a final `body`; the script only creates issues then backfills relation links.
+8. Add each created issue to the project board only when project placement is requested and the target project is known.
+9. Return titles, labels, URLs, project target if used, and blockers if any destination step stopped the write path.
 
 ## Destination resolution guidance
 
@@ -50,6 +51,7 @@ Steps:
 
 - If one issue is marked as `parent`, create the whole set first, then backfill parent/child links into the issue bodies.
 - If there is no parent, treat the set as sibling tickets and backfill a simple related-issues list into each body.
+- Backfill means appending a `## Related issues` section after issue URLs exist; body drafting still belongs to the agent.
 - Keep the set small. If linking logic needs a complex graph, the request is outside this skill's happy path.
 
 ## Decomposition guidance

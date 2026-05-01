@@ -1,35 +1,25 @@
 #!/usr/bin/env node
 
 /**
- * @fileoverview Create a small linked GitHub ticket set from a normalized contract.
+ * @fileoverview Create a small linked GitHub ticket set from pre-rendered issue bodies.
  */
 
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { renderIssueBody } from './render-checklist.mjs';
 
 /**
  * @typedef {Object} TicketDraft
  * @property {string} title
- * @property {string} [summary]
- * @property {string} [desiredOutcome]
- * @property {string[]} [inScope]
- * @property {string[]} [outOfScope]
- * @property {string[]} [acceptanceCriteria]
- * @property {string[]} [risks]
- * @property {string[]} [openQuestions]
- * @property {(string|{title:string, done?:boolean})[]} [subtasks]
+ * @property {string} body
  * @property {'parent'|'child'|'peer'} [role]
- * @property {string} [template]
  */
 
 /**
  * @typedef {Object} TicketSetContract
  * @property {string} repo
  * @property {string[]} [labels]
- * @property {string} [template]
  * @property {TicketDraft[]} issues
  */
 
@@ -56,12 +46,12 @@ function run(command, args) {
 }
 
 /**
- * @param {TicketDraft} draft
+ * @param {string} body
  * @param {string} relationSection
  * @returns {string}
  */
-function renderFullBody(draft, relationSection) {
-  const base = renderIssueBody(draft).trimEnd();
+function renderFullBody(body, relationSection) {
+  const base = String(body || '').trimEnd();
   return relationSection ? `${base}\n\n## Related issues\n${relationSection}\n` : `${base}\n`;
 }
 
@@ -96,17 +86,22 @@ const contract = readContract(contractArg);
 if (!Array.isArray(contract.issues) || contract.issues.length < 2) {
   throw new Error('create-linked-set.mjs expects at least 2 issues');
 }
+for (const issue of contract.issues) {
+  if (typeof issue.title !== 'string' || issue.title.trim() === '') {
+    throw new Error('Each issue must include a non-empty title');
+  }
+  if (typeof issue.body !== 'string' || issue.body.trim() === '') {
+    throw new Error('Each issue must include a pre-rendered non-empty body');
+  }
+}
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'github-ticket-intake-set-'));
 const created = [];
 
 for (let index = 0; index < contract.issues.length; index += 1) {
-  const issue = {
-    ...contract.issues[index],
-    template: contract.issues[index].template || contract.template,
-  };
+  const issue = contract.issues[index];
   const bodyPath = path.join(tempDir, `issue-${index + 1}.md`);
-  fs.writeFileSync(bodyPath, renderFullBody(issue, ''), 'utf8');
+  fs.writeFileSync(bodyPath, renderFullBody(issue.body, ''), 'utf8');
 
   if (dryRun) {
     const fakeUrl = `https://example.invalid/${contract.repo}/issues/${index + 1}`;
@@ -125,13 +120,10 @@ for (let index = 0; index < contract.issues.length; index += 1) {
 
 const output = [];
 for (let index = 0; index < contract.issues.length; index += 1) {
-  const issue = {
-    ...contract.issues[index],
-    template: contract.issues[index].template || contract.template,
-  };
+  const issue = contract.issues[index];
   const relationSection = buildRelationSection(created, index);
   const bodyPath = path.join(tempDir, `issue-${index + 1}-linked.md`);
-  const fullBody = renderFullBody(issue, relationSection);
+  const fullBody = renderFullBody(issue.body, relationSection);
   fs.writeFileSync(bodyPath, fullBody, 'utf8');
 
   if (!dryRun) {
