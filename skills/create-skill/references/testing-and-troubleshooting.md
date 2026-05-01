@@ -28,6 +28,32 @@ Run at least these checks before calling the skill done:
 
 If the skill fails any of these, revise frontmatter or routing.
 
+## Workflow coherence matrix
+
+For any non-trivial skill, test at least one example for each major branch the docs claim to support.
+Typical branches include:
+- destination or ownership known vs ambiguous
+- draft-only vs write-now
+- one item vs one item with checklist vs small linked set
+- create-only vs update/backfill/field-setting branches when those are claimed
+
+Fail the skill if a branch is described in docs but has no operational closure, no script support where needed, or no explicit stop condition.
+
+## Capability-vs-doc audit
+
+Before calling a skill done, compare:
+- frontmatter promises
+- `SKILL.md` promises
+- references promises
+- actual scripts/files and tested workflow
+
+Treat these as review failures:
+- docs promise create/update but only create exists
+- docs promise linked items but do not define linking strategy or backfill step
+- docs imply automatic destination choice where the workflow actually needs clarification
+- docs imply project/field/metadata writes that the shipped path does not perform
+- docs sound cleaner or broader than the implemented workflow really is
+
 ## Frontmatter hard rules
 
 Treat these as fail conditions:
@@ -70,12 +96,21 @@ Check for:
 - verbose prose instead of operational steps
 - ambiguous language instead of explicit checks
 - logic that should be a script instead of free-form text
+- branch logic that sounds plausible in prose but is not closed with a real next step or stop condition
 
 ### Context feels too heavy
 Fix by:
 - moving detail from `SKILL.md` into `references/`
 - linking references directly instead of repeating them inline
 - keeping the always-loaded surface focused on the default path
+
+### Skill sounds polished but still fails on real edge cases
+Check for:
+- ask surfaces are too abstract and do not reflect what the user will actually say
+- destination/ownership ambiguity is not tested
+- docs describe one-item vs multi-item routing but never force the critic to test both
+- multi-item or backfill behavior is claimed without a deterministic path
+- the critic reviewed phrasing and structure but never audited claimed behavior against scripts/tooling
 
 ## Patterns worth matching from Anthropic's guide
 

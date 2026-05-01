@@ -31,6 +31,10 @@
 - duplicate content between `SKILL.md` and references has been removed
 - the always-loaded file is concise relative to the task
 - sensitive-surface risks were checked when the skill touches personal docs, local paths, prompts/examples, logs, or retained user data
+- representative ask surfaces are explicit enough to drive the workflow, not just implied by abstract prose
+- claimed capabilities match shipped files, scripts, and default flow; docs do not promise unsupported behavior
+- ambiguous routing cases such as destination/project/repo choice, write-vs-draft mode, and one-item-vs-multi-item splits are resolved explicitly
+- if the skill claims a branch like linked sets, updates, field-setting, or backfill, that branch is operationally closed rather than hand-waved
 
 ## Progressive disclosure
 - each reference file is linked directly from `SKILL.md`
@@ -44,6 +48,7 @@
 - fix pass completed after each critic review
 - 3rd critic/fix round added when ambiguity or bloat remains
 - latest review issues are actually resolved, not just acknowledged
+- at least one critic pass explicitly audits ask-surface coverage, workflow coherence, and capability-vs-doc drift
 
 ## Testing
 - tested on representative prompts
@@ -54,7 +59,8 @@
 - examples align with the actual workflow
 - trigger quality and false-positive rate were reviewed explicitly
 - at least one with-skill vs without-skill comparison was checked on a representative task
-
+- at least one branch/edge-case matrix was checked: destination ambiguity, write-vs-draft, one-item vs checklist vs linked set, or equivalent domain-specific branches
+- for every deterministic script-backed claim, at least a smoke test or capability audit was run
 ## Finalization
 - skill folder is complete and internally consistent
 - all referenced files/scripts/assets actually exist
