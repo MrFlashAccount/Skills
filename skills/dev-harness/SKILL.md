@@ -72,6 +72,7 @@ Read only the references needed for the current phase; do not load every role by
    - `feature slice` is valid only when it maps to one closed, exclusive file set with one owner
    - if the task cannot be partitioned into clean non-overlapping file zones, collapse it to one implementer instead of inventing pseudo-slices
    - run the smallest meaningful verification before review and report what ran or what could not run
+   - if code parses external CLI/API JSON, include one verification that matches the real runtime shape or a local fixture/sample of it; explicitly check envelope-vs-array and key-name assumptions
    - for `sensitive-surface` slices, run `scripts/check_sensitive_surface.py <repo-path> [<base-rev>]` before review and include its result in the review brief
    - do not dump raw subagent output, logs, or transcripts into chat; summarize in your own words
 6. Result review gate: after implementation, run review.
