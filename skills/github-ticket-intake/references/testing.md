@@ -8,6 +8,8 @@ Use this when validating or revising `github-ticket-intake`.
 - Break this feature idea into one issue with a checklist.
 - Split this into 2–3 GitHub tickets and link them.
 - Create the issue now in owner/repo and add it to project Y.
+- Оформи в гитхабе и закинь на борду.
+- Добавь на борду и пусти дальше по процессу.
 - Draft the ticket package first; do not write to GitHub yet.
 - I pasted a transcribed voice note — turn it into tracked GitHub work.
 
@@ -15,6 +17,7 @@ Use this when validating or revising `github-ticket-intake`.
 
 - Can you shape this into GitHub issues?
 - Make this a tracked issue with sane labels and project placement.
+- Закинь в таски, чтобы оно пошло по обычному флоу.
 - This note is messy; convert it into one ticket or split it if needed.
 - I am not sure which repo this belongs to; tell me whether you need one clarification or can draft it first.
 
@@ -80,6 +83,6 @@ Confirm that the output shape is:
 
 Use one real rough note and compare:
 - without the skill: does the intake drift into research or execution?
-- with the skill: does it stay at intent capture, split choice, and GitHub artifact creation?
+- with the skill: does it classify board/taskflow wording as workflow intent, require known project placement when mapped, and hand off after create + board placement?
 
 This skill is better only if it keeps the boundary sharp while still producing usable tickets.

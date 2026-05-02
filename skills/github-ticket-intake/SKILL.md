@@ -1,6 +1,6 @@
 ---
 name: github-ticket-intake
-description: Draft or create GitHub issues from messy request text. Decide whether the request should become one issue, one issue with a checklist, or a small linked ticket set, then create the matching GitHub issues and optional project entries. Use when the user asks to create an issue, split an idea into tickets, put a rough request onto a GitHub project, turn rough notes into tracked issues, or shape transcribed voice/text into GitHub work items. Input modality does not matter: trigger on intent whether the request came as text or from transcribed voice.
+description: Draft or create GitHub issues from messy request text. Decide whether the request should become one issue, one issue with a checklist, or a small linked ticket set, then create the matching GitHub issues and optional or required project entries. Use when the user asks to create an issue, split an idea into tickets, put a rough request onto a GitHub project or board, add it to the workflow/taskflow, turn rough notes into tracked issues, or shape transcribed voice/text into GitHub work items. Input modality does not matter: trigger on intent whether the request came as text or from transcribed voice.
 ---
 
 # GitHub Ticket Intake
@@ -21,8 +21,8 @@ Do not own:
 - KM / Polengi / later taskflow stages
 - implementation orchestration
 - PR review or fix loops
-- broader taskflow automation such as polling, webhooks, or execution routing
-- the post-creation reviewer/proposal stage handled by the local OpenClaw GitHub research queue cron runner
+- broader taskflow automation beyond the post-intake handoff, such as polling, webhooks, or execution routing
+- the reviewer/proposal stage itself handled by the local OpenClaw GitHub research queue cron runner
 - general-purpose GitHub repo administration outside this ticket-intake flow
 
 ## Read order
@@ -37,15 +37,16 @@ Do not own:
 - `draft-only`: shape the ticket package, but do not perform GitHub writes yet.
 - `write-ready`: shape the ticket package and create GitHub artifacts now.
 
-Default to `draft-only` unless the user clearly wants the GitHub side created now and the required repo context is available. Project placement is optional and should be treated as a separate destination-resolution gate.
+Default to `draft-only` unless the user clearly wants the GitHub side created now and the required repo context is available. Treat board/taskflow/workflow asks as workflow-completion intent, not artifact-only intent: if a default repo->project mapping exists, project placement becomes required for that request class unless the user clearly wants draft-only.
 
 ## Workflow
 
 1. Route on intent, not modality.
-   - Good triggers: create issue, create card, put this on the board, break this into subtasks, turn this into tracked tickets, split this into GitHub tasks, turn this rough note into GitHub issues.
+   - Good triggers: create issue, create card, put this on the board, add this to the workflow, put this into taskflow, add this to tasks, break this into subtasks, turn this into tracked tickets, split this into GitHub tasks, turn this rough note into GitHub issues.
+   - Treat phrases like "оформи в гитхабе", "добавь на борду", "закинь в таски", or similar tracked-workflow phrasing as meaning "create it and place it into the normal tracked flow", not just "draft an issue".
    - Do not trigger for pure implementation asks that should go straight into execution.
 2. Build the contract first using [references/task-contract.md](references/task-contract.md).
-3. Resolve destination in order: repo known, project required or optional, project known if required, write-now or draft-only.
+3. Resolve destination in order: repo known, request implies workflow ownership or artifact-only creation, project required or optional, project known if required, write-now or draft-only.
 4. Decide whether this should become one ticket, one ticket with a checklist, or a small linked ticket set.
 5. Decide whether the request is `draft-only` or `write-ready`.
 6. For `draft-only` work:
@@ -57,7 +58,7 @@ Default to `draft-only` unless the user clearly wants the GitHub side created no
    - choose a template from `templates/` when useful, then manually write the final markdown body yourself
    - use [scripts/create-issue.mjs](scripts/create-issue.mjs) for one issue or one issue with a checklist; pass repo/title/labels as JSON and pipe the ready body on stdin
    - use [scripts/create-linked-set.mjs](scripts/create-linked-set.mjs) for a small linked ticket set; each issue entry must already include its final `body`, and the script only creates issues then backfills related links after URLs exist
-   - add created issues to the project with [scripts/add-to-project.mjs](scripts/add-to-project.mjs) only when project placement is requested and the target project is known
+   - add created issues to the project with [scripts/add-to-project.mjs](scripts/add-to-project.mjs) when project placement is required by workflow intent or explicitly requested, and the target project is known
 8. Return a compact summary:
    - title or ticket set
    - repo
@@ -65,7 +66,7 @@ Default to `draft-only` unless the user clearly wants the GitHub side created no
    - labels
    - created URLs
    - blockers if any destination step stopped the write path
-9. If the user explicitly wants the next cron/reviewer stage after creation, hand off to the local OpenClaw GitHub research queue runner instead of stretching this skill past its boundary.
+9. If the request implies "put this into the workflow", then after create + required board placement, hand off to the local OpenClaw GitHub research queue runner automatically. If the ask is artifact-only, do not hand off unless the user explicitly asks for the next cron/reviewer stage.
 
 ## Rules
 
@@ -77,9 +78,11 @@ Default to `draft-only` unless the user clearly wants the GitHub side created no
 - Prefer one ticket unless the work clearly wants a split.
 - Prefer a checklist over multiple tickets when separate tracking would not add real value.
 - If the request is still fuzzy, narrow the scope before creating external artifacts.
+- Prefer workflow-completion intent over artifact-only intent when the wording points at board/taskflow/process ownership.
+- If repo/project mapping is known and the ask implies board/taskflow/process ownership, default to `write-ready` unless the user clearly wants draft-only.
 - If project mapping is ambiguous, never guess silently: ask one short clarification, split cross-project work cleanly, or stay `draft-only`.
 - Creating GitHub artifacts is an external write; do it only when the user has clearly asked for tracked-ticket creation.
-- Project placement is optional: if repo is known but project placement is unknown, prefer issue creation without guessing a board, or stop at `draft-only` if board placement was part of the explicit ask.
+- Project placement is optional for plain issue creation. For board/taskflow/workflow asks, if a default mapping exists, use it; if no confident mapping exists, stop at `draft-only` instead of silently downgrading to issue-only creation.
 - Do not drift into Vikra research, KM/Polengi stages, or execution orchestration; this skill stops once the GitHub artifacts are shaped and created.
 - Do not promise general update flows that the shipped scripts do not implement.
 - Scripts in this skill are transport-only. They must not render templates or substitute placeholders.
