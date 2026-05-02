@@ -19,6 +19,7 @@ This repo keeps the editable skill folders in one place. Local OpenClaw runtime 
 - `skills/forthright`
 - `skills/grill-me`
 - `skills/humanizer`
+- `skills/implementation-harness`
 - `skills/obsidian`
 - `skills/vercel-react-best-practices`
 
