@@ -14,6 +14,9 @@ Read this before any review pass.
 - Backend slices that touch request-path, persistence, or async runtime behavior must include `staff backend`.
 - Add `performance` review when the touched backend path is user-visible, hot, or can block on sync storage/network/process work.
 - Add `qa/reliability` review when retries, timeouts, duplicate-delivery, rollback, or degraded-mode behavior materially changes.
+- Review external contract assumptions when the slice depends on a CLI, API, SDK, webhook, or similar integration.
+- Require at least one contract evidence source: docs, captured sample, fixture, or local parser/runtime verification.
+- Check relevant assumption classes: payload shape/envelope, key names/field semantics, auth scopes/permissions/feature flags, nullability/empty states/optional fields, pagination/truncation/partial results, and dry-run-vs-live or mock-vs-real parity.
 - Collect findings into a short report.
 - Feed in-scope fixes back to the relevant implementers without asking for fresh approval each pass.
 - If a review finding expands scope, forces redesign, or surfaces a high-risk contradiction, stop and go back to the user for re-approval.

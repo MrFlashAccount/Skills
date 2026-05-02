@@ -28,7 +28,8 @@ Minimum checks:
 - successful completion of the intended workflow
 - stable output quality across repeated tests
 - a representative with-skill vs without-skill comparison when the workflow is substantial enough to measure
-
+- claimed capabilities match what the shipped files/scripts can actually do
+- the main branches are closed operationally: destination choice, mode choice, and split choice are all resolved clearly
 Use `references/testing-and-troubleshooting.md` for the detailed test matrix and failure modes.
 
 ## 3. Plan the skill structure before writing
@@ -134,7 +135,10 @@ Critic focus:
 - whether detail should move into `references/`
 - whether repeated manual work should become `scripts/`
 - whether the skill would actually be easy to use on a real task
-
+- whether representative ask surfaces are explicit and actually covered by the workflow
+- whether claimed capabilities match the shipped scripts/files and default path
+- whether ambiguous branches such as destination choice, write-vs-draft mode, and one-item-vs-many routing are resolved explicitly
+- whether any branch is only described conceptually instead of being closed operationally
 ## 10. Test the skill on real prompts
 
 Validate with representative asks.
@@ -148,7 +152,8 @@ Check:
 - did bulky details stay out of `SKILL.md`?
 - should any repeated manual step become a script?
 - if the skill is a sensitive surface, were local paths, personal docs, and prompt/example content redacted or kept out of repo-visible files?
-
+- did the workflow stay honest when destination/ownership/mode/split was ambiguous?
+- if the docs claim multi-item, update, backfill, field-setting, or similar branches, were those branches actually exercised or explicitly cut from scope?
 ## 11. Finalize and iterate
 
 Review the finished skill folder, fix any broken references or workflow gaps, and revise based on actual use.

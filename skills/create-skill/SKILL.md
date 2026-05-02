@@ -19,6 +19,8 @@ Work from concrete usage, not abstract summaries.
    - avoid unrelated over-triggering
    - complete the workflow cleanly
    - survive paraphrases and real-task tests
+   - keep claimed capabilities aligned with the files/scripts that actually exist
+   - close the main routing branches operationally, not just conceptually
 3. Build the smallest useful skill structure:
    - `SKILL.md` for trigger metadata and the default operating flow
    - `references/` for bulky or variant-specific detail
@@ -34,6 +36,7 @@ Work from concrete usage, not abstract summaries.
 8. Run a critic/fix loop after the first draft:
    - 2 review/fix iterations by default
    - 3 iterations when the skill is high-risk, bloated, or still ambiguous after round 2
+   - critic must inspect ask surfaces, workflow branches, and claimed-vs-shipped capability alignment, not just frontmatter/size/structure
 9. Review and test before calling it done.
 
 Read `references/workflow.md` for the full conversion flow.
