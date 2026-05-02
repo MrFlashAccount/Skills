@@ -72,7 +72,8 @@ Read only the references needed for the current phase; do not load every role by
    - `feature slice` is valid only when it maps to one closed, exclusive file set with one owner
    - if the task cannot be partitioned into clean non-overlapping file zones, collapse it to one implementer instead of inventing pseudo-slices
    - run the smallest meaningful verification before review and report what ran or what could not run
-   - if code parses external CLI/API JSON, include one verification that matches the real runtime shape or a local fixture/sample of it; explicitly check envelope-vs-array and key-name assumptions
+   - if the slice consumes an external integration or contract, include at least one evidence source for that contract: docs, captured sample, fixture, or local parser/runtime verification
+   - when external contract assumptions exist, explicitly check relevant ones: payload shape/envelope, key names/field semantics, auth scopes/permissions/feature flags, nullability/empty states/optional fields, pagination/truncation/partial results, and dry-run-vs-live or mock-vs-real parity
    - for `sensitive-surface` slices, run `scripts/check_sensitive_surface.py <repo-path> [<base-rev>]` before review and include its result in the review brief
    - do not dump raw subagent output, logs, or transcripts into chat; summarize in your own words
 6. Result review gate: after implementation, run review.
@@ -118,6 +119,7 @@ Notes:
 - Do not let two agents edit the same file zone.
 - Do not mix auth, UI, importer, security, and privacy/data-retention changes in one slice.
 - Do not treat backend request-shape or persistence changes as implementation-only details; contract and docs impact must be checked before approval and before closing review.
+- Do not assume external integration contracts from happy-path mocks or one narrow sample; review must name the contract evidence source when such assumptions matter.
 - Keep the critic separate from implementers.
 - If a slice touches local files, personal docs, prompts/examples, logs/traces, retained user data, or machine-specific paths, treat it as `sensitive-surface` until proven otherwise.
 - Do not commit real user documents, machine-specific paths, or retained private data into repo-visible `references/`, `assets/`, examples, fixtures, or logs.
