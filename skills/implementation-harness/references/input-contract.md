@@ -10,6 +10,7 @@ Required input:
   - repo identifier or path context
   - issue URL if one exists
 - Research packet:
+  - closed proposal / approved direction
   - facts
   - evidence
   - risks
@@ -26,7 +27,7 @@ Optional input:
 Input assumptions:
 
 - Approval already happened.
-- Research is good enough to implement from.
+- Research is closed enough to implement from without broad rediscovery.
 - Transport layer may have come from GitHub, linear, docs, or chat; this skill stays transport-agnostic.
 
-If approval status is unclear, or the research packet lacks enough evidence to choose file ownership safely, stop and return `blocked`.
+If approval status is unclear, or the research packet lacks enough evidence to choose file ownership safely, or an implementation-critical fact is still missing, stop and return `blocked`.

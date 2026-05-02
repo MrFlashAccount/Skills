@@ -1,11 +1,11 @@
 ---
 name: dev-harness
-description: Orchestrate software work through discovery, proposal, approval, and high-level delegation, with implementation routed to implementation-harness after approval. Use when planning or delegating implementation/refactor tasks, especially multi-file, risky, or sliceable work, or when durable learnings should be captured.
+description: Orchestrate software work through discovery, proposal, approval, and high-level delegation, with reusable proposal critique via research-critic and implementation routed to implementation-harness after approval. Use when planning or delegating implementation/refactor tasks, especially multi-file, risky, or sliceable work, or when durable learnings should be captured.
 ---
 
 # Dev Harness
 
-Use as the top-level coding harness. You orchestrate discovery, proposal, approval, and high-level delegation. After approval, hand the approved task context plus research packet to `implementation-harness`; that skill owns implementation, verification, and review/fix passes. Under this skill, the orchestrator does not directly implement the approved slice.
+Use as the top-level coding harness. You orchestrate discovery, proposal, approval, and high-level delegation. Reusable proposal/critic work routes through `research-critic`. After approval, hand the approved task context plus closed research packet to `implementation-harness`; that skill owns implementation, verification, and review/fix passes. Under this skill, the orchestrator does not directly implement the approved slice.
 
 Keep path small. Use the full harness only when needed.
 
@@ -21,7 +21,7 @@ Read only the references needed for the current phase; do not load every role by
 
 - Before proposal for non-trivial or ownership-unclear work, read [references/task-contract.md](references/task-contract.md).
 - If the slice may touch local files, personal docs, prompts/examples, logs, retained user data, or machine-specific paths, read [references/sensitive-surfaces.md](references/sensitive-surfaces.md) before proposal.
-- After approval, hand off to `skills/implementation-harness/` with the approved task context plus research packet; do not restate or re-run its detailed implementation/review workflow here.
+- After approval, hand off to `skills/implementation-harness/` with the approved task context plus closed research packet; do not restate or re-run its detailed implementation/review workflow here.
 - If routing is ambiguous or you want a sanity check on expected worker/reviewer choice, read [references/examples.md](references/examples.md).
 - Read the knowledge base only when relevant:
   - [references/knowledge/facts.md](references/knowledge/facts.md)
@@ -46,6 +46,8 @@ Read only the references needed for the current phase; do not load every role by
    - stop when there are enough facts for proposal, or when remaining gaps are real unknowns/blockers; do not keep touring the repo
    - discovery output shape: `Facts / Evidence / Risks / Unknowns / Questions for user / Candidate file zones / Sensitive-surface classification`
 3. Write one short proposal from the discovered facts, then run proposal critique against it.
+   - when the proposal + critic stage needs to be reusable outside dev-harness, route that reasoning through `research-critic` instead of hard-coding transport-specific behavior here
+   - consume the available context/evidence first; do not re-ask questions already answered unless a contradiction or missing evidence forces it
    - default proposal template: `Goal / Non-goals / File zones / Acceptance / Rollback / Unknowns-or-assumptions`
    - for `tiny` work, use a 3-4 bullet proposal instead of the full template
    - if the slice is or might be `sensitive-surface`, extend the proposal with: `Sensitive inputs / Persistence / Exposure surface / Reviewer plan`
@@ -57,22 +59,17 @@ Read only the references needed for the current phase; do not load every role by
    - after proposal, stop; continue only after explicit approval
    - approval means an explicit `APPROVED` or `LGTM`, or the same level of unmistakable go-ahead in the user's language; `ok`, `yeah`, `got it`, and similar weak acknowledgements are not approval
    - before approval, proposals may include goals, risks, and architecture, but not code blocks, pseudocode, function/class skeletons, exact file-by-file edit recipes, command sequences, SQL/migrations, exact signatures, patch-like diffs, or ready-to-apply code
+   - research must be closed before implementation starts; unresolved implementation-critical gaps stay in research instead of leaking into the implementation stage
 4. After approval, build the handoff packet for `implementation-harness`.
-   - include the approved task context, discovered facts, risks, unknowns, candidate file zones, sensitive-surface classification, and any user constraints
+   - include the approved task context, discovered facts, evidence, risks, unresolved blockers, candidate file zones, sensitive-surface classification, and any user constraints
    - keep routing at this level minimal: name expected ownership only when needed for clean file-zone boundaries or user-visible delegation clarity
-   - if delegated Codex CLI returns auth or `rate_limit` errors, stop and notify the user; do not patch around it by hand
+   - if delegated Codex CLI returns auth or rate_limit errors, stop and notify the user; do not patch around it by hand
    - send one short status note naming the delegated owner or harness
-5. `implementation-harness` owns post-approval implementation, smallest meaningful verification, and review/fix passes.
+5. `implementation-harness` owns post-approval implementation, smallest meaningful verification, and independent review/fix passes.
    - do not duplicate its implementer/reviewer workflow here
    - if that stage finds scope growth, redesign pressure, or a high-risk contradiction, return to the user for re-approval
 6. Stop when acceptance criteria are met; do not widen scope mid-flight.
 7. Append to the knowledge base only when the task produced a durable fact, lesson, or open question.
-
-## Delegation notes
-
-- Keep one owner per file zone when handing off approved work.
-- If zones overlap, collapse to one implementation owner instead of inventing pseudo-slices.
-- Keep worker output summarized; do not paste raw subagent transcripts into chat unless the user asks.
 
 ## Rules
 
@@ -80,6 +77,7 @@ Read only the references needed for the current phase; do not load every role by
 - Do not mix auth, UI, importer, security, and privacy/data-retention changes in one slice.
 - Do not treat backend request-shape or persistence changes as implementation-only details; contract and docs impact must be checked before approval and before closing review.
 - Do not assume external integration contracts from happy-path mocks or one narrow sample; review must name the contract evidence source when such assumptions matter.
+- Keep the critic separate from implementers.
 - If a slice touches local files, personal docs, prompts/examples, logs/traces, retained user data, or machine-specific paths, treat it as `sensitive-surface` until proven otherwise.
 - Do not commit real user documents, machine-specific paths, or retained private data into repo-visible `references/`, `assets/`, examples, fixtures, or logs.
 - If the task is ambiguous, clarify the contract before starting.
