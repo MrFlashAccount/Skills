@@ -17,10 +17,12 @@ This repo keeps the editable skill folders in one place. Local OpenClaw runtime 
 - `skills/devrel-copywriter`
 - `skills/docs-writer`
 - `skills/forthright`
+- `skills/github-ticket-intake`
 - `skills/grill-me`
 - `skills/humanizer`
 - `skills/implementation-harness`
 - `skills/obsidian`
+- `skills/research-critic`
 - `skills/vercel-react-best-practices`
 
 ## Add or update a skill

@@ -22,6 +22,7 @@ Do not own:
 - implementation orchestration
 - PR review or fix loops
 - broader taskflow automation such as polling, webhooks, or execution routing
+- the post-creation reviewer/proposal stage handled by the local OpenClaw GitHub research queue cron runner
 - general-purpose GitHub repo administration outside this ticket-intake flow
 
 ## Read order
@@ -64,6 +65,7 @@ Default to `draft-only` unless the user clearly wants the GitHub side created no
    - labels
    - created URLs
    - blockers if any destination step stopped the write path
+9. If the user explicitly wants the next cron/reviewer stage after creation, hand off to the local OpenClaw GitHub research queue runner instead of stretching this skill past its boundary.
 
 ## Rules
 
