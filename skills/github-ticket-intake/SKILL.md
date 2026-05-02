@@ -66,7 +66,7 @@ Default to `draft-only` unless the user clearly wants the GitHub side created no
    - labels
    - created URLs
    - blockers if any destination step stopped the write path
-9. If the request implies "put this into the workflow", then after create + required board placement, hand off to the local OpenClaw GitHub research queue runner automatically. If the ask is artifact-only, do not hand off unless the user explicitly asks for the next cron/reviewer stage.
+9. If the request implies "put this into the workflow", then after create + required board placement, hand off automatically to the configured next research or reviewer stage. If the ask is artifact-only, do not hand off unless the user explicitly asks for the next polling or reviewer stage.
 
 ## Rules
 

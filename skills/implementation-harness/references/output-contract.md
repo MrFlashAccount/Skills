@@ -26,7 +26,6 @@ Return one structured packet with these top-level fields exactly:
 Conditional rules:
 
 - If `status` is `blocked`, `blockers` must be non-empty.
-- If `status` is `ready_for_manual_review`, `pr_url` must be non-empty.
 
 Field intent:
 
@@ -37,7 +36,7 @@ Field intent:
 - `implementer_owners`: owner-to-zone map using only `backend` and `frontend`.
 - `reviewer_plan`: reviewers run, findings state, and any pending manual review ask.
 - `branch_name`: working branch used or prepared for transport.
-- `pr_url`: published PR URL when transport already supplied one; otherwise empty unless manual review requires it.
+- `pr_url`: published PR URL when transport already supplied one; otherwise empty. Keep this field present even when manual review is ready without a published PR.
 - `change_summary`: concise user-visible changes.
 - `verification_results`: commands/checks run, results, and notable gaps.
 - `blockers`: unresolved blockers that prevent safe progress. Keep this limited to concrete execution blockers, contradictions, or missing implementation-critical facts that survived research.

@@ -38,7 +38,7 @@ Steps:
 7. Create the ticket set with `create-linked-set.mjs` when the shape is a small linked set. Each issue must already contain a final `body`; the script only creates issues then backfills relation links.
 8. Add each created issue to the project board when project placement is explicitly requested or implied by workflow intent, and the target project is known.
 9. Return titles, labels, URLs, project target if used, and blockers if any destination step stopped the write path.
-10. If the request implies "put this into the workflow", hand off to the local OpenClaw GitHub research queue runner automatically after create + required board placement. If the request is artifact-only, hand off only when the user explicitly asks for the next polling/reviewer stage.
+10. If the request implies "put this into the workflow", hand off automatically to the configured next research or reviewer stage after create + required board placement. If the request is artifact-only, hand off only when the user explicitly asks for the next polling or reviewer stage.
 
 ## Destination resolution guidance
 
