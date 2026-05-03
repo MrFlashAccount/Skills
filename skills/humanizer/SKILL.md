@@ -1,27 +1,37 @@
 ---
 name: humanizer
-version: 3.0.0
-description: |
-  Rewrite text so it sounds natural, simple, and human. Prefer short, direct,
-  low-friction rewrites over analysis or theory.
-allowed-tools:
-  - Read
-  - Write
-  - Edit
-  - Grep
-  - Glob
-  - AskUserQuestion
+description: >-
+  Polish a draft so it sounds more natural, casual, clear, or human without
+  changing the core message. Use for asks like “make this sound less AI”,
+  “rewrite this more naturally”, “make this warmer/shorter/more casual”, or
+  “humanize this text”, especially for chat messages, outreach, captions, and
+  general copy polish. Do not use it for domain-specific writing strategy,
+  content planning, or major structural rewrites.
 ---
 
-# Humanizer Lite
+# Humanizer
 
-Use this skill when the user wants text to sound more human, natural, casual, confident, warm, or less AI-written.
+Use this skill when the user already has text and wants a cleaner, more natural rewrite.
 
 ## Core rule
 
 Do not lecture about writing.
 Do not explain AI patterns unless the user explicitly asks.
 Default output is the rewritten text itself.
+
+## Hard boundaries
+
+- Preserve the core meaning.
+- Preserve the input language unless the user explicitly asks to translate.
+- Preserve the rough format and shape unless the user asks for a different one.
+  - Keep bullets as bullets.
+  - Keep line breaks when they matter.
+  - Keep message-style text easy to copy and send.
+- This skill is for tone and naturalness polishing, not for domain-specific messaging strategy.
+
+## If the user gives no text
+
+Ask for the exact draft, sentence, or message they want rewritten.
 
 ## What to optimize for
 
@@ -30,7 +40,6 @@ Default output is the rewritten text itself.
 - less formality
 - less obvious assistant/LLM polish
 - fewer decorative phrases
-- stronger human voice
 - same intent, less fluff
 
 ## Default behavior
@@ -75,11 +84,10 @@ When given text:
 ## Rewrite heuristics
 
 Prefer:
-- "приятная" over "производишь очень приятное впечатление"
-- "видно, что понимаешь, чего хочешь" over "явно знаешь, чего хочешь"
-- "давай немного пообщаемся" over "давай немного спишемся"
+- simpler words over polished phrases
 - shorter openings
 - cleaner endings
+- direct wording over decorative wording
 
 Cut things that feel:
 - too polished
@@ -106,16 +114,5 @@ Ask silently:
 - Can I make it 10-20% simpler without losing intent?
 
 If yes, simplify again.
-
-## Preferred style for Sergey
-
-Default toward:
-- Russian
-- simple
-- lightly warm
-- confident
-- non-corporate
-- non-academic
-- easy to copy and send
 
 When in doubt, choose the less fancy version.
