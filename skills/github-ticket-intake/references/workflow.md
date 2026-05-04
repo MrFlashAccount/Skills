@@ -1,6 +1,6 @@
 # Workflow
 
-This skill is the intake path for turning raw work requests into GitHub issues.
+This skill is the intake path for turning raw work requests into GitHub issues and, when implied, into the normal tracked GitHub workflow.
 
 ## Mode 1: Draft only
 
@@ -18,15 +18,16 @@ Steps:
 ## Mode 2: Write ready
 
 Use when:
-- the user clearly wants the issue/card created now
+- the user clearly wants the issue/card created now, or clearly wants the work put onto the normal tracked board/taskflow now
 - repo target is known
 - GitHub auth is available
-- if project placement is part of the ask, project access is available too
+- if project placement is part of the ask or implied by workflow intent, project access is available too
 
 Steps:
 1. Build the task contract.
 2. Resolve destination in order:
    - repo known?
+   - does the ask imply artifact-only creation, workflow placement, or workflow handoff?
    - project placement required or optional?
    - if required, is the project known?
    - write now, or draft first?
@@ -35,14 +36,16 @@ Steps:
 5. Run [../scripts/gh-preflight.mjs](../scripts/gh-preflight.mjs) for auth sanity, and for project sanity when project placement is required.
 6. Create the issue with `create-issue.mjs` for one issue or one issue with a checklist. The script only writes the body you pass on stdin.
 7. Create the ticket set with `create-linked-set.mjs` when the shape is a small linked set. Each issue must already contain a final `body`; the script only creates issues then backfills relation links.
-8. Add each created issue to the project board only when project placement is requested and the target project is known.
+8. Add each created issue to the project board when project placement is explicitly requested or implied by workflow intent, and the target project is known.
 9. Return titles, labels, URLs, project target if used, and blockers if any destination step stopped the write path.
-10. If the user asks for the next polling/reviewer stage after ticket creation, hand off to the local OpenClaw GitHub research queue runner instead of extending intake into later workflow ownership.
+10. If the request implies "put this into the workflow", hand off automatically to the configured next research or reviewer stage after create + required board placement. If the request is artifact-only, hand off only when the user explicitly asks for the next polling or reviewer stage.
 
 ## Destination resolution guidance
 
 - Repo known, no board requested -> issue creation may proceed.
+- Repo known, workflow/board intent present, default mapping exists -> use that mapping and treat board placement as required.
 - Repo known, board requested but unknown -> ask one short clarification or stay `draft-only`.
+- Repo known, workflow/board intent present, mapping unknown -> stay `draft-only`; do not silently downgrade to issue-only.
 - One clear project -> create there.
 - Several plausible projects, but one dominant -> ask one short clarification before writing.
 - Several real owners or domains -> split into linked tickets or use one coordination ticket plus linked project tickets.
@@ -89,4 +92,5 @@ Do not:
 - create tickets before the task boundary is sane
 - silently choose a repo when the request is ambiguous
 - drift into Vikra research, implementation orchestration, or PR lifecycle work
+- treat workflow-placement wording as plain issue creation when a known board mapping exists
 - claim there is a deterministic update path unless the flow actually provides one
