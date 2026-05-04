@@ -39,6 +39,12 @@ Typical branches include:
 
 Fail the skill if a branch is described in docs but has no operational closure, no script support where needed, or no explicit stop condition.
 
+If the workflow includes iterative handoffs like `draft -> critic -> revise -> critic -> final`, also test:
+- whether unfinished states can leak user-facing output
+- whether each verdict causes a deterministic next step
+- whether a fresh turn incorrectly reuses an old "ready" state
+- whether the loop has a real stop condition instead of vibes
+
 ## Capability-vs-doc audit
 
 Before calling a skill done, compare:
@@ -111,12 +117,14 @@ Check for:
 - docs describe one-item vs multi-item routing but never force the critic to test both
 - multi-item or backfill behavior is claimed without a deterministic path
 - the critic reviewed phrasing and structure but never audited claimed behavior against scripts/tooling
+- the workflow really wants a state machine but is still written as vague prose, so partial states leak or transitions stay implicit
 
 ## Patterns worth matching from Anthropic's guide
 
 When the skill needs them, prefer these patterns:
 - sequential workflow orchestration
 - iterative refinement with explicit stop conditions
+- explicit state machines for fragile multi-stage loops with no-partial-output requirements
 - context-aware tool selection
 - domain-specific intelligence
 - composability with other skills and portability across relevant runtimes or surfaces

@@ -53,6 +53,8 @@ Pick instruction style based on fragility:
 - **Medium freedom**: preferred pattern exists; use short rules, pseudocode, or structured steps
 - **Low freedom**: the sequence is brittle or costly to get wrong; use explicit steps and minimal branching
 
+When the workflow has repeated staged handoffs such as `draft -> critic -> revise -> critic -> final`, or when unfinished output must never leak to the user, treat that as a strong signal for an explicit state machine. See `references/state-machine-case-study.md`.
+
 ## 5. Design for progressive disclosure
 
 Keep the always-loaded surface small.
@@ -134,6 +136,7 @@ Critic focus:
 - whether `SKILL.md` is too large or too vague
 - whether detail should move into `references/`
 - whether repeated manual work should become `scripts/`
+- whether iterative review/fix/handoff loops should be modeled as an explicit state machine instead of loose prose
 - whether the skill would actually be easy to use on a real task
 - whether representative ask surfaces are explicit and actually covered by the workflow
 - whether claimed capabilities match the shipped scripts/files and default path
@@ -154,6 +157,7 @@ Check:
 - if the skill is a sensitive surface, were local paths, personal docs, and prompt/example content redacted or kept out of repo-visible files?
 - did the workflow stay honest when destination/ownership/mode/split was ambiguous?
 - if the docs claim multi-item, update, backfill, field-setting, or similar branches, were those branches actually exercised or explicitly cut from scope?
+- if the workflow includes repeated critic/rewrite/final loops, was leakage prevention tested explicitly and was a state-machine shape considered or adopted?
 ## 11. Finalize and iterate
 
 Review the finished skill folder, fix any broken references or workflow gaps, and revise based on actual use.

@@ -37,11 +37,13 @@ Work from concrete usage, not abstract summaries.
    - 2 review/fix iterations by default
    - 3 iterations when the skill is high-risk, bloated, or still ambiguous after round 2
    - critic must inspect ask surfaces, workflow branches, and claimed-vs-shipped capability alignment, not just frontmatter/size/structure
+   - if the workflow contains repeated handoffs like `draft -> critic -> revise -> critic`, or any no-partial-output gate before completion, check `references/state-machine-case-study.md` and consider modeling the flow as an explicit state machine instead of loose prose
 9. Review and test before calling it done.
 
 Read `references/workflow.md` for the full conversion flow.
 Read `references/checklist.md` before final review and after each review pass.
 Read `references/testing-and-troubleshooting.md` when checking trigger quality, frontmatter failure modes, or test coverage.
+Read `references/state-machine-case-study.md` when the skill includes iterative review loops, multi-stage handoffs, or leakage risk between unfinished and finished output.
 
 Ask one blocking question at a time.
 If the answer can be recovered from the source material or repo, inspect that instead of asking.
