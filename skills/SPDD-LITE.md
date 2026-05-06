@@ -1,4 +1,4 @@
-# SPDD-lite v0.1
+# SPDD-lite
 
 Lightweight process for AI-assisted workflow design. Goal: enough structure to reduce rework, stale assumptions, and unsafe drift without turning design work into ceremony.
 

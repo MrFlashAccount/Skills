@@ -5,7 +5,10 @@ Self-contained source-of-truth repo for OpenClaw skills.
 This repo keeps the editable skill folders in one place. Local OpenClaw runtime loads skills directly from `skills/` via each skill's `SKILL.md`, so packaged `.skill` bundles are not required for normal local use.
 
 ## Process docs
-- [SPDD-lite v0.1](SPDD-LITE-V0.1.md) — lightweight process model for AI-assisted workflow design
+- [SPDD-lite](skills/SPDD-LITE.md)
+  - What it is: a lightweight process model for AI-assisted workflow design.
+  - Use when: you need a compact guide for scope, assumptions, approval, freshness, and risk scaling.
+  - Do not use when: the task is pure implementation work or when a heavyweight process template is expected.
 
 ## Layout
 - `skills/<skill-name>/` — canonical source for each skill in this repo
