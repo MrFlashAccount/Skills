@@ -26,6 +26,7 @@ This repo keeps the editable skill folders in one place. Local OpenClaw runtime 
 - `skills/github-ticket-intake`
 - `skills/grill-me`
 - `skills/humanizer`
+- `skills/improve-codebase-architecture`
 - `skills/implementation-harness`
 - `skills/obsidian`
 - `skills/research-critic`
