@@ -40,7 +40,7 @@ Use these only as routing/eval sanity checks. Do not cargo-cult them into broad 
 - Class: usually `non-trivial` even if the edit is small
 - Review: `privacy/data-safety`
 - Expected focus: absolute/local path leakage, committed personal docs, prompt/example leakage, unsafe persistence defaults, missing consent, and repo-visible private data
-- Extra guard: run `scripts/check_sensitive_surface.py` and include the output in the review brief
+- Extra guard: run the global `dev-harness/scripts/check_sensitive_surface.py` helper and include the output in the review brief
 
 ## 6) QA / reliability pass
 

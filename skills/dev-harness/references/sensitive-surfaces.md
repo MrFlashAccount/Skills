@@ -33,10 +33,22 @@ If storage is not current-task only, require explicit user consent.
 ## Review requirements
 
 For `sensitive-surface` work:
-- run `scripts/check_sensitive_surface.py <repo-path> [<base-rev>]`
+- resolve the script relative to the loaded `dev-harness/SKILL.md`
+- run `python3 <dev-harness-skill-root>/scripts/check_sensitive_surface.py [<repo-path>] [--base <rev>]`
+- include the JSON output in the review brief, or summarize findings with the raw output available on request
 - run `privacy/data-safety` review before calling the slice done
 - add `security` too when exploitability, auth, trust boundaries, or secret handling are also in play
 - the slice is not clean until scanner findings are resolved or explicitly dispositioned
+
+## Scanner config
+
+The scanner auto-loads `<repo>/.sensitive-surface.json` when present. Use this only for repo-specific extensions or narrow ignores; keep the baseline policy in this skill.
+
+Supported fields:
+- `sensitive_path_parts`: additional path substrings or directory names to classify as sensitive
+- `sensitive_filename_patterns`: additional case-insensitive regexes for filenames
+- `sensitive_content_patterns`: additional case-insensitive regexes for added or untracked text lines
+- `ignore_paths`: git-style path globs to skip when a repository has intentional generated or fixture paths
 
 ## Safe defaults
 

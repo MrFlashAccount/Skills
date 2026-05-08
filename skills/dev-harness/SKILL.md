@@ -94,6 +94,16 @@ Read when relevant; for tiny isolated fixes, skip or minimize KB reads.
 
 Update the relevant file only when the work produced a durable fact, lesson, or open question. Keep entries short, append-only, and task-specific. If a file gets noisy, compact it into a few bullets and move older detail into an archive note.
 
+## Global helpers
+
+Helpers live under this skill root and are meant to run against any target repo without being copied into that repo.
+
+- Resolve helper paths relative to the loaded `dev-harness/SKILL.md`, not relative to the target repo or current shell directory.
+- Helpers must accept an explicit repo path, default safely to the current working directory, and avoid writing to the inspected repo unless their purpose requires it.
+- Helpers should emit stable, machine-readable output that can be included in handoff or review briefs.
+- For sensitive-surface checks, run `python3 <dev-harness-skill-root>/scripts/check_sensitive_surface.py [<repo-path>] [--base <rev>]`.
+- Use `--strict` only when a nonzero exit is useful for automation; the default mode is report-only so reviewers can disposition findings.
+
 ## Helper
 
 Use [scripts/record_knowledge.py](scripts/record_knowledge.py) to append a fact, lesson, or open question.
