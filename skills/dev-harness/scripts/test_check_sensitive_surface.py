@@ -7,6 +7,7 @@ Run with:
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import subprocess
@@ -15,6 +16,10 @@ import unittest
 from pathlib import Path
 
 SCRIPT = Path(__file__).with_name("check_sensitive_surface.py")
+SPEC = importlib.util.spec_from_file_location("check_sensitive_surface", SCRIPT)
+assert SPEC and SPEC.loader
+MODULE = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(MODULE)
 
 
 def run(cmd: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
@@ -177,6 +182,36 @@ class ScannerTests(unittest.TestCase):
         self.assertEqual(payload["repo"], "<repo-root>")
         self.assertEqual(payload["config"], ".sensitive-surface.json")
         self.assertNotIn(str(self.repo), json.dumps(payload))
+
+    def test_self_scan_ignores_scanner_and_test_fixture_lines(self) -> None:
+        findings = MODULE.classify_content_lines(
+            [
+                '                "/Users/",',
+                '                "file://",',
+            ],
+            MODULE._compile_patterns(list(MODULE.DEFAULT_SENSITIVE_CONTENT_PATTERNS), "sensitive_content_patterns"),
+            "skills/dev-harness/scripts/check_sensitive_surface.py",
+        )
+        test_findings = MODULE.classify_content_lines(
+            [
+                '        write(self.repo / "references" / "notes.md", "local = /Users/alex/private/report.pdf\\n")',
+                '        self.assertTrue(any("<absolute-path>" in line for line in lines))',
+            ],
+            MODULE._compile_patterns(list(MODULE.DEFAULT_SENSITIVE_CONTENT_PATTERNS), "sensitive_content_patterns"),
+            "skills/dev-harness/scripts/test_check_sensitive_surface.py",
+        )
+
+        self.assertEqual(findings, [])
+        self.assertEqual(test_findings, [])
+
+    def test_self_scan_suppression_stays_narrow_inside_test_file(self) -> None:
+        findings = MODULE.classify_content_lines(
+            ['        print("/Users/alex/secret.txt")'],
+            MODULE._compile_patterns(list(MODULE.DEFAULT_SENSITIVE_CONTENT_PATTERNS), "sensitive_content_patterns"),
+            "skills/dev-harness/scripts/test_check_sensitive_surface.py",
+        )
+
+        self.assertEqual(findings, [{"kind": "absolute-path", "line": '        print("<absolute-path>")'}])
 
     def test_strict_returns_two_for_findings(self) -> None:
         write(self.repo / "profile.md", "placeholder\n")

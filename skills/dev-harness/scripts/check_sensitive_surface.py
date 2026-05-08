@@ -99,6 +99,21 @@ def _is_mandatory_sensitive_path(path: str) -> bool:
     return any(part in normalized for part in MANDATORY_SENSITIVE_PATH_PARTS)
 
 
+ABSOLUTE_PATH_MARKERS = (
+    "/Users/",
+    "/home/",
+    "~/",
+    "C:\\\\Users",
+    "file://",
+    "Library/Mobile Documents",
+    "<absolute-path>",
+)
+
+
+def _has_absolute_path_marker(content: str) -> bool:
+    return any(marker in content for marker in ABSOLUTE_PATH_MARKERS)
+
+
 def _is_scanner_pattern_definition_line(path: str | None, content: str) -> bool:
     if path is None or Path(path).name != "check_sensitive_surface.py":
         return False
@@ -106,20 +121,17 @@ def _is_scanner_pattern_definition_line(path: str | None, content: str) -> bool:
     stripped = content.strip()
     if stripped in {"DEFAULT_SENSITIVE_CONTENT_PATTERNS = (", "ABSOLUTE_PATH_VALUE_RE = re.compile("}:
         return True
-    return (
-        stripped.startswith('r"')
-        and any(
-            marker in stripped
-            for marker in (
-                "/Users/",
-                "/home/",
-                "~/",
-                "C:\\\\\\\\Users",
-                "file://",
-                "Library/Mobile Documents",
-            )
-        )
-    )
+    return stripped.startswith(('r"', '"')) and _has_absolute_path_marker(stripped)
+
+
+def _is_scanner_test_fixture_line(path: str | None, content: str) -> bool:
+    if path is None or Path(path).name != "test_check_sensitive_surface.py":
+        return False
+
+    stripped = content.strip()
+    if not _has_absolute_path_marker(stripped):
+        return False
+    return stripped.startswith(("write(self.repo", "self.assert", "'", '"', "["))
 
 
 def git(repo: Path, *args: str) -> str:
@@ -175,7 +187,9 @@ def classify_content_lines(
 ) -> list[dict[str, str]]:
     findings: list[dict[str, str]] = []
     for content in lines:
-        if _is_scanner_pattern_definition_line(source_path, content):
+        if _is_scanner_pattern_definition_line(source_path, content) or _is_scanner_test_fixture_line(
+            source_path, content
+        ):
             continue
         for pattern in sensitive_content_res:
             if pattern.search(content):
