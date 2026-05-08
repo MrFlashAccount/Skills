@@ -112,8 +112,22 @@ class ScannerTests(unittest.TestCase):
 
         _, payload, _ = self.scan()
 
-        self.assertEqual(Path(payload["config"]).resolve(), (self.repo / ".sensitive-surface.json").resolve())
+        self.assertEqual(payload["config"], ".sensitive-surface.json")
         self.assertIn("sensitive-path-zone", self.finding_kinds(payload))
+
+    def test_ignore_paths_cannot_hide_tracked_private_files(self) -> None:
+        write(
+            self.repo / ".sensitive-surface.json",
+            json.dumps({"ignore_paths": ["private/**"]}),
+        )
+        write(self.repo / "private" / "secret.txt", "do not commit\n")
+        git(self.repo, "add", "private/secret.txt")
+        git(self.repo, "commit", "-m", "add private file")
+
+        _, payload, _ = self.scan()
+
+        self.assertEqual(payload["status"], "sensitive")
+        self.assertIn("tracked-private-file", self.finding_kinds(payload))
 
     def test_config_content_pattern_redacts_matching_line(self) -> None:
         write(
@@ -139,6 +153,30 @@ class ScannerTests(unittest.TestCase):
         _, payload, _ = self.scan()
 
         self.assertNotIn("snapshots/sample.txt", payload["touched_files"])
+
+    def test_scanner_constant_names_do_not_suppress_normal_absolute_path_lines(self) -> None:
+        write(self.repo / "doc.md", "ABSOLUTE_PATH_VALUE_RE docs: /Users/alex/secret.txt\n")
+
+        _, payload, _ = self.scan()
+
+        self.assertEqual(payload["status"], "sensitive")
+        self.assertIn("absolute-path", self.finding_kinds(payload))
+        lines = [finding.get("line", "") for finding in payload["findings"] if isinstance(finding, dict)]
+        self.assertTrue(any("<absolute-path>" in line for line in lines))
+        self.assertFalse(any("/Users/alex" in line for line in lines))
+
+    def test_payload_uses_logical_paths_for_review_output(self) -> None:
+        write(
+            self.repo / ".sensitive-surface.json",
+            json.dumps({"sensitive_path_parts": ["snapshots"]}),
+        )
+        write(self.repo / "snapshots" / "sample.txt", "fixture\n")
+
+        _, payload, _ = self.scan()
+
+        self.assertEqual(payload["repo"], "<repo-root>")
+        self.assertEqual(payload["config"], ".sensitive-surface.json")
+        self.assertNotIn(str(self.repo), json.dumps(payload))
 
     def test_strict_returns_two_for_findings(self) -> None:
         write(self.repo / "profile.md", "placeholder\n")

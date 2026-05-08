@@ -35,7 +35,7 @@ If storage is not current-task only, require explicit user consent.
 For `sensitive-surface` work:
 - resolve the script relative to the loaded `dev-harness/SKILL.md`
 - run `python3 <dev-harness-skill-root>/scripts/check_sensitive_surface.py [<repo-path>] [--base <rev>]`
-- include the JSON output in the review brief, or summarize findings with the raw output available on request
+- include the path-sanitized JSON output in the review brief, or summarize findings with the raw output available on request
 - run `privacy/data-safety` review before calling the slice done
 - add `security` too when exploitability, auth, trust boundaries, or secret handling are also in play
 - the slice is not clean until scanner findings are resolved or explicitly dispositioned

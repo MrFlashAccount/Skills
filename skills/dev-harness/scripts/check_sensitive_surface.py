@@ -27,6 +27,9 @@ DEFAULT_SENSITIVE_PATH_PARTS = (
     "/traces/",
     "/private/",
 )
+MANDATORY_SENSITIVE_PATH_PARTS = (
+    "/private/",
+)
 DEFAULT_SENSITIVE_NAME_PATTERNS = (
     r"(resume|cv|profile|passport|statement|transcript|recording|notes?)",
 )
@@ -91,6 +94,34 @@ def _redact_line(line: str) -> str:
     return ABSOLUTE_PATH_VALUE_RE.sub("<absolute-path>", line)[:240]
 
 
+def _is_mandatory_sensitive_path(path: str) -> bool:
+    normalized = "/" + path.strip().replace("\\", "/")
+    return any(part in normalized for part in MANDATORY_SENSITIVE_PATH_PARTS)
+
+
+def _is_scanner_pattern_definition_line(path: str | None, content: str) -> bool:
+    if path is None or Path(path).name != "check_sensitive_surface.py":
+        return False
+
+    stripped = content.strip()
+    if stripped in {"DEFAULT_SENSITIVE_CONTENT_PATTERNS = (", "ABSOLUTE_PATH_VALUE_RE = re.compile("}:
+        return True
+    return (
+        stripped.startswith('r"')
+        and any(
+            marker in stripped
+            for marker in (
+                "/Users/",
+                "/home/",
+                "~/",
+                "C:\\\\\\\\Users",
+                "file://",
+                "Library/Mobile Documents",
+            )
+        )
+    )
+
+
 def git(repo: Path, *args: str) -> str:
     try:
         result = subprocess.run(
@@ -137,10 +168,14 @@ def classify_paths(
     return findings
 
 
-def classify_content_lines(lines: list[str], sensitive_content_res: list[re.Pattern[str]]) -> list[dict[str, str]]:
+def classify_content_lines(
+    lines: list[str],
+    sensitive_content_res: list[re.Pattern[str]],
+    source_path: str | None = None,
+) -> list[dict[str, str]]:
     findings: list[dict[str, str]] = []
     for content in lines:
-        if "DEFAULT_SENSITIVE_CONTENT_PATTERNS" in content or "ABSOLUTE_PATH_VALUE_RE" in content:
+        if _is_scanner_pattern_definition_line(source_path, content):
             continue
         for pattern in sensitive_content_res:
             if pattern.search(content):
@@ -153,8 +188,19 @@ def classify_content_lines(lines: list[str], sensitive_content_res: list[re.Patt
 
 
 def classify_diff(diff_text: str, sensitive_content_res: list[re.Pattern[str]]) -> list[dict[str, str]]:
-    added_lines = [line[1:] for line in diff_text.splitlines() if line.startswith("+") and not line.startswith("+++")]
-    return classify_content_lines(added_lines, sensitive_content_res)
+    findings: list[dict[str, str]] = []
+    current_path: str | None = None
+    for line in diff_text.splitlines():
+        if line.startswith("+++ b/"):
+            current_path = line.removeprefix("+++ b/")
+            continue
+        if line.startswith("+++ /dev/null"):
+            current_path = None
+            continue
+        if line.startswith("+") and not line.startswith("+++"):
+            content = line[1:]
+            findings.extend(classify_content_lines([content], sensitive_content_res, current_path))
+    return findings
 
 
 def read_untracked_file_lines(repo: Path, rel_path: str) -> list[str]:
@@ -168,16 +214,16 @@ def read_untracked_file_lines(repo: Path, rel_path: str) -> list[str]:
 
 
 def should_ignore_path(path: str, ignore_paths: tuple[str, ...]) -> bool:
+    if _is_mandatory_sensitive_path(path):
+        return False
     normalized = path.replace("\\", "/")
     return any(fnmatch.fnmatch(normalized, pattern) for pattern in ignore_paths)
 
 
-def tracked_private_files(repo: Path, ignore_paths: tuple[str, ...]) -> list[str]:
+def tracked_private_files(repo: Path) -> list[str]:
     output = git(repo, "ls-files")
     tracked: list[str] = []
     for line in output.splitlines():
-        if should_ignore_path(line, ignore_paths):
-            continue
         normalized = "/" + line.replace("\\", "/")
         if "/private/" in normalized and not line.endswith(".gitkeep"):
             tracked.append(line)
@@ -218,6 +264,15 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+def _display_config_path(repo: Path, config_path: Path | None) -> str | None:
+    if config_path is None:
+        return None
+    try:
+        return config_path.relative_to(repo).as_posix()
+    except ValueError:
+        return "<external-config>"
+
+
 def scan(repo: Path, base_rev: str | None, config_path: Path | None) -> dict[str, object]:
     config = _load_config(config_path)
     sensitive_path_parts = tuple(
@@ -254,9 +309,9 @@ def scan(repo: Path, base_rev: str | None, config_path: Path | None) -> dict[str
         + classify_diff("\n".join(diff_chunks), sensitive_content_res)
     )
     for rel_path in untracked:
-        findings.extend(classify_content_lines(read_untracked_file_lines(repo, rel_path), sensitive_content_res))
+        findings.extend(classify_content_lines(read_untracked_file_lines(repo, rel_path), sensitive_content_res, rel_path))
 
-    tracked_private = tracked_private_files(repo, ignore_paths)
+    tracked_private = tracked_private_files(repo)
     for path in tracked_private:
         findings.append({"kind": "tracked-private-file", "path": path})
 
@@ -268,9 +323,9 @@ def scan(repo: Path, base_rev: str | None, config_path: Path | None) -> dict[str
     payload = {
         "schema_version": SCHEMA_VERSION,
         "status": "sensitive" if sensitive_surface else "clean",
-        "repo": str(repo),
+        "repo": "<repo-root>",
         "base_rev": base_rev,
-        "config": str(config_path) if config_path else None,
+        "config": _display_config_path(repo, config_path),
         "touched_files": touched_files,
         "recommended_reviewers": reviewers,
         "findings": findings,
