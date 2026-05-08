@@ -6,7 +6,7 @@ Read this before any review pass.
 
 - Review is mandatory after every implementation pass.
 - Default to one independent reviewer; use `code-review-orchestrator` for non-trivial, risky, multi-zone, or `sensitive-surface` work.
-- If the slice is `sensitive-surface`, run `privacy/data-safety` review and include scanner output from `scripts/check_sensitive_surface.py` in the review brief.
+- If the slice is `sensitive-surface`, run `privacy/data-safety` review and include scanner output from the global `dev-harness/scripts/check_sensitive_surface.py` helper in the review brief.
 - Keep `security` separate from `privacy/data-safety`: `security` owns exploitability/auth/trust-boundary regressions; `privacy/data-safety` owns local-path leakage, committed personal docs, prompt/example leakage, retained user data, and consent/retention mistakes.
 - A worker may not review a slice it authored.
 - Keep reviewer selection separate from implementer roles; do not treat review specialties as implementer labels.
