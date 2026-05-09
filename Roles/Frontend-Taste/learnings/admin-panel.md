@@ -14,9 +14,18 @@ Use for operational/admin tooling where consistency and low-friction task comple
 - repeated patterns are boring in a good way
 - operators can predict where to look and what to click
 - status, risk, and destructive actions are unmistakable
+- confirmation and error states feel proportionate and clear
 
 ## Common failures
 
 - overdesigned admin UI that slows routine work
 - inconsistent spacing or component behavior between screens
 - visual polish that weakens operational clarity
+- decorative emphasis competing with destructive or risky actions
+
+## Common useful pattern families
+
+- repeated control placement
+- divider-led grouping
+- dense but predictable form and table structure
+- understated state treatments that keep operators oriented
