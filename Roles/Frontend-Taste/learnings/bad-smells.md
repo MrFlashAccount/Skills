@@ -13,18 +13,21 @@ Use this file for patterns that are not universally forbidden, but should trigge
 - oversized hero typography doing all the work alone
 - font choices that feel generic by habit or flashy by insecurity
 - serif usage on dense software surfaces without a strong reason
+- decorative text treatments used to manufacture hierarchy instead of building it
 
 ## Layout smells
 
 - centered hero composition used by default instead of by intent
 - repetitive section structure with no pacing change
 - too many containers trying to create importance at once
+- navigation chrome that becomes more expressive than the page structure it is supposed to support
 
 ## Content / state smells
 
 - static happy-path screens with weak loading, empty, or error treatment
 - placeholder data that makes the surface feel synthetic instead of believable
 - decorative motion added to disguise a weak content model
+- interaction-rich shell covering weak information architecture
 
 ## How to use this file
 
