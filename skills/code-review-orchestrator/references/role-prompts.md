@@ -26,7 +26,7 @@ Load `Roles/Backend/ROLE.md` and `Roles/Backend/RUBRIC.md` first. In this skill,
 Load `Roles/Frontend/ROLE.md` and `Roles/Frontend/RUBRIC.md` first. In this skill, use them as a frozen-scope frontend review adapter: check frontend/client correctness, contract consumption, state/data flow, loading/error/empty/pending states, routing/hydration, async behavior, and maintainability. For React/Next.js slices, also load `vercel-react-best-practices`.
 
 ## Frontend taste
-Load `Roles/Frontend-Taste/ROLE.md` and `Roles/Frontend-Taste/RUBRIC.md` first. In this skill, use them as a rendered-surface review adapter: check hierarchy, spacing, typography, color, composition, motion, density, and polish. Stay out of client correctness unless the issue is visibly manifested. Use the `design-taste-frontend` skill for this reviewer.
+Load `Roles/Frontend-Taste/ROLE.md`, `Roles/Frontend-Taste/RUBRIC.md`, and the routed files from `Roles/Frontend-Taste/learnings/` first. When repo `DESIGN.md` or equivalent design memory exists, read that router first and let repo design law override portable taste canon on conflicts. In this skill, use them as a rendered-surface review adapter: check hierarchy, spacing, typography, color, composition, motion, density, and polish. Stay out of client correctness unless the issue is visibly manifested. Use the `design-taste-frontend` skill for this reviewer.
 
 ## Security
 Load `Roles/Security/ROLE.md` and `Roles/Security/RUBRIC.md` first. In this skill, use them as an exploitability/trust-boundary review adapter: check secrets, auth, injection, unsafe parsing, external sends, data exposure, and privilege boundaries when the issue is exploitability or trust-boundary regression.

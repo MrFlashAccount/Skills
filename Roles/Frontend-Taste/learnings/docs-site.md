@@ -14,18 +14,9 @@ Use for documentation surfaces where comprehension, navigation, and reference lo
 - the next useful action or section is easy to find
 - code and prose have different visual jobs and both are legible
 - depth does not become visual heaviness
-- page structure helps orientation across long documents
 
 ## Common failures
 
 - treating docs like marketing pages
 - weak code/prose contrast
 - sidebar/nav systems that look clean but slow wayfinding
-- ornamental surfaces that add noise to reading
-
-## Common useful pattern families
-
-- strong side navigation and local anchors
-- calm typography hierarchy
-- clear note/warning/code differentiation
-- layout choices that preserve long-form reading flow

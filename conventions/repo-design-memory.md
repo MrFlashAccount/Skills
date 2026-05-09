@@ -29,16 +29,6 @@ Recommended downstream files:
 Not every repo needs all of them on day one.
 Use the smallest set that preserves clear design law.
 
-## No-router fallback
-
-If a repo has no `DESIGN.md` or no declared `design/project-type.md` yet:
-- `Frontend-Taste` should still load `shared-core.md`
-- it should not guess a product class
-- it should explicitly say that repo design routing is undeclared
-- class-specific taste judgments should be marked lower-confidence until repo design memory is added
-
-This keeps first-use behavior deterministic before the repo has full design memory.
-
 ## `DESIGN.md`
 
 `DESIGN.md` should be short and routing-first, similar in spirit to `AGENTS.md`.
@@ -124,7 +114,6 @@ Reason:
 - loading every learning file by default instead of routing by project type
 - inventing too many product classes before they prove useful
 - leaving project type undeclared and pretending routing is still deterministic
-- guessing a product class when repo design routing does not exist yet
 
 ## Minimal expectation
 
@@ -132,5 +121,3 @@ For v1, a repo is in decent shape if it has:
 - a short `DESIGN.md`
 - a declared `design/project-type.md`
 - at least one repo-local downstream file with real design law
-
-Before that minimum exists, `Frontend-Taste` should fall back to portable `shared-core.md` only and avoid guessing a class route.
