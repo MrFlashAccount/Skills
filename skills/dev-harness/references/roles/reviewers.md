@@ -35,7 +35,7 @@ Canonical reviewer roles:
   - after approval, stay inside frozen scope; do not reopen scope or propose structural change unless a blocker-level issue or high-risk contradiction forces it
   - if a finding belongs mainly to `staff backend`, `staff frontend`, `security`, `privacy/data-safety`, `qa/reliability`, or `performance`, say so instead of absorbing that role; critic owns simplification, trade-off pressure, and risk-of-complexity
 - Done criteria:
-  - output follows `Verdict / Must-fix / Should-fix / Can-delay`
+  - output follows `Pass/fail / Must-fix / Should-fix / Can-delay`
   - must-fix items are evidence-backed, high-signal, and capped at 3
   - critique clearly targets complexity, trade-offs, brittleness, or scope control
   - no implementation takeover, no speculative rewrite plan, no scope reopening without blocker-level cause

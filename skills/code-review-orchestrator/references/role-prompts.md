@@ -7,7 +7,8 @@ Use these as the per-role focus when spawning reviewers.
 - Read the diff first, then the smallest relevant surrounding context.
 - Prefer file:line evidence over abstract commentary.
 - Keep answers short.
-- Return three buckets only: must-fix, should-fix, can-delay.
+- For non-trivial code work, judge the slice adversarially against the approved contract and return an explicit binary pass/fail verdict.
+- Return an explicit binary pass/fail verdict plus three buckets only: must-fix, should-fix, can-delay.
 - If nothing is wrong, say that and stop.
 
 ## Critic
@@ -35,7 +36,7 @@ Check timeouts, retries, fallbacks, rollback/recovery behavior, observability/di
 Check hot paths, blocking IO, unnecessary work, repeated calls, large allocations, leaks, and avoidable latency.
 
 ## Merge rubric
-- Must-fix: security issue, privacy/data-safety leak, data loss, or high-confidence functional bug.
+- Must-fix: security issue, privacy/data-safety leak, data loss, approved-contract failure, or high-confidence functional bug.
 - Should-fix: likely bug, weak test coverage, or significant maintainability issue.
 - Can-delay: style, polish, or low-risk cleanup.
 - If reviewers disagree, keep both sides and say what evidence is missing.

@@ -21,6 +21,8 @@ Read this before any review pass.
 - Feed in-scope fixes back to the relevant implementers without asking for fresh approval each pass.
 - If a review finding expands scope, forces redesign, or surfaces a high-risk contradiction, stop and go back to the user for re-approval.
 - For non-trivial work, run up to 3 review/fix passes; stop early when review is clean.
+- For non-trivial work, the loop is explicit: `IMPLEMENT -> VALIDATE -> REVIEW -> FIX -> RE-VALIDATE -> RE-REVIEW`.
+- After an in-scope fix pass, re-run validation before re-review, and prefer a fresh independent reviewer for re-review by default.
 - If blockers remain after the max passes, stop as blocked and surface unresolved findings.
 - `Sensitive-surface` work is not clean until the scanner is clean or explicitly dispositioned, and the relevant reviewer states either a concrete risk or that the approved slice is clean within scope.
 
@@ -29,7 +31,7 @@ Read this before any review pass.
 Use critic as a short challenge role, not as a second implementer, second discovery worker, or vague smart-sounding narrator.
 
 - Critic is the simplification/challenge reviewer, not the primary reviewer for correctness, security, privacy/data-safety, QA, performance, or redesign.
-- Output shape: `Verdict / Must-fix / Should-fix / Can-delay`.
+- Output shape: `Pass/fail / Must-fix / Should-fix / Can-delay`.
 - Cap `Must-fix` at 3 items, ranked by severity.
 - Every material finding should point to an artifact: acceptance criteria, proposal field, risk, file/line, test gap, or contradiction.
 - Before approval, critic challenges the proposal only; no code-ish content and no implementation recipes.

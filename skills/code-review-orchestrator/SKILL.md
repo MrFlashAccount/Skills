@@ -1,6 +1,6 @@
 ---
 name: code-review-orchestrator
-description: Orchestrate multi-role code reviews for any repository, branch, PR, or diff. Use when the user asks for code review / кодревью, wants a review of a repo/path/branch/PR, or wants a merged report from specialist perspectives such as critic, staff backend, staff frontend, frontend taste, security, privacy/data-safety, qa/reliability, or performance. Also use when the user wants one global review command that fans out to the relevant reviewers and returns one merged must-fix / should-fix / can-delay report.
+description: Orchestrate multi-role code reviews for any repository, branch, PR, or diff. Use when the user asks for code review / кодревью, wants a review of a repo/path/branch/PR, or wants a merged report from specialist perspectives such as critic, staff backend, staff frontend, frontend taste, security, privacy/data-safety, qa/reliability, or performance. Also use when the user wants one global review command that fans out to the relevant reviewers, returns an explicit pass/fail review verdict for non-trivial work, and merges must-fix / should-fix / can-delay findings.
 ---
 
 # Code Review Orchestrator
@@ -8,7 +8,7 @@ description: Orchestrate multi-role code reviews for any repository, branch, PR,
 ## Goal
 Run one review entrypoint, choose the right reviewer set from the canonical post-implementation roles, spawn those reviewers in parallel, and merge their findings into one actionable report.
 
-This is the post-implementation review gate. The pre-implementation proposal/critic/debate flow lives in `dev-harness`.
+This is the post-implementation review gate. The pre-implementation proposal/critic/debate flow lives in `dev-harness`. For non-trivial code work, this gate should act as an adversarial contract check with binary pass/fail semantics, not a soft advisory lap.
 
 ## Canonical reviewer roles
 Use these role labels as the canonical review stack:
@@ -25,7 +25,7 @@ Do not treat `staff engineer`, generic `designer`, `financial/risk`, or `reliabi
 
 ## Workflow
 1. Identify the target repo/path/ref/PR and the base comparison.
-2. Read the target repo’s `AGENTS.md` first, then gather compact context, `git status`, current branch, `git diff --stat`, touched files, relevant tests, docs, and config.
+2. Read the target repo’s `AGENTS.md` first, then gather compact context, approved contract or acceptance criteria when available, `git status`, current branch, `git diff --stat`, touched files, relevant tests, docs, and config.
 3. For `sensitive-surface` diffs, run `scripts/check_sensitive_surface.py <repo-path> [<base-rev>]` from this skill and include its output in the shared brief.
 4. Build one shared brief, then choose reviewers by primary risk:
    - `critic` for simplification, trade-offs, hidden fragility, or scope pressure
@@ -41,6 +41,7 @@ Do not treat `staff engineer`, generic `designer`, `financial/risk`, or `reliabi
    - add more roles only when the primary risks are genuinely separate
    - for `sensitive-surface` diffs, `privacy/data-safety` is mandatory even if the code diff is tiny
 6. Ask each reviewer for:
+   - pass or fail against the approved contract,
    - blocker or not,
    - evidence,
    - file and line when possible,
@@ -54,7 +55,9 @@ Do not treat `staff engineer`, generic `designer`, `financial/risk`, or `reliabi
    - put must-fix first.
 8. Return a short report with a clear verdict and next step.
 9. When the user wants an iterative loop, feed the report back into the same review process and repeat up to 3 passes total.
+   - after an in-scope fix pass, prefer a fresh independent reviewer for re-review by default; reuse the same reviewer only when reviewer availability is constrained and the slice stayed within frozen scope
 10. For every code task, keep a review gate in the loop; the question is only how much review depth is needed.
+11. Do not treat implementer completion notes as authoritative for non-trivial work; the slice stays open until validation and independent review pass.
 
 ## Role selection rules
 - Default to one independent reviewer.
@@ -71,15 +74,16 @@ Do not treat `staff engineer`, generic `designer`, `financial/risk`, or `reliabi
 - Add more than one reviewer only when the primary risks are independent enough that one role should not absorb the others.
 - If the target repo asks for a repo-specific review lens, keep the canonical role label and pass the repo-specific guidance inside the brief.
 - Even when the change is small, there should still be at least one review pass; trivial work gets a lighter review, not no review.
+- For non-trivial code work, at least one reviewer must return an explicit pass/fail verdict against the approved contract.
 
 ## How to run it
 Use `sessions_spawn` to create one subagent per role, with the target repo as `cwd` and a shared compact brief.
 
-Keep each role prompt short and specific. Include only the diff summary, target branch/PR, the review focus for that role, the project’s `AGENTS.md` guidance, and the merge rubric.
+Keep each role prompt short and specific. Include the approved contract or compact acceptance criteria when available, plus only the diff summary, target branch/PR, the review focus for that role, the project’s `AGENTS.md` guidance, and the merge rubric.
 
 Suggested reviewer prompt shape:
 
-> Review this diff as the {role}. Focus on {focus}. Return only: must-fix / should-fix / can-delay, evidence, and confidence. Call out file:line when possible. If nothing is wrong, say so briefly.
+> Review this diff as the {role}. Approved contract: {contract-summary}. Focus on {focus}. Judge it adversarially against that contract. Return only: pass/fail, must-fix / should-fix / can-delay, evidence, and confidence. Call out file:line when possible. If nothing is wrong, say so briefly.
 
 ## If context is missing
 Ask only for the missing target, repo path, branch, or PR.
@@ -97,4 +101,5 @@ Ask only for the missing target, repo path, branch, or PR.
 - Treat one high-confidence blocker as enough to stop the line.
 - Do not collapse disagreements into mush, keep both sides.
 - If all reviewers are clean, say that plainly and mention the highest-risk area that was checked.
+- For non-trivial work, the merged verdict must say whether the approved contract passed or failed review.
 - For `sensitive-surface` diffs, say explicitly whether `privacy/data-safety` and `security` were run, and which one cleared the slice.

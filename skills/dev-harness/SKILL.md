@@ -5,7 +5,7 @@ description: Orchestrate software work through discovery, proposal, approval, an
 
 # Dev Harness
 
-Use as the top-level coding harness. You orchestrate discovery, proposal, approval, and high-level delegation. Reusable proposal/critic work routes through `research-critic`. After approval, hand the approved task context plus closed research packet to `implementation-harness`; that skill owns implementation, verification, and review/fix passes. Under this skill, the orchestrator does not directly implement the approved slice.
+Use as the top-level coding harness. You orchestrate discovery, proposal, approval, and high-level delegation. Reusable proposal/critic work routes through `research-critic`. After approval, hand the approved task context plus closed research packet to `implementation-harness`; that skill owns implementation, verification, adversarial review/fix passes, and completion authority. Under this skill, the orchestrator does not directly implement the approved slice.
 
 Keep path small. Use the full harness only when needed.
 
@@ -66,6 +66,9 @@ Read only the references needed for the current phase; do not load every role by
    - if delegated Codex CLI returns auth or rate_limit errors, stop and notify the user; do not patch around it by hand
    - send one short status note naming the delegated owner or harness
 5. `implementation-harness` owns post-approval implementation, smallest meaningful verification, and independent review/fix passes.
+   - the default non-trivial loop is explicit: `IMPLEMENT -> VALIDATE -> REVIEW -> FIX -> RE-VALIDATE -> RE-REVIEW`
+   - implementer completion messages are non-authoritative until validation and independent review pass against the approved contract
+   - pass/fail review authority and re-review freshness rules live in `implementation-harness`, not here
    - do not duplicate its implementer/reviewer workflow here
    - if that stage finds scope growth, redesign pressure, or a high-risk contradiction, return to the user for re-approval
 6. Stop when acceptance criteria are met; do not widen scope mid-flight.
@@ -85,6 +88,7 @@ Read only the references needed for the current phase; do not load every role by
 - Before approval, do not spawn implementer workers, do not start implementation runs, do not prepare patches, and do not edit files.
 - Critique should not redo discovery or start a new repo tour unless a concrete contradiction or missing evidence forces it.
 - After approval, route to `implementation-harness` instead of restating implementation/review policy in this skill.
+- Do not treat implementer self-report as enough to close non-trivial coding work; validation plus independent review decide completion.
 - Never paste raw worker responses into chat unless the user explicitly asks for them.
 - For tiny, obvious fixes, keep the workflow minimal, but still route approved implementation through `implementation-harness` instead of doing it manually yourself.
 
