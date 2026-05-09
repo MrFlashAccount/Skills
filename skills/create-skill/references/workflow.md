@@ -1,198 +1,197 @@
 # Create-Skill Workflow
 
-Use this file when building or rewriting a skill from source material such as a PDF, spec, SOP, prompt pack, or an existing skill.
+Use this file when creating, rewriting, auditing, or materially restructuring a skill from source material such as a PDF, SOP, workflow, prompt pack, notes, or an existing skill folder.
 
-This workflow starts after initial scoping. If the target skill is still fuzzy, route that first-pass discovery through `grill-me`, then come back here for execution.
+This workflow is approval-gated even for audit-only passes.
+If the target mode or scope is still fuzzy, route first-pass discovery through `grill-me`, then come back here.
 
-Hard gate: after scoping and before implementation, present the proposed skill shape and wait for the user's explicit `APPROVED` or `LGTM`. Do not start creating the skill structure before that approval.
+## Stage map
 
-## 1. Start from concrete examples
+1. `source-audit`
+2. `proposal`
+3. `implement`
+4. `post-implement review`
 
-Do not begin with abstract categories alone.
-Do not use this stage to discover the whole problem from scratch; arrive with a scoped target.
+Not every task needs the full weight, but the stage boundaries should stay intact.
 
-Collect or infer a short set of representative asks:
-- what the user would say
-- what success looks like
-- what must be deterministic vs flexible
+## 0. Pick the mode
 
-If the source is a long document, reduce it to repeated use cases first.
+Choose one of these explicitly:
 
-## 2. Define success criteria
+- `audit`
+  - existing skill review only
+  - no file edits
+  - output findings and recommended changes
 
-Before drafting, decide how you will know the skill is good enough.
+- `proposal`
+  - shape the intended skill or rewrite
+  - may inspect and plan, but does not edit files
+  - stops for approval before edits
 
-Minimum checks:
-- trigger quality on real prompts
-- low false-positive rate on adjacent prompts
-- successful completion of the intended workflow
-- stable output quality across repeated tests
-- a representative with-skill vs without-skill comparison when the workflow is substantial enough to measure
-- claimed capabilities match what the shipped files/scripts can actually do
-- the main branches are closed operationally: destination choice, mode choice, and split choice are all resolved clearly
-Use `references/testing-and-troubleshooting.md` for the detailed test matrix and failure modes.
+- `implement`
+  - create or revise the skill files
+  - includes critic/fix loop
+  - must end with post-implementation review before completion
 
-## 3. Plan the skill structure before writing
+If the task started as `audit` and now wants edits, stop and get explicit approval for the write phase.
 
-Choose only the files that help execution:
+## 1. Approval gate
 
-- `SKILL.md`: trigger metadata and the default execution flow
-- `references/`: detailed docs, policies, schemas, decision trees, variant-specific guidance
-- `scripts/`: deterministic code for repeated transformations or brittle operations
-- `assets/`: templates, boilerplate, icons, samples, or output resources
+Before any substantive work:
+- confirm the mode
+- confirm the target skill/folder/source material
+- wait for explicit `APPROVED` or `LGTM`
 
-Do not create extra docs that are not part of runtime behavior.
-If the target runtime supports optional metadata like `license` or `compatibility`, add it only when it is actually consumed there.
-If the skill touches personal docs, local paths, prompts/examples, logs, or retained user data, mark it as a sensitive surface up front and plan a privacy/data-safety review before finalization.
+Do not start:
+- audit findings generation
+- restructure planning execution
+- file drafting
+- fix loops
+- review loops
+before that approval.
 
-## 4. Set the right degree of freedom
+Allowed before approval:
+- one blocking clarification at a time
+- repo/source inspection only when needed to answer that blocking clarification
+- narrowing whether the task is `audit`, `proposal`, or `implement`
 
-Pick instruction style based on fragility:
+## 2. Source-audit stage
 
-- **High freedom**: multiple valid approaches; use concise heuristics
-- **Medium freedom**: preferred pattern exists; use short rules, pseudocode, or structured steps
-- **Low freedom**: the sequence is brittle or costly to get wrong; use explicit steps and minimal branching
+Start from concrete examples, not abstract theory.
 
-When the workflow has repeated staged handoffs such as `draft -> critic -> revise -> critic -> final`, or when unfinished output must never leak to the user, treat that as a strong signal for an explicit state machine. See `references/state-machine-case-study.md`.
+For a new skill:
+- reduce the source material into representative asks
+- identify what must be deterministic vs flexible
+- identify likely workflow branches
 
-## 5. Design for progressive disclosure
+For an existing skill:
+- inspect trigger wording, mode coverage, branch closure, claimed-vs-shipped capability, and structure split
+- inspect whether the current workflow is lean, coherent, and runnable
 
-Keep the always-loaded surface small.
+Default audit outputs:
+- representative asks
+- current or intended mode
+- success criteria candidates
+- workflow branches
+- risks / ambiguity
+- sensitive-surface note if relevant
+- recommendation: stop at audit, continue to proposal, or continue to implementation planning
 
-- metadata should trigger correctly
-- `SKILL.md` should stay focused on the default operating path
-- large details should move into `references/`
-- reference files should be linked directly from `SKILL.md`
+## 3. Proposal stage
 
-One good rule: if a section is useful only in some cases, it probably belongs in `references/`.
-Also check whether the skill should compose cleanly with neighboring skills and remain portable across the runtimes or surfaces it is meant to serve.
+Turn the audited source into a concrete skill shape.
 
-## 6. Write strong frontmatter
+Decide:
+- target folder shape
+- what belongs in `SKILL.md`
+- what belongs in `references/`
+- whether `scripts/` are actually justified
+- whether `assets/` are actually justified
+- whether the workflow needs an explicit state machine
+- what the critical branch closures are
+- what the success criteria are
 
-The frontmatter is the trigger layer.
-Treat bad frontmatter as a hard failure, not a polish issue.
+Minimum proposal checks:
+- trigger quality on representative asks
+- low false-positive rate on adjacent asks
+- claimed capabilities match what shipped files/scripts can support
+- destination / mode / split branches are operationally closed
+- sensitive-surface handling is explicit when relevant
 
-### `name`
-- lowercase
-- hyphenated
-- short
-- action-oriented when possible
+For metadata-only or structure-only work:
+- keep the proposal short
+- still state the intended change, stop condition, and review plan
 
-### `description`
-Include:
-- what the skill does
-- when to use it
-- likely user phrasings, contexts, or adjacent requests that should trigger it
-- relevant file types, surfaces, or environments when they materially affect triggering
+After proposal:
+- if edits are required, stop and wait for explicit approval before implementation
+- do not smuggle implementation through the proposal stage
 
-Do not rely on the body to explain trigger conditions.
-Hard rules: keep it under 1024 characters, avoid `<` and `>`, and fail fast if the wording is broad enough to trigger on unrelated asks.
+## 4. Implement stage
 
-## 7. Write the body like an operator manual
+Build the smallest useful skill structure:
+- `SKILL.md` for trigger metadata and default operating flow
+- `references/` for bulky, detailed, or variant-specific guidance
+- `scripts/` for deterministic repeated work
+- `assets/` only for output resources
 
-Good skill bodies:
-- route the task quickly
-- tell the agent what to do first
-- show what to load next and when
-- encode sharp rules and anti-patterns
-- stay concise
+Implementation rules:
+- keep `SKILL.md` lean
+- write frontmatter carefully
+- keep instructions imperative and operational
+- do not promise unsupported branches
+- do not let docs claim capabilities the shipped files do not actually provide
+- if the workflow is iterative or leakage-prone, tighten it structurally instead of hand-waving
 
-Bad skill bodies:
-- re-explain common concepts at length
-- read like marketing copy
-- mix core flow with bulky reference material
-- add theory without operational effect
+## 5. Critic/fix loop
 
-## 8. Decide when to add scripts
-
-Add a script when:
-- the same code gets rewritten repeatedly
-- deterministic reliability matters
-- the script can be executed instead of re-derived from text each time
-
-Do not add scripts only because code would look impressive.
-
-## 9. Run the critic/fix loop
-
-After the first draft, do a structured review pass before finalizing.
+After the first draft, run a structured review/fix loop.
 
 Default loop:
-1. draft the skill
-2. run critic review
-3. fix the issues
-4. run critic review again
-5. fix again
+1. draft or revise
+2. critic review
+3. fix
+4. critic review
+5. fix again if needed
 
-Stop after 2 review/fix iterations if the skill is clean.
-Run a 3rd review/fix iteration when:
+Run a third review/fix round when:
 - trigger wording is still fuzzy
 - `SKILL.md` is still bloated
-- file boundaries are still unclear
-- references are still carrying duplicate material
-- the workflow still feels ambiguous on real prompts
+- branches are still ambiguous
+- claimed-vs-shipped alignment is still shaky
+- the workflow still feels leaky or hard to operate
 
 Critic focus:
 - trigger quality in frontmatter
-- whether `SKILL.md` is too large or too vague
-- whether detail should move into `references/`
+- mode clarity
+- approval semantics
+- workflow coherence
+- branch closure
+- claimed-vs-shipped capability alignment
+- whether detail should move out of `SKILL.md`
 - whether repeated manual work should become `scripts/`
-- whether iterative review/fix/handoff loops should be modeled as an explicit state machine instead of loose prose
-- whether the skill would actually be easy to use on a real task
-- whether representative ask surfaces are explicit and actually covered by the workflow
-- whether claimed capabilities match the shipped scripts/files and default path
-- whether ambiguous branches such as destination choice, write-vs-draft mode, and one-item-vs-many routing are resolved explicitly
-- whether any branch is only described conceptually instead of being closed operationally
-## 10. Run a late-stage compression pass
+- whether the workflow should be modeled as an explicit state machine
 
-After the main draft/review/fix loop is clean, run one compression pass through `forthright` for AI-only skill material.
+## 6. Post-implementation review
 
-Use it to compress:
-- `SKILL.md`
-- internal references
-- operating checklists
-- reviewer notes or internal handoff text that ships with the skill
+Do not stop at “edits done”.
 
-Do not use it to rewrite:
-- user-facing copy examples where tone/nuance is part of the contract
-- safety warnings that need full clarity
-- ambiguous instructions where extra wording is carrying real guardrail value
+Review the implemented result against the approved proposal:
+- did it change the right thing?
+- did it change it the right way?
+- does it match the approved scope?
+- do representative asks route correctly?
+- did adjacent out-of-scope asks stay quiet?
+- is claimed capability still aligned with shipped files/scripts?
+- did any branch remain only conceptually described instead of operationally closed?
+- if the skill is sensitive-surface, was privacy/data-safety checked?
 
-Compression rule:
-- remove filler, repetition, and low-signal connective wording
-- keep exact technical terms, file paths, commands, and hard rules
-- keep trigger wording explicit enough to avoid over-triggering
-- keep workflow branches operationally closed; do not compress away branch boundaries
+For non-trivial rewrites, treat this as a real gate, not a courtesy lap.
 
-Order:
-1. finish the normal critic/fix loop
-2. run `forthright` compression on the AI-only skill text
-3. do one final sanity review to ensure no meaning, safety rule, or routing boundary was lost
+## 7. Late-stage compression
 
-Treat `forthright` as a cleanup stage, not as a replacement for skill design or critic review.
+After the main draft/review/fix loop is clean, run one compression pass through `forthright` for AI-only skill material when that removes wording fat without weakening trigger boundaries or safety rules.
 
-## 11. Test the skill on real prompts
+Then do one final sanity review.
+
+## 8. Testing
 
 Validate with representative asks.
 
 Check:
-- did the metadata trigger the right use case?
-- did paraphrases still trigger?
-- did adjacent out-of-scope prompts stay quiet?
-- did the body route the task cleanly?
-- was any key detail missing from always-loaded guidance?
-- did bulky details stay out of `SKILL.md`?
-- should any repeated manual step become a script?
-- if the skill is a sensitive surface, were local paths, personal docs, and prompt/example content redacted or kept out of repo-visible files?
-- did the workflow stay honest when destination/ownership/mode/split was ambiguous?
-- if the docs claim multi-item, update, backfill, field-setting, or similar branches, were those branches actually exercised or explicitly cut from scope?
-- if the workflow includes repeated critic/rewrite/final loops, was leakage prevention tested explicitly and was a state-machine shape considered or adopted?
-## 12. Finalize and iterate
+- intended asks trigger correctly
+- paraphrases still trigger
+- adjacent prompts do not over-trigger
+- branch handling is explicit and executable
+- the workflow stays honest when mode or ownership changes
+- bulky material stayed out of `SKILL.md`
+- repeated deterministic work became a script only when justified
 
-Review the finished skill folder, fix any broken references or workflow gaps, and revise based on actual use.
-For sensitive-surface skills, do not call it done until privacy/data-safety review either finds a concrete issue or explicitly clears the approved scope.
+## 9. Finalize
 
-Iteration loop:
-1. run the skill on a real task
-2. note where it was weak, bloated, or ambiguous
-3. tighten the flow or split material better
-4. retest
+Stop only when:
+- the approved mode was completed cleanly
+- any required write phase had explicit approval
+- post-implementation review is clean enough
+- the skill folder is internally consistent
+- referenced files actually exist
+- claimed capabilities match the shipped shape

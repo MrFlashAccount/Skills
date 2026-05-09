@@ -1,9 +1,17 @@
 # Create-Skill Checklist
 
+## Mode and approval
+- the working mode is explicit: `audit`, `proposal`, or `implement`
+- the target skill/folder/source material is explicit
+- the user explicitly approved the current substantive phase with `APPROVED` or `LGTM`
+- audit approval is not being treated as automatic implementation approval
+- if the task moved from audit/proposal into edits, a fresh explicit approval was obtained for the write phase
+
 ## Scope handoff
 - initial discovery/scoping is already done, or was explicitly routed through `grill-me`
-- the target skill is defined enough to execute, not just discuss
-- the user explicitly approved implementation with `APPROVED` or `LGTM` before file creation started
+- the target skill is defined enough for the current mode
+- representative asks are explicit enough to drive the workflow
+- create-vs-rewrite-vs-audit ambiguity is resolved explicitly
 
 ## Frontmatter
 - `name` exists and matches the folder name
@@ -18,7 +26,7 @@
 - optional metadata like `license` or `compatibility` is added only when the target runtime actually uses it
 
 ## Structure
-- `SKILL.md` contains only the core workflow and hard rules
+- `SKILL.md` contains only the core workflow, stage/mode gates, and hard rules
 - detailed material moved to `references/` where appropriate
 - `scripts/` added only for deterministic repeated work
 - `assets/` added only for output resources
@@ -27,13 +35,15 @@
 ## Content quality
 - instructions are imperative and operational
 - routing guidance is explicit
+- mode handling is explicit
+- approval semantics are explicit
 - anti-patterns or boundaries are named when they matter
-- duplicate content between `SKILL.md` and references has been removed
+- duplicate content between `SKILL.md` and references has been reduced
 - the always-loaded file is concise relative to the task
 - sensitive-surface risks were checked when the skill touches personal docs, local paths, prompts/examples, logs, or retained user data
 - representative ask surfaces are explicit enough to drive the workflow, not just implied by abstract prose
 - claimed capabilities match shipped files, scripts, and default flow; docs do not promise unsupported behavior
-- ambiguous routing cases such as destination/project/repo choice, write-vs-draft mode, and one-item-vs-multi-item splits are resolved explicitly
+- ambiguous routing cases such as destination/project/repo choice, write-vs-audit mode, and one-item-vs-multi-item splits are resolved explicitly
 - if the skill claims a branch like linked sets, updates, field-setting, or backfill, that branch is operationally closed rather than hand-waved
 - if the workflow has repeated draft/review/fix handoffs or no-partial-output gates, the author explicitly checked whether it should be modeled as a state machine
 
@@ -45,7 +55,7 @@
 
 ## Review loop
 - first draft completed before review starts
-- critic review run at least 2 times
+- critic review run at least 2 times for non-trivial implementation/rewrite work
 - fix pass completed after each critic review
 - 3rd critic/fix round added when ambiguity or bloat remains
 - latest review issues are actually resolved, not just acknowledged
@@ -61,11 +71,14 @@
 - repeated code paths extracted into scripts when justified
 - examples align with the actual workflow
 - trigger quality and false-positive rate were reviewed explicitly
-- at least one with-skill vs without-skill comparison was checked on a representative task
-- at least one branch/edge-case matrix was checked: destination ambiguity, write-vs-draft, one-item vs checklist vs linked set, or equivalent domain-specific branches
+- at least one with-skill vs without-skill comparison was checked on a representative task when the workflow is substantial enough
+- at least one branch/edge-case matrix was checked: mode ambiguity, destination ambiguity, write-vs-audit, one-item vs checklist vs linked set, or equivalent domain-specific branches
 - for every deterministic script-backed claim, at least a smoke test or capability audit was run
 - for iterative review loops, leakage between unfinished and finished states was tested explicitly
+
 ## Finalization
+- the finished result matches the approved mode
+- if edits were made, the post-implementation review gate was run
 - skill folder is complete and internally consistent
 - all referenced files/scripts/assets actually exist
 - real user docs, absolute machine paths, and repo-visible private data are not embedded in references/assets/examples/logs
