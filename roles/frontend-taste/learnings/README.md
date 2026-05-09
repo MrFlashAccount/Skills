@@ -1,6 +1,6 @@
 # Frontend Taste Learnings
 
-Reusable taste canon for `Roles/Frontend-Taste`.
+Reusable taste canon for `roles/frontend-taste`.
 
 Use this folder for portable taste knowledge that should survive across repos.
 Do not put repo-specific tokens, component inventories, brand rules, or one-off product exceptions here.

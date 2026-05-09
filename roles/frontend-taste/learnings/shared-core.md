@@ -37,6 +37,8 @@ Portable taste canon that should hold across most repos and surfaces.
 - asymmetry is useful when it improves rhythm or emphasis, not as decoration by itself
 - repeated equal blocks should justify themselves through clarity, not habit
 - cards are a tool, not the default answer to grouping
+- default geometry should lean toward softer, more rounded forms rather than hard square corners unless the product language clearly calls for sharper structure
+- when rounded geometry is used, prefer superellipse-like rounding over generic pill-or-rectangle defaults when the surface can support that extra polish
 
 ### States and polish
 - loading, empty, and error states are part of visual quality, not implementation leftovers

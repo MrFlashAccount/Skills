@@ -26,7 +26,7 @@ Local OpenClaw reads skills directly from this repo's `SKILL.md` files, so packa
 
 If you need...
 - a runnable skill -> go to [`skills/`](#skill-index)
-- a reusable reviewer/writer/specialist role -> go to [`Roles/`](#role-index)
+- a reusable reviewer/writer/specialist role -> go to [`roles/`](#role-index)
 - a repo-level shared rule or memory convention -> go to [`conventions/`](#conventions)
 - to create or rewrite a skill -> start with [`skills/create-skill`](#skill-index)
 
@@ -39,7 +39,7 @@ Think of the repo in three layers:
    - runtime entrypoint is `skills/<name>/SKILL.md`
    - references, scripts, and assets live beside it
 
-2. `Roles/` — reusable role contracts
+2. `roles/` — reusable role contracts
    - these are not runnable skills
    - they hold canonical specialist identity, rubric, and learnings
    - skills should load and adapt them instead of re-owning the same role prose
@@ -52,7 +52,7 @@ Think of the repo in three layers:
 
 ```text
 skills/         runnable skill folders
-Roles/          reusable role contracts
+roles/          reusable role contracts
 conventions/    shared repo-level conventions
 SPDD-lite.md    lightweight process doc
 README.md       onboarding + repo map
@@ -73,7 +73,7 @@ skills/<skill-name>/
 ### Role folder
 
 ```text
-Roles/<Role-Name>/
+roles/<Role-Name>/
   ROLE.md
   RUBRIC.md
   LEARNINGS.md
@@ -81,9 +81,9 @@ Roles/<Role-Name>/
 
 When a canonical label and folder path differ, the folder path is the source of truth.
 Current non-trivial mappings:
-- `frontend taste` -> `Roles/Frontend-Taste`
-- `privacy/data-safety` -> `Roles/Privacy-Data-Safety`
-- `qa/reliability` -> `Roles/QA-Reliability`
+- `frontend taste` -> `roles/frontend-taste`
+- `privacy/data-safety` -> `roles/privacy-data-safety`
+- `qa/reliability` -> `roles/qa-reliability`
 
 ## Common workflows
 
@@ -99,9 +99,9 @@ Current non-trivial mappings:
 ### Reuse a role
 
 If a skill needs a reusable specialist voice:
-- load from `Roles/`
+- load from `roles/`
 - adapt it to the current phase
-- keep role identity in `Roles/`, not in local copied prose
+- keep role identity in `roles/`, not in local copied prose
 
 ### Add or update a skill
 
@@ -212,27 +212,27 @@ If a skill needs a reusable specialist voice:
 Roles are reusable references, not executable skills.
 Use them when a skill needs a stable specialist identity across phases.
 
-- `Roles/Architect`
+- `roles/architect`
   - Architecture fit, boundaries, seams, DDD alignment, record updates.
-- `Roles/Backend`
+- `roles/backend`
   - Backend/server implementation and review judgment.
-- `Roles/Critic`
+- `roles/critic`
   - Adversarial pressure on assumptions, scope, risk, and complexity.
-- `Roles/DevRel`
+- `roles/dev-rel`
   - Developer-facing framing, positioning, and messaging quality.
-- `Roles/Frontend`
+- `roles/frontend`
   - Frontend/client implementation and review judgment.
-- `Roles/Frontend-Taste`
+- `roles/frontend-taste`
   - Rendered UI taste, hierarchy, spacing, typography, composition, and polish, with routed learnings by project type.
-- `Roles/Performance`
+- `roles/performance`
   - Hot-path, latency, throughput, blocking work, and resource impact.
-- `Roles/Privacy-Data-Safety`
+- `roles/privacy-data-safety`
   - Local-path leakage, repo-visible private content, retention, and consent safety.
-- `Roles/QA-Reliability`
+- `roles/qa-reliability`
   - Failure handling, rollback/recovery, degraded mode, diagnosability, and test signal.
-- `Roles/Security`
+- `roles/security`
   - Exploitability, auth, injection, secrets, and trust-boundary risk.
-- `Roles/TechWriter`
+- `roles/tech-writer`
   - Teaching-oriented technical documentation writing and review.
 
 ## Process docs
@@ -257,9 +257,9 @@ Use them when a skill needs a stable specialist identity across phases.
 ## Repo rules
 
 - Keep `skills/` as the source of truth for skill runtime behavior.
-- Keep `Roles/` as the source of truth for reusable role references.
+- Keep `roles/` as the source of truth for reusable role references.
 - Keep `conventions/` as the source of truth for repo-level reusable conventions.
-- Prefer loading/adapting roles from `Roles/` over copying role prose into skills.
+- Prefer loading/adapting roles from `roles/` over copying role prose into skills.
 - Prefer referencing `conventions/` over inventing duplicated repo-wide wording inside one skill.
 - Do not add extra docs inside a skill folder unless they are part of runtime behavior.
 - Do not copy repo/editor docs into a skill unless that content is actually needed at runtime.

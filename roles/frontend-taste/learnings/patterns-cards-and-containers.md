@@ -16,9 +16,11 @@ Avoid cards when:
 Why it works:
 - cards can make ownership and emphasis obvious
 - they help isolate actions, status, or mixed-content modules when needed
+- softer rounded or superellipse-like corners can make containment feel more authored and less commodity-default when that matches the product language
 
 Failure mode:
 - card spam that makes everything feel equally important and visually heavy
+- square or under-rounded containers that make the surface feel harsher or more generic than the rest of the composition wants
 
 ## Divider-led grouping
 

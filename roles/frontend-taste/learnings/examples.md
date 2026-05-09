@@ -20,11 +20,13 @@ Stronger:
 - controls, data, and actions grouped by job
 - density tuned for repeat use
 - cards only where containment improves comprehension
+- container geometry feels intentional and supports the surrounding tone
 
 Weaker:
 - marketing spacing on a utility surface
 - every metric inside another decorative box
 - primary controls visually tied with secondary filters
+- square or commodity-default containers that flatten the rest of the visual language
 
 ## Example: docs surface
 
