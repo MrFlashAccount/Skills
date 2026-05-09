@@ -40,6 +40,8 @@ What should be true for the task to be ready to enter execution planning and lat
 
 If UI/interaction design is materially part of the slice, this should state whether a `design-test` is required and what that artifact must cover: intended UI shape, required components, critical states/behavior, and detail expectations.
 
+If UI/interaction design is materially part of the slice, this should state whether a `design-test` is required and what that artifact must cover: intended UI shape, required components, critical states/behavior, and detail expectations.
+
 ### `unresolved_blockers`
 Concise top-level list of unresolved items that currently block approval, routing, or safe implementation start.
 

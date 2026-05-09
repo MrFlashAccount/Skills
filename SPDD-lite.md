@@ -64,6 +64,6 @@ It is not implementation prose, pixel-perfect mock markup, or a substitute for r
 
 ## Minimal routing
 
-- Small obvious work may compress the amount of ceremony, but should still produce a compact execution plan before development and a distinct review step after development.
+- Small obvious work may compress the amount of ceremony.
 - Non-trivial work should still preserve the stage boundaries, even when one assistant/session performs multiple stages.
 - If a stage is incomplete, stop there instead of leaking its unresolved work into the next stage.

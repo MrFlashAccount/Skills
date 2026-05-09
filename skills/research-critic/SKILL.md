@@ -1,6 +1,6 @@
 ---
 name: research-critic
-description: Produce a reusable pre-implementation research packet with proposal plus critique from a task description and available context. This is the `research` stage in the repo's four-stage flow. Use when the ask is to break down a task, write a proposal, challenge the plan, or prepare a structured research/critic output that closes research before execution planning. This skill is GitHub-agnostic and should trigger on asks like research this task, do proposal plus critic, or prepare a readiness packet.
+description: Produce a reusable pre-implementation research packet with proposal plus critique from a task description and available context. This is the `research` stage in the repo's four-stage flow. Use when the ask is to break down a task, write a proposal, challenge the plan, or prepare a structured research/critic output that closes research before execution planning or implementation. This skill is GitHub-agnostic and should trigger on asks like research this task, do proposal plus critic, or prepare a readiness packet.
 ---
 
 # Research Critic
