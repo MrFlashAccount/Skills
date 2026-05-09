@@ -15,6 +15,8 @@ Own framing, positioning, message hierarchy, and copy polish. Prioritize believa
 
 ## Read order
 
+- Read [`../../Roles/DevRel/ROLE.md`](../../Roles/DevRel/ROLE.md).
+- Read [`../../Roles/DevRel/RUBRIC.md`](../../Roles/DevRel/RUBRIC.md).
 - Start with [references/task-contract.md](references/task-contract.md).
 - For `full-cycle` work, also read [references/surfaces.md](references/surfaces.md).
 - Read [references/review-policy.md](references/review-policy.md) before the first independent review.
@@ -69,8 +71,8 @@ If the contract breaks under critique, fix the contract first.
 ### 3. Run a short debate for `full-cycle` work
 
 Use two voices:
-- `writer`: make the strongest clear, attractive, product-aware version
-- `critic`: attack fluff, confusion, overclaim, weak proof, and bad sequencing
+- `devrel`: make the strongest clear, attractive, product-aware version using `Roles/DevRel/ROLE.md`
+- `critic`: attack fluff, confusion, overclaim, weak proof, and bad sequencing using `Roles/Critic/ROLE.md`
 
 Run one short round, then synthesize. Do not let the debate sprawl.
 
@@ -111,6 +113,7 @@ For `full-cycle` work, run two review checkpoints: review the whole artifact aga
 
 ## Rules
 
+- Treat `Roles/DevRel/ROLE.md` as the canonical writing/review identity for developer-facing messaging; this skill supplies the devrel-stage workflow and contracts.
 - Do not invent proof.
 - Do not use exact metrics unless confirmed.
 - Do not promise roadmap items as current reality.
