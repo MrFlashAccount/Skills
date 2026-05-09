@@ -1,6 +1,6 @@
 # Execution Plan Contract
 
-Use this after research is closed and before starting any non-trivial development task.
+Use this after research is closed and before starting any development task that needs an explicit execution plan. For tiny work, this may be a compact one-paragraph or short-bullet version of the same contract.
 
 ## Contract
 
@@ -47,3 +47,14 @@ Use this after research is closed and before starting any non-trivial developmen
 - Explicit handoff notes
 - Durable follow-up items
 - Design-test requirement/status when UI is materially in scope
+
+## Tiny-task compact form
+
+For tiny, obvious, low-risk work, the execution plan may be compressed to a short form that still names:
+- goal
+- file zone
+- owner
+- acceptance check
+- rollback point or revert strategy
+
+Tiny work does not skip the stage; it uses a compact version of it.
