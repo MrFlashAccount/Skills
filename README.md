@@ -154,9 +154,9 @@ If a skill needs a reusable specialist voice:
   - Do not use when: scope is still fuzzy.
 
 - `skills/dev-harness`
-  - What it is: top-level coding harness for discovery, proposal, approval, delegation, implementation, and review loops.
-  - Use when: the task needs planning, slicing, approval flow, or coordinated execution.
-  - Do not use when: scope is already approved and closed for direct implementation.
+  - What it is: top-level execution-planning harness that turns closed research into an approved implementation contract and routes the work onward.
+  - Use when: the task needs planning, slicing, approval flow, delegation, or coordinated handoff after research is already closed enough.
+  - Do not use when: the task still needs broad research/discovery, or when scope is already approved and closed for direct implementation or review.
 
 - `skills/implementation-harness`
   - What it is: direct implementation harness for already-approved work.
