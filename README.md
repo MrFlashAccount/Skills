@@ -12,6 +12,26 @@ This repo keeps the editable skill folders in one place. Local OpenClaw runtime 
 
 ## Layout
 - `skills/<skill-name>/` — canonical source for each skill in this repo
+- `Roles/<role-name>/` — canonical source for reusable role references that skills should load and adapt instead of copying into per-skill prose
+- `conventions/*.md` — reusable conventions for target repos that define documentation and memory standards, with repo-local equivalents allowed when the same durable purpose is preserved
+
+## Roles
+Role folders are reusable references, not executable skills.
+Common shape:
+- `ROLE.md` — canonical role contract
+- `RUBRIC.md` — compressed derivative checklist
+- `LEARNINGS.md` — append-only role memory
+
+- `Roles/Architect`
+  - What it is: a phase-agnostic architecture role reference for checking module boundaries, seams, DDD alignment, ubiquitous language, and architecture fit.
+  - Use when: a skill needs architectural judgment during research, review, or while defining architectural constraints.
+  - Do not use when: the task is a tiny local fix with no meaningful effect on module shape, naming, ownership, or architecture records.
+
+## Conventions
+- `conventions/repo-architecture-memory.md`
+  - What it is: a repo-level convention for deciding how project-specific architecture memory should be recorded in a target repo.
+  - Use when: a role or skill needs a default rule for context glossaries, context maps, decision logs, and equivalent repo-local artifacts.
+  - Do not use when: the task only needs reusable role judgment with no project-specific memory contract.
 
 ## Current skills
 - `skills/caveman`
@@ -92,4 +112,8 @@ This repo keeps the editable skill folders in one place. Local OpenClaw runtime 
 - Keep the repo self-contained.
 - Do not rely on external skill dependencies for runtime-critical behavior.
 - Do not copy repo/editor docs unless they are part of the actual skill runtime behavior.
-- Keep `skills/` as the source of truth.
+- Keep `skills/` as the source of truth for skill runtime behavior.
+- Keep `Roles/` as the source of truth for reusable role references.
+- Keep `conventions/` as the source of truth for repo-level reusable conventions.
+- When a skill needs a role from `Roles/`, prefer loading and adapting that role in context instead of copying its prose into the skill.
+- When a role or skill needs repo-specific architecture memory rules, prefer referencing `conventions/` instead of inventing local wording from scratch.
