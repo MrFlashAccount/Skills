@@ -223,7 +223,7 @@ Use them when a skill needs a stable specialist identity across phases.
 - `Roles/Frontend`
   - Frontend/client implementation and review judgment.
 - `Roles/Frontend-Taste`
-  - Rendered UI taste, hierarchy, spacing, typography, composition, and polish.
+  - Rendered UI taste, hierarchy, spacing, typography, composition, and polish, with routed learnings by project type.
 - `Roles/Performance`
   - Hot-path, latency, throughput, blocking work, and resource impact.
 - `Roles/Privacy-Data-Safety`
@@ -248,6 +248,11 @@ Use them when a skill needs a stable specialist identity across phases.
   - What it is: repo-level convention for architecture memory in target repos.
   - Use when: a role or skill needs a default rule for context docs, ADRs, context maps, or similar artifacts.
   - Do not use when: the task only needs one role's local judgment with no shared memory convention.
+
+- `conventions/repo-design-memory.md`
+  - What it is: repo-level convention for design memory in target repos, with a short `DESIGN.md` router and downstream design-law files.
+  - Use when: a role or skill needs stable repo-local design law instead of generic taste judgment.
+  - Do not use when: the task only needs portable taste heuristics with no repo-specific design source of truth.
 
 ## Repo rules
 

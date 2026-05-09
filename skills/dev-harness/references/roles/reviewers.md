@@ -128,7 +128,7 @@ Load `Roles/Frontend/ROLE.md` and `Roles/Frontend/RUBRIC.md` first.
 
 ## Reviewer role: `frontend taste` v1
 
-Load `Roles/Frontend-Taste/ROLE.md` and `Roles/Frontend-Taste/RUBRIC.md` first.
+Load `Roles/Frontend-Taste/ROLE.md`, `Roles/Frontend-Taste/RUBRIC.md`, and the routed files from `Roles/Frontend-Taste/learnings/` first. When repo `DESIGN.md` or equivalent design memory exists, read that router first and let repo design law override portable taste canon on conflicts.
 
 - Purpose: review screen-level presentation quality for the approved slice. `frontend taste` judges the rendered surface the user sees, not component internals or client behavior: whether the touched UI reads as intentional, clear, coherent, and polished through hierarchy, spacing, typography, color, composition, motion, density, and finish.
 - Focus:

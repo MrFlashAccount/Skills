@@ -85,14 +85,28 @@ The calling skill should define:
 - whether the output is review-only or another specialized phase wrapper
 - what output contract is required
 
+## Read model
+
+Default read order for this role:
+- `ROLE.md`
+- `RUBRIC.md`
+- `learnings/README.md`
+- `learnings/shared-core.md`
+- one project-class learning file routed by repo design memory
+
+If the current repo has `DESIGN.md` or equivalent repo design memory:
+- read that router first
+- load only the repo-design files it routes to
+- treat repo-level design law as higher precedence than portable taste canon when they conflict
+
 ## How learnings work
 
-Use `LEARNINGS.md` as append-only durable memory for corrections, heuristics, and recurring frontend taste failure modes for this role.
+Use `LEARNINGS.md` as the durable index/meta-memory entrypoint for this role, and use `learnings/*.md` for reusable taste guidance by product class.
 
 Add a learning when:
 - the role misses the same class of issue more than once
 - a reusable decision rule becomes stable across repos
 - the Frontend Taste role itself needs a more durable heuristic
 
-Keep repo-specific carry-forward in the calling skill or target repo context unless it is explicitly reusable here.
+Keep repo-specific carry-forward in repo design memory unless it is explicitly reusable across repos here.
 Do not use learnings for transient project chatter or one-off task notes.
