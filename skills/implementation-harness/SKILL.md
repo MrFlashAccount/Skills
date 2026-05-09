@@ -18,7 +18,7 @@ Use only after approval. This skill executes against approved research. It does 
 
 - Takes approved task context plus a research packet as input.
 - Decides implementer routing: `backend`, `frontend`, or both.
-- Runs implementation, smallest meaningful verification, and review/fix passes.
+- Runs implementation, smallest meaningful verification, and adversarial review/fix passes.
 - Returns a structured packet for another layer to persist or publish.
 
 ## What this skill does not own
@@ -35,6 +35,9 @@ Use only after approval. This skill executes against approved research. It does 
 - Use only canonical implementer labels: `backend`, `frontend`.
 - One owner per file zone. If zones overlap, collapse to one implementer.
 - Review is mandatory after every implementation pass.
-- Keep review as an independent implementation-stage code review; it must not reopen broad task research.
+- For non-trivial code work, the default loop is explicit: `IMPLEMENT -> VALIDATE -> REVIEW -> FIX -> RE-VALIDATE -> RE-REVIEW`.
+- Keep review as an independent implementation-stage code review with binary pass/fail authority against the approved contract; it must not reopen broad task research.
+- After every in-scope fix pass, validation must be refreshed before re-review.
 - If review forces redesign or scope growth, stop as `blocked`.
 - Return only the packet shape defined in [references/output-contract.md](references/output-contract.md).
+- Treat implementer completion notes as non-authoritative until validation and independent review pass.
