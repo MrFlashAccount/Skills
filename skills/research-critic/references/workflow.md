@@ -27,6 +27,7 @@ Do not use when:
    - constraints
    - proposed approach
    - acceptance criteria
+   - design-test need for UI-heavy work, if relevant
    - unresolved blockers
    - open questions
    - risks
@@ -39,7 +40,7 @@ Do not use when:
 4. Return the output using `output-contract.md`.
 
 Research closes here.
-- Another layer should not start implementation while the packet still needs broad discovery or re-litigation of already answered questions.
+- Another layer should not start execution planning while the packet still needs broad discovery or re-litigation of already answered questions.
 
 If context is unresolved or questions remain:
 - create a distinct `unresolved_blockers` section at the top level of the output
@@ -52,12 +53,13 @@ If context is unresolved or questions remain:
 - In this skill, Critic is a research-stage pressure role, not a frozen-scope review gate.
 - Critic is not a second research tour.
 - Critic should challenge the existing proposal, not rebuild the task from scratch unless a contradiction forces it.
+- If the slice materially depends on UI/interaction behavior, critic should challenge whether the packet is missing a required `design-test` or whether the proposed design-test is too vague to guide implementation.
 - Keep findings specific and tied to the packet.
 - Prefer concrete criticism over vague smart-sounding caution.
 
-## Readiness rules
+## Research-closure rules
 
-- `approve_as_is` only when the packet is implementation-ready within the available context.
+- `approve_as_is` only when the packet is ready to hand into execution planning within the available context.
 - `approve_with_changes` when the direction is broadly right but there are explicit changes or clarifications needed.
 - `needs_more_research` when key evidence, context, or decisions are still missing.
 - `unresolved_blockers` stays empty only when no current blocker remains.
