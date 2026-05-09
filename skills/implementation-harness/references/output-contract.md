@@ -7,12 +7,12 @@ Return one structured packet with these top-level fields exactly:
 - `issue_url`
 - `status`
 - `implementer_owners`
-- `reviewer_plan`
-- `review_gate`
+- `execution_contract_basis`
 - `branch_name`
 - `pr_url`
 - `change_summary`
 - `verification_results`
+- `review_handoff`
 - `blockers`
 - `warnings`
 - `next_action`
@@ -22,11 +22,12 @@ Return one structured packet with these top-level fields exactly:
 
 - `blocked`
 - `in_progress`
-- `ready_for_manual_review`
+- `ready_for_review`
 
 Conditional rules:
 
 - If `status` is `blocked`, `blockers` must be non-empty.
+- If `status` is `ready_for_review`, `verification_results` must be non-empty and `review_handoff` must be populated.
 
 Field intent:
 
@@ -35,30 +36,27 @@ Field intent:
 - `issue_url`: source issue/task URL, or empty string if none.
 - `status`: current handoff state.
 - `implementer_owners`: owner-to-zone map using only `backend` and `frontend`.
-- `reviewer_plan`: concise reviewer roster and scope, including who reviewed which pass.
-- `review_gate`: structured review outcome with contract verdict and re-review freshness.
+- `execution_contract_basis`: short reference to the approved research + execution-plan basis used for development.
 - `branch_name`: working branch used or prepared for transport.
-- `pr_url`: published PR URL when transport already supplied one; otherwise empty. Keep this field present even when manual review is ready without a published PR.
+- `pr_url`: published PR URL when transport already supplied one; otherwise empty.
 - `change_summary`: concise user-visible changes.
 - `verification_results`: commands/checks run, results, and notable gaps.
-- `blockers`: unresolved blockers that prevent safe progress. Keep this limited to concrete execution blockers, contradictions, or missing implementation-critical facts that survived research.
+- `review_handoff`: compact handoff for the separate review stage, including intended reviewer coverage and any review-sensitive hotspots.
+- `blockers`: unresolved blockers that prevent safe progress. Keep this limited to concrete execution blockers, contradictions, or missing implementation-critical facts that survived earlier stages.
 - `warnings`: non-blocking risks, follow-ups, or caveats.
 - `next_action`: one explicit next step for the caller.
 - `issue_comment`: transport-ready comment body another layer can persist.
 
-`review_gate` minimum shape:
+`review_handoff` minimum shape:
 
-- `contract_basis`: short reference to the approved contract / acceptance source used for review
-- `status`: `pass` or `fail`
-- `review_passes`: ordered list of review passes with reviewer label, outcome, and whether it was a re-review
-- `fresh_reviewer_on_rereview`: `yes`, `no`, or `not_applicable`
-- `freshness_notes`: empty string when not needed; otherwise explain why the same reviewer was reused
+- `reviewer_plan`: concise reviewer roster and scope from the approved execution plan
+- `hotspots`: ordered list of files/areas that deserve close review attention
+- `contract_gaps`: empty list when none; otherwise any remaining caveats the review stage should explicitly judge
 
 Packet rules:
 
 - Keep values concise and factual.
 - Do not include raw agent transcripts.
 - If work is still active, use `in_progress`.
-- If code and review are complete and waiting on human transport or merge flow, use `ready_for_manual_review`.
-- Do not use `ready_for_manual_review` when only implementer self-report exists without validation plus independent review pass.
-- Do not hide review pass/fail only inside prose fields; `review_gate.status` must carry the explicit verdict.
+- Use `ready_for_review` when code and verification are complete and the next correct step is the separate review stage.
+- Do not imply that independent review already passed inside this packet.

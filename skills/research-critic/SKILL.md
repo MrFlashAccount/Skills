@@ -1,6 +1,6 @@
 ---
 name: research-critic
-description: Produce a reusable pre-implementation research packet with proposal plus critique from a task description and available context. This is the `research` stage in the repo's four-stage flow. Use when the ask is to break down a task, write a proposal, challenge the plan, or prepare a structured research/critic output that closes research before execution planning or implementation. This skill is GitHub-agnostic and should trigger on asks like research this task, do proposal plus critic, or prepare a readiness packet.
+description: Produce a reusable pre-implementation research packet with proposal plus critique from a task description and available context. This is the `research` stage in the repo's four-stage flow. Use when the ask is to break down a task, write a proposal, challenge the plan, or prepare a structured research/critic output that closes research before execution planning. This skill is GitHub-agnostic and should trigger on asks like research this task, do proposal plus critic, or prepare a readiness packet.
 ---
 
 # Research Critic
@@ -13,7 +13,7 @@ Own only:
 - turning a task description and context into a structured research packet
 - consuming available context/evidence first instead of re-asking already answered questions
 - writing one proposal section and one critique section
-- returning a final readiness verdict with a separate unresolved/blocking section when needed
+- returning a final research-closure verdict with a separate unresolved/blocking section when needed
 
 Do not own:
 - GitHub issues, comments, project boards, or status transitions
@@ -49,7 +49,7 @@ The next stage is `execution plan`, typically handled by `dev-harness` consuming
 - The critic must attack assumptions, weak evidence, ambiguity, and hidden risks instead of politely paraphrasing the proposal.
 - Treat `Roles/Critic/ROLE.md` as the canonical critic identity; this skill supplies the research-stage wrapper and output contract.
 - Use available context/evidence first and keep answered questions closed unless a contradiction or missing evidence reopens them.
-- If context is insufficient, say exactly what is missing and lower the readiness verdict.
-- If implementation would still require broad rediscovery, the research is not closed; keep the verdict below implementation-ready.
+- If context is insufficient, say exactly what is missing and lower the research-closure verdict.
+- If execution planning would still require broad rediscovery, the research is not closed; keep the verdict below ready-for-execution-planning.
 - If any blocker or unresolved dependency remains, surface it in one dedicated top-level output field instead of scattering it across prose.
 - Output should be structured enough that another skill can persist it without reinterpreting free-form prose.

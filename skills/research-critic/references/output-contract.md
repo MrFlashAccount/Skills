@@ -36,7 +36,7 @@ Real boundaries, dependencies, or limits already known.
 The practical proposal. It may include sequencing, candidate file zones, architecture direction, and whether research should also lock a `design-test` artifact for UI-heavy work, but not implementation instructions.
 
 ### `acceptance_criteria`
-What should be true for the task to be ready for approval or later implementation.
+What should be true for the task to be ready to enter execution planning and later approval.
 
 If UI/interaction design is materially part of the slice, this should state whether a `design-test` is required and what that artifact must cover: intended UI shape, required components, critical states/behavior, and detail expectations.
 
@@ -79,7 +79,7 @@ One of:
 - `needs_more_research`
 
 ### `readiness_note`
-A short final recommendation that another layer can persist verbatim or adapt.
+A short final recommendation about whether research is closed enough to hand into execution planning; another layer may persist or adapt it.
 
 ## Rules
 
