@@ -34,6 +34,7 @@ Pattern library:
 - `learnings/patterns-navigation.md`
 - `learnings/patterns-typography.md`
 - `learnings/patterns-cards-and-containers.md`
+- `learnings/patterns-media-and-galleries.md`
 - `learnings/patterns-states.md`
 - `learnings/patterns-motion.md`
 
