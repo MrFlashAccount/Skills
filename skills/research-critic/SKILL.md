@@ -1,11 +1,13 @@
 ---
 name: research-critic
-description: Produce a reusable pre-implementation research packet with proposal plus critique from a task description and available context. Use when the ask is to break down a task, write a proposal, challenge the plan, or prepare a structured research/critic output that closes research before implementation. This skill is GitHub-agnostic and should trigger on asks like research this task, do proposal plus critic, or prepare a readiness packet.
+description: Produce a reusable pre-implementation research packet with proposal plus critique from a task description and available context. This is the `research` stage in the repo's four-stage flow. Use when the ask is to break down a task, write a proposal, challenge the plan, or prepare a structured research/critic output that closes research before execution planning or implementation. This skill is GitHub-agnostic and should trigger on asks like research this task, do proposal plus critic, or prepare a readiness packet.
 ---
 
 # Research Critic
 
 Use this as the generic pre-implementation reasoning stage.
+
+In the repo's default flow, this is stage 1: `research`.
 
 Own only:
 - turning a task description and context into a structured research packet
@@ -36,6 +38,8 @@ Do not own:
 3. Run a separate critic pass against that packet using `Roles/Critic/ROLE.md` and `Roles/Critic/RUBRIC.md`, adapted for research-stage critique.
 4. Return one structured output packet matching the output contract.
 5. Stop there. Another layer may persist or route the result only after research is closed enough.
+
+The next stage is `execution plan`, typically handled by `dev-harness` consuming this packet.
 
 ## Rules
 

@@ -27,6 +27,7 @@ Do not use when:
    - constraints
    - proposed approach
    - acceptance criteria
+   - design-test need for UI-heavy work, if relevant
    - unresolved blockers
    - open questions
    - risks
@@ -52,6 +53,7 @@ If context is unresolved or questions remain:
 - In this skill, Critic is a research-stage pressure role, not a frozen-scope review gate.
 - Critic is not a second research tour.
 - Critic should challenge the existing proposal, not rebuild the task from scratch unless a contradiction forces it.
+- If the slice materially depends on UI/interaction behavior, critic should challenge whether the packet is missing a required `design-test` or whether the proposed design-test is too vague to guide implementation.
 - Keep findings specific and tied to the packet.
 - Prefer concrete criticism over vague smart-sounding caution.
 

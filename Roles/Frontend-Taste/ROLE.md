@@ -88,14 +88,21 @@ The calling skill should define:
 ## Read model
 
 Default read order for this role:
+- if the current repo has `DESIGN.md` or equivalent repo design memory, read that router first
 - `ROLE.md`
 - `RUBRIC.md`
 - `learnings/README.md`
 - `learnings/shared-core.md`
-- one project-class learning file routed by repo design memory
+- one project-class learning file routed by repo design memory, if the repo explicitly declares a project type
+- only the repo-design files explicitly routed by `DESIGN.md` for the current task/surface
 
-If the current repo has `DESIGN.md` or equivalent repo design memory:
-- read that router first
+If the current repo has no `DESIGN.md` or no declared project type yet:
+- do not guess the product class
+- stop after `learnings/shared-core.md`
+- state that project-class routing is undeclared
+- lower confidence for class-specific taste judgments until repo design memory exists
+
+When repo design memory exists:
 - load only the repo-design files it routes to
 - treat repo-level design law as higher precedence than portable taste canon when they conflict
 

@@ -18,6 +18,8 @@ Use this before running the research + critic stage.
 - Candidate file zones or subsystems
 - Existing acceptance criteria
 - User preferences or rollout constraints
+- UI/design significance and any existing design constraints
+- Existing design-test expectations, if already known
 
 ## Normalized input shape
 
@@ -30,6 +32,8 @@ Use this before running the research + critic stage.
 - Existing open questions:
 - Candidate file zones / systems:
 - Acceptance hints:
+- Design-test need: yes/no/unknown
+- Design-test hints:
 - Missing context already known:
 
 ## Rules
@@ -38,4 +42,6 @@ Use this before running the research + critic stage.
 - Preserve resolved decisions and answered questions as closed context unless new evidence contradicts them.
 - Do not invent repo/file-zone details when they were not provided or recoverable.
 - If the task is too vague, keep the packet honest and let the missing context lower readiness.
+- If UI, behavior, or interaction design is materially part of the slice, note whether a `design-test` should be produced as part of research readiness.
+- `design-test` here means a compact design-readiness artifact describing intended UI shape, required components, critical states/behavior, and detail expectations strongly enough to guide later implementation/review.
 - This contract is intentionally transport-agnostic: the source may be GitHub, chat, notes, cron payloads, or any other adapter.

@@ -1,6 +1,6 @@
-# Task Contract
+# Execution Plan Contract
 
-Use this before starting any non-trivial dev task.
+Use this after research is closed and before starting any non-trivial development task.
 
 ## Contract
 
@@ -10,6 +10,7 @@ Use this before starting any non-trivial dev task.
 - Implementer owners:
 - Reviewer:
 - Acceptance criteria:
+- Design-test: required/not-required/unknown + why
 - Rollback point:
 - Risks:
 - Sensitive surface: yes/no + why
@@ -20,6 +21,7 @@ Use this before starting any non-trivial dev task.
 - Contract touchpoints:
 - Docs to update:
 - Reviewer plan:
+- Design-test scope: intended UI shape, required components, critical states/behavior, detail expectations
 
 ## Rules
 
@@ -32,6 +34,8 @@ Use this before starting any non-trivial dev task.
 - No overlap between implementer and critic.
 - Reviewer labels are separate from implementer labels and may not be reused as implementer ownership labels.
 - Freeze scope once the contract is agreed.
+- If UI, interaction behavior, or component composition is materially part of the slice, the contract must explicitly say whether a `design-test` is required before implementation.
+- When required, `design-test` should be concrete enough to guide later implementation/review: intended UI shape, required components, critical states/behavior, and notable detail expectations.
 - If `Sensitive surface` is yes or uncertain, fill all sensitive-data fields before approval.
 - If the slice stores or reuses user-provided data, the contract must say whether storage is one-shot or persistent, and whether explicit user consent is required.
 - If the slice touches backend request-path, persistence, or async runtime behavior, the contract must say whether any blocking sync I/O exists on the request path, which contract/request-shape surfaces can drift, and which docs/architecture notes must stay in sync.
@@ -42,3 +46,4 @@ Use this before starting any non-trivial dev task.
 - Owner-to-zone map
 - Explicit handoff notes
 - Durable follow-up items
+- Design-test requirement/status when UI is materially in scope

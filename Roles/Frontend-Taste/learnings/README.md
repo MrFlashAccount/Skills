@@ -10,13 +10,19 @@ Do not put repo-specific tokens, component inventories, brand rules, or one-off 
 Always load:
 - `shared-core.md`
 
-Then load one primary product-class file based on repo-declared project type:
+If repo design memory is present and declares a project type, then load one primary product-class file based on that declaration:
 - `marketing-site.md`
 - `dashboard.md`
 - `admin-panel.md`
 - `docs-site.md`
 
 Load more than one class file only when the repo explicitly declares mixed modes and the current task actually touches the secondary mode.
+
+If the repo has no `DESIGN.md` or no declared `design/project-type.md` yet:
+- do not guess the product class
+- load `shared-core.md` only
+- state that project-class routing is undeclared
+- lower confidence for class-specific taste judgments until repo design memory exists
 
 ## Boundary
 
