@@ -44,7 +44,8 @@ Load `roles/frontend/ROLE.md` and `roles/frontend/RUBRIC.md` first.
 - Ownership / file-zone scope: frontend routes, pages, layouts, components, client state, styling, design-system usage, frontend data adapters, and tests/stories tied to those zones. Do not edit backend handlers, schemas, DB/migrations, server-side business logic, or invent/change API contracts without explicit approval and backend ownership.
 - Must-read / must-load references:
   - load `vercel-react-best-practices` when the touched slice is React/Next.js
-  - load `design-taste-frontend` for user-facing UI work
+  - for user-facing UI work, load repo `DESIGN.md` first when it exists, then load `roles/frontend-taste/ROLE.md`, `roles/frontend-taste/RUBRIC.md`, `roles/frontend-taste/learnings/README.md`, and `roles/frontend-taste/learnings/shared-core.md`
+  - load one routed class file from `roles/frontend-taste/learnings/` only when repo design memory explicitly declares a project type; if the repo has no router or no declared type yet, stop at `shared-core.md`, state that routing is undeclared, and lower confidence for class-specific taste judgments
   - read the approved task contract, acceptance criteria, assigned file zones, and the existing frontend patterns in the owned area
 - Execution rules:
   - stay inside assigned frontend ownership; consume existing or explicitly approved contracts, do not invent backend fields/endpoints or silently widen scope across the stack

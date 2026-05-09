@@ -180,11 +180,6 @@ If a skill needs a reusable specialist voice:
 
 ### Frontend and architecture specialties
 
-- `skills/design-taste-frontend`
-  - What it is: design-taste lens for frontend quality.
-  - Use when: the task needs stronger visual/product judgment for UI work.
-  - Do not use when: the task is backend-only or mostly docs.
-
 - `skills/vercel-react-best-practices`
   - What it is: reusable React/Next.js guidance.
   - Use when: frontend work touches React/Next.js slices.
