@@ -31,7 +31,7 @@ Do not use when:
    - unresolved blockers
    - open questions
    - risks
-3. Run a separate critic pass against that packet using `Roles/Critic/ROLE.md` plus `Roles/Critic/RUBRIC.md`, adapted to research-stage pressure:
+3. Run a separate critic pass against that packet using `roles/critic/ROLE.md` plus `roles/critic/RUBRIC.md`, adapted to research-stage pressure:
    - weak / underspecified areas
    - unsupported assumptions
    - complexity concerns
@@ -49,7 +49,7 @@ If context is unresolved or questions remain:
 
 ## Critic rules
 
-- Load `Roles/Critic/ROLE.md` as the canonical role contract and `Roles/Critic/RUBRIC.md` as the compact checklist.
+- Load `roles/critic/ROLE.md` as the canonical role contract and `roles/critic/RUBRIC.md` as the compact checklist.
 - In this skill, Critic is a research-stage pressure role, not a frozen-scope review gate.
 - Critic is not a second research tour.
 - Critic should challenge the existing proposal, not rebuild the task from scratch unless a contradiction forces it.

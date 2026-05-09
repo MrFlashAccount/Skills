@@ -8,7 +8,7 @@ Use it when a role or skill needs to preserve project-specific architectural lan
 
 Separate reusable role knowledge from project-specific architectural memory.
 
-- Reusable role knowledge lives in `Roles/`.
+- Reusable role knowledge lives in `roles/`.
 - Project-specific architecture memory lives in the target repo.
 - Exact file names may vary by repo; the durable purpose matters more than one fixed path.
 
@@ -99,7 +99,7 @@ For example:
 
 ### Architect role
 The Architect should distinguish between:
-- reusable role heuristics -> keep in `Roles/`
+- reusable role heuristics -> keep in `roles/`
 - project-specific architecture memory -> write into the target repo's architecture records
 
 The Architect may require architecture-record updates as part of:

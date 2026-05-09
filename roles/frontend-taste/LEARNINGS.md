@@ -46,4 +46,4 @@ Pressure / examples:
 ## Entries
 
 - v1 split: reusable taste canon moved into `learnings/` so `Frontend-Taste` can route by project type instead of loading one monolithic file.
-- v2 expansion: pattern families, anti-patterns, bad-smells, and examples now live inside `Roles/Frontend-Taste` itself instead of a separate repo-level pattern library.
+- v2 expansion: pattern families, anti-patterns, bad-smells, and examples now live inside `roles/frontend-taste` itself instead of a separate repo-level pattern library.

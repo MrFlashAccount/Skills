@@ -8,7 +8,7 @@ Use it when a role or skill needs stable repo-local design law instead of generi
 
 Keep project-specific design truth separate from portable taste canon.
 
-- `Roles/Frontend-Taste/learnings/` holds reusable taste knowledge across repos.
+- `roles/frontend-taste/learnings/` holds reusable taste knowledge across repos.
 - repo design memory holds what is true for this product here.
 
 ## Minimal contract
@@ -72,7 +72,7 @@ When portable taste canon and repo design law disagree:
 - repo-level design law wins
 
 Reason:
-- `Roles/Frontend-Taste` should stay portable
+- `roles/frontend-taste` should stay portable
 - repo design memory is the source of truth for this product's local tokens, component rules, and visual constraints
 
 ## Typical repo-level file responsibilities
@@ -115,7 +115,7 @@ Reason:
 
 ### frontend implementation/review skills
 - use repo design memory as project law
-- use `Roles/Frontend-Taste` learnings only as supporting specialist judgment
+- use `roles/frontend-taste` learnings only as supporting specialist judgment
 
 ## Anti-patterns
 

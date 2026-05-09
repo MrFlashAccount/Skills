@@ -2,7 +2,7 @@
 
 Read only the sections for reviewers you actually selected for the current slice.
 
-`Roles/*/ROLE.md` and `Roles/*/RUBRIC.md` are the canonical role contracts. The sections below are phase-specific review adapters only: output shape, review boundaries, escalation rules, and reviewer-only checks.
+`roles/*/ROLE.md` and `roles/*/RUBRIC.md` are the canonical role contracts. The sections below are phase-specific review adapters only: output shape, review boundaries, escalation rules, and reviewer-only checks.
 
 Canonical reviewer roles:
 - `critic`
@@ -15,13 +15,13 @@ Canonical reviewer roles:
 - `performance`
 
 Canonical label -> role folder mapping when the spelling differs:
-- `frontend taste` -> `Roles/Frontend-Taste`
-- `privacy/data-safety` -> `Roles/Privacy-Data-Safety`
-- `qa/reliability` -> `Roles/QA-Reliability`
+- `frontend taste` -> `roles/frontend-taste`
+- `privacy/data-safety` -> `roles/privacy-data-safety`
+- `qa/reliability` -> `roles/qa-reliability`
 
 ## Reviewer role: `critic` v1
 
-Load `Roles/Critic/ROLE.md` and `Roles/Critic/RUBRIC.md` first.
+Load `roles/critic/ROLE.md` and `roles/critic/RUBRIC.md` first.
 
 - Purpose: pressure-test the slice for avoidable complexity, weak trade-offs, hidden fragility, and scope creep. Critic asks whether the proposal or approved solution can be simpler, cheaper, clearer, and less brittle without breaking the contract.
 - Must-check questions:
@@ -47,7 +47,7 @@ Load `Roles/Critic/ROLE.md` and `Roles/Critic/RUBRIC.md` first.
 
 ## Reviewer role: `backend` v1
 
-Load `Roles/Backend/ROLE.md` and `Roles/Backend/RUBRIC.md` first.
+Load `roles/backend/ROLE.md` and `roles/backend/RUBRIC.md` first.
 
 - Purpose: review backend/server-side correctness and engineering judgment for the approved slice. `backend` checks whether the change is boringly correct, contract-clean, and operationally sound for the touched backend path, not whether it is clever or merely plausible.
 - Focus:
@@ -84,7 +84,7 @@ Load `Roles/Backend/ROLE.md` and `Roles/Backend/RUBRIC.md` first.
 
 ## Reviewer role: `frontend` v1
 
-Load `Roles/Frontend/ROLE.md` and `Roles/Frontend/RUBRIC.md` first.
+Load `roles/frontend/ROLE.md` and `roles/frontend/RUBRIC.md` first.
 
 - Purpose: review frontend/client-side correctness and engineering judgment for the approved slice. `frontend` checks whether the touched UI path is behaviorally correct, state-clean, contract-clean, and maintainable on the client side, not whether it looks stylish or uses the newest framework fashion.
 - Focus:
@@ -128,7 +128,7 @@ Load `Roles/Frontend/ROLE.md` and `Roles/Frontend/RUBRIC.md` first.
 
 ## Reviewer role: `frontend taste` v1
 
-Load repo `DESIGN.md` first when it exists, then load `Roles/Frontend-Taste/ROLE.md`, `Roles/Frontend-Taste/RUBRIC.md`, `Roles/Frontend-Taste/learnings/README.md`, and `Roles/Frontend-Taste/learnings/shared-core.md`. Load one routed class file from `Roles/Frontend-Taste/learnings/` only when repo design memory explicitly declares a project type. If the repo has no router or no declared type yet, do not guess a class: stop at `shared-core.md`, state that routing is undeclared, and lower confidence for class-specific taste judgments. Repo design law overrides portable taste canon on conflicts.
+Load repo `DESIGN.md` first when it exists, then load `roles/frontend-taste/ROLE.md`, `roles/frontend-taste/RUBRIC.md`, `roles/frontend-taste/learnings/README.md`, and `roles/frontend-taste/learnings/shared-core.md`. Load one routed class file from `roles/frontend-taste/learnings/` only when repo design memory explicitly declares a project type. If the repo has no router or no declared type yet, do not guess a class: stop at `shared-core.md`, state that routing is undeclared, and lower confidence for class-specific taste judgments. Repo design law overrides portable taste canon on conflicts.
 
 - Purpose: review screen-level presentation quality for the approved slice. `frontend taste` judges the rendered surface the user sees, not component internals or client behavior: whether the touched UI reads as intentional, clear, coherent, and polished through hierarchy, spacing, typography, color, composition, motion, density, and finish.
 - Focus:
@@ -171,7 +171,7 @@ Load repo `DESIGN.md` first when it exists, then load `Roles/Frontend-Taste/ROLE
 
 ## Reviewer role: `security` v1
 
-Load `Roles/Security/ROLE.md` and `Roles/Security/RUBRIC.md` first.
+Load `roles/security/ROLE.md` and `roles/security/RUBRIC.md` first.
 
 - Purpose: run a focused security review after auth/apps behavior exists for the approved slice. `security` asks whether the touched path is exploitable or introduces a security regression; it is not a second general correctness pass.
 - Focus:
@@ -209,7 +209,7 @@ Load `Roles/Security/ROLE.md` and `Roles/Security/RUBRIC.md` first.
 
 ## Reviewer role: `privacy/data-safety` v1
 
-Load `Roles/Privacy-Data-Safety/ROLE.md` and `Roles/Privacy-Data-Safety/RUBRIC.md` first.
+Load `roles/privacy-data-safety/ROLE.md` and `roles/privacy-data-safety/RUBRIC.md` first.
 
 - Purpose: review whether the approved slice can leak, retain, expose, or normalize private/user-owned data in ways that are not justified by the approved scope. `privacy/data-safety` is distinct from exploitability review: it owns local-path leakage, committed personal docs, prompt/example leakage, retained user data, and consent/retention mistakes.
 - Focus:
@@ -243,7 +243,7 @@ Load `Roles/Privacy-Data-Safety/ROLE.md` and `Roles/Privacy-Data-Safety/RUBRIC.m
 
 ## Reviewer role: `qa/reliability` v1
 
-Load `Roles/QA-Reliability/ROLE.md` and `Roles/QA-Reliability/RUBRIC.md` first.
+Load `roles/qa-reliability/ROLE.md` and `roles/qa-reliability/RUBRIC.md` first.
 
 - Purpose: review failure handling, recoverability, and test-signal quality for the approved slice. `qa/reliability` checks whether the touched path behaves sanely under failure, rollback, retries, flaky conditions, and degraded operation, and whether the tests meaningfully prove that.
 - Focus:
@@ -281,7 +281,7 @@ Load `Roles/QA-Reliability/ROLE.md` and `Roles/QA-Reliability/RUBRIC.md` first.
 
 ## Reviewer role: `performance` v1
 
-Load `Roles/Performance/ROLE.md` and `Roles/Performance/RUBRIC.md` first.
+Load `roles/performance/ROLE.md` and `roles/performance/RUBRIC.md` first.
 
 - Purpose: review real runtime cost for the approved slice. `performance` checks whether the change introduces a concrete performance regression or avoidable waste on a hot or user-visible path, not whether the code could be abstractly optimized in theory.
 - Focus:
