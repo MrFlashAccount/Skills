@@ -28,6 +28,9 @@ Use this file for patterns that are not universally forbidden, but should trigge
 - placeholder data that makes the surface feel synthetic instead of believable
 - decorative motion added to disguise a weak content model
 - interaction-rich shell covering weak information architecture
+- screenshot-first design that optimizes for one striking frame while weakening scanning, repetition, or sustained use
+- media usage that feels slotted, generated, or filler-like instead of authored
+- style drift between sections that makes the product feel assembled rather than directed
 
 ## How to use this file
 

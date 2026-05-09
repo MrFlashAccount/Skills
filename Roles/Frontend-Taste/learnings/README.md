@@ -28,6 +28,7 @@ Quick routing:
 - “what layout/pattern should this use?” -> `patterns-*.md`
 - “how should nav behave or be composed here?” -> `patterns-navigation.md`
 - “how should type carry this surface?” -> `patterns-typography.md`
+- “how should imagery/gallery structure work here?” -> `patterns-media-and-galleries.md`
 - “what is absolutely not allowed here?” -> `anti-patterns.md`
 - “what feels suspicious or cheap?” -> `bad-smells.md`
 - “show me what stronger vs weaker looks like” -> `examples.md`
