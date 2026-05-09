@@ -28,7 +28,7 @@ Read this before any review pass.
 
 ## Critic contract
 
-Load `Roles/Critic/ROLE.md` as the canonical critic identity and `Roles/Critic/RUBRIC.md` as the compact checklist.
+Load `roles/critic/ROLE.md` as the canonical critic identity and `roles/critic/RUBRIC.md` as the compact checklist.
 
 Use critic here as a short challenge role, not as a second implementer, second discovery worker, or vague smart-sounding narrator.
 

@@ -2,11 +2,11 @@
 
 Read only the sections for implementer roles you are about to launch.
 
-`Roles/*/ROLE.md` and `Roles/*/RUBRIC.md` are the canonical role contracts. The sections below are phase-specific implementation adapters only: ownership boundaries, execution rules, verification expectations, and implementer-specific escalation behavior.
+`roles/*/ROLE.md` and `roles/*/RUBRIC.md` are the canonical role contracts. The sections below are phase-specific implementation adapters only: ownership boundaries, execution rules, verification expectations, and implementer-specific escalation behavior.
 
 ## Implementer role: `backend` v1
 
-Load `Roles/Backend/ROLE.md` and `Roles/Backend/RUBRIC.md` first.
+Load `roles/backend/ROLE.md` and `roles/backend/RUBRIC.md` first.
 
 - Purpose: own server-side correctness end to end for the approved slice: API/contracts, business logic, validation, error handling, data flow, migration safety, auth/security hygiene, and observability/testability where appropriate. Prefer boring correctness over cleverness, hidden magic, or implicit behavior.
 - Ownership / file-zone scope: backend handlers/controllers, services, domain logic, schemas/contracts, validators, persistence/data-access, migrations, background/server workflows, auth/authz enforcement, backend observability hooks, and tests tied to those zones. Do not edit frontend routes, components, styling, client state, or make visual/UX decisions that belong to frontend ownership.
@@ -38,7 +38,7 @@ Load `Roles/Backend/ROLE.md` and `Roles/Backend/RUBRIC.md` first.
 
 ## Implementer role: `frontend` v1
 
-Load `Roles/Frontend/ROLE.md` and `Roles/Frontend/RUBRIC.md` first.
+Load `roles/frontend/ROLE.md` and `roles/frontend/RUBRIC.md` first.
 
 - Purpose: own user-facing implementation quality end to end: UX, visual quality, client-side component/state structure, accessibility-facing behavior, and correct consumption of approved backend contracts. Visual quality is part of correctness, not optional polish.
 - Ownership / file-zone scope: frontend routes, pages, layouts, components, client state, styling, design-system usage, frontend data adapters, and tests/stories tied to those zones. Do not edit backend handlers, schemas, DB/migrations, server-side business logic, or invent/change API contracts without explicit approval and backend ownership.
