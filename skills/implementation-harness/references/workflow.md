@@ -35,7 +35,7 @@ For non-trivial code work, make the loop explicit in execution notes and handoff
   - frontend-heavy changes: include frontend correctness review
   - security/privacy/reliability/performance review when the research packet or touched code says they matter
 - If execution hits a concrete blocker, review finds scope expansion, a redesign is required, a contradiction appears, or an implementation-critical fact is still missing, stop as `blocked`.
-- After an in-scope fix pass, prefer a fresh independent reviewer for re-review by default. Reuse the same reviewer only when reviewer availability is constrained and the slice stayed within frozen scope; record that fallback under `warnings`.
+- After an in-scope fix pass, prefer a fresh independent reviewer for re-review by default. Reuse the same reviewer only when reviewer availability is constrained and the slice stayed within frozen scope; record that fallback under `review_gate.freshness_notes`.
 
 ## Handoff rule
 
