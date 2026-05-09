@@ -18,6 +18,18 @@ If repo design memory is present and declares a project type, then load one prim
 
 Load more than one class file only when the repo explicitly declares mixed modes and the current task actually touches the secondary mode.
 
+Then load only the additional support files that materially help the current judgment or generation task:
+- pattern files when the question is about pattern choice, structure, or alternatives
+- `anti-patterns.md` when the task needs hard prohibitions
+- `bad-smells.md` when the task needs softer pressure or “avoid by default” guidance
+- `examples.md` when the task needs contrastive good-vs-bad framing
+
+Quick routing:
+- “what layout/pattern should this use?” -> `patterns-*.md`
+- “what is absolutely not allowed here?” -> `anti-patterns.md`
+- “what feels suspicious or cheap?” -> `bad-smells.md`
+- “show me what stronger vs weaker looks like” -> `examples.md`
+
 If the repo has no `DESIGN.md` or no declared `design/project-type.md` yet:
 - do not guess the product class
 - load `shared-core.md` only
@@ -30,7 +42,8 @@ Belongs here:
 - portable taste heuristics
 - reusable visual quality rules
 - cross-repo anti-patterns
-- product-class-specific taste patterns that repeat across many repos
+- pattern families that repeat across many repos
+- examples and bad-smell guidance that improve taste judgment across repos
 
 Does not belong here:
 - repo tokens

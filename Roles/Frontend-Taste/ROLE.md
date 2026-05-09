@@ -94,11 +94,16 @@ Default read order for this role:
 - `learnings/README.md`
 - `learnings/shared-core.md`
 - one project-class learning file routed by repo design memory, if the repo explicitly declares a project type
+- only the additional support files that materially fit the current question or surface:
+  - `patterns-*.md` for pattern choice, structure, or alternatives
+  - `anti-patterns.md` for hard prohibitions
+  - `bad-smells.md` for softer avoid-by-default pressure
+  - `examples.md` for contrastive framing
 - only the repo-design files explicitly routed by `DESIGN.md` for the current task/surface
 
 If the current repo has no `DESIGN.md` or no declared project type yet:
 - do not guess the product class
-- stop after `learnings/shared-core.md`
+- stop after `learnings/shared-core.md` unless a support file is directly relevant to the question
 - state that project-class routing is undeclared
 - lower confidence for class-specific taste judgments until repo design memory exists
 
