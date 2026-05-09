@@ -17,14 +17,14 @@ Use these only as routing/eval sanity checks. Do not cargo-cult them into broad 
 - Read first: `task-contract.md`
 - Implementers: one `backend`, or multiple `backend` owners only if file zones are fully non-overlapping
 - Contract extras: name request-path impact, contract touchpoints, and docs/architecture notes that must stay aligned
-- Review: always `staff backend`; add `performance` when the touched path is user-visible/hot or can block on sync storage/network/process work; add `qa/reliability` when retries/timeouts/recovery/duplicate-delivery semantics materially change; add `security` only when exploitability/auth/trust-boundary risk is primary
+- Review: always `backend`; add `performance` when the touched path is user-visible/hot or can block on sync storage/network/process work; add `qa/reliability` when retries/timeouts/recovery/duplicate-delivery semantics materially change; add `security` only when exploitability/auth/trust-boundary risk is primary
 
 ## 3) Frontend correctness plus visual quality
 
 - Task: user-facing UI slice with both behavior risk and presentation quality risk
 - Class: `non-trivial`
 - Implementers: one `frontend`
-- Review: `staff frontend` for correctness and `frontend taste` for presentation quality; keep the two passes separate
+- Review: `frontend` for correctness and `frontend taste` for presentation quality; keep the two passes separate
 
 ## 4) Post-auth security pass
 

@@ -1,6 +1,6 @@
 ---
 name: code-review-orchestrator
-description: Orchestrate multi-role code reviews for any repository, branch, PR, or diff. Use when the user asks for code review / кодревью, wants a review of a repo/path/branch/PR, or wants a merged report from specialist perspectives such as critic, staff backend, staff frontend, frontend taste, security, privacy/data-safety, qa/reliability, or performance. Also use when the user wants one global review command that fans out to the relevant reviewers, returns an explicit pass/fail review verdict for non-trivial work, and merges must-fix / should-fix / can-delay findings.
+description: Orchestrate multi-role code reviews for any repository, branch, PR, or diff. Use when the user asks for code review / кодревью, wants a review of a repo/path/branch/PR, or wants a merged report from specialist perspectives such as critic, backend, frontend, frontend taste, security, privacy/data-safety, qa/reliability, or performance. Also use when the user wants one global review command that fans out to the relevant reviewers, returns an explicit pass/fail review verdict for non-trivial work, and merges must-fix / should-fix / can-delay findings.
 ---
 
 # Code Review Orchestrator
@@ -13,8 +13,8 @@ This is the post-implementation review gate. The pre-implementation proposal/cri
 ## Canonical reviewer roles
 Use these role labels as the canonical review stack:
 - `critic`
-- `staff backend`
-- `staff frontend`
+- `backend`
+- `frontend`
 - `frontend taste`
 - `security`
 - `privacy/data-safety`
@@ -29,8 +29,8 @@ Do not treat `staff engineer`, generic `designer`, `financial/risk`, or `reliabi
 3. For `sensitive-surface` diffs, run `scripts/check_sensitive_surface.py <repo-path> [<base-rev>]` from this skill and include its output in the shared brief.
 4. Build one shared brief, then choose reviewers by primary risk:
    - `critic` for simplification, trade-offs, hidden fragility, or scope pressure
-   - `staff backend` for backend/server correctness
-   - `staff frontend` for client-side correctness, state, routing, async behavior, and contract consumption
+   - `backend` for backend/server correctness
+   - `frontend` for client-side correctness, state, routing, async behavior, and contract consumption
    - `frontend taste` for visual/presentation quality on rendered user-facing surfaces; use the `design-taste-frontend` skill for that reviewer
    - `security` for exploitability, auth, privilege, and trust-boundary regressions
    - `privacy/data-safety` for local-path leakage, committed personal docs, prompt/example leakage, retained user data, unsafe persistence, and consent/retention mistakes
@@ -63,8 +63,8 @@ Do not treat `staff engineer`, generic `designer`, `financial/risk`, or `reliabi
 - Default to one independent reviewer.
 - Choose reviewers from the canonical role set by task context; do not invent new default labels.
 - Use `critic` when the main question is simplification, scope pressure, hidden fragility, or trade-offs.
-- Use `staff backend` for backend/server correctness.
-- Use `staff frontend` for frontend/client correctness; if the touched slice is React/Next.js, also load `vercel-react-best-practices`.
+- Use `backend` for backend/server correctness.
+- Use `frontend` for frontend/client correctness; if the touched slice is React/Next.js, also load `vercel-react-best-practices`.
 - Use `frontend taste` for visual/presentation quality on rendered UI surfaces; use the `design-taste-frontend` skill for that reviewer.
 - Use `security` when the diff may change exploitability or trust boundaries.
 - Use `privacy/data-safety` for `sensitive-surface` diffs.

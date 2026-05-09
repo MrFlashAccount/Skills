@@ -1,119 +1,260 @@
 # Skills
 
-Self-contained source-of-truth repo for OpenClaw skills.
+Editable source repo for OpenClaw skills, reusable roles, and shared conventions.
 
-This repo keeps the editable skill folders in one place. Local OpenClaw runtime loads skills directly from `skills/` via each skill's `SKILL.md`, so packaged `.skill` bundles are not required for normal local use.
+Use this repo when you want to:
+- find the right skill for a task
+- update how a skill behaves at runtime
+- reuse a role instead of copying role prose into a skill
+- keep shared repo conventions in one place
 
-## Process docs
-- [SPDD-lite](skills/SPDD-LITE.md)
-  - What it is: a lightweight process model for AI-assisted workflow design.
-  - Use when: you need a compact guide for scope, assumptions, approval, freshness, and risk scaling.
-  - Do not use when: the task is pure implementation work or when a heavyweight process template is expected.
+Local OpenClaw reads skills directly from this repo's `SKILL.md` files, so packaged `.skill` bundles are not needed for normal local use.
 
-## Layout
-- `skills/<skill-name>/` — canonical source for each skill in this repo
-- `Roles/<role-name>/` — canonical source for reusable role references that skills should load and adapt instead of copying into per-skill prose
-- `conventions/*.md` — reusable conventions for target repos that define documentation and memory standards, with repo-local equivalents allowed when the same durable purpose is preserved
+## Table of contents
 
-## Roles
-Role folders are reusable references, not executable skills.
-Common shape:
-- `ROLE.md` — canonical role contract
-- `RUBRIC.md` — compressed derivative checklist
-- `LEARNINGS.md` — append-only role memory
+- [Start here](#start-here)
+- [How this repo works](#how-this-repo-works)
+- [Repo map](#repo-map)
+- [Common workflows](#common-workflows)
+- [Skill index](#skill-index)
+- [Role index](#role-index)
+- [Process docs](#process-docs)
+- [Conventions](#conventions)
+- [Repo rules](#repo-rules)
 
-- `Roles/Architect`
-  - What it is: a phase-agnostic architecture role reference for checking module boundaries, seams, DDD alignment, ubiquitous language, and architecture fit.
-  - Use when: a skill needs architectural judgment during research, review, or while defining architectural constraints.
-  - Do not use when: the task is a tiny local fix with no meaningful effect on module shape, naming, ownership, or architecture records.
+## Start here
 
-## Conventions
-- `conventions/repo-architecture-memory.md`
-  - What it is: a repo-level convention for deciding how project-specific architecture memory should be recorded in a target repo.
-  - Use when: a role or skill needs a default rule for context glossaries, context maps, decision logs, and equivalent repo-local artifacts.
-  - Do not use when: the task only needs reusable role judgment with no project-specific memory contract.
+If you need...
+- a runnable skill -> go to [`skills/`](#skill-index)
+- a reusable reviewer/writer/specialist role -> go to [`Roles/`](#role-index)
+- a repo-level shared rule or memory convention -> go to [`conventions/`](#conventions)
+- to create or rewrite a skill -> start with [`skills/create-skill`](#skill-index)
 
-## Current skills
+## How this repo works
+
+Think of the repo in three layers:
+
+1. `skills/` — executable skill source
+   - each skill lives in its own folder
+   - runtime entrypoint is `skills/<name>/SKILL.md`
+   - references, scripts, and assets live beside it
+
+2. `Roles/` — reusable role contracts
+   - these are not runnable skills
+   - they hold canonical specialist identity, rubric, and learnings
+   - skills should load and adapt them instead of re-owning the same role prose
+
+3. `conventions/` — repo-level defaults
+   - shared conventions that multiple roles or skills may reference
+   - use these when the rule is broader than one skill but narrower than general repo docs
+
+## Repo map
+
+```text
+skills/         runnable skill folders
+Roles/          reusable role contracts
+conventions/    shared repo-level conventions
+SPDD-lite.md    lightweight process doc
+README.md       onboarding + repo map
+```
+
+Canonical shapes:
+
+### Skill folder
+
+```text
+skills/<skill-name>/
+  SKILL.md
+  references/
+  scripts/      # optional
+  assets/       # optional
+```
+
+### Role folder
+
+```text
+Roles/<Role-Name>/
+  ROLE.md
+  RUBRIC.md
+  LEARNINGS.md
+```
+
+When a canonical label and folder path differ, the folder path is the source of truth.
+Current non-trivial mappings:
+- `frontend taste` -> `Roles/Frontend-Taste`
+- `privacy/data-safety` -> `Roles/Privacy-Data-Safety`
+- `qa/reliability` -> `Roles/QA-Reliability`
+
+## Common workflows
+
+### Find the right skill
+
+- README/launch framing, messaging, positioning -> `skills/devrel-copywriter`
+- docs, setup, usage, onboarding, API explanation -> `skills/docs-writer`
+- create or refactor a skill -> `skills/create-skill`
+- planning + slice + approval flow for code work -> `skills/dev-harness`
+- multi-role review -> `skills/code-review-orchestrator`
+- pre-implementation proposal + critique -> `skills/research-critic`
+
+### Reuse a role
+
+If a skill needs a reusable specialist voice:
+- load from `Roles/`
+- adapt it to the current phase
+- keep role identity in `Roles/`, not in local copied prose
+
+### Add or update a skill
+
+1. Start from concrete usage, not abstract theory.
+2. Use `skills/create-skill` when building or rewriting the skill.
+3. Keep `SKILL.md` lean.
+4. Push bulky or variant-specific detail into `references/`.
+5. Add scripts only for deterministic repeated work.
+6. Test with representative prompts before calling it done.
+
+## Skill index
+
+### Writing and docs
+
+- `skills/devrel-copywriter`
+  - What it is: developer-facing framing, positioning, launch copy, README intros, and messaging polish.
+  - Use when: the main job is message hierarchy, payoff, tone, and believable product framing.
+  - Do not use when: the main job is teaching setup, usage, onboarding, migration, or API behavior.
+
+- `skills/docs-writer`
+  - What it is: documentation writing and rewriting for usage, setup, onboarding, migration, and API/reference clarity.
+  - Use when: the main job is reader success through clear explanation and structure.
+  - Do not use when: the main job is framing, positioning, or README opening copy.
+
+- `skills/cover-letter-writer`
+  - What it is: tailored cover letter creation from job context and resume material.
+  - Use when: the task is job-specific cover-letter drafting.
+  - Do not use when: the task is general docs or product copy.
+
+- `skills/humanizer`
+  - What it is: cleanup pass for tone, rhythm, and less robotic wording.
+  - Use when: wording is technically fine but reads too AI-ish or stiff.
+  - Do not use when: the real problem is strategy, structure, or missing facts.
+
+- `skills/forthright`
+  - What it is: compression/editing pass that cuts fluff without hiding the point.
+  - Use when: text is bloated and needs sharper wording.
+  - Do not use when: the real issue is missing structure or unclear task intent.
+
 - `skills/caveman`
-  - What it is: ultra-compressed reply mode that drops filler but keeps technical meaning.
-  - Use when: the user wants brevity, caveman mode, or token-efficient replies.
-  - Do not use when: the reply is user-facing high-stakes warning, destructive confirmation, or needs normal tone.
+  - What it is: ultra-compressed reply mode.
+  - Use when: the user wants short, blunt, token-efficient output.
+  - Do not use when: the reply needs nuance, safety wording, or normal tone.
+
+### Planning, review, and implementation flow
+
+- `skills/create-skill`
+  - What it is: execution harness for building or rewriting a skill folder.
+  - Use when: a skill shape is already scoped and should be implemented cleanly.
+  - Do not use when: scope is still fuzzy.
+
+- `skills/dev-harness`
+  - What it is: top-level coding harness for discovery, proposal, approval, delegation, implementation, and review loops.
+  - Use when: the task needs planning, slicing, approval flow, or coordinated execution.
+  - Do not use when: scope is already approved and closed for direct implementation.
+
+- `skills/implementation-harness`
+  - What it is: direct implementation harness for already-approved work.
+  - Use when: scope is locked and the main job is execution.
+  - Do not use when: the task still needs discovery or approval shaping.
+
 - `skills/code-review-orchestrator`
   - What it is: one entrypoint for multi-role code review with merged findings.
   - Use when: the user wants a repo, diff, branch, or PR reviewed from one or more specialist angles.
   - Do not use when: the main job is pre-implementation planning or direct implementation.
-- `skills/cover-letter-writer`
-  - What it is: short, high-conviction cover-letter and outreach writing harness.
-  - Use when: the user wants a cover letter, recruiter opener, DM, or hiring-manager outreach.
-  - Do not use when: the job is general copy polish on an existing draft without cover-letter strategy.
-- `skills/create-skill`
-  - What it is: execution-stage harness for turning scoped source material into a real skill folder.
-  - Use when: the skill shape is already clear and the task is to build or refine the skill files.
-  - Do not use when: discovery is still fuzzy or approval to start implementation is not in place.
-- `skills/design-taste-frontend`
-  - What it is: strict frontend UI/UX quality system for non-generic interface design.
-  - Use when: the task is designing or refining user-facing frontend UI with strong visual and interaction standards.
-  - Do not use when: the work is backend-only or the ask is pure docs/copy without UI implementation.
-- `skills/dev-harness`
-  - What it is: top-level coding harness for discovery, proposal, approval, and delegation.
-  - Use when: the task needs planning, slicing, approval flow, or durable coordination across implementation stages.
-  - Do not use when: scope is already approved and closed for direct implementation.
-- `skills/devrel-copywriter`
-  - What it is: developer-facing positioning and product-messaging writing harness.
-  - Use when: the job is README framing, launch copy, changelog messaging, or devrel angle/polish.
-  - Do not use when: the main job is explaining setup, usage, onboarding, migration, or API behavior.
-- `skills/docs-writer`
-  - What it is: documentation-writing harness for teaching setup, usage, flow, and reference clearly.
-  - Use when: the main job is improving product or library docs so readers succeed faster and more correctly.
-  - Do not use when: the task is narrative framing, launch copy, or polish-first devrel messaging.
-- `skills/forthright`
-  - What it is: compressed agent-to-agent communication mode for operational handoffs and internal files.
-  - Use when: coordinating workers/reviewers or compressing maintainer-operational text such as AGENTS, plans, or summaries.
-  - Do not use when: writing user-facing replies, external messages, safety warnings, or destructive confirmations.
-- `skills/github-ticket-intake`
-  - What it is: GitHub issue-intake harness that shapes rough requests into issues or small ticket sets.
-  - Use when: the user wants rough work turned into tracked GitHub issues, project items, or board-ready tickets.
-  - Do not use when: the work is implementation, research, or non-GitHub task breakdown.
-- `skills/grill-me`
-  - What it is: one-question-at-a-time design and plan stress-test interview.
-  - Use when: the user wants their plan challenged, clarified, or pressure-tested branch by branch.
-  - Do not use when: the task is ready for execution and does not need an interrogation loop.
-- `skills/humanizer`
-  - What it is: rewrite pass that makes existing text sound more natural and less AI-polished.
-  - Use when: the user already has draft text and wants it warmer, cleaner, shorter, or more human.
-  - Do not use when: the job needs domain strategy, major restructuring, or first-draft content creation.
-- `skills/improve-codebase-architecture`
-  - What it is: architecture review harness for finding deepening opportunities in a codebase.
-  - Use when: the user wants refactor candidates that improve locality, leverage, testability, and AI navigability.
-  - Do not use when: the ask is narrow bug-fixing or immediate implementation without architecture exploration.
-- `skills/implementation-harness`
-  - What it is: post-approval implementation harness for executing against closed research.
-  - Use when: approved task context and research already exist and the job is to implement, verify, and review.
-  - Do not use when: approval, research, or implementation-critical facts are still open.
-- `skills/obsidian`
-  - What it is: operational guide for working with Obsidian vaults and `obsidian-cli`.
-  - Use when: the task is finding a vault, editing notes, searching content, or moving/deleting notes safely.
-  - Do not use when: the task is generic markdown editing outside an Obsidian-vault workflow.
-- `skills/research-critic`
-  - What it is: pre-implementation research packet with proposal, critique, and readiness verdict.
-  - Use when: the user wants a task researched, broken down, challenged, or prepared for implementation.
-  - Do not use when: the job is implementation, GitHub issue transport, or execution ownership.
-- `skills/vercel-react-best-practices`
-  - What it is: Vercel-maintained React and Next.js performance and code-quality rule set.
-  - Use when: writing, reviewing, or refactoring React/Next.js code for rendering, data-fetching, or bundle performance.
-  - Do not use when: the code is not React/Next.js or the task is broader product docs/copy work.
 
-## Add or update a skill
-1. Copy the runtime-required contents into `skills/<skill-name>/`.
-2. Copy any runtime-critical skill dependencies this repo needs.
-3. Commit the source changes together.
+- `skills/research-critic`
+  - What it is: reusable pre-implementation research + critique packet builder.
+  - Use when: a task needs proposal quality, readiness judgment, or structured research before implementation.
+  - Do not use when: implementation or PR review should already be happening.
+
+- `skills/grill-me`
+  - What it is: scoping/interrogation helper for unclear tasks.
+  - Use when: the real problem is still figuring out what should be built.
+  - Do not use when: the work is already scoped enough for `create-skill` or implementation.
+
+### Frontend and architecture specialties
+
+- `skills/design-taste-frontend`
+  - What it is: design-taste lens for frontend quality.
+  - Use when: the task needs stronger visual/product judgment for UI work.
+  - Do not use when: the task is backend-only or mostly docs.
+
+- `skills/vercel-react-best-practices`
+  - What it is: reusable React/Next.js guidance.
+  - Use when: frontend work touches React/Next.js slices.
+  - Do not use when: the task is not React/Next.js work.
+
+- `skills/improve-codebase-architecture`
+  - What it is: architecture improvement guidance and artifacts.
+  - Use when: the task is reorganizing structure, boundaries, or architecture records.
+  - Do not use when: the task is a tiny local fix with no architecture effect.
+
+### Workflow and repo utilities
+
+- `skills/github-ticket-intake`
+  - What it is: intake structure for GitHub issue work.
+  - Use when: the task is turning issue context into actionable scoped work.
+  - Do not use when: the task is generic writing or implementation already in flight.
+
+- `skills/obsidian`
+  - What it is: Obsidian-oriented workflow support.
+  - Use when: the task touches Obsidian notes/workflows.
+  - Do not use when: the task has nothing to do with that environment.
+
+## Role index
+
+Roles are reusable references, not executable skills.
+Use them when a skill needs a stable specialist identity across phases.
+
+- `Roles/Architect`
+  - Architecture fit, boundaries, seams, DDD alignment, record updates.
+- `Roles/Backend`
+  - Backend/server implementation and review judgment.
+- `Roles/Critic`
+  - Adversarial pressure on assumptions, scope, risk, and complexity.
+- `Roles/DevRel`
+  - Developer-facing framing, positioning, and messaging quality.
+- `Roles/Frontend`
+  - Frontend/client implementation and review judgment.
+- `Roles/Frontend-Taste`
+  - Rendered UI taste, hierarchy, spacing, typography, composition, and polish.
+- `Roles/Performance`
+  - Hot-path, latency, throughput, blocking work, and resource impact.
+- `Roles/Privacy-Data-Safety`
+  - Local-path leakage, repo-visible private content, retention, and consent safety.
+- `Roles/QA-Reliability`
+  - Failure handling, rollback/recovery, degraded mode, diagnosability, and test signal.
+- `Roles/Security`
+  - Exploitability, auth, injection, secrets, and trust-boundary risk.
+- `Roles/TechWriter`
+  - Teaching-oriented technical documentation writing and review.
+
+## Process docs
+
+- `SPDD-lite.md`
+  - What it is: lightweight repo process doc.
+  - Use when: you need the house workflow for structured skill work.
+  - Do not use when: you only need a single skill folder and its own local instructions.
+
+## Conventions
+
+- `conventions/repo-architecture-memory.md`
+  - What it is: repo-level convention for architecture memory in target repos.
+  - Use when: a role or skill needs a default rule for context docs, ADRs, context maps, or similar artifacts.
+  - Do not use when: the task only needs one role's local judgment with no shared memory convention.
 
 ## Repo rules
-- Keep the repo self-contained.
-- Do not rely on external skill dependencies for runtime-critical behavior.
-- Do not copy repo/editor docs unless they are part of the actual skill runtime behavior.
+
 - Keep `skills/` as the source of truth for skill runtime behavior.
 - Keep `Roles/` as the source of truth for reusable role references.
 - Keep `conventions/` as the source of truth for repo-level reusable conventions.
-- When a skill needs a role from `Roles/`, prefer loading and adapting that role in context instead of copying its prose into the skill.
-- When a role or skill needs repo-specific architecture memory rules, prefer referencing `conventions/` instead of inventing local wording from scratch.
+- Prefer loading/adapting roles from `Roles/` over copying role prose into skills.
+- Prefer referencing `conventions/` over inventing duplicated repo-wide wording inside one skill.
+- Do not add extra docs inside a skill folder unless they are part of runtime behavior.
+- Do not copy repo/editor docs into a skill unless that content is actually needed at runtime.

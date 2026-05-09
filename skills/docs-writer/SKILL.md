@@ -27,10 +27,12 @@ For those, use `devrel-copywriter`.
 ## Read order
 
 1. Classify the task.
-2. Read [references/task-contract.md](references/task-contract.md).
-3. If `full-cycle`, read [references/doc-modes.md](references/doc-modes.md) before locking the contract.
-4. If `tiny`, still name the current or target doc mode in the contract; read [references/doc-modes.md](references/doc-modes.md) too if the mode is not obvious.
-5. Read [references/review-policy.md](references/review-policy.md) before the first independent review.
+2. Read [`../../Roles/TechWriter/ROLE.md`](../../Roles/TechWriter/ROLE.md).
+3. Read [`../../Roles/TechWriter/RUBRIC.md`](../../Roles/TechWriter/RUBRIC.md).
+4. Read [references/task-contract.md](references/task-contract.md).
+5. If `full-cycle`, read [references/doc-modes.md](references/doc-modes.md) before locking the contract.
+6. If `tiny`, still name the current or target doc mode in the contract; read [references/doc-modes.md](references/doc-modes.md) too if the mode is not obvious.
+7. Read [references/review-policy.md](references/review-policy.md) before the first independent review.
 
 ## Task class
 
@@ -74,7 +76,7 @@ Attack hidden setup, bad concept order, premature API surface, jargon before mea
 
 ### Debate
 
-Use one short `teacher` vs `critic` round only when it helps choose the clearest path.
+Use one short `techwriter` vs `critic` round only when it helps choose the clearest path. Load `Roles/Critic/ROLE.md` for the critic side; this skill supplies the documentation-stage wrapper.
 
 ### Review
 
@@ -82,6 +84,7 @@ Apply the review policy after writing, not just at the end. For `full-cycle` wor
 
 ## Rules
 
+- Treat `Roles/TechWriter/ROLE.md` as the canonical writing/review identity for documentation work; this skill supplies the docs-stage workflow and contracts.
 - Optimize for low confusion and fast first success.
 - Prefer teaching over impressing.
 - Do not hide prerequisites or glue code.

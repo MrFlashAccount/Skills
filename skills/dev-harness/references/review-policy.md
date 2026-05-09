@@ -11,7 +11,7 @@ Read this before any review pass.
 - A worker may not review a slice it authored.
 - Keep reviewer selection separate from implementer roles; do not treat review specialties as implementer labels.
 - Choose reviewers from the canonical reviewer role set by task context.
-- Backend slices that touch request-path, persistence, or async runtime behavior must include `staff backend`.
+- Backend slices that touch request-path, persistence, or async runtime behavior must include `backend` review.
 - Add `performance` review when the touched backend path is user-visible, hot, or can block on sync storage/network/process work.
 - Add `qa/reliability` review when retries, timeouts, duplicate-delivery, rollback, or degraded-mode behavior materially changes.
 - Review external contract assumptions when the slice depends on a CLI, API, SDK, webhook, or similar integration.
@@ -28,7 +28,9 @@ Read this before any review pass.
 
 ## Critic contract
 
-Use critic as a short challenge role, not as a second implementer, second discovery worker, or vague smart-sounding narrator.
+Load `Roles/Critic/ROLE.md` as the canonical critic identity and `Roles/Critic/RUBRIC.md` as the compact checklist.
+
+Use critic here as a short challenge role, not as a second implementer, second discovery worker, or vague smart-sounding narrator.
 
 - Critic is the simplification/challenge reviewer, not the primary reviewer for correctness, security, privacy/data-safety, QA, performance, or redesign.
 - Output shape: `Pass/fail / Must-fix / Should-fix / Can-delay`.
@@ -36,4 +38,5 @@ Use critic as a short challenge role, not as a second implementer, second discov
 - Every material finding should point to an artifact: acceptance criteria, proposal field, risk, file/line, test gap, or contradiction.
 - Before approval, critic challenges the proposal only; no code-ish content and no implementation recipes.
 - After approval, critic challenges the accepted result inside frozen scope; do not reopen design unless a blocker or high-risk contradiction forces it.
+- This skill supplies the phase wrapper; the repo-level role stays phase-agnostic.
 - Keep critique short and issue-focused.
