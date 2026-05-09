@@ -50,6 +50,8 @@
 - 3rd critic/fix round added when ambiguity or bloat remains
 - latest review issues are actually resolved, not just acknowledged
 - at least one critic pass explicitly audits ask-surface coverage, workflow coherence, and capability-vs-doc drift
+- if the skill text stayed wordy after the main review loop, a late-stage `forthright` compression pass was considered or run
+- if `forthright` compression ran, one final sanity review checked that no trigger boundary, safety rule, or workflow branch was weakened
 
 ## Testing
 - tested on representative prompts

@@ -142,7 +142,35 @@ Critic focus:
 - whether claimed capabilities match the shipped scripts/files and default path
 - whether ambiguous branches such as destination choice, write-vs-draft mode, and one-item-vs-many routing are resolved explicitly
 - whether any branch is only described conceptually instead of being closed operationally
-## 10. Test the skill on real prompts
+## 10. Run a late-stage compression pass
+
+After the main draft/review/fix loop is clean, run one compression pass through `forthright` for AI-only skill material.
+
+Use it to compress:
+- `SKILL.md`
+- internal references
+- operating checklists
+- reviewer notes or internal handoff text that ships with the skill
+
+Do not use it to rewrite:
+- user-facing copy examples where tone/nuance is part of the contract
+- safety warnings that need full clarity
+- ambiguous instructions where extra wording is carrying real guardrail value
+
+Compression rule:
+- remove filler, repetition, and low-signal connective wording
+- keep exact technical terms, file paths, commands, and hard rules
+- keep trigger wording explicit enough to avoid over-triggering
+- keep workflow branches operationally closed; do not compress away branch boundaries
+
+Order:
+1. finish the normal critic/fix loop
+2. run `forthright` compression on the AI-only skill text
+3. do one final sanity review to ensure no meaning, safety rule, or routing boundary was lost
+
+Treat `forthright` as a cleanup stage, not as a replacement for skill design or critic review.
+
+## 11. Test the skill on real prompts
 
 Validate with representative asks.
 
@@ -158,7 +186,7 @@ Check:
 - did the workflow stay honest when destination/ownership/mode/split was ambiguous?
 - if the docs claim multi-item, update, backfill, field-setting, or similar branches, were those branches actually exercised or explicitly cut from scope?
 - if the workflow includes repeated critic/rewrite/final loops, was leakage prevention tested explicitly and was a state-machine shape considered or adopted?
-## 11. Finalize and iterate
+## 12. Finalize and iterate
 
 Review the finished skill folder, fix any broken references or workflow gaps, and revise based on actual use.
 For sensitive-surface skills, do not call it done until privacy/data-safety review either finds a concrete issue or explicitly clears the approved scope.
