@@ -8,7 +8,7 @@ description: Orchestrate multi-role code reviews for any repository, branch, PR,
 ## Goal
 Run one review entrypoint, choose the right reviewer set from the canonical post-implementation roles, spawn those reviewers in parallel, and merge their findings into one actionable report.
 
-This is the post-implementation review gate. The pre-implementation proposal/critic/debate flow lives in `dev-harness`. For non-trivial code work, this gate should act as an adversarial contract check with binary pass/fail semantics, not a soft advisory lap.
+This is stage 4, the post-implementation review gate. The pre-implementation `research` flow lives in `research-critic`, and `execution plan` lives in `dev-harness`. For non-trivial code work, this gate should act as an adversarial contract check with binary pass/fail semantics, not a soft advisory lap.
 
 ## Canonical reviewer roles
 Use these role labels as the canonical review stack:

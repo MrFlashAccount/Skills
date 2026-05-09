@@ -33,10 +33,12 @@ What this phase explicitly does not cover.
 Real boundaries, dependencies, or limits already known.
 
 ### `proposed_approach`
-The practical proposal. It may include sequencing, candidate file zones, or architecture direction, but not implementation instructions.
+The practical proposal. It may include sequencing, candidate file zones, architecture direction, and whether research should also lock a `design-test` artifact for UI-heavy work, but not implementation instructions.
 
 ### `acceptance_criteria`
 What should be true for the task to be ready for approval or later implementation.
+
+If UI/interaction design is materially part of the slice, this should state whether a `design-test` is required and what that artifact must cover: intended UI shape, required components, critical states/behavior, and detail expectations.
 
 ### `unresolved_blockers`
 Concise top-level list of unresolved items that currently block approval, routing, or safe implementation start.

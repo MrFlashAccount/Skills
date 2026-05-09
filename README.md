@@ -238,8 +238,8 @@ Use them when a skill needs a stable specialist identity across phases.
 ## Process docs
 
 - `SPDD-lite.md`
-  - What it is: lightweight repo process doc.
-  - Use when: you need the house workflow for structured skill work.
+  - What it is: lightweight four-stage repo process doc: `research -> execution plan -> development -> review`.
+  - Use when: you need the house workflow and stage boundaries for structured skill work.
   - Do not use when: you only need a single skill folder and its own local instructions.
 
 ## Conventions
