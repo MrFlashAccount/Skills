@@ -1,50 +1,86 @@
 ---
 name: create-skill
-description: Turn a raw idea, PDF, SOP, workflow, or prompt collection into a well-structured Claude/OpenClaw skill. Use when creating a new skill, converting existing documentation into a source-first skill folder, improving SKILL.md metadata, deciding what belongs in SKILL.md vs references/scripts/assets, or reviewing whether a skill is complete and runnable in a source-only repo.
+description: Create, rewrite, audit, or materially restructure a Claude/OpenClaw skill folder from source material or an existing skill. Use when the task is to build a skill from a PDF, SOP, workflow, prompt pack, or notes; review an existing skill like `dev-harness`; tighten trigger metadata/frontmatter; or refactor what belongs in `SKILL.md` vs `references/`/`scripts/`/`assets/`. This skill is for approved skill work, including approved audit-only passes and approved implementation/rewrite passes.
 ---
 
-Turn this source material into a real source-first skill folder.
+Turn source material or an existing skill into a clean source-first skill workflow.
 
-This is execution stage, not initial discovery stage.
-If scope is still fuzzy, use `grill-me` first to determine what actually needs to be built. Start this skill only after the target skill shape is clear enough to execute.
+## Mode selection
 
-After scoping and before any real skill implementation work, stop and wait for the user's explicit `APPROVED` or `LGTM`.
-Do not draft files, create the skill structure, or start fix/review passes before that approval.
+Choose one mode up front:
 
-Work from concrete usage, not abstract summaries.
+1. `audit`
+   - review an existing skill
+   - no file edits
+   - output findings, gaps, and recommended changes
+   - still requires explicit user approval before starting
 
-1. Reduce the scoped source into 3-5 representative user asks.
-2. Define success criteria before writing:
-   - trigger on relevant asks
-   - avoid unrelated over-triggering
-   - complete the workflow cleanly
-   - survive paraphrases and real-task tests
-   - keep claimed capabilities aligned with the files/scripts that actually exist
-   - close the main routing branches operationally, not just conceptually
-3. Build the smallest useful skill structure:
-   - `SKILL.md` for trigger metadata and the default operating flow
-   - `references/` for bulky or variant-specific detail
-   - `scripts/` for repeated deterministic work
-   - `assets/` only for output resources
-4. Keep `SKILL.md` lean. Move everything non-core out of the always-loaded file.
-5. If the skill is a sensitive surface, keep repo-visible content redacted/local-safe and run privacy/data-safety review before calling it done.
-6. Write frontmatter carefully:
-   - `name`: short, lowercase, hyphenated
-   - `description`: what the skill does, when it should trigger, and likely user phrasings
-   - fail if the description is generic, missing trigger language, contains `<` or `>`, or is too long
-7. Write the body as direct operating instructions.
-8. Run a critic/fix loop after the first draft:
-   - 2 review/fix iterations by default
-   - 3 iterations when the skill is high-risk, bloated, or still ambiguous after round 2
-   - critic must inspect ask surfaces, workflow branches, and claimed-vs-shipped capability alignment, not just frontmatter/size/structure
-   - if the workflow contains repeated handoffs like `draft -> critic -> revise -> critic`, or any no-partial-output gate before completion, check `references/state-machine-case-study.md` and consider modeling the flow as an explicit state machine instead of loose prose
-9. After the main review/fix loop, run a late-stage compression pass through `forthright` for AI-only skill material when it will remove wording fat without reducing safety or operational clarity.
-10. Review and test before calling it done.
+2. `proposal`
+   - shape the skill or rewrite plan
+   - define structure, trigger surface, success criteria, and branch handling
+   - stop and wait for explicit approval before file edits
 
-Read `references/workflow.md` for the full conversion flow.
-Read `references/checklist.md` before final review and after each review pass.
-Read `references/testing-and-troubleshooting.md` when checking trigger quality, frontmatter failure modes, or test coverage.
-Read `references/state-machine-case-study.md` when the skill includes iterative review loops, multi-stage handoffs, or leakage risk between unfinished and finished output.
+3. `implement`
+   - create or rewrite the skill files
+   - run critic/fix iterations
+   - follow with post-implementation review before calling it done
 
+If the target shape is still fuzzy, use `grill-me` first.
+If the answer can be recovered from the repo or source material, inspect that instead of asking.
 Ask one blocking question at a time.
-If the answer can be recovered from the source material or repo, inspect that instead of asking.
+
+## Approval gate
+
+This skill is approval-gated for all substantive modes, including audit.
+
+- Do not start an audit pass, proposal execution pass, file drafting, restructuring, or fix loop until the user explicitly says `APPROVED` or `LGTM`.
+- Pre-approval discussion may only clarify scope/mode or recover missing context.
+- Approval for audit does not automatically approve implementation.
+- If the task moves from audit/proposal into edits, stop and get explicit approval for the write phase.
+
+## Default stage model
+
+For non-trivial skill work, use this sequence:
+
+1. `source-audit`
+   - inspect the source material or existing skill
+   - reduce it to representative asks
+   - identify mode, scope, risks, and missing branches
+
+2. `proposal`
+   - define success criteria
+   - define target folder/file shape
+   - decide what belongs in `SKILL.md` vs `references/` vs `scripts/` vs `assets/`
+   - decide whether a state-machine shape is needed
+
+3. `implement`
+   - create or revise the skill files
+   - keep `SKILL.md` lean
+   - keep claimed capabilities aligned with shipped files/scripts
+
+4. `post-implement review`
+   - verify trigger quality, workflow coherence, and claimed-vs-shipped alignment
+   - confirm the edits match the approved proposal
+   - do not call the skill done until the reviewed result is clean enough
+
+For small approved fixes such as metadata-only or structure-only edits, compress the amount of ceremony but keep the same stage boundaries.
+
+## Core rules
+
+- Work from concrete usage, not abstract summaries.
+- Reduce the task into 3-5 representative asks unless the scope is truly tiny.
+- Keep `SKILL.md` focused on trigger metadata, default flow, and hard rules.
+- Move bulky or variant-specific detail into `references/`.
+- Add `scripts/` only for deterministic repeated work.
+- Add `assets/` only for output resources.
+- If the skill is a sensitive surface, keep repo-visible content redacted/local-safe and run privacy/data-safety review before calling it done.
+- If the workflow has repeated staged handoffs or unfinished-vs-finished leakage risk, read `references/state-machine-case-study.md` and consider an explicit state machine.
+- After the main edit pass, run critic/fix review loops and then one post-implementation review gate before finalizing.
+- If wording is still bloated after the main review/fix loop, run a late-stage compression pass through `forthright` for AI-only skill material, then sanity-check that no trigger boundary or safety rule was weakened.
+
+## Read next
+
+- Read `references/workflow.md` for the full stage model and branch handling.
+- Read `references/checklist.md` before final review and after each review pass.
+- Read `references/testing-and-troubleshooting.md` when checking trigger quality, frontmatter failure modes, or test coverage.
+- Read `references/state-machine-case-study.md` when the skill includes iterative review loops, multi-stage handoffs, or leakage risk between unfinished and finished output.
