@@ -21,7 +21,7 @@ Read only the references needed for the current phase; do not load every role by
 
 - Before execution planning for non-trivial or ownership-unclear work, read [references/task-contract.md](references/task-contract.md).
 - If the slice may touch local files, personal docs, prompts/examples, logs, retained user data, or machine-specific paths, read [references/sensitive-surfaces.md](references/sensitive-surfaces.md) before proposal.
-- After approval, hand off to `skills/implementation-harness/` with the approved task context plus closed research packet; do not restate or re-run its detailed implementation/review workflow here.
+- After approval, hand off to `skills/implementation-harness/` with the approved task context plus closed research packet plus approved execution-plan packet; do not restate or re-run its detailed implementation workflow here.
 - If routing is ambiguous or you want a sanity check on expected worker/reviewer choice, read [references/examples.md](references/examples.md).
 - Read the knowledge base only when relevant:
   - [references/knowledge/facts.md](references/knowledge/facts.md)
@@ -58,7 +58,7 @@ Read only the references needed for the current phase; do not load every role by
    - before approval, execution plans may include ownership, zones, reviewer plan, risks, and contract boundaries, but not code blocks, pseudocode, function/class skeletons, exact file-by-file edit recipes, command sequences, SQL/migrations, exact signatures, patch-like diffs, or ready-to-apply code
    - research must be closed before execution planning is treated as approved; unresolved implementation-critical gaps stay in research instead of leaking into development
 4. After approval, build the handoff packet for `implementation-harness`.
-   - include the approved task context, discovered facts, evidence, risks, unresolved blockers, candidate file zones, sensitive-surface classification, and any user constraints
+   - include the approved task context, approved research packet, approved execution-plan packet, discovered facts/evidence that still matter to implementation, and any user constraints
    - keep routing at this level minimal: name expected ownership only when needed for clean file-zone boundaries or user-visible delegation clarity
    - if delegated Codex CLI returns auth or rate_limit errors, stop and notify the user; do not patch around it by hand
    - send one short status note naming the delegated owner or harness

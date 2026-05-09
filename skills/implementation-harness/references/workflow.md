@@ -2,7 +2,7 @@
 
 ## Routing
 
-Choose implementers from approved scope:
+Choose implementers from the approved execution plan:
 
 - `backend`: handlers, services, schemas, persistence, auth, jobs, backend tests.
 - `frontend`: routes, components, styling, client state, UI data adapters, frontend tests.
@@ -11,32 +11,26 @@ Choose implementers from approved scope:
 
 ## Execution
 
-1. Read approved task context and research packet.
-   - treat approved research as closed input, not as a starting point for broad rediscovery
-2. Map file zones to `backend` and/or `frontend`.
-3. Implement only the approved slice and approved research direction.
+1. Read approved task context, approved research packet, and approved execution-plan packet.
+   - treat them as closed input, not as a starting point for broad rediscovery
+2. Map file zones to `backend` and/or `frontend` exactly as approved.
+3. Implement only the approved slice and approved direction.
 4. Run the smallest meaningful verification.
-5. Run independent implementation-stage review.
-6. Feed in-scope fixes back into implementation.
-7. After every in-scope fix pass, re-run verification before re-review. Do not send changed code to re-review or manual review on stale validation.
-8. Return the output packet.
+5. Package the development handoff for the separate review stage.
+6. Return the output packet.
 
-For non-trivial code work, make the loop explicit in execution notes and handoffs: `IMPLEMENT -> VALIDATE -> REVIEW -> FIX -> RE-VALIDATE -> RE-REVIEW`.
+For non-trivial code work, make the loop explicit in execution notes and handoffs: `IMPLEMENT -> VALIDATE -> HANDOFF FOR REVIEW`.
 
-## Review rules
+## Verification rules
 
-- Review is mandatory.
-- Implementer cannot review own slice.
+- Verification is mandatory before handoff.
 - Implementer self-report is never sufficient to mark non-trivial code work done.
-- Review checks the code, verification, contradictions, and any missing implementation-critical facts that survived research; it does not reopen broad task research or do a new readiness pass.
-- For non-trivial code work, review is adversarial against the approved contract and must return a binary pass/fail outcome, not just advisory notes.
-- Use reviewer coverage that matches the slice:
-  - backend-heavy changes: include backend correctness review
-  - frontend-heavy changes: include frontend correctness review
-  - security/privacy/reliability/performance review when the research packet or touched code says they matter
-- If execution hits a concrete blocker, review finds scope expansion, a redesign is required, a contradiction appears, or an implementation-critical fact is still missing, stop as `blocked`.
-- After an in-scope fix pass, prefer a fresh independent reviewer for re-review by default. Reuse the same reviewer only when reviewer availability is constrained and the slice stayed within frozen scope; record that fallback under `review_gate.freshness_notes`.
+- Verification should check the changed code, the approved contract touchpoints, and any execution-time fact that could invalidate the handoff.
+- Verification does not reopen broad task research or do a new readiness pass.
+- If execution hits a concrete blocker, scope expansion is required, a contradiction appears, or an implementation-critical fact is still missing, stop as `blocked`.
+- If verification fails, fix in scope and re-run verification before returning the packet.
 
 ## Handoff rule
 
-This skill returns a packet. Another layer may open/update PRs, post issue comments, store artifacts, or resume later. Keep those actions out of this skill.
+This skill returns a development packet for the next stage.
+Another layer or skill may open/update PRs, post issue comments, store artifacts, or run the explicit post-implementation review gate. Keep those actions out of this skill.

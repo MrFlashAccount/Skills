@@ -6,30 +6,38 @@ Required input:
   - goal
   - non-goals
   - acceptance criteria
-  - approved file zones or feature slice
   - repo identifier or path context
   - issue URL if one exists
-- Research packet:
+- Approved research packet:
   - closed proposal / approved direction
   - facts
   - evidence
   - risks
-  - unknowns
-  - contract or dependency notes when relevant
+  - unresolved blockers status
+  - design-test need when relevant
+- Approved execution-plan packet:
+  - approved file zones or feature slice
+  - implementer owners
+  - reviewer plan
+  - rollback point
+  - docs to update
+  - design-test status/scope when relevant
+  - sensitive-surface handling when relevant
+  - request-path / contract touchpoints when relevant
 
 Optional input:
 
 - preferred branch name
-- reviewer hints
-- adversarial review hints or required review lenses
 - existing implementation constraints
 - prior failed attempt notes
+- explicit verification expectations
 
 Input assumptions:
 
 - Approval already happened.
 - Research is closed enough to implement from without broad rediscovery.
-- For non-trivial code work, the approved task context plus research packet together define the review contract that independent review must pass.
+- Execution planning is closed enough to implement from without re-negotiating ownership or scope.
+- This skill owns development plus verification handoff, not the independent post-implementation review gate.
 - Transport layer may have come from GitHub, linear, docs, or chat; this skill stays transport-agnostic.
 
-If approval status is unclear, or the research packet lacks enough evidence to choose file ownership safely, or an implementation-critical fact is still missing, stop and return `blocked`.
+If approval status is unclear, the execution-plan packet is missing, file ownership is still ambiguous, or an implementation-critical fact is still missing, stop and return `blocked`.

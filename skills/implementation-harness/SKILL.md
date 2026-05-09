@@ -18,14 +18,14 @@ Use only after approval. This skill executes against approved research and appro
 
 - Takes approved task context plus approved research and execution-plan context as input.
 - Decides implementer routing: `backend`, `frontend`, or both.
-- Runs implementation and the smallest meaningful verification.
+- Runs implementation and the smallest meaningful verification handoff.
 - Returns a structured packet for another layer to persist or publish.
 
 ## What this skill does not own
 
 - No approval gate.
 - No broad discovery or proposal rewrite.
-- No post-implementation review orchestration policy beyond handing back enough evidence for review.
+- No independent post-implementation review verdict; it only hands back enough evidence for the next review stage.
 - No GitHub transport, PR creation, issue commenting, or branch publishing.
 - No repo-external persistence.
 
@@ -40,3 +40,4 @@ Use only after approval. This skill executes against approved research and appro
 - If development forces redesign or scope growth, stop as `blocked`.
 - Return only the packet shape defined in [references/output-contract.md](references/output-contract.md).
 - Treat implementer completion notes as non-authoritative until validation passes and the downstream review gate clears the slice.
+- Do not embed an independent review verdict inside this stage; the separate review stage owns that decision.
