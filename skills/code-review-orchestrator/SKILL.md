@@ -31,7 +31,7 @@ Do not treat `staff engineer`, generic `designer`, `financial/risk`, or `reliabi
    - `critic` for simplification, trade-offs, hidden fragility, or scope pressure
    - `backend` for backend/server correctness
    - `frontend` for client-side correctness, state, routing, async behavior, and contract consumption
-   - `frontend taste` for visual/presentation quality on rendered user-facing surfaces; use the `design-taste-frontend` skill for that reviewer
+   - `frontend taste` for visual/presentation quality on rendered user-facing surfaces; load the canonical `roles/frontend-taste` materials for that reviewer
    - `security` for exploitability, auth, privilege, and trust-boundary regressions
    - `privacy/data-safety` for local-path leakage, committed personal docs, prompt/example leakage, retained user data, unsafe persistence, and consent/retention mistakes
    - `qa/reliability` for failure handling, rollback/recovery, degraded behavior, flaky paths, and test signal
@@ -65,7 +65,7 @@ Do not treat `staff engineer`, generic `designer`, `financial/risk`, or `reliabi
 - Use `critic` when the main question is simplification, scope pressure, hidden fragility, or trade-offs.
 - Use `backend` for backend/server correctness.
 - Use `frontend` for frontend/client correctness; if the touched slice is React/Next.js, also load `vercel-react-best-practices`.
-- Use `frontend taste` for visual/presentation quality on rendered UI surfaces; use the `design-taste-frontend` skill for that reviewer.
+- Use `frontend taste` for visual/presentation quality on rendered UI surfaces; load the canonical `roles/frontend-taste` materials for that reviewer.
 - Use `security` when the diff may change exploitability or trust boundaries.
 - Use `privacy/data-safety` for `sensitive-surface` diffs.
 - For `sensitive-surface` diffs, run the scanner and do not call the review clean until `privacy/data-safety` explicitly clears the approved scope or reports a concrete risk.
