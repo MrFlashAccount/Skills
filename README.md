@@ -22,57 +22,7 @@ Local OpenClaw reads skills directly from this repo's `SKILL.md` files, so packa
 - [Conventions](#conventions)
 - [Repo rules](#repo-rules)
 
-Canonical labels do not have to match folder spelling 1:1.
-Use the repo folder path as source of truth when loading roles.
-Current non-trivial mappings:
-- `frontend taste` -> `Roles/Frontend-Taste`
-- `privacy/data-safety` -> `Roles/Privacy-Data-Safety`
-- `qa/reliability` -> `Roles/QA-Reliability`
-
-- `Roles/Architect`
-  - What it is: a phase-agnostic architecture role reference for checking module boundaries, seams, DDD alignment, ubiquitous language, and architecture fit.
-  - Use when: a skill needs architectural judgment during research, review, or while defining architectural constraints.
-  - Do not use when: the task is a tiny local fix with no meaningful effect on module shape, naming, ownership, or architecture records.
-- `Roles/Critic`
-  - What it is: a phase-agnostic challenge role reference for pressure-testing proposals and results for weak assumptions, hidden risk, scope creep, and unnecessary complexity.
-  - Use when: a skill needs adversarial critique during research, approval, or frozen-scope review.
-  - Do not use when: the task mainly needs a specialist correctness review such as backend, frontend, security, privacy/data-safety, QA, performance, or architecture judgment.
-- `Roles/Backend`
-  - What it is: a phase-agnostic backend role reference for server-side implementation and review judgment across contracts, validation, data flow, auth, rollout safety, and observability/testability.
-  - Use when: a skill needs backend/server ownership or backend correctness review without splitting identity into backend vs staff-backend variants.
-  - Do not use when: the task is primarily frontend, visual-quality, or non-backend specialist work.
-- `Roles/Frontend`
-  - What it is: a phase-agnostic frontend role reference for client-side implementation and review judgment across contract consumption, state/data flow, loading/error states, routing/hydration, and maintainability.
-  - Use when: a skill needs frontend/client ownership or frontend correctness review without splitting identity into frontend vs staff-frontend variants.
-  - Do not use when: the task is mainly visual-polish review, which belongs to `frontend taste`, or non-frontend specialist work.
-- `Roles/Frontend-Taste`
-  - What it is: a phase-agnostic rendered-UI taste role reference for hierarchy, spacing, typography, composition, and polish review.
-  - Use when: a skill needs screen-level presentation-quality judgment for an approved UI slice.
-  - Do not use when: the task mainly needs frontend/client correctness rather than visual-quality review.
-- `Roles/Security`
-  - What it is: a phase-agnostic security role reference for exploitability, secrets, auth, injection, and trust-boundary review.
-  - Use when: a skill needs security review where exploitability or trust-boundary regression is the primary concern.
-  - Do not use when: the task mainly concerns privacy/data-retention handling rather than security risk.
-- `Roles/Privacy-Data-Safety`
-  - What it is: a phase-agnostic privacy/data-safety role reference for local-path leakage, private-content exposure, retained user data, and consent/retention review.
-  - Use when: a skill needs review of repo-visible private material or data-handling safety.
-  - Do not use when: the task mainly concerns exploitability rather than privacy/data-safety.
-- `Roles/QA-Reliability`
-  - What it is: a phase-agnostic QA/reliability role reference for failure handling, rollback/recovery, degraded mode, and test-signal review.
-  - Use when: a skill needs resilience and diagnosability review for an approved slice.
-  - Do not use when: the task mainly concerns raw performance or another specialist domain.
-- `Roles/Performance`
-  - What it is: a phase-agnostic performance role reference for hot-path waste, blocking work, latency, throughput, and resource-impact review.
-  - Use when: a skill needs focused performance review where speed or resource budget is the primary concern.
-  - Do not use when: the task mainly needs general correctness review without a meaningful performance angle.
-- `Roles/TechWriter`
-  - What it is: a phase-agnostic technical-documentation role reference for teaching-oriented docs writing and review.
-  - Use when: a skill needs strong documentation judgment for setup, usage, onboarding, migration, API explanation, or reference clarity.
-  - Do not use when: the task mainly needs framing, positioning, or devrel messaging.
-- `Roles/DevRel`
-  - What it is: a phase-agnostic developer-facing messaging role reference for framing, positioning, and devrel copy.
-  - Use when: a skill needs README intros, launch copy, feature blurbs, docs openings, or other messaging where the main job is framing and credible payoff.
-  - Do not use when: the task mainly needs teaching-oriented documentation structure or usage explanation.
+## Start here
 
 If you need...
 - a runnable skill -> go to [`skills/`](#skill-index)
@@ -204,9 +154,9 @@ If a skill needs a reusable specialist voice:
   - Do not use when: scope is still fuzzy.
 
 - `skills/dev-harness`
-  - What it is: top-level execution-planning harness that turns closed research into an approved implementation contract and routes the work onward.
-  - Use when: the task needs planning, slicing, approval flow, delegation, or coordinated handoff after research is already closed enough.
-  - Do not use when: the task still needs broad research/discovery, or when scope is already approved and closed for direct implementation or review.
+  - What it is: top-level coding harness for discovery, proposal, approval, delegation, implementation, and review loops.
+  - Use when: the task needs planning, slicing, approval flow, or coordinated execution.
+  - Do not use when: scope is already approved and closed for direct implementation.
 
 - `skills/implementation-harness`
   - What it is: direct implementation harness for already-approved work.
@@ -273,7 +223,7 @@ Use them when a skill needs a stable specialist identity across phases.
 - `Roles/Frontend`
   - Frontend/client implementation and review judgment.
 - `Roles/Frontend-Taste`
-  - Rendered UI taste, hierarchy, spacing, typography, composition, and polish, with routed learnings by project type.
+  - Rendered UI taste, hierarchy, spacing, typography, composition, and polish.
 - `Roles/Performance`
   - Hot-path, latency, throughput, blocking work, and resource impact.
 - `Roles/Privacy-Data-Safety`
@@ -288,8 +238,8 @@ Use them when a skill needs a stable specialist identity across phases.
 ## Process docs
 
 - `SPDD-lite.md`
-  - What it is: lightweight four-stage repo process doc: `research -> execution plan -> development -> review`.
-  - Use when: you need the house workflow and stage boundaries for structured skill work.
+  - What it is: lightweight repo process doc.
+  - Use when: you need the house workflow for structured skill work.
   - Do not use when: you only need a single skill folder and its own local instructions.
 
 ## Conventions
@@ -298,11 +248,6 @@ Use them when a skill needs a stable specialist identity across phases.
   - What it is: repo-level convention for architecture memory in target repos.
   - Use when: a role or skill needs a default rule for context docs, ADRs, context maps, or similar artifacts.
   - Do not use when: the task only needs one role's local judgment with no shared memory convention.
-
-- `conventions/repo-design-memory.md`
-  - What it is: repo-level convention for design memory in target repos, with a short `DESIGN.md` router and downstream design-law files.
-  - Use when: a role or skill needs stable repo-local design law instead of generic taste judgment.
-  - Do not use when: the task only needs portable taste heuristics with no repo-specific design source of truth.
 
 ## Repo rules
 
