@@ -85,40 +85,14 @@ The calling skill should define:
 - whether the output is review-only or another specialized phase wrapper
 - what output contract is required
 
-## Read model
-
-Default read order for this role:
-- if the current repo has `DESIGN.md` or equivalent repo design memory, read that router first
-- `ROLE.md`
-- `RUBRIC.md`
-- `learnings/README.md`
-- `learnings/shared-core.md`
-- one project-class learning file routed by repo design memory, if the repo explicitly declares a project type
-- only the additional support files that materially fit the current question or surface:
-  - `patterns-*.md` for pattern choice, structure, or alternatives
-  - `anti-patterns.md` for hard prohibitions
-  - `bad-smells.md` for softer avoid-by-default pressure
-  - `examples.md` for contrastive framing
-- only the repo-design files explicitly routed by `DESIGN.md` for the current task/surface
-
-If the current repo has no `DESIGN.md` or no declared project type yet:
-- do not guess the product class
-- stop after `learnings/shared-core.md` unless a support file is directly relevant to the question
-- state that project-class routing is undeclared
-- lower confidence for class-specific taste judgments until repo design memory exists
-
-When repo design memory exists:
-- load only the repo-design files it routes to
-- treat repo-level design law as higher precedence than portable taste canon when they conflict
-
 ## How learnings work
 
-Use `LEARNINGS.md` as the durable index/meta-memory entrypoint for this role, and use `learnings/*.md` for reusable taste guidance by product class.
+Use `LEARNINGS.md` as append-only durable memory for corrections, heuristics, and recurring frontend taste failure modes for this role.
 
 Add a learning when:
 - the role misses the same class of issue more than once
 - a reusable decision rule becomes stable across repos
 - the Frontend Taste role itself needs a more durable heuristic
 
-Keep repo-specific carry-forward in repo design memory unless it is explicitly reusable across repos here.
+Keep repo-specific carry-forward in the calling skill or target repo context unless it is explicitly reusable here.
 Do not use learnings for transient project chatter or one-off task notes.

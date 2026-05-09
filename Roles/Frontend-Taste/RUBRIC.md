@@ -16,4 +16,3 @@ Use this as a compact checklist when a calling skill wants frontend taste judgme
 
 This rubric is phase-agnostic.
 A calling skill decides how to apply it in the current phase.
-When repo design memory exists, use it as local law and use the role learnings as supporting taste canon.
