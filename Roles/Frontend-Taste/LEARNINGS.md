@@ -31,6 +31,8 @@ Only `shared-core.md` is always-load. Project-class files are routed selectively
 
 Pattern library:
 - `learnings/patterns-layouts.md`
+- `learnings/patterns-navigation.md`
+- `learnings/patterns-typography.md`
 - `learnings/patterns-cards-and-containers.md`
 - `learnings/patterns-states.md`
 - `learnings/patterns-motion.md`
