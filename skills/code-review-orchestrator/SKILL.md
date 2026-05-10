@@ -93,7 +93,7 @@ For `architect`, load `roles/architect/ROLE.md` and `roles/architect/RUBRIC.md` 
 
 For `architect`, load `roles/architect/ROLE.md` and `roles/architect/RUBRIC.md` plus the phase adapter in `../dev-harness/references/roles/reviewers.md` before judging the diff.
 
-For `architect`, load `roles/architect/ROLE.md` and `roles/architect/RUBRIC.md` plus the phase adapter in `dev-harness/references/roles/reviewers.md` before judging the diff.
+For `architect`, load `roles/architect/ROLE.md` and `roles/architect/RUBRIC.md` plus the phase adapter in `../dev-harness/references/roles/reviewers.md` before judging the diff.
 
 Keep each role prompt short and specific. Include the approved contract or compact acceptance criteria when available, plus only the diff summary, target branch/PR, the review focus for that role, the project’s `AGENTS.md` guidance, and the merge rubric.
 
