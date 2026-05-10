@@ -21,6 +21,7 @@ Use this after research is closed and before starting any development task that 
 - Contract touchpoints:
 - Docs to update:
 - Reviewer plan:
+- Architecture notes: seam decisions, file-zone rationale, request-path boundaries, dependency decisions
 - Design-test scope: intended UI shape, required components, critical states/behavior, detail expectations
 
 ## Rules
@@ -39,6 +40,7 @@ Use this after research is closed and before starting any development task that 
 - If `Sensitive surface` is yes or uncertain, fill all sensitive-data fields before approval.
 - If the slice stores or reuses user-provided data, the contract must say whether storage is one-shot or persistent, and whether explicit user consent is required.
 - If the slice touches backend request-path, persistence, or async runtime behavior, the contract must say whether any blocking sync I/O exists on the request path, which contract/request-shape surfaces can drift, and which docs/architecture notes must stay in sync.
+- If an architect pass ran, its file-zone and seam conclusions must be captured in `Architecture notes` rather than left implicit in chat.
 
 ## Output
 

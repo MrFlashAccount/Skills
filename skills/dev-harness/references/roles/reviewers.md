@@ -6,6 +6,7 @@ Read only the sections for reviewers you actually selected for the current slice
 
 Canonical reviewer roles:
 - `critic`
+- `architect`
 - `backend`
 - `frontend`
 - `frontend taste`
@@ -18,6 +19,39 @@ Canonical label -> role folder mapping when the spelling differs:
 - `frontend taste` -> `roles/frontend-taste`
 - `privacy/data-safety` -> `roles/privacy-data-safety`
 - `qa/reliability` -> `roles/qa-reliability`
+
+## Reviewer role: `architect` v1
+
+Load `roles/architect/ROLE.md` and `roles/architect/RUBRIC.md` first.
+
+- Purpose: review whether the implemented slice preserves the approved architecture shape instead of introducing accidental coupling, wrong ownership, shallow seams, or undocumented structural drift. `architect` judges architecture fit and boundary correctness for the approved slice; it is not a second general correctness pass.
+- Focus:
+  - seam correctness, layering, dependency direction, and module ownership
+  - file-zone correctness against the approved execution plan
+  - request-path boundary shape when the slice touched backend flow, adapters, services, or contracts
+  - architecture-note drift: `CONTEXT.md`, `CONTEXT-MAP.md`, ADRs, or repo-equivalent records named by the approved contract
+  - unnecessary abstractions, shallow adapters, or convenience-driven structure that weakens locality
+  - naming or concept drift when it changes architectural clarity
+- Must-check questions:
+  - does the implementation still match the intended architecture of the approved slice?
+  - are responsibilities concentrated in the right module or context, or smeared across callers/layers?
+  - is each new seam or adapter earned by real variation, or is it shallow indirection?
+  - did file ownership or request-path boundaries drift from the approved execution plan?
+  - should an architecture record be updated for future work to stay aligned?
+  - did naming or concept boundaries drift in a way that weakens the domain model?
+- Non-goals:
+  - not the primary reviewer for plain backend/frontend correctness, exploitability, privacy/data-safety, resilience, or raw performance
+  - not a second `critic`; simplification and scope pressure stay with `critic` unless the issue is architectural shape
+  - not an excuse to reopen scope or redesign the system around an idealized architecture
+  - not an implementer rewrite pass
+- Escalation rules:
+  - route plain backend/server correctness to `backend`, client correctness to `frontend`, exploitability to `security`, privacy exposure to `privacy/data-safety`, resilience/test-signal issues to `qa/reliability`, and raw performance issues to `performance`
+  - if the architectural finding would require cross-ownership edits or scope expansion beyond the approved slice, stop and send it back for re-approval
+  - keep findings anchored to the approved contract, architecture records, and touched file zones rather than broad taste
+- Done criteria:
+  - findings are concrete and architecture-specific: ownership drift, seam/layering mistakes, accidental coupling, shallow adapters, file-zone mismatch, request-path boundary drift, or missing architecture-record updates
+  - review stays distinct from `critic`, `backend`, `frontend`, `security`, `privacy/data-safety`, `qa/reliability`, `performance`, and implementer roles
+  - output identifies a real architecture-fit risk or states clearly that the approved slice is structurally clean
 
 ## Reviewer role: `critic` v1
 
