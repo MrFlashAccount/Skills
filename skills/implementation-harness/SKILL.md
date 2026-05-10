@@ -18,7 +18,7 @@ Use only after approval. This skill executes against approved research and appro
 
 - Takes approved task context plus approved research and execution-plan context as input.
 - Decides implementer routing: `backend`, `frontend`, or both.
-- Runs implementation and the smallest meaningful verification handoff.
+- Runs implementation through delegated implementer worker/subagent sessions, then performs the smallest meaningful verification handoff.
 - Returns a structured packet for another layer to persist or publish.
 
 ## What this skill does not own
@@ -32,6 +32,9 @@ Use only after approval. This skill executes against approved research and appro
 ## Core rules
 
 - Treat the approved scope as frozen.
+- Do not execute implementation in the parent orchestrator session just because it would be faster; this stage should run through delegated implementer workers/subagents.
+- Plain user action verbs like `fix`, `do`, `сделай`, or `исправь` do not count as permission for direct parent-session implementation; only an explicit request for direct in-session execution overrides the orchestrator default.
+- If required implementer delegation is unavailable, fails to start, or cannot be used, stop as `blocked`; do not fall back to manual implementation in the parent/orchestrator session.
 - Treat the approved research packet plus approved execution plan as the implementation contract unless a concrete blocker, contradiction, or missing implementation-critical fact survived earlier stages.
 - Use only canonical implementer labels: `backend`, `frontend`.
 - One owner per file zone. If zones overlap, collapse to one implementer.
