@@ -15,9 +15,10 @@ Use these only as routing/eval sanity checks. Do not cargo-cult them into broad 
 - Task: contract + handler + persistence change with rollout risk
 - Class: `non-trivial`
 - Read first: `task-contract.md`
+- Planning: run an `architect` pass when file zones, dependency seams, request-path boundaries, or rollout shape are not already obvious
 - Implementers: one `backend`, or multiple `backend` owners only if file zones are fully non-overlapping
 - Contract extras: name request-path impact, contract touchpoints, and docs/architecture notes that must stay aligned
-- Review: always `backend`; add `performance` when the touched path is user-visible/hot or can block on sync storage/network/process work; add `qa/reliability` when retries/timeouts/recovery/duplicate-delivery semantics materially change; add `security` only when exploitability/auth/trust-boundary risk is primary
+- Review: always `backend`; add `architect` when the main risk is bad seams, coupling, boundary drift, or wrong file ownership; add `performance` when the touched path is user-visible/hot or can block on sync storage/network/process work; add `qa/reliability` when retries/timeouts/recovery/duplicate-delivery semantics materially change; add `security` only when exploitability/auth/trust-boundary risk is primary
 
 ## 3) Frontend correctness plus visual quality
 
@@ -58,4 +59,5 @@ Use these only as routing/eval sanity checks. Do not cargo-cult them into broad 
 
 - Task: risky, ambiguous, or multi-zone work where one reviewer is unlikely to be enough
 - Review path: use `code-review-orchestrator`
+- Add `architect` when the review must judge seams, layering, dependency choices, file-zone correctness, or request-path boundaries in addition to plain correctness
 - Still choose reviewers by primary risk; do not fan out just because multiple roles exist

@@ -23,6 +23,7 @@ Read only the references needed for the current phase; do not load every role by
 - If the slice may touch local files, personal docs, prompts/examples, logs, retained user data, or machine-specific paths, read [references/sensitive-surfaces.md](references/sensitive-surfaces.md) before proposal.
 - After approval, hand off to `skills/implementation-harness/` with the approved task context plus closed research packet plus approved execution-plan packet; do not restate or re-run its detailed implementation workflow here.
 - If routing is ambiguous or you want a sanity check on expected worker/reviewer choice, read [references/examples.md](references/examples.md).
+- If you selected an explicit planning-time `architect` pass, read [references/roles/architect-planning.md](references/roles/architect-planning.md).
 - Read the knowledge base only when relevant:
   - [references/knowledge/facts.md](references/knowledge/facts.md)
   - [references/knowledge/lessons.md](references/knowledge/lessons.md)
@@ -42,12 +43,15 @@ Read only the references needed for the current phase; do not load every role by
    - do not let execution planning silently absorb broad discovery/proposal work when a real research stage is still missing
 3. Execution-plan contract: after research is closed enough, translate it into an implementation contract.
    - default to one read-only discovery worker; use more only for multi-zone or non-trivial inspection
+   - when the main planning risk is file-zone boundaries, request-path seams, dependency shape, contract drift, rollout shape, or architectural coupling, run an explicit read-only `architect` planning pass before finalizing the execution plan
+   - treat `architect` as mandatory/recommended/not-needed using `references/roles/architect-planning.md`; do not improvise the threshold ad hoc
    - planning-time inspection may inspect, search, summarize, map candidate file zones, and identify risks/unknowns still relevant to execution boundaries
-   - planning-time inspection is facts-first: no new broad proposal, no edit plans, no architecture nudges, no code-ish artifacts
+   - planning-time inspection is facts-first: no new broad proposal, no edit plans, and no code-ish artifacts; the `architect` pass may recommend cleaner seams/boundaries, but must stay read-only and contract-focused
    - every material claim should be evidence-backed with file/line/symbol when practical; otherwise mark it as an assumption or unknown
    - use safe reads/searches only; no edits, no patches, and no builds/tests/scripts unless explicitly required for inspection
    - stop when there are enough facts for execution planning, or when remaining gaps prove research is not actually closed; do not keep touring the repo
    - execution-plan output shape starts from the task contract: `Goal / Non-goals / File zones / Implementer owners / Reviewer / Acceptance criteria / Design-test status / Rollback / Risks`
+   - if an `architect` pass ran, include its concrete conclusions in the execution plan: recommended file zones, seam decisions, contract-touchpoint risks, and review requirements
    - if the slice is or might be `sensitive-surface`, extend the contract with: `Sensitive inputs / Persistence / Exposure surface / Reviewer plan`
    - if the slice touches backend request-path, persistence, or async runtime behavior, also name: `Request-path impact / Contract touchpoints / Docs-to-update`
    - classify as `sensitive-surface` by default when the slice touches any of: local files, personal docs, `references/`, `assets/`, prompts/examples, logs/traces, retained user data, external sends, or machine-specific paths
@@ -78,10 +82,12 @@ Read only the references needed for the current phase; do not load every role by
 - If a slice touches local files, personal docs, prompts/examples, logs/traces, retained user data, or machine-specific paths, treat it as `sensitive-surface` until proven otherwise.
 - Do not commit real user documents, machine-specific paths, or retained private data into repo-visible `references/`, `assets/`, examples, fixtures, or logs.
 - If the task is ambiguous, clarify the contract before starting.
-- Before approval, only research handoff completion and execution-planning work are allowed.
+- Before approval, only research handoff completion, architect planning, and execution-planning work are allowed.
 - Before approval, do not spawn implementer workers, do not start implementation runs, do not prepare patches, and do not edit files.
 - Critique should not redo discovery or start a new repo tour unless a concrete contradiction or missing evidence forces it.
 - After approval, route to `implementation-harness` for development and `code-review-orchestrator` for explicit review instead of restating those policies in this skill.
+- For non-trivial backend or multi-zone work, default to an explicit `architect` planning pass unless the file zones and request-path seams are already obviously closed.
+- If you skip `architect` on a non-trivial backend or multi-zone slice, the execution plan should make the skip explicit in one short note, for example: `Architect pass skipped: file zones, seams, and dependency direction already explicit from closed research.`
 - Do not treat implementer self-report as enough to close non-trivial coding work; validation plus independent review decide completion.
 - Never paste raw worker responses into chat unless the user explicitly asks for them.
 - For tiny, obvious fixes, keep the workflow minimal, but still route approved implementation through `implementation-harness` instead of doing it manually yourself.
