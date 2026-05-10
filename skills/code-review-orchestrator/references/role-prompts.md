@@ -12,6 +12,7 @@ When a canonical reviewer label and repo folder spelling differ, load by repo pa
 - Read the diff first, then the smallest relevant surrounding context.
 - Prefer file:line evidence over abstract commentary.
 - Keep answers short.
+- The parent/orchestrator session owns delegation. You are the delegated reviewer worker/subagent for your assigned role; do not re-delegate the review or tell the parent to review it directly.
 - For non-trivial code work, judge the slice adversarially against the approved contract and return an explicit binary pass/fail verdict.
 - Return an explicit binary pass/fail verdict plus three buckets only: must-fix, should-fix, can-delay.
 - If nothing is wrong, say that and stop.

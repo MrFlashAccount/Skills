@@ -37,6 +37,9 @@ Input assumptions:
 - Approval already happened.
 - Research is closed enough to implement from without broad rediscovery.
 - Execution planning is closed enough to implement from without re-negotiating ownership or scope.
+- When this harness applies, the parent/orchestrator session stays in orchestration mode and delegates implementation to worker/subagent implementers; speed or convenience does not justify manual in-orchestrator implementation.
+- Plain user action verbs like `fix`, `do`, `сделай`, or `исправь` do not count as permission for direct parent-session implementation; only an explicit request for direct in-session execution overrides the orchestrator default.
+- If required implementer delegation is unavailable, fails to start, or cannot be used, this stage stops as `blocked` instead of falling back to manual parent-session implementation.
 - This skill owns development plus verification handoff, not the independent post-implementation review gate.
 - Transport layer may have come from GitHub, linear, docs, or chat; this skill stays transport-agnostic.
 

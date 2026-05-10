@@ -5,7 +5,7 @@ description: Orchestrate software work through execution planning and high-level
 
 # Dev Harness
 
-Use as the top-level coding harness for execution planning. You orchestrate the handoff from approved research into an implementation contract and then route the approved contract onward. Reusable proposal/critic work routes through `research-critic`. After approval of the execution plan, hand the approved task context plus closed research packet to `implementation-harness`; that skill owns implementation. Post-implementation review should run through `code-review-orchestrator`. Under this skill, the orchestrator does not directly implement the approved slice.
+Use as the top-level coding harness for execution planning. You orchestrate the handoff from approved research into an implementation contract and then route the approved contract onward. Reusable proposal/critic work routes through `research-critic`. After approval of the execution plan, hand the approved task context plus closed research packet to `implementation-harness`; that skill owns implementation. Post-implementation review should run through `code-review-orchestrator`. Under this skill, the orchestrator does not directly implement the approved slice, even if manual execution would be faster; do not cut corners by coding in the orchestrator session. Plain user action verbs like `fix`, `do`, `сделай`, or `исправь` do not override this default; only an explicit request for direct in-session implementation does.
 
 Keep path small. Use the full harness only when needed.
 
@@ -64,6 +64,8 @@ Read only the references needed for the current phase; do not load every role by
 4. After approval, build the handoff packet for `implementation-harness`.
    - include the approved task context, approved research packet, approved execution-plan packet, discovered facts/evidence that still matter to implementation, and any user constraints
    - keep routing at this level minimal: name expected ownership only when needed for clean file-zone boundaries or user-visible delegation clarity
+   - spawn the implementation through a delegated worker/subagent; do not implement in the orchestrator session even for tiny fixes or when manual execution would be faster
+   - if the delegated worker/subagent path is unavailable, fails to start, or cannot be used, stop as `blocked` and notify the user; do not fall back to manual implementation in the orchestrator session
    - if delegated Codex CLI returns auth or rate_limit errors, stop and notify the user; do not patch around it by hand
    - send one short status note naming the delegated owner or harness
 5. `implementation-harness` owns post-approval development and smallest meaningful verification.
@@ -91,6 +93,9 @@ Read only the references needed for the current phase; do not load every role by
 - Do not treat implementer self-report as enough to close non-trivial coding work; validation plus independent review decide completion.
 - Never paste raw worker responses into chat unless the user explicitly asks for them.
 - For tiny, obvious fixes, keep the workflow minimal, but still route approved implementation through `implementation-harness` instead of doing it manually yourself.
+- Plain user action verbs like `fix`, `do`, `сделай`, or `исправь` do not count as permission for direct parent-session implementation; only an explicit request for direct in-session execution overrides the orchestrator default.
+- Speed is not a reason to bypass worker/subagent execution. If the workflow applies, keep the orchestrator in orchestration mode.
+- If required delegated execution is unavailable, fails to start, or cannot be used, stop as `blocked` rather than implementing or reviewing manually in the parent session.
 
 ## Knowledge base
 

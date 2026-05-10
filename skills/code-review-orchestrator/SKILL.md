@@ -6,7 +6,9 @@ description: Orchestrate multi-role code reviews for any repository, branch, PR,
 # Code Review Orchestrator
 
 ## Goal
-Run one review entrypoint, choose the right reviewer set from the canonical post-implementation roles, spawn those reviewers in parallel, and merge their findings into one actionable report.
+Run one review entrypoint, choose the right reviewer set from the canonical post-implementation roles, spawn those reviewers in parallel, and merge their findings into one actionable report. Do not collapse this into a manual self-review in the orchestrator session just because the diff looks small or speed would be higher.
+
+If required reviewer delegation is unavailable, fails to start, or cannot be used, stop as `blocked` and report that state; do not replace the delegated review gate with a manual review in the orchestrator session.
 
 This is stage 4, the post-implementation review gate. The pre-implementation `research` flow lives in `research-critic`, and `execution plan` lives in `dev-harness`. For non-trivial code work, this gate should act as an adversarial contract check with binary pass/fail semantics, not a soft advisory lap.
 
@@ -83,7 +85,11 @@ Do not treat `staff engineer`, generic `designer`, `financial/risk`, or `reliabi
 - For non-trivial code work, at least one reviewer must return an explicit pass/fail verdict against the approved contract.
 
 ## How to run it
-Use `sessions_spawn` to create one subagent per role, with the target repo as `cwd` and a shared compact brief.
+Use `sessions_spawn` to create one subagent per role, with the target repo as `cwd` and a shared compact brief. Even for small diffs, keep the review gate as delegated reviewer work rather than replacing it with an in-orchestrator review.
+
+If the delegated reviewer path is unavailable, fails to start, or cannot be used, stop as `blocked` instead of reviewing directly in the orchestrator session.
+
+For `architect`, load `roles/architect/ROLE.md` and `roles/architect/RUBRIC.md` plus the phase adapter in `../dev-harness/references/roles/reviewers.md` before judging the diff.
 
 For `architect`, load `roles/architect/ROLE.md` and `roles/architect/RUBRIC.md` plus the phase adapter in `../dev-harness/references/roles/reviewers.md` before judging the diff.
 
