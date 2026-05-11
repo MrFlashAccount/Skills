@@ -29,7 +29,7 @@ Do not use when:
    - acceptance criteria
    - design-test need for UI-heavy work, if relevant
    - unresolved blockers
-   - open questions
+   - follow-ups
    - risks
 3. Run a separate critic pass against that packet using `roles/critic/ROLE.md` plus `roles/critic/RUBRIC.md`, adapted to research-stage pressure:
    - weak / underspecified areas
@@ -45,7 +45,7 @@ Research closes here.
 If context is unresolved or questions remain:
 - create a distinct `unresolved_blockers` section at the top level of the output
 - use it for the short list a reader should see first
-- do not bury blocking items in long prose, `open_questions`, or `missing_evidence` alone
+- do not bury blocking items in long prose, `follow_ups`, or `missing_evidence` alone
 
 ## Critic rules
 
@@ -71,6 +71,6 @@ Do not:
 - mention GitHub statuses or issue-comment mechanics as if they belong to this skill
 - output implementation recipes, code blocks, or patch plans
 - bury the real blocker in a long narrative
-- treat blocking questions as ordinary `open_questions` when they should stop approval or start
+- treat blocking questions as ordinary `follow_ups` when they should stop approval or start
 - re-ask questions that the available context already answered
 - treat critique as politeness instead of pressure-testing

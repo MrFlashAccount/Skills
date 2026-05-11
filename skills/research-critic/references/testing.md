@@ -27,7 +27,7 @@ Use this when validating or revising `research-critic`.
 - `SKILL.md` stays GitHub-agnostic.
 - Every file referenced from `SKILL.md` exists.
 - The output contract covers both proposal and critic.
-- The output contract defines a top-level `unresolved_blockers` field distinct from `open_questions` and `missing_evidence`.
+- The output contract defines a top-level `unresolved_blockers` field distinct from `follow_ups` and `missing_evidence`.
 - When context is unresolved, the workflow requires a separate scannable unresolved/blocking section.
 - The workflow does not promise persistence, orchestration, or transport-layer behavior.
 

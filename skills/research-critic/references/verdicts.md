@@ -9,7 +9,7 @@ Use only when:
 - acceptance is explicit enough
 - research is closed enough that implementation should not need broad rediscovery
 - `unresolved_blockers` is empty
-- no major blocker remains hidden in `open_questions` or `missing_evidence`
+- no major blocker remains hidden in `follow_ups` or `missing_evidence`
 
 ## `approve_with_changes`
 Use when:

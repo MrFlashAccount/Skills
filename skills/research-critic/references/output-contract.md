@@ -11,7 +11,7 @@ Return one structured packet with these sections.
 - `proposed_approach`
 - `acceptance_criteria`
 - `unresolved_blockers`
-- `open_questions`
+- `follow_ups`
 - `risks`
 - `critic_findings`
 - `missing_evidence`
@@ -52,12 +52,12 @@ Each item should be brief and direct. Prefer one line covering:
 
 Keep this field easy to render as a standalone section, alert box, or checklist without extra interpretation.
 
-### `open_questions`
-Unresolved decisions or ambiguities that need clarification but are not necessarily immediate blockers.
+### `follow_ups`
+Non-blocking checks, watch-items, or post-approval actions worth keeping an eye on after approval.
 
 Difference from `unresolved_blockers`:
 - `unresolved_blockers` is the short must-see list for items actively blocking approval or start
-- `open_questions` is the fuller backlog of unanswered questions, including non-blocking ones
+- `follow_ups` captures non-blocking items that should stay visible without reading like approval blockers
 
 ### `risks`
 Meaningful execution or design risks, not generic boilerplate.
@@ -87,4 +87,4 @@ A short final recommendation about whether research is closed enough to hand int
 - Keep the packet structured and adapter-friendly.
 - If anything is unresolved enough to block approval or start, `unresolved_blockers` must be non-empty.
 - Keep `unresolved_blockers` short and highly scannable so adapters or humans can surface it with minimal formatting.
-- Do not hide critical blockers inside prose or only inside `open_questions` / `missing_evidence`.
+- Do not hide critical blockers inside prose or only inside `follow_ups` / `missing_evidence`.
