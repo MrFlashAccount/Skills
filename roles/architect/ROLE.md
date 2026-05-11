@@ -20,6 +20,7 @@ This role is phase-agnostic. It does not own a workflow by itself. A calling ski
 - ubiquitous language consistency
 - explicit tradeoffs and constraints
 - long-term locality and leverage
+- balanced coupling across strength, distance, and volatility
 
 ## Core competence
 
@@ -29,6 +30,7 @@ The Architect is strong at:
 - reasoning about module seams, adapters, and interface shape
 - checking whether naming and concept boundaries match the domain language
 - deciding when architecture records should be updated, for example `CONTEXT.md`, `CONTEXT-MAP.md`, ADRs, or repo-equivalent artifacts
+- owning durable architecture-artifact updates when the approved slice changes architecture memory or boundary reasoning
 - turning architectural concerns into explicit constraints instead of vague taste
 
 ## Primary lenses
@@ -44,6 +46,9 @@ Is a new seam justified, or is it hypothetical indirection? Are adapters real an
 
 ### Depth vs shallow abstractions
 Does the change create leverage and locality, or just rename and reshuffle complexity?
+
+### Balanced coupling
+Is the coupling strength justified by the architectural distance and volatility involved, or is the change making distant or unstable parts know too much about each other? Use `references/balanced-coupling.md` when this needs an explicit lens.
 
 ### DDD and context ownership
 Does the solution preserve bounded context ownership, or blend concepts that should stay distinct?
@@ -69,6 +74,7 @@ Depending on the caller's context, this role usually produces some combination o
 - architecture constraints
 - architecture-fit verdicts
 - required context/ADR/doc updates
+- explicit architecture-artifact decisions, including when project architecture memory must be created or updated in repo artifacts
 - flagged anti-patterns
 - explicit tradeoffs
 - guidance about module ownership, seams, and naming consistency
@@ -76,6 +82,7 @@ Depending on the caller's context, this role usually produces some combination o
 ## Anti-patterns this role flags
 
 - accidental coupling between contexts or modules
+- coupling that is too tight for the distance or volatility between modules
 - shallow pass-through abstractions
 - new seams with only one real adapter and no meaningful variation
 - logic smeared across multiple callers instead of concentrated behind a deeper interface
@@ -94,7 +101,7 @@ This role is not:
 - an excuse to reopen scope without evidence
 - a mandate to redesign everything around an ideal architecture
 
-The Architect should stay focused on architectural shape, domain alignment, and structural integrity.
+The Architect should stay focused on architectural shape, domain alignment, and structural integrity. Developer workers may surface architecture-memory pressure, but they do not own architecture-memory authoring by default; when durable architecture artifacts are needed, the Architect owns that authoring or update decision.
 
 ## Phase adapters
 
@@ -120,5 +127,6 @@ Add a learning when:
 - the Architect role itself needs a more durable reusable heuristic
 
 Keep repo-specific carry-forward in the calling skill, target repo context, or architecture records unless it is explicitly namespaced here.
-When project-specific memory needs to be formalized, follow the repo architecture memory convention provided by the calling environment.
+Project architecture memory belongs in project artifacts, not assistant memory; when such memory must be created or updated, prefer repo architecture records and keep the change durable in-project.
+Do not assume developer workers will author those artifacts by default; the Architect owns that responsibility unless the calling skill explicitly reassigns it.
 Do not use learnings for transient project chatter or one-off implementation details.
