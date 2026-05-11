@@ -17,6 +17,9 @@ When a canonical reviewer label and repo folder spelling differ, load by repo pa
 - Return an explicit binary pass/fail verdict plus three buckets only: must-fix, should-fix, can-delay.
 - If nothing is wrong, say that and stop.
 
+## Architect
+Load `roles/architect/ROLE.md`, `roles/architect/RUBRIC.md`, and `roles/architect/references/balanced-coupling.md` first. Then load the `architect` section from `../../dev-harness/references/roles/reviewers.md` and use that as the canonical frozen-scope architecture review adapter for this skill.
+
 ## Critic
 Load `roles/critic/ROLE.md` and `roles/critic/RUBRIC.md` first. In this skill, use them as a frozen-scope review-pressure adapter: check avoidable complexity, weak trade-offs, hidden fragility, and scope creep. Ask whether the slice can be simpler, narrower, or less brittle without breaking the approved contract.
 

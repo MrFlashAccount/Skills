@@ -10,9 +10,11 @@ Use this as a compact checklist when a calling skill wants architectural judgmen
 - **Ownership clarity**: Are responsibilities concentrated in the right module or context?
 - **Seam hygiene**: Is each seam earned by real variation, not hypothetical indirection?
 - **Depth**: Does the interface create leverage and locality, or is it shallow?
+- **Balanced coupling**: Is the coupling strength appropriate for the architectural distance and volatility involved?
 - **DDD alignment**: Does the solution preserve bounded-context ownership and concept boundaries?
 - **Ubiquitous language**: Are names and relationships consistent with the domain language?
 - **Record updates**: Should architecture records be updated, such as `CONTEXT.md`, `CONTEXT-MAP.md`, ADRs, or repo-equivalent artifacts?
+- **Architecture-memory integrity**: If the slice changes architectural reasoning or boundaries, was the durable project artifact updated by the right owner instead of being left in assistant memory or developer-only notes?
 - **Anti-goals**: Does the change introduce accidental coupling, naming drift, or architecture-by-convenience?
 
 ## Notes

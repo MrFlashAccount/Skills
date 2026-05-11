@@ -32,7 +32,7 @@ Do not treat `staff engineer`, generic `designer`, `financial/risk`, or `reliabi
 3. For `sensitive-surface` diffs, run `scripts/check_sensitive_surface.py <repo-path> [<base-rev>]` from this skill and include its output in the shared brief.
 4. Build one shared brief, then choose reviewers by primary risk:
    - `critic` for simplification, trade-offs, hidden fragility, or scope pressure
-   - `architect` for seams, layering, dependency shape, file-zone correctness, request-path boundaries, and architectural drift from the approved slice
+   - `architect` for seams, layering, dependency shape, file-zone correctness, request-path boundaries, balanced coupling, architecture-memory integrity, and architectural drift from the approved slice
    - `backend` for backend/server correctness
    - `frontend` for client-side correctness, state, routing, async behavior, and contract consumption
    - `frontend taste` for visual/presentation quality on rendered user-facing surfaces; load the canonical `roles/frontend-taste` materials for that reviewer
@@ -67,10 +67,11 @@ Do not treat `staff engineer`, generic `designer`, `financial/risk`, or `reliabi
 - Default to one independent reviewer.
 - Choose reviewers from the canonical role set by task context; do not invent new default labels.
 - Use `critic` when the main question is simplification, scope pressure, hidden fragility, or trade-offs.
-- Use `architect` when the main question is seams, layering, dependency direction, file-zone boundaries, request-path shape, or whether the implementation matches the intended architecture of the approved slice.
+- Use `architect` when the main question is seams, layering, dependency direction, file-zone boundaries, request-path shape, balanced coupling, architecture-memory integrity, or whether the implementation matches the intended architecture of the approved slice.
 - `architect` is mandatory when the approved slice introduced or reshaped backend/service/adaptor seams across multiple zones and those boundaries are a primary review risk.
 - `architect` is recommended for non-trivial backend refactors, platforming, or coupling-sensitive work even when one `backend` reviewer could probably catch plain correctness issues.
-- `architect` is usually unnecessary for tiny single-zone fixes with no boundary, ownership, or layering risk.
+- `architect` is usually unnecessary for tiny single-zone fixes with no boundary, ownership, layering, or architecture-artifact risk.
+- even for tiny slices, if durable architecture-artifact ownership or architecture-memory integrity is in doubt, route `architect` explicitly instead of leaving that check implicit.
 - Use `backend` for backend/server correctness.
 - Use `frontend` for frontend/client correctness; if the touched slice is React/Next.js, also load `vercel-react-best-practices`.
 - Use `frontend taste` for visual/presentation quality on rendered UI surfaces; load the canonical `roles/frontend-taste` materials for that reviewer.
@@ -89,7 +90,7 @@ Use `sessions_spawn` to create one subagent per role, with the target repo as `c
 
 If the delegated reviewer path is unavailable, fails to start, or cannot be used, stop as `blocked` instead of reviewing directly in the orchestrator session.
 
-For `architect`, load `roles/architect/ROLE.md` and `roles/architect/RUBRIC.md` plus the phase adapter in `../dev-harness/references/roles/reviewers.md` before judging the diff.
+For `architect`, load `roles/architect/ROLE.md`, `roles/architect/RUBRIC.md`, and `roles/architect/references/balanced-coupling.md`, then use the `architect` section of `../dev-harness/references/roles/reviewers.md` as the canonical phase-specific review adapter before judging the diff.
 
 Keep each role prompt short and specific. Include the approved contract or compact acceptance criteria when available, plus only the diff summary, target branch/PR, the review focus for that role, the project’s `AGENTS.md` guidance, and the merge rubric.
 
@@ -97,7 +98,7 @@ Suggested reviewer prompt shape:
 
 > Review this diff as the {role}. Approved contract: {contract-summary}. Focus on {focus}. Judge it adversarially against that contract. Return only: pass/fail, must-fix / should-fix / can-delay, evidence, and confidence. Call out file:line when possible. If nothing is wrong, say so briefly.
 
-For `architect`, bias the prompt toward seam decisions, dependency correctness, file ownership/zone boundaries, request-path boundaries, and whether the implementation introduces unnecessary coupling or the wrong abstraction layer.
+For `architect`, bias the prompt toward seam decisions, dependency correctness, file ownership/zone boundaries, request-path boundaries, balanced coupling, architecture-memory integrity, and whether the implementation introduces unnecessary coupling or the wrong abstraction layer.
 
 ## If context is missing
 Ask only for the missing target, repo path, branch, or PR.

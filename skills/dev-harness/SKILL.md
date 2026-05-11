@@ -23,7 +23,7 @@ Read only the references needed for the current phase; do not load every role by
 - If the slice may touch local files, personal docs, prompts/examples, logs, retained user data, or machine-specific paths, read [references/sensitive-surfaces.md](references/sensitive-surfaces.md) before proposal.
 - After approval, hand off to `skills/implementation-harness/` with the approved task context plus closed research packet plus approved execution-plan packet; do not restate or re-run its detailed implementation workflow here.
 - If routing is ambiguous or you want a sanity check on expected worker/reviewer choice, read [references/examples.md](references/examples.md).
-- If you selected an explicit planning-time `architect` pass, read [references/roles/architect-planning.md](references/roles/architect-planning.md).
+- For every `non-trivial` task-design pass, and for any slice where a durable architecture artifact might be required even if the slice is tiny, read [references/roles/architect-planning.md](references/roles/architect-planning.md).
 - Read the knowledge base only when relevant:
   - [references/knowledge/facts.md](references/knowledge/facts.md)
   - [references/knowledge/lessons.md](references/knowledge/lessons.md)
@@ -43,18 +43,21 @@ Read only the references needed for the current phase; do not load every role by
    - do not let execution planning silently absorb broad discovery/proposal work when a real research stage is still missing
 3. Execution-plan contract: after research is closed enough, translate it into an implementation contract.
    - default to one read-only discovery worker; use more only for multi-zone or non-trivial inspection
-   - when the main planning risk is file-zone boundaries, request-path seams, dependency shape, contract drift, rollout shape, or architectural coupling, run an explicit read-only `architect` planning pass before finalizing the execution plan
-   - treat `architect` as mandatory/recommended/not-needed using `references/roles/architect-planning.md`; do not improvise the threshold ad hoc
+   - for every `non-trivial` task-design pass, run an explicit read-only `architect` planning pass before finalizing the execution plan
+   - if a tiny slice may require a durable architecture artifact create/update, run that same read-only `architect` planning pass before finalizing the execution plan; do not leave artifact ownership implicit in developer handoff
+   - load `references/roles/architect-planning.md` for that pass, and in that pass load the Architect balanced-coupling reference as required there
    - planning-time inspection may inspect, search, summarize, map candidate file zones, and identify risks/unknowns still relevant to execution boundaries
    - planning-time inspection is facts-first: no new broad proposal, no edit plans, and no code-ish artifacts; the `architect` pass may recommend cleaner seams/boundaries, but must stay read-only and contract-focused
    - every material claim should be evidence-backed with file/line/symbol when practical; otherwise mark it as an assumption or unknown
    - use safe reads/searches only; no edits, no patches, and no builds/tests/scripts unless explicitly required for inspection
    - stop when there are enough facts for execution planning, or when remaining gaps prove research is not actually closed; do not keep touring the repo
-   - execution-plan output shape starts from the task contract: `Goal / Non-goals / File zones / Implementer owners / Reviewer / Acceptance criteria / Design-test status / Rollback / Risks`
-   - if an `architect` pass ran, include its concrete conclusions in the execution plan: recommended file zones, seam decisions, contract-touchpoint risks, and review requirements
+   - execution-plan output shape starts from the task contract: `Goal / Non-goals / File zones / Implementer owners / Reviewer / Acceptance criteria / Design-test status / Rollback / Risks / Architecture-artifact decision`
+   - include the architect pass conclusions in the execution plan: recommended file zones, seam decisions, balanced-coupling constraints, contract-touchpoint risks, architecture-artifact decision, and review requirements
    - if the slice is or might be `sensitive-surface`, extend the contract with: `Sensitive inputs / Persistence / Exposure surface / Reviewer plan`
    - if the slice touches backend request-path, persistence, or async runtime behavior, also name: `Request-path impact / Contract touchpoints / Docs-to-update`
    - classify as `sensitive-surface` by default when the slice touches any of: local files, personal docs, `references/`, `assets/`, prompts/examples, logs/traces, retained user data, external sends, or machine-specific paths
+   - before approval, make an explicit artifact-decision gate: decide whether the slice requires a durable architecture artifact create/update in the project
+   - if an architecture artifact is required, the Architect creates or updates it before implementation handoff; developer workers do not own architecture-memory authoring by default
    - show one cleaned execution plan to the user before coding
    - this gate is mandatory for every code task, even tiny ones
    - after the execution plan, stop; continue only after explicit approval
@@ -63,6 +66,7 @@ Read only the references needed for the current phase; do not load every role by
    - research must be closed before execution planning is treated as approved; unresolved implementation-critical gaps stay in research instead of leaking into development
 4. After approval, build the handoff packet for `implementation-harness`.
    - include the approved task context, approved research packet, approved execution-plan packet, discovered facts/evidence that still matter to implementation, and any user constraints
+   - if the approved plan required an architecture artifact, make sure that artifact work is already done by the Architect before implementation handoff
    - keep routing at this level minimal: name expected ownership only when needed for clean file-zone boundaries or user-visible delegation clarity
    - spawn the implementation through a delegated worker/subagent; do not implement in the orchestrator session even for tiny fixes or when manual execution would be faster
    - if the delegated worker/subagent path is unavailable, fails to start, or cannot be used, stop as `blocked` and notify the user; do not fall back to manual implementation in the orchestrator session
@@ -88,8 +92,9 @@ Read only the references needed for the current phase; do not load every role by
 - Before approval, do not spawn implementer workers, do not start implementation runs, do not prepare patches, and do not edit files.
 - Critique should not redo discovery or start a new repo tour unless a concrete contradiction or missing evidence forces it.
 - After approval, route to `implementation-harness` for development and `code-review-orchestrator` for explicit review instead of restating those policies in this skill.
-- For non-trivial backend or multi-zone work, default to an explicit `architect` planning pass unless the file zones and request-path seams are already obviously closed.
-- If you skip `architect` on a non-trivial backend or multi-zone slice, the execution plan should make the skip explicit in one short note, for example: `Architect pass skipped: file zones, seams, and dependency direction already explicit from closed research.`
+- For every non-trivial task-design slice, `architect` planning is mandatory.
+- For tiny slices, `architect` planning becomes mandatory as soon as the slice may require a durable architecture artifact create/update.
+- During that pass, balanced-coupling and architecture-artifact ownership must be checked explicitly instead of being left implicit in developer handoff.
 - Do not treat implementer self-report as enough to close non-trivial coding work; validation plus independent review decide completion.
 - Never paste raw worker responses into chat unless the user explicitly asks for them.
 - For tiny, obvious fixes, keep the workflow minimal, but still route approved implementation through `implementation-harness` instead of doing it manually yourself.
