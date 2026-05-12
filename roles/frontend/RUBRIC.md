@@ -14,6 +14,7 @@ Use this as a compact checklist when a calling skill wants frontend implementati
 - **Interaction correctness**: Is behavior accessible, predictable, and correct?
 - **Tests**: Do tests prove the claimed frontend behavior instead of only touching it?
 - **Scope**: Is the role staying inside frontend correctness rather than drifting into visual-taste review?
+- **Learnings**: Were relevant durable learnings from `LEARNINGS.md` applied before making role judgments?
 
 ## Notes
 

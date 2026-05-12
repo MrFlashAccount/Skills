@@ -117,6 +117,10 @@ The calling skill should define:
 - whether the role is advising, challenging, or reviewing
 - what output contract is required
 
+## Default learning load
+
+When a calling skill loads this role for implementation, review, planning, or research judgment, it must also read `LEARNINGS.md` if present and apply any relevant durable learnings before making role judgments.
+
 ## How learnings work
 
 Use `LEARNINGS.md` as append-only durable memory for corrections, heuristics, and recurring failure modes for this role.

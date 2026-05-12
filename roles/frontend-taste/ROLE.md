@@ -91,6 +91,7 @@ Default read order for this role:
 - if the current repo has `DESIGN.md` or equivalent repo design memory, read that router first
 - `ROLE.md`
 - `RUBRIC.md`
+- `LEARNINGS.md` as the durable learning entrypoint/default load
 - `learnings/README.md`
 - `learnings/shared-core.md`
 - one project-class learning file routed by repo design memory, if the repo explicitly declares a project type
@@ -110,6 +111,10 @@ If the current repo has no `DESIGN.md` or no declared project type yet:
 When repo design memory exists:
 - load only the repo-design files it routes to
 - treat repo-level design law as higher precedence than portable taste canon when they conflict
+
+## Default learning load
+
+When a calling skill loads this role for implementation, review, planning, or research judgment, it must also read `LEARNINGS.md` if present and apply any relevant durable learnings before making role judgments.
 
 ## How learnings work
 
