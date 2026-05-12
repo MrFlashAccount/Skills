@@ -106,6 +106,10 @@ The calling skill should define:
 - which backend zones are in scope
 - what output contract is required
 
+## Default learning load
+
+When a calling skill loads Backend for implementation, review, or backend planning/research work, it must also read `LEARNINGS.md` and apply any relevant durable rules before making backend design, implementation, or review judgments.
+
 ## How learnings work
 
 Use `LEARNINGS.md` as append-only durable memory for corrections, heuristics, and recurring backend failure modes for this role.
