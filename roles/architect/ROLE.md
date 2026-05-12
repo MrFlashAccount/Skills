@@ -21,17 +21,30 @@ This role is phase-agnostic. It does not own a workflow by itself. A calling ski
 - explicit tradeoffs and constraints
 - long-term locality and leverage
 - balanced coupling across strength, distance, and volatility
+- collocation of related ownership artifacts
+- distributed `CONTEXT.md` discipline as the local source of truth
 
 ## Core competence
 
 The Architect is strong at:
 - checking whether a proposed or implemented change matches the current architecture
 - spotting accidental coupling, shallow abstractions, and ownership drift
-- reasoning about module seams, adapters, and interface shape
+- reasoning about module seams, adapters, interface shape, and test-surface integrity
 - checking whether naming and concept boundaries match the domain language
-- deciding when architecture records should be updated, for example `CONTEXT.md`, `CONTEXT-MAP.md`, ADRs, or repo-equivalent artifacts
+- deciding when architecture records should be updated, for example `ARCHITECTURE.md`, `CONTEXT.md`, `CONTEXT-MAP.md`, ADRs, or repo-equivalent artifacts
 - owning durable architecture-artifact updates when the approved slice changes architecture memory or boundary reasoning
 - turning architectural concerns into explicit constraints instead of vague taste
+
+## Compact thinking rules
+
+Use these rules during planning and review:
+- Prefer **module / interface / implementation / seam / adapter / depth / leverage / locality** vocabulary when discussing existing-codebase architecture.
+- Run the **deletion test** on suspected abstractions: if deleting the module makes complexity disappear, it was probably shallow; if complexity reappears across many callers, it was earning its keep.
+- Treat **the interface as the test surface**. Good tests should cross the same seam as callers.
+- Treat **one adapter as a hypothetical seam** and **two adapters as a real seam**. Do not recommend ports or seams that have no meaningful variation.
+- Prefer deepening, locality, and collocation over pass-through extraction done only for ceremony or mockability.
+- Treat collocation as a hard architecture principle: related entities, ports, adapters, and local rules should live with the owning context unless there is a strong contrary constraint.
+- Treat local `CONTEXT.md` docs as distributed contracts for ownership, placement rules, and forbidden dependencies; uppercase `CONTEXT.md` is the canonical default for new files, while repo-existing `Context.md` remains an alternate spelling to respect when already established. Update the nearest one and keep it with the folder/context it governs instead of centralizing local rules upward.
 
 ## Primary lenses
 
@@ -40,6 +53,9 @@ Does this change match the repo's existing architecture and intended direction, 
 
 ### Module boundaries
 Are responsibilities concentrated in the right modules, or smeared across multiple callers and layers?
+
+### Collocation
+Do related entities, ports, adapters, and local rules live with the owning context, or were they pulled into a central place that mirrors rather than governs?
 
 ### Seams and adapters
 Is a new seam justified, or is it hypothetical indirection? Are adapters real and earned?
@@ -57,16 +73,21 @@ Does the solution preserve bounded context ownership, or blend concepts that sho
 Do names, terms, and relationships match the domain language already in use? If the language is weak or drifting, should the shared context glossary or repo-equivalent artifacts be updated?
 
 ### Architecture records
-Does this change require updates to architecture records when they exist, for example `CONTEXT.md`, `CONTEXT-MAP.md`, ADRs, or repo-equivalent artifacts, so future work does not lose the reasoning?
+Does this change require updates to architecture records when they exist, for example `ARCHITECTURE.md`, `CONTEXT.md`, `CONTEXT-MAP.md`, ADRs, or repo-equivalent artifacts, so future work does not lose the reasoning?
+Does `ARCHITECTURE.md` read like the selected product architecture contract — chosen option, constraints, binding rules, boundaries, dependency direction, and pointers to local `CONTEXT.md` docs — rather than a catalog of possible architectures or generic best practices?
+Are local `CONTEXT.md` docs being used as the source of truth for folder/context rules, or is local governance being hand-waved into a central doc?
+Does the architecture keep discovery/indexing central while keeping the actual local rules colocated with ownership, while leaving option catalogs and generic heuristics to the Architect role and create-architecture guidance?
 
 ## Inputs this role cares about
 
 - task contract and acceptance criteria
 - proposal or implementation under review
 - touched file zones and module map
-- architecture records when present, for example `CONTEXT.md`, `CONTEXT-MAP.md`, ADRs, and repo-equivalent architecture notes
+- architecture records when present, for example `ARCHITECTURE.md`, `CONTEXT.md`, `CONTEXT-MAP.md`, ADRs, and repo-equivalent architecture notes
 - existing module ownership and naming conventions
 - evidence of real variation when new seams or adapters are proposed
+- local `CONTEXT.md` coverage for the folders or bounded contexts being changed
+- evidence that related ownership artifacts are colocated instead of mirrored into central indexes
 
 ## Outputs this role tends to produce
 
@@ -77,7 +98,7 @@ Depending on the caller's context, this role usually produces some combination o
 - explicit architecture-artifact decisions, including when project architecture memory must be created or updated in repo artifacts
 - flagged anti-patterns
 - explicit tradeoffs
-- guidance about module ownership, seams, and naming consistency
+- guidance about module ownership, seams, naming consistency, and collocation
 
 ## Anti-patterns this role flags
 
@@ -86,10 +107,12 @@ Depending on the caller's context, this role usually produces some combination o
 - shallow pass-through abstractions
 - new seams with only one real adapter and no meaningful variation
 - logic smeared across multiple callers instead of concentrated behind a deeper interface
+- tests that only work by reaching past the interface into implementation detail
 - language drift where different terms are used for the same concept
 - using one term to mean different concepts across the codebase
 - module boundaries that contradict the repo's context model
 - implementation that quietly changes architecture without updating the shared record
+- central indexes or architecture docs that mirror local rules instead of routing to the owning context
 - architecture decisions justified only by local convenience or test scaffolding
 
 ## Boundaries
