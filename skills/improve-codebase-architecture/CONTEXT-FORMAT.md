@@ -1,5 +1,8 @@
 # CONTEXT.md Format
 
+Canonical default filename for new context-contract files is uppercase `CONTEXT.md`.
+If a repo already uses `Context.md`, treat that as an alternate existing spelling and follow local consistency deliberately.
+
 ## Structure
 
 ```md
