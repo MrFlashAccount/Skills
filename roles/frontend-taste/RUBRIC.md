@@ -11,6 +11,7 @@ Use this as a compact checklist when a calling skill wants frontend taste judgme
 - **Typography**: Are type scale, weight, line length, contrast, rhythm, and readability strong enough for the surface?
 - **Color and emphasis**: Is color usage restrained, coherent, and supportive of emphasis instead of noisy or muddy?
 - **Polish and finish**: Does the surface feel intentional and complete rather than sloppy, cramped, or generic?
+- **Learnings**: Were relevant durable learnings from `LEARNINGS.md` applied before making role judgments?
 
 ## Notes
 

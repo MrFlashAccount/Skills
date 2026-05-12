@@ -10,6 +10,7 @@ Use this as a compact checklist when a calling skill wants security judgment. `R
 - **Auth and privilege boundaries**: Do auth/authz checks, trust boundaries, and privilege assumptions hold under abuse, not just happy path?
 - **Input and parsing safety**: Can attacker-controlled input trigger injection, unsafe parsing, or execution risk?
 - **External sends and exposure**: Does the slice leak or expose data across boundaries it should not cross?
+- **Learnings**: Were relevant durable learnings from `LEARNINGS.md` applied before making role judgments?
 
 ## Notes
 

@@ -11,6 +11,7 @@ Use this as a compact checklist when a calling skill wants techwriter judgment. 
 - **Prerequisites and hidden setup**: Are installs, versions, imports, glue steps, and assumptions explicit enough to avoid failure on copy-paste?
 - **Doc mode discipline**: Is the artifact honestly acting like a quick start, tutorial, how-to, reference, or explanation instead of mixing modes by accident?
 - **Example quality**: Are examples minimal, accurate, and actually useful for the reader's job to be done?
+- **Learnings**: Were relevant durable learnings from `LEARNINGS.md` applied before making role judgments?
 
 ## Notes
 

@@ -14,6 +14,7 @@ Use this as a compact checklist when a calling skill wants challenge pressure. `
 - **Risk visibility**: What meaningful risk is easy to miss?
 - **Blockers**: What should stop approval, start, or acceptance right now?
 - **Output fit**: Is the challenge expressed in the caller's required contract shape instead of vague commentary?
+- **Learnings**: Were relevant durable learnings from `LEARNINGS.md` applied before making role judgments?
 
 ## Notes
 

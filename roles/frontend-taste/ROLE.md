@@ -111,6 +111,10 @@ When repo design memory exists:
 - load only the repo-design files it routes to
 - treat repo-level design law as higher precedence than portable taste canon when they conflict
 
+## Default learning load
+
+When a calling skill loads this role for implementation, review, planning, or research judgment, it must also read `LEARNINGS.md` if present and apply any relevant durable learnings before making role judgments.
+
 ## How learnings work
 
 Use `LEARNINGS.md` as the durable index/meta-memory entrypoint for this role, and use `learnings/*.md` for reusable taste guidance by product class.

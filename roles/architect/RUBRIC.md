@@ -14,6 +14,7 @@ Use this as a compact checklist when a calling skill wants architectural judgmen
 - **Ubiquitous language**: Are names and relationships consistent with the domain language?
 - **Record updates**: Should architecture records be updated, such as `CONTEXT.md`, `CONTEXT-MAP.md`, ADRs, or repo-equivalent artifacts?
 - **Anti-goals**: Does the change introduce accidental coupling, naming drift, or architecture-by-convenience?
+- **Learnings**: Were relevant durable learnings from `LEARNINGS.md` applied before making role judgments?
 
 ## Notes
 

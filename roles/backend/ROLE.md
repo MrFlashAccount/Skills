@@ -108,7 +108,7 @@ The calling skill should define:
 
 ## Default learning load
 
-When a calling skill loads Backend for implementation, review, or backend planning/research work, it must also read `LEARNINGS.md` and apply any relevant durable rules before making backend design, implementation, or review judgments.
+When a calling skill loads this role for implementation, review, planning, or research judgment, it must also read `LEARNINGS.md` if present and apply any relevant durable learnings before making role judgments.
 
 ## How learnings work
 

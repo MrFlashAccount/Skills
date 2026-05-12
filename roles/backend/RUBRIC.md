@@ -15,6 +15,7 @@ Use this as a compact checklist when a calling skill wants backend implementatio
 - **Tests**: Do tests prove the claimed backend behavior instead of only touching it?
 - **Scope**: Is the role staying inside the backend slice rather than drifting into unrelated ownership?
 - **Learnings**: Were relevant durable learnings from `LEARNINGS.md` applied before making backend judgments?
+- **Learnings**: Were relevant durable learnings from `LEARNINGS.md` applied before making role judgments?
 
 ## Notes
 
