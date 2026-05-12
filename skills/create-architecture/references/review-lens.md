@@ -1,0 +1,71 @@
+# Architecture Review Lens
+
+Use this file during architect review, critic pressure, and the final post-implementation review.
+
+## What to check
+
+### 1. Decision integrity
+- Is there a real architecture decision, or only a cleaned-up snapshot of the current repo?
+- Are rejected alternatives and tradeoffs explicit?
+- Did the workflow stop for approval before canonical artifacts were written?
+
+### 2. C4 completeness
+- Are Context, Container, and Component/Module views all present?
+- Do the diagrams or text views explain relationships clearly enough to guide change?
+- Did the package avoid skipping C4 because "the code already shows it"?
+
+### 3. DDD quality
+- When domain boundaries matter, are strategic artifacts present and concrete?
+- Are bounded contexts, language, context map, and ownership explicit?
+- Is tactical DDD used selectively where real invariants exist?
+- Did the package avoid cargo-cult entities, aggregates, and repositories?
+
+### 4. Dependency and seam clarity
+- Is the dependency rule explicit where Clean Architecture or Ports & Adapters is used?
+- Are inbound/outbound ports and adapters real, or decorative?
+- For existing-codebase improvement, does each new seam have real variation or at least a credible second adapter?
+- Is composition root / DI shape clear enough to implement?
+
+### 4b. Module depth and improvement quality
+- Do the proposed or implemented modules increase leverage at the interface?
+- Does the change improve locality, or just move the same complexity across more files?
+- Would the shallow wrappers fail the deletion test?
+- Are tests meant to exercise behavior through the interface rather than past it?
+
+### 5. Artifact boundaries
+- Is `ARCHITECTURE.md` the entrypoint rather than the whole universe?
+- Are supporting artifacts justified and linked?
+- Are local `CONTEXT.md` docs placed near the folders they govern?
+- Are related entities, ports, adapters, and local rules colocated with the owning context instead of being pulled into a central mirror?
+- Do local `CONTEXT.md` docs act as the distributed source of truth for ownership, placement, and forbidden dependencies instead of deferring everything upward?
+
+### 6. Migration realism
+- Can the migration be sliced into reviewable PRs?
+- Are sequencing constraints and high-risk moves named?
+- Did the package avoid freezing a fantasy end-state with no path from here to there?
+
+### 7. Failure-mode pressure
+- Was any artifact written too early?
+- Did the package collapse into as-is documentation?
+- Was DDD reduced to buzzwords?
+- Was everything centralized into one mega-doc?
+- Were forbidden dependencies and ownership rules left implicit?
+- Did the improvement add indirection without depth, locality, or test-surface clarity?
+
+## Typical failures
+
+- architecture style chosen by taste instead of pressure
+- proposal artifact skipped or too weak to approve against
+- ADR present but no C4
+- C4 present but no decision or migration logic
+- strategic DDD needed but omitted
+- tactical DDD sprayed everywhere
+- ports/adapters vocabulary with no real dependency rule
+- `CONTEXT.md` replaced by a centralized folder dump
+- central docs mirroring local ownership rules instead of routing to the owning context
+- pass-through module extraction presented as architecture improvement
+- PR slicing too vague to guide implementation
+
+## Final gate
+
+Do not call the result clean if it still reads like architecture theater.
