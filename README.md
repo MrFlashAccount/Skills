@@ -185,10 +185,15 @@ If a skill needs a reusable specialist voice:
   - Use when: frontend work touches React/Next.js slices.
   - Do not use when: the task is not React/Next.js work.
 
+- `skills/create-architecture`
+  - What it is: approval-gated architecture workflow for creating, improving, aligning, or auditing a project's selected architecture contract and related artifacts.
+  - Use when: the task is choosing or revising architecture direction, updating `ARCHITECTURE.md`, adding local uppercase `CONTEXT.md` contracts, or reorganizing structure, boundaries, or architecture records.
+  - Do not use when: the task is a tiny local fix with no architecture effect, or when the user only needs generic architecture heuristics/reference material.
+
 - `skills/improve-codebase-architecture`
-  - What it is: architecture improvement guidance and artifacts.
-  - Use when: the task is reorganizing structure, boundaries, or architecture records.
-  - Do not use when: the task is a tiny local fix with no architecture effect.
+  - What it is: legacy/reference material for existing-codebase architecture improvement concepts.
+  - Use when: `create-architecture` or Architect references need donor guidance for module/interface/seam/depth thinking.
+  - Do not use when: selecting an active architecture workflow; route active architecture work through `skills/create-architecture`.
 
 ### Workflow and repo utilities
 
