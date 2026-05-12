@@ -7,8 +7,9 @@ Use this file to decide what the architecture package must ship after approval.
 Always require these deliverables in the implemented package:
 
 1. `ARCHITECTURE.md`
-   - entrypoint artifact
+   - entrypoint artifact for the selected product architecture contract
    - states the chosen architecture direction
+   - captures chosen constraints, binding rules, entities/contexts/boundaries, dependency direction, and pointers to local `CONTEXT.md` docs
    - links every supporting artifact and says what each one is for
 
 2. Architecture Decision
@@ -92,6 +93,7 @@ Add only when they remove ambiguity or keep `ARCHITECTURE.md` lean:
 ## Artifact map rule
 
 If supporting docs exist, `ARCHITECTURE.md` must link them explicitly and state the role of each artifact.
+`ARCHITECTURE.md` is not the place for a catalog of architecture options, generic heuristics, or best-practice encyclopedias; those belong in the Architect role and create-architecture guidance used to arrive at the selected contract.
 
 ## Common contract failures
 
@@ -99,6 +101,7 @@ Fail the package if it does any of these:
 - no C4 set
 - DDD reduced to buzzwords with no concrete contexts or tactics
 - one centralized mega-doc instead of routed artifacts
+- `ARCHITECTURE.md` bloated with generic option catalogs or architect lore instead of the selected contract
 - folder tree frozen as doctrine without migration logic
 - as-is inventory presented as target architecture
 - ports/adapters named without dependency rule or composition root

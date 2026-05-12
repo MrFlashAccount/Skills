@@ -142,12 +142,12 @@ Required core deliverables:
 3. Strategic DDD when domain/ownership boundaries matter
 4. Tactical DDD only where it clarifies real domain mechanics
 5. Clean Architecture / Ports & Adapters view when relevant
-6. `ARCHITECTURE.md` as the entrypoint
+6. `ARCHITECTURE.md` as the selected product architecture contract and entrypoint
 7. local `CONTEXT.md` docs for important folders/contexts
 8. migration / PR slicing plan
 
 Implementation rules:
-- keep `ARCHITECTURE.md` lean and navigable
+- keep `ARCHITECTURE.md` lean, navigable, and focused on the selected contract rather than generic architecture knowledge
 - keep canonical decisions out of scattered ad-hoc notes
 - treat collocation as a hard architecture principle: related entities, ports, adapters, and local rules stay with the owning context unless there is a strong contrary constraint
 - treat folder-level `CONTEXT.md` docs as distributed source-of-truth contracts for local ownership and placement rules
@@ -156,6 +156,7 @@ Implementation rules:
 - prefer Mermaid for diagrams unless text is clearer
 - do not freeze an imaginary future structure as if it already exists
 - tie every artifact to the chosen option, not to architecture buzzwords
+- keep option catalogs, heuristics, best practices, and generic architectural judgment in the Architect role and create-architecture references; the produced `ARCHITECTURE.md` should capture the applied selected contract
 
 ## 9. Post-implementation architect + critic review
 

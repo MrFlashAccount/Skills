@@ -15,7 +15,7 @@ Use this as a compact checklist when a calling skill wants architectural judgmen
 - **Test surface**: Are tests meant to exercise behavior through the interface instead of reaching past it?
 - **DDD alignment**: Does the solution preserve bounded-context ownership and concept boundaries?
 - **Ubiquitous language**: Are names and relationships consistent with the domain language?
-- **Record updates**: Should architecture records be updated, such as `CONTEXT.md`, `CONTEXT-MAP.md`, ADRs, or repo-equivalent artifacts? Are local `CONTEXT.md` docs carrying their own rules as distributed source-of-truth and living with the folder/context they govern while central docs only index/discover? For new files, default to uppercase `CONTEXT.md`; if the repo already uses `Context.md`, treat that as an alternate existing spelling rather than a reason to centralize rules.
+- **Record updates**: Should architecture records be updated, such as `ARCHITECTURE.md`, `CONTEXT.md`, `CONTEXT-MAP.md`, ADRs, or repo-equivalent artifacts? Does `ARCHITECTURE.md` stay focused on the selected product architecture contract — chosen option, constraints, binding rules, boundaries, dependency direction, and pointers to local `CONTEXT.md` docs — while local `CONTEXT.md` docs carry their own rules as distributed source-of-truth and central docs only index/discover? For new files, default to uppercase `CONTEXT.md`; if the repo already uses `Context.md`, treat that as an alternate existing spelling rather than a reason to centralize rules.
 - **Architecture-memory integrity**: If the slice changes architectural reasoning or boundaries, was the durable project artifact updated by the right owner instead of being left in assistant memory or developer-only notes?
 - **Anti-goals**: Does the change introduce accidental coupling, naming drift, pass-through indirection, or architecture-by-convenience?
 - **Learnings**: Were relevant durable learnings from `LEARNINGS.md` applied before making role judgments?
@@ -24,4 +24,4 @@ Use this as a compact checklist when a calling skill wants architectural judgmen
 
 This rubric is phase-agnostic.
 A calling skill decides whether it is using the Architect to derive constraints, verify compliance, or explore alternatives.
-Central docs may route and index, but they should not mirror local ownership rules that belong in the nearest `CONTEXT.md`.
+Central docs may route and index, but they should not mirror local ownership rules that belong in the nearest `CONTEXT.md`, and `ARCHITECTURE.md` should not drift into an encyclopedia of architecture options or generic best practices.

@@ -33,7 +33,8 @@ Use this file during architect review, critic pressure, and the final post-imple
 - Are tests meant to exercise behavior through the interface rather than past it?
 
 ### 5. Artifact boundaries
-- Is `ARCHITECTURE.md` the entrypoint rather than the whole universe?
+- Is `ARCHITECTURE.md` the entrypoint and selected product architecture contract rather than the whole universe?
+- Does `ARCHITECTURE.md` capture the chosen option, constraints, binding rules, boundaries, dependency direction, and pointers to local `CONTEXT.md` docs instead of turning into a catalog of options or generic architecture advice?
 - Are supporting artifacts justified and linked?
 - Are local `CONTEXT.md` docs placed near the folders they govern?
 - Are related entities, ports, adapters, and local rules colocated with the owning context instead of being pulled into a central mirror?
@@ -63,6 +64,7 @@ Use this file during architect review, critic pressure, and the final post-imple
 - ports/adapters vocabulary with no real dependency rule
 - `CONTEXT.md` replaced by a centralized folder dump
 - central docs mirroring local ownership rules instead of routing to the owning context
+- `ARCHITECTURE.md` turned into an encyclopedia of architecture options, heuristics, or generic best practices instead of the selected contract
 - pass-through module extraction presented as architecture improvement
 - PR slicing too vague to guide implementation
 

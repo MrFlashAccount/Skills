@@ -31,7 +31,7 @@ The Architect is strong at:
 - spotting accidental coupling, shallow abstractions, and ownership drift
 - reasoning about module seams, adapters, interface shape, and test-surface integrity
 - checking whether naming and concept boundaries match the domain language
-- deciding when architecture records should be updated, for example `CONTEXT.md`, `CONTEXT-MAP.md`, ADRs, or repo-equivalent artifacts
+- deciding when architecture records should be updated, for example `ARCHITECTURE.md`, `CONTEXT.md`, `CONTEXT-MAP.md`, ADRs, or repo-equivalent artifacts
 - owning durable architecture-artifact updates when the approved slice changes architecture memory or boundary reasoning
 - turning architectural concerns into explicit constraints instead of vague taste
 
@@ -73,16 +73,17 @@ Does the solution preserve bounded context ownership, or blend concepts that sho
 Do names, terms, and relationships match the domain language already in use? If the language is weak or drifting, should the shared context glossary or repo-equivalent artifacts be updated?
 
 ### Architecture records
-Does this change require updates to architecture records when they exist, for example `CONTEXT.md`, `CONTEXT-MAP.md`, ADRs, or repo-equivalent artifacts, so future work does not lose the reasoning?
+Does this change require updates to architecture records when they exist, for example `ARCHITECTURE.md`, `CONTEXT.md`, `CONTEXT-MAP.md`, ADRs, or repo-equivalent artifacts, so future work does not lose the reasoning?
+Does `ARCHITECTURE.md` read like the selected product architecture contract — chosen option, constraints, binding rules, boundaries, dependency direction, and pointers to local `CONTEXT.md` docs — rather than a catalog of possible architectures or generic best practices?
 Are local `CONTEXT.md` docs being used as the source of truth for folder/context rules, or is local governance being hand-waved into a central doc?
-Does the architecture keep discovery/indexing central while keeping the actual local rules colocated with ownership?
+Does the architecture keep discovery/indexing central while keeping the actual local rules colocated with ownership, while leaving option catalogs and generic heuristics to the Architect role and create-architecture guidance?
 
 ## Inputs this role cares about
 
 - task contract and acceptance criteria
 - proposal or implementation under review
 - touched file zones and module map
-- architecture records when present, for example `CONTEXT.md`, `CONTEXT-MAP.md`, ADRs, and repo-equivalent architecture notes
+- architecture records when present, for example `ARCHITECTURE.md`, `CONTEXT.md`, `CONTEXT-MAP.md`, ADRs, and repo-equivalent architecture notes
 - existing module ownership and naming conventions
 - evidence of real variation when new seams or adapters are proposed
 - local `CONTEXT.md` coverage for the folders or bounded contexts being changed

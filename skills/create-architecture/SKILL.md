@@ -49,7 +49,7 @@ That includes ADRs, C4 diagrams, strategic/tactical DDD docs, ports-and-adapters
 
 - This skill is not a prose generator. Work from the actual repo, constraints, and change surface.
 - Reduce the task to 3-5 representative asks unless the scope is truly tiny.
-- Keep `ARCHITECTURE.md` as the entrypoint and routing layer, not the whole architecture stuffed into one mega-doc.
+- Keep `ARCHITECTURE.md` as the selected product architecture contract and routing layer, not the whole architecture stuffed into one mega-doc or a catalog of every possible approach.
 - Prefer Mermaid for C4 when practical; use text C4 only when diagrams would be brittle or noisy.
 - Strategic DDD is required when domain boundaries or ownership matter.
 - Tactical DDD is selective. Do not spray entities, aggregates, and repositories everywhere just to sound architectural.
@@ -58,6 +58,7 @@ That includes ADRs, C4 diagrams, strategic/tactical DDD docs, ports-and-adapters
 - Canonical default for new local context-contract files is uppercase `CONTEXT.md`. If a repo already uses `Context.md`, treat that as an existing alternate spelling rather than a reason to centralize or rename blindly.
 - `CONTEXT.md` files must be local to important folders/contexts and must state ownership, placement rules, allowed modules, and forbidden dependencies.
 - Central architecture docs should index and discover local context rules, not mirror them.
+- `ARCHITECTURE.md` should capture the chosen option, chosen constraints, binding rules, entities/contexts/boundaries, dependency direction, and pointers to local `CONTEXT.md` files. Option catalogs, heuristics, best practices, and generic architecture judgment belong in the Architect role and create-architecture references, not in the product contract itself.
 - Migration guidance must be sliceable into reviewable PRs. Do not leave migration as one giant future blob.
 - After the first implementation pass, run architect review, critic pressure, fixes, and a final post-implementation review before calling it done.
 - Watch the main failure modes explicitly: writing docs too early, dumping the as-is state without decisions, omitting C4, collapsing DDD into buzzwords, centralizing everything into one doc, centralizing local ownership rules that should stay colocated, and freezing a folder tree that the repo has not earned.
