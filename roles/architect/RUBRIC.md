@@ -1,31 +1,58 @@
 # Architect Rubric
 
-Derived checklist for the Architect role.
+Derived checklist for the Architect role. `ROLE.md` remains the canonical contract.
 
-Use this as a compact checklist when a calling skill wants architectural judgment. `ROLE.md` remains the canonical role contract.
+## Required body order
+
+Architect output may include an optional short `summary`; the required body order is:
+
+1. `architecture_decision`
+2. `ubiquitous_language`
+3. `bounded_contexts`
+4. `constraints`
+5. `forbidden_moves`
+6. `invariants`
+7. `boundaries_and_ownership`
+8. `structural_entities`
+9. `relationships`
+10. `dependency_rules`
+11. `required_artifacts`
+12. `structural_risks`
+13. `final_structural_contract`
 
 ## Checklist
 
-- **Architecture fit**: Does the change match the intended shape of the system?
-- **Change classification**: Is this a local change, design change, architecture/structural change, or mixed slice?
-- **Structural contract**: Are what changes, what does not change, boundaries, affected entities/modules/relationships, and implementation handoff concrete?
-- **Clarifying questions**: If the change surface or done state is underspecified, did Architect ask architecture-relevant questions instead of guessing?
-- **Ownership clarity**: Are responsibilities concentrated in the right module or context?
-- **Collocation**: Are related entities, ports, adapters, and local rules kept with the owning context instead of being pulled into a central mirror?
-- **Seam hygiene**: Is each seam earned by real variation, not hypothetical indirection? Remember: one adapter is hypothetical; two adapters is real.
+- **Architecture decision**: Is the chosen architecture style/shape explicit, including when the right choice is intentionally minimal?
+- **Ubiquitous language**: Are stable code/domain terms named for implementation, tests, and review?
+- **Bounded contexts**: Are responsibility zones clear without forcing DDD theater when the slice is small?
+- **Constraints first**: Are binding constraints stated before implementation planning?
+- **Forbidden moves**: Are prohibited changes explicit enough to prevent scope creep?
+- **Invariants**: Are must-preserve behaviors, contracts, data rules, and architecture truths named?
+- **Boundaries and ownership**: Are owning contexts/modules/seams/docs/tests clear?
+- **Structural entities**: Are architecture-level modules, contexts, seams, adapters, records, boundaries, or domain structures named without confusing them with Researcher domain vocabulary or Planner implementation entities?
+- **Relationships**: Are relationships among structural entities explicit?
+- **Dependency rules**: Are allowed and forbidden dependency directions concrete enough for planning and review?
+- **Required artifacts**: Is the architecture artifact decision one of `none`, `update_existing`, or `create_new`, with target artifacts named when required?
+- **Structural risks**: Are coupling, boundary, naming, rollout, record, and contract risks concrete?
+- **Final structural contract**: Is the handoff binding, concise, and ready for execution planning?
+- **Clarifying questions**: If change surface, ownership, dependency direction, or done state is underspecified, did Architect ask architecture-relevant questions instead of guessing?
+- **Architecture fit**: Does the contract match the intended shape of the system?
+- **Change classification**: Is the slice local, design-level, architecture/structural, or mixed?
+- **Collocation**: Are related entities, ports, adapters, and local rules kept with the owning context instead of pulled into a central mirror?
+- **Seam hygiene**: Is each seam earned by real variation? Remember: one adapter is hypothetical; two adapters is real.
 - **Depth**: Does the interface create leverage and locality, or is it shallow? Would the module survive the deletion test?
-- **Balanced coupling**: Is the coupling strength appropriate for the architectural distance and volatility involved?
-- **Dependency direction**: Are allowed and forbidden dependencies explicit enough for implementation?
+- **Balanced coupling**: Is coupling strength appropriate for architectural distance and volatility?
 - **Test surface**: Are tests meant to exercise behavior through the interface instead of reaching past it?
-- **DDD alignment**: Does the solution preserve bounded-context ownership and concept boundaries?
-- **Ubiquitous language**: Are names and relationships consistent with the domain language?
-- **Record updates**: Should architecture records be updated, such as `ARCHITECTURE.md`, `CONTEXT.md`, `CONTEXT-MAP.md`, ADRs, or repo-equivalent artifacts? Does `ARCHITECTURE.md` stay focused on the selected product architecture contract — chosen option, constraints, binding rules, boundaries, dependency direction, and pointers to local `CONTEXT.md` docs — while local `CONTEXT.md` docs carry their own rules as distributed source-of-truth and central docs only index/discover? For new files, default to uppercase `CONTEXT.md`; if the repo already uses `Context.md`, treat that as an alternate existing spelling rather than a reason to centralize rules.
-- **Architecture-memory integrity**: If the slice changes architectural reasoning or boundaries, was the durable project artifact updated by the right owner instead of being left in assistant memory or developer-only notes?
-- **Anti-goals**: Does the change introduce accidental coupling, naming drift, pass-through indirection, architecture-by-convenience, or design-on-ambiguity?
+- **DDD / language alignment**: Are names and relationships consistent with domain language and bounded contexts?
+- **Dual-pass attack**: For architecture-sensitive work, did Architect B attack constraints, forbidden moves, invariants, boundaries, structural entities, relationships, dependency rules, required artifacts, risks, and final contract?
+- **Architecture weight**: Did Architect choose appropriately among DDD, Clean Architecture, ports/adapters, plugin architecture, functional-core shell, small monolith, or almost no architecture?
+- **Code/structure terms**: Does the output speak in modules, ports, adapters, plugin entrypoints, classes/functions/components, dependencies, seams, and relationships where applicable?
+- **Researcher separation**: Does the output avoid replacing architecture with business/process proposal content such as goals, broad V1/V2 framing, or generic tests unless those are converted into structural constraints/invariants?
+- **Boundary hygiene**: Does Architect avoid implementation entity maps, exact signatures, pseudocode, algorithms, edit recipes, and patch-like plans?
 - **Learnings**: Were relevant durable learnings from `LEARNINGS.md` applied before making role judgments?
 
 ## Notes
 
-This rubric is phase-agnostic.
-A calling skill decides whether it is using the Architect to derive constraints, verify compliance, or explore alternatives.
-Central docs may route and index, but they should not mirror local ownership rules that belong in the nearest `CONTEXT.md`, and `ARCHITECTURE.md` should not drift into an encyclopedia of architecture options or generic best practices.
+This rubric is phase-agnostic. A calling skill decides whether it is using Architect to derive constraints, prepare a structural contract, support implementation, or review compliance.
+
+Central docs may route and index, but they should not mirror local ownership rules that belong in the nearest context doc. Durable architecture memory belongs in project artifacts, not assistant memory.

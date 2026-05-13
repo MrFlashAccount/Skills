@@ -1,28 +1,44 @@
 # Researcher Rubric
 
-Derived checklist for the Researcher role.
+Derived checklist for the Researcher role. `ROLE.md` remains the canonical contract.
 
-Use this as a compact checklist when a calling skill wants a readiness/proposal packet. `ROLE.md` remains the canonical role contract.
+## Packet shape
+
+The Researcher packet includes:
+
+- `summary`
+- `domain_vocabulary`
+- `goals`
+- `non_goals`
+- `constraints`
+- `known_facts_and_evidence`
+- `assumptions`
+- `unknowns`
+- `decisions_needed`
+- `candidate_approaches`
+- `readiness_blockers`
+- `risks`
 
 ## Checklist
 
-- **Ask normalization**: Is the request restated clearly enough for the next phase?
-- **Desired outcome clarity**: Is the user-visible result concrete enough, or must the Researcher ask targeted clarifying questions first?
-- **Goals / non-goals**: Are desired outcomes and excluded work explicit?
-- **Known context**: Are available facts and prior decisions used before asking again?
-- **Critical assumptions**: Are critical gaps kept as assumptions/unknowns instead of silently filled?
-- **Constraints**: Are boundaries, dependencies, preferences, and limits surfaced?
-- **Unknowns**: Are open questions named and separated from settled context?
-- **Proposed approach**: Is the direction practical and bounded without becoming implementation, final scope ownership, or a canonical architectural change list?
-- **Acceptance criteria**: Is readiness defined in terms the next phase can use?
-- **Blockers**: Are unresolved blockers short, visible, and not buried in prose?
-- **Follow-ups**: Are non-blocking follow-ups separated from blockers?
-- **Risks / missing evidence**: Are confidence gaps and meaningful risks explicit?
-- **Readiness conclusion**: Does the packet honestly say whether later planning can start?
-- **Architect handoff**: Are architecture-sensitive unknowns and options clear enough for Architect to own the final structural contract?
+- **Summary**: Is the ask normalized into a concrete desired outcome?
+- **Domain vocabulary**: Are task/domain terms and known entities named without promoting them into structural or implementation entities?
+- **Goals / non-goals**: Are included and excluded outcomes explicit?
+- **Constraints**: Are boundaries, dependencies, preferences, timing, policy, and technical limits surfaced?
+- **Known facts and evidence**: Are claims backed by user statements, files, observations, docs, or other named evidence where available?
+- **Assumptions**: Are unproven working beliefs labeled instead of presented as facts?
+- **Unknowns**: Are open questions separated from settled context?
+- **Decisions needed**: Are unresolved choices assigned to the right downstream owner or human decision point?
+- **Candidate approaches**: Are options bounded and useful without becoming final scope, structural contract, or implementation plan?
+- **Readiness blockers**: Are stop-sign gaps short, visible, and not buried in prose?
+- **Risks**: Are meaningful risks concrete rather than generic caution?
+- **Clarifying questions**: If the desired outcome or acceptance target is fuzzy, did Researcher ask targeted questions instead of guessing?
+- **Dual-pass attack**: For non-trivial work, did Researcher B challenge evidence, assumptions, unknowns, decisions, blockers, and over-broad approaches?
+- **Boundary hygiene**: Does the packet exclude critic findings, final verdict, approval language, final structural contract, and implementation entity maps?
+- **Architect handoff**: Are architecture-sensitive unknowns/options clear enough for Architect to own structural entities and final contract?
+- **Planner handoff**: If no Architect is needed, is execution planning possible without broad rediscovery?
 - **Learnings**: Were relevant durable learnings from `LEARNINGS.md` applied before making role judgments?
 
 ## Notes
 
-This rubric is phase-agnostic.
-A calling skill decides whether Researcher is preparing execution planning, approval, review, or another readiness handoff.
+This rubric is phase-agnostic. A calling skill decides whether Researcher is preparing architecture handoff, execution planning, approval, review, or another readiness handoff.

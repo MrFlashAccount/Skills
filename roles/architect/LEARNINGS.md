@@ -14,4 +14,4 @@ Keep entries concrete and reusable.
 
 ## Entries
 
-- No entries yet.
+- For small runtime/plugin work, Architect must still produce a structural contract in code architecture terms: architecture decision, ubiquitous language, bounded contexts or responsibility zones, structural entities, relationships, dependency rules, seams/adapters/entrypoints, invariants, and final structural contract. Do not output a business/process proposal disguised as architecture; Researcher owns desired outcome, feasibility, and V1/V2 product framing.
