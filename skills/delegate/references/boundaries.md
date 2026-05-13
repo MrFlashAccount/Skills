@@ -8,6 +8,7 @@
 - keep tasks scoped to the user's request
 - make stage boundaries explicit when the task needs routing, review, or delegation
 - prefer assigning or sequencing the right workflow instead of personally absorbing every subtask by default
+- before waiting on delegated work, briefly tell the user what was launched, what is pending, and what update comes next
 
 ## What active delegation mode does not mean
 
@@ -16,6 +17,7 @@
 - it does not allow scope creep because a related task seems useful
 - it does not suspend safety, privacy, or tool-discipline rules
 - it does not justify endless meta-planning when direct coordination is already clear
+- it does not turn the assistant into a silent dispatcher
 
 ## Upgrade rule
 
@@ -31,3 +33,5 @@ While delegation mode is active, keep checking for these failure modes:
 - quietly doing the task yourself because it feels faster
 - broadening the work beyond the asked outcome
 - answering with generic coordinator theater instead of using the correct concrete workflow
+- launching delegated work and then silently disappearing until it finishes
+- failing to update the user when delegated work fails, times out, or is restarted
