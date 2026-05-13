@@ -7,9 +7,9 @@ Use only when:
 - the task is clear enough
 - the proposal is internally coherent
 - acceptance is explicit enough
-- research is closed enough that implementation should not need broad rediscovery
+- the packet is approved for downstream handoff and implementation should not need broad rediscovery
 - `unresolved_blockers` is empty
-- no major blocker remains hidden in `follow_ups` or `missing_evidence`
+- no major blocker remains hidden in `critic_findings`, `missing_evidence`, or `readiness_note`
 
 ## `approve_with_changes`
 Use when:

@@ -1,19 +1,23 @@
 ---
 name: dev-harness
-description: Orchestrate software work through execution planning and high-level delegation after research is already understood or approved. In the repo's four-stage flow, this is primarily the `execution plan` stage, consuming research output or Architect-owned structural contracts and turning them into an implementation contract. Architecture-sensitive research must pass through Architect before execution planning/implementation. Use when planning or delegating implementation/refactor tasks, especially multi-file, risky, or sliceable work, or when durable learnings should be captured.
+description: Orchestrate software work through execution planning and high-level delegation after research has produced an approved-for-handoff packet. In the repo's flow, this is primarily the `execution plan` stage, consuming a research wrapper packet and, when architecture-sensitive, an Architect-owned structural contract, then producing an implementation contract. Use when planning or delegating implementation/refactor tasks, especially multi-file, risky, or sliceable work, or when durable learnings should be captured.
 ---
 
 # Dev Harness
 
-Use as the top-level coding harness for execution planning. You orchestrate the handoff from approved research, or from an Architect-owned structural contract for architecture-sensitive work, into an implementation contract and then route the approved contract onward. Reusable Researcher -> Critic work routes through `research-critic`; architecture-sensitive scope goes through Architect before execution planning/implementation. After approval of the execution plan, hand the approved task context plus closed research packet to `implementation-harness`; that skill owns implementation. Post-implementation review should run through `code-review-orchestrator`. Under this skill, the orchestrator does not directly implement the approved slice, even if manual execution would be faster; do not cut corners by coding in the orchestrator session. Plain user action verbs like `fix`, `do`, `сделай`, or `исправь` do not override this default; only an explicit request for direct in-session implementation does.
+Use as the top-level execution-planning harness. It turns an approved-for-handoff research packet, plus Architect-owned structural contract when needed, into an implementation contract and then routes the approved contract onward.
+
+Default chain:
+
+`research-critic -> optional Architect A/B structural contract -> Planner A/B execution contract -> implementation-harness -> code-review-orchestrator`
 
 Keep path small. Use the full harness only when needed.
 
 ## When to use
 
-- Use for one-file fixes too; keep the path minimal.
-- Use the full harness for multi-file, multi-domain, or risky work.
-- If the task is vague, write the contract first.
+- Use for one-file fixes too; keep the plan compact.
+- Use the full harness for multi-file, multi-domain, risky, ownership-unclear, or architecture-sensitive work.
+- If the task is vague, finish research and get it approved for handoff before execution planning.
 
 ## Read order
 
@@ -21,9 +25,9 @@ Read only the references needed for the current phase; do not load every role by
 
 - Before execution planning for non-trivial or ownership-unclear work, read [references/task-contract.md](references/task-contract.md).
 - If the slice may touch local files, personal docs, prompts/examples, logs, retained user data, or machine-specific paths, read [references/sensitive-surfaces.md](references/sensitive-surfaces.md) before proposal.
-- After approval, hand off to `skills/implementation-harness/` with the approved task context plus closed research packet plus approved execution-plan packet; do not restate or re-run its detailed implementation workflow here.
+- For architecture-sensitive work, or any slice where durable architecture artifacts might be required, read [references/roles/architect-planning.md](references/roles/architect-planning.md).
+- After approval, hand off to `skills/implementation-harness/` with the approved task context, approved-for-handoff research packet, structural contract when present, and approved execution-plan packet.
 - If routing is ambiguous or you want a sanity check on expected worker/reviewer choice, read [references/examples.md](references/examples.md).
-- For every `non-trivial` task-design pass, and for any slice where a durable architecture artifact might be required even if the slice is tiny, read [references/roles/architect-planning.md](references/roles/architect-planning.md).
 - Read the knowledge base only when relevant:
   - [references/knowledge/facts.md](references/knowledge/facts.md)
   - [references/knowledge/lessons.md](references/knowledge/lessons.md)
@@ -32,71 +36,120 @@ Read only the references needed for the current phase; do not load every role by
 ## Task class
 
 - `tiny`: obvious, narrow, low-risk, usually one file / one intent.
-- `non-trivial`: risky, ambiguous, multi-zone, user-facing, security-sensitive, privacy/data-sensitive, or easy to get subtly wrong.
+- `non-trivial`: risky, ambiguous, multi-zone, user-facing, security-sensitive, privacy/data-sensitive, architecture-sensitive, or easy to get subtly wrong.
 - If unsure, treat the task as `non-trivial`.
+
+## Execution planning contract
+
+Execution planning must be concrete enough to determine implementation shape, ownership, verification, and rollback. It must not become code or patch planning.
+
+The required execution contract starts from [references/task-contract.md](references/task-contract.md) and must include implementation entities when work is non-trivial or multi-surface.
+
+Implementation entity kinds may include:
+
+- `module`
+- `class`
+- `function`
+- `component`
+- `config_key`
+- `schema`
+- `adapter`
+- `route`
+- `command`
+- `doc_artifact`
+- `contract_surface`
+- `migration`
+
+Each implementation entity should cover:
+
+- `kind`
+- `name`
+- `responsibility`
+- `inputs`
+- `outputs`
+- `integration_point`
+- `file_zone`
+- `verification_surface`
+- `rollback_surface`
+- `source_or_evidence`
+
+Implementation entities are planner-level handoff objects. They are not Researcher domain vocabulary and not Architect structural entities.
 
 ## Workflow
 
-1. Read the existing task context and the knowledge base when relevant.
-2. If research is not already closed, route or perform the `research` stage first.
+1. Read existing task context and relevant knowledge base.
+2. If an approved-for-handoff research packet does not exist yet, route or perform the `research` stage first.
    - default reusable path: `research-critic`
-   - do not let execution planning silently absorb broad discovery/proposal work when a real research stage is still missing
-3. Execution-plan contract: after research is closed enough, and after Architect owns the structural contract for architecture-sensitive scope, translate the result into an implementation contract.
-   - default to one read-only discovery worker; use more only for multi-zone or non-trivial inspection
-   - for every `non-trivial` task-design pass, run an explicit read-only `architect` planning pass before finalizing the execution plan
-   - if a tiny slice may require a durable architecture artifact create/update, run that same read-only `architect` planning pass before finalizing the execution plan; do not leave artifact ownership implicit in developer handoff
-   - load `references/roles/architect-planning.md` for that pass, and in that pass load the Architect balanced-coupling reference as required there
-   - planning-time inspection may inspect, search, summarize, map candidate file zones, and identify risks/unknowns still relevant to execution boundaries
-   - planning-time inspection is facts-first: no new broad proposal, no edit plans, and no code-ish artifacts; the `architect` pass may recommend cleaner seams/boundaries, but must stay read-only and contract-focused
-   - every material claim should be evidence-backed with file/line/symbol when practical; otherwise mark it as an assumption or unknown
-   - use safe reads/searches only; no edits, no patches, and no builds/tests/scripts unless explicitly required for inspection
-   - stop when there are enough facts for execution planning, or when remaining gaps prove research is not actually closed; do not keep touring the repo
-   - execution-plan output shape starts from the task contract: `Goal / Non-goals / File zones / Implementer owners / Reviewer / Acceptance criteria / Design-test status / Rollback / Risks / Architecture-artifact decision`
-   - include the architect pass conclusions in the execution plan: recommended file zones, seam decisions, balanced-coupling constraints, contract-touchpoint risks, architecture-artifact decision, and review requirements
-   - if the slice is or might be `sensitive-surface`, extend the contract with: `Sensitive inputs / Persistence / Exposure surface / Reviewer plan`
-   - if the slice touches backend request-path, persistence, or async runtime behavior, also name: `Request-path impact / Contract touchpoints / Docs-to-update`
-   - classify as `sensitive-surface` by default when the slice touches any of: local files, personal docs, `references/`, `assets/`, prompts/examples, logs/traces, retained user data, external sends, or machine-specific paths
-   - before approval, make an explicit artifact-decision gate: decide whether the slice requires a durable architecture artifact create/update in the project
-   - if an architecture artifact is required, the Architect creates or updates it before implementation handoff; developer workers do not own architecture-memory authoring by default
-   - show one cleaned execution plan to the user before coding
-   - this gate is mandatory for every code task, even tiny ones
-   - after the execution plan, stop; continue only after explicit approval
-   - approval means an explicit `APPROVED` or `LGTM`, or the same level of unmistakable go-ahead in the user's language; `ok`, `yeah`, `got it`, and similar weak acknowledgements are not approval
-   - before approval, execution plans may include ownership, zones, reviewer plan, risks, and contract boundaries, but not code blocks, pseudocode, function/class skeletons, exact file-by-file edit recipes, command sequences, SQL/migrations, exact signatures, patch-like diffs, or ready-to-apply code
-   - research must be closed before execution planning is treated as approved; unresolved implementation-critical gaps stay in research instead of leaking into development
-4. After approval, build the handoff packet for `implementation-harness`.
-   - include the approved task context, approved research packet, approved execution-plan packet, discovered facts/evidence that still matter to implementation, and any user constraints
-   - if the approved plan required an architecture artifact, make sure that artifact work is already done by the Architect before implementation handoff
-   - keep routing at this level minimal: name expected ownership only when needed for clean file-zone boundaries or user-visible delegation clarity
-   - spawn the implementation through a delegated worker/subagent; do not implement in the orchestrator session even for tiny fixes or when manual execution would be faster
-   - if the delegated worker/subagent path is unavailable, fails to start, or cannot be used, stop as `blocked` and notify the user; do not fall back to manual implementation in the orchestrator session
-   - if delegated Codex CLI returns auth or rate_limit errors, stop and notify the user; do not patch around it by hand
-   - send one short status note naming the delegated owner or harness
-5. `implementation-harness` owns post-approval development and smallest meaningful verification.
-6. `code-review-orchestrator` owns the explicit post-implementation review gate and any review/fix/re-review loop needed to clear the approved contract.
-7. If development or review finds scope growth, redesign pressure, or a high-risk contradiction, return to the user for re-approval.
-8. Stop when acceptance criteria are met; do not widen scope mid-flight.
-9. Append to the knowledge base only when the task produced a durable fact, lesson, or open question.
+   - do not let execution planning absorb broad discovery/proposal work
+3. Run the architecture gate before planning:
+   - For architecture-sensitive scope, run `Architect A -> Architect B attack -> one bounded revise/re-review loop` using [references/roles/architect-planning.md](references/roles/architect-planning.md) and produce the structural contract before execution planning unless the caller explicitly approves another loop.
+   - For non-trivial work, explicitly decide whether architecture-sensitive scope or durable architecture artifact pressure exists. If not, record architecture artifact decision `none` and proceed without a structural contract.
+   - For tiny work, run this gate only when ownership, seams, dependency direction, structural records, or durable architecture artifacts might move.
+   - If an artifact decision is `update_existing` or `create_new`, Architect owns that create/update decision before implementation handoff by default.
+4. Build the execution plan.
+   - `Planner A propose`: translate the approved-for-handoff research packet and structural contract when present into the execution contract.
+   - `Planner B attack`: challenge entity coverage, file-zone ownership, verification surfaces, rollback surfaces, sensitive surfaces, request-path/contract touchpoints, risks, and max-detail leaks.
+   - Allow one bounded revise/re-review loop for non-trivial work when the attack finds fixable gaps, unless the caller explicitly approves another.
+   - Keep this as the same planner role/class in an attack pass, not a new separate role.
+5. Show one cleaned execution plan before coding.
+6. Stop after the execution plan until explicit approval.
+   - approval means explicit `APPROVED`, `LGTM`, or the same level of unmistakable go-ahead in the user's language
+   - `ok`, `yeah`, `got it`, and similar weak acknowledgements are not approval
+7. After approval, build the handoff packet for `implementation-harness`.
+   - include approved task context, approved-for-handoff research packet, structural contract when present, approved execution plan, evidence that still matters to implementation, and user constraints
+   - spawn implementation through delegated worker/subagent via `implementation-harness`; do not implement in the orchestrator session unless the user explicitly requested direct in-session execution
+   - if delegated execution is unavailable, fails to start, or cannot be used, stop as `blocked`
+8. `implementation-harness` owns post-approval development and smallest meaningful verification.
+9. `code-review-orchestrator` owns the explicit post-implementation review gate and fix/re-review loop.
+10. If development or review finds scope growth, redesign pressure, or a high-risk contradiction, return for re-approval.
+11. Append to the knowledge base only when the task produced a durable fact, lesson, or open question.
+
+## Planning guardrails
+
+Before approval, execution plans may include:
+
+- goal and non-goals
+- file zones and implementer owners
+- implementation entities at planner granularity
+- reviewer roles and reviewer plan
+- acceptance criteria
+- verification surfaces
+- rollback surfaces
+- sensitive-surface handling
+- request-path / contract touchpoints
+- docs to update
+- risks and assumptions
+- architecture artifact decision and structural contract reference when present
+
+Before approval, execution plans must not include:
+
+- code blocks
+- pseudocode
+- algorithms
+- exact signatures
+- exact class/function skeletons
+- edit recipes
+- patch-like diffs
+- file-by-file instructions that read as a ready patch
+- command sequences for implementation
+- SQL/migration bodies
+- generated configs or source snippets
 
 ## Rules
 
+- Research must be an approved-for-handoff research packet before execution planning is treated as approved: `approve_as_is`, or `approve_with_changes` only after required changes are folded back in.
+- Architecture-sensitive scope must pass through Architect before execution planning.
+- Do not create parallel architecture ceremony: use [references/roles/architect-planning.md](references/roles/architect-planning.md) for the existing planning-time architecture gate.
+- Execution planning owns implementation entities; Architect owns structural entities; Researcher owns domain vocabulary and known facts/evidence.
+- One agent per file zone.
+- Each implementer owner must use only `backend` or `frontend` as the role label.
 - Do not let two agents edit the same file zone.
 - Do not mix auth, UI, importer, security, and privacy/data-retention changes in one slice.
-- Do not treat backend request-shape or persistence changes as implementation-only details; contract and docs impact must be checked before approval and before closing review.
+- Do not treat backend request-shape, persistence, or async runtime changes as implementation-only details; contract and docs impact must be checked before approval and before review closes.
 - Do not assume external integration contracts from happy-path mocks or one narrow sample; review must name the contract evidence source when such assumptions matter.
-- Keep the critic separate from implementers.
-- If a slice touches local files, personal docs, prompts/examples, logs/traces, retained user data, or machine-specific paths, treat it as `sensitive-surface` until proven otherwise.
+- If the slice touches local files, personal docs, prompts/examples, logs/traces, retained user data, or machine-specific paths, treat it as `sensitive-surface` until proven otherwise.
 - Do not commit real user documents, machine-specific paths, or retained private data into repo-visible `references/`, `assets/`, examples, fixtures, or logs.
-- If the task is ambiguous, clarify the contract before starting.
-- Before approval, only research handoff completion, architect planning, and execution-planning work are allowed.
 - Before approval, do not spawn implementer workers, do not start implementation runs, do not prepare patches, and do not edit files.
-- Critique should not redo discovery or start a new repo tour unless a concrete contradiction or missing evidence forces it.
-- After approval, route to `implementation-harness` for development and `code-review-orchestrator` for explicit review instead of restating those policies in this skill.
-- For every non-trivial task-design slice, `architect` planning is mandatory.
-- For tiny slices, `architect` planning becomes mandatory as soon as the slice may require a durable architecture artifact create/update.
-- During that pass, balanced-coupling and architecture-artifact ownership must be checked explicitly instead of being left implicit in developer handoff.
-- Do not treat implementer self-report as enough to close non-trivial coding work; validation plus independent review decide completion.
-- Never paste raw worker responses into chat unless the user explicitly asks for them.
 - For tiny, obvious fixes, keep the workflow minimal, but still route approved implementation through `implementation-harness` instead of doing it manually yourself.
 - Plain user action verbs like `fix`, `do`, `сделай`, or `исправь` do not count as permission for direct parent-session implementation; only an explicit request for direct in-session execution overrides the orchestrator default.
 - Speed is not a reason to bypass worker/subagent execution. If the workflow applies, keep the orchestrator in orchestration mode.
