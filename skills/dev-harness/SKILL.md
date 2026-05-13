@@ -1,11 +1,11 @@
 ---
 name: dev-harness
-description: Orchestrate software work through execution planning and high-level delegation after research is already understood or approved. In the repo's four-stage flow, this is primarily the `execution plan` stage, consuming research output and turning it into an implementation contract. Use when planning or delegating implementation/refactor tasks, especially multi-file, risky, or sliceable work, or when durable learnings should be captured.
+description: Orchestrate software work through execution planning and high-level delegation after research is already understood or approved. In the repo's four-stage flow, this is primarily the `execution plan` stage, consuming research output or Architect-owned structural contracts and turning them into an implementation contract. Architecture-sensitive research must pass through Architect before execution planning/implementation. Use when planning or delegating implementation/refactor tasks, especially multi-file, risky, or sliceable work, or when durable learnings should be captured.
 ---
 
 # Dev Harness
 
-Use as the top-level coding harness for execution planning. You orchestrate the handoff from approved research into an implementation contract and then route the approved contract onward. Reusable proposal/critic work routes through `research-critic`. After approval of the execution plan, hand the approved task context plus closed research packet to `implementation-harness`; that skill owns implementation. Post-implementation review should run through `code-review-orchestrator`. Under this skill, the orchestrator does not directly implement the approved slice, even if manual execution would be faster; do not cut corners by coding in the orchestrator session. Plain user action verbs like `fix`, `do`, `сделай`, or `исправь` do not override this default; only an explicit request for direct in-session implementation does.
+Use as the top-level coding harness for execution planning. You orchestrate the handoff from approved research, or from an Architect-owned structural contract for architecture-sensitive work, into an implementation contract and then route the approved contract onward. Reusable Researcher -> Critic work routes through `research-critic`; architecture-sensitive scope goes through Architect before execution planning/implementation. After approval of the execution plan, hand the approved task context plus closed research packet to `implementation-harness`; that skill owns implementation. Post-implementation review should run through `code-review-orchestrator`. Under this skill, the orchestrator does not directly implement the approved slice, even if manual execution would be faster; do not cut corners by coding in the orchestrator session. Plain user action verbs like `fix`, `do`, `сделай`, or `исправь` do not override this default; only an explicit request for direct in-session implementation does.
 
 Keep path small. Use the full harness only when needed.
 
@@ -41,7 +41,7 @@ Read only the references needed for the current phase; do not load every role by
 2. If research is not already closed, route or perform the `research` stage first.
    - default reusable path: `research-critic`
    - do not let execution planning silently absorb broad discovery/proposal work when a real research stage is still missing
-3. Execution-plan contract: after research is closed enough, translate it into an implementation contract.
+3. Execution-plan contract: after research is closed enough, and after Architect owns the structural contract for architecture-sensitive scope, translate the result into an implementation contract.
    - default to one read-only discovery worker; use more only for multi-zone or non-trivial inspection
    - for every `non-trivial` task-design pass, run an explicit read-only `architect` planning pass before finalizing the execution plan
    - if a tiny slice may require a durable architecture artifact create/update, run that same read-only `architect` planning pass before finalizing the execution plan; do not leave artifact ownership implicit in developer handoff

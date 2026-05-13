@@ -7,17 +7,21 @@ Use this as a compact checklist when a calling skill wants architectural judgmen
 ## Checklist
 
 - **Architecture fit**: Does the change match the intended shape of the system?
+- **Change classification**: Is this a local change, design change, architecture/structural change, or mixed slice?
+- **Structural contract**: Are what changes, what does not change, boundaries, affected entities/modules/relationships, and implementation handoff concrete?
+- **Clarifying questions**: If the change surface or done state is underspecified, did Architect ask architecture-relevant questions instead of guessing?
 - **Ownership clarity**: Are responsibilities concentrated in the right module or context?
 - **Collocation**: Are related entities, ports, adapters, and local rules kept with the owning context instead of being pulled into a central mirror?
 - **Seam hygiene**: Is each seam earned by real variation, not hypothetical indirection? Remember: one adapter is hypothetical; two adapters is real.
 - **Depth**: Does the interface create leverage and locality, or is it shallow? Would the module survive the deletion test?
 - **Balanced coupling**: Is the coupling strength appropriate for the architectural distance and volatility involved?
+- **Dependency direction**: Are allowed and forbidden dependencies explicit enough for implementation?
 - **Test surface**: Are tests meant to exercise behavior through the interface instead of reaching past it?
 - **DDD alignment**: Does the solution preserve bounded-context ownership and concept boundaries?
 - **Ubiquitous language**: Are names and relationships consistent with the domain language?
 - **Record updates**: Should architecture records be updated, such as `ARCHITECTURE.md`, `CONTEXT.md`, `CONTEXT-MAP.md`, ADRs, or repo-equivalent artifacts? Does `ARCHITECTURE.md` stay focused on the selected product architecture contract — chosen option, constraints, binding rules, boundaries, dependency direction, and pointers to local `CONTEXT.md` docs — while local `CONTEXT.md` docs carry their own rules as distributed source-of-truth and central docs only index/discover? For new files, default to uppercase `CONTEXT.md`; if the repo already uses `Context.md`, treat that as an alternate existing spelling rather than a reason to centralize rules.
 - **Architecture-memory integrity**: If the slice changes architectural reasoning or boundaries, was the durable project artifact updated by the right owner instead of being left in assistant memory or developer-only notes?
-- **Anti-goals**: Does the change introduce accidental coupling, naming drift, pass-through indirection, or architecture-by-convenience?
+- **Anti-goals**: Does the change introduce accidental coupling, naming drift, pass-through indirection, architecture-by-convenience, or design-on-ambiguity?
 - **Learnings**: Were relevant durable learnings from `LEARNINGS.md` applied before making role judgments?
 
 ## Notes
