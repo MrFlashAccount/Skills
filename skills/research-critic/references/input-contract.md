@@ -1,6 +1,6 @@
 # Input Contract
 
-Use this before running the research + critic stage.
+Use this before running the Researcher -> Critic research stage.
 
 ## Required inputs
 

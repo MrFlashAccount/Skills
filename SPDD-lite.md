@@ -19,7 +19,7 @@ Lightweight four-stage process for non-trivial software work in this repo.
    - Default skill: `skills/research-critic`
 
 2. `execution plan`
-   - Goal: convert approved research into an implementation contract.
+   - Goal: convert approved research into an implementation contract. For architecture-sensitive scope, research must first pass through Architect for the structural contract before execution planning/implementation.
    - Output: execution packet with ownership and boundaries.
    - Covers:
      - file zones
@@ -44,7 +44,7 @@ Lightweight four-stage process for non-trivial software work in this repo.
 ## Separation rules
 
 - `research` owns readiness, proposal quality, blockers, and whether UI work requires a `design-test`.
-- `execution plan` consumes approved research; it must not redo broad discovery or proposal work.
+- `execution plan` consumes approved research, or the Architect-owned structural contract when architecture-sensitive scope exists; it must not redo broad discovery or proposal work.
 - `development` consumes the approved execution contract; it must not silently widen scope.
 - `review` checks the implemented slice against the approved contract; it must not reopen broad task research unless a real contradiction or missing implementation-critical fact appears.
 

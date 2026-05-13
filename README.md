@@ -94,7 +94,7 @@ Current non-trivial mappings:
 - create or refactor a skill -> `skills/create-skill`
 - planning + slice + approval flow for code work -> `skills/dev-harness`
 - multi-role review -> `skills/code-review-orchestrator`
-- pre-implementation proposal + critique -> `skills/research-critic`
+- pre-implementation Researcher -> Critic research verdict -> `skills/research-critic`
 
 ### Reuse a role
 
@@ -169,9 +169,9 @@ If a skill needs a reusable specialist voice:
   - Do not use when: the main job is pre-implementation planning or direct implementation.
 
 - `skills/research-critic`
-  - What it is: reusable pre-implementation research + critique packet builder.
-  - Use when: a task needs proposal quality, readiness judgment, or structured research before implementation.
-  - Do not use when: implementation or PR review should already be happening.
+  - What it is: reusable pre-implementation Researcher -> Critic workflow that returns a final research verdict.
+  - Use when: a task needs context closure, assumption pressure, readiness judgment, or structured research before downstream ownership.
+  - Do not use when: implementation, Architect-owned structural scoping, or PR review should already be happening.
 
 - `skills/grill-me`
   - What it is: scoping/interrogation helper for unclear tasks.
@@ -225,6 +225,8 @@ Use them when a skill needs a stable specialist identity across phases.
   - Local-path leakage, repo-visible private content, retention, and consent safety.
 - `roles/qa-reliability`
   - Failure handling, rollback/recovery, degraded mode, diagnosability, and test signal.
+- `roles/researcher`
+  - Research packet building, context closure, ambiguity cleanup, and readiness preparation before critique and downstream ownership.
 - `roles/security`
   - Exploitability, auth, injection, secrets, and trust-boundary risk.
 - `roles/tech-writer`

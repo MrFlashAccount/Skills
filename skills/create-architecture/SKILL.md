@@ -27,6 +27,7 @@ Choose one mode up front:
 If the context is still fuzzy, grill first.
 If the answer can be recovered from the repo, docs, or code, inspect that instead of asking.
 Ask one blocking question at a time.
+Architect must not design on top of ambiguous done/scope; it should turn clarified research/context into a concrete structural change contract or stop for architecture-relevant clarification.
 
 ## Mandatory workflow
 
@@ -54,6 +55,8 @@ That includes ADRs, C4 diagrams, strategic/tactical DDD docs, ports-and-adapters
 - Strategic DDD is required when domain boundaries or ownership matter.
 - Tactical DDD is selective. Do not spray entities, aggregates, and repositories everywhere just to sound architectural.
 - Make the dependency rule explicit when using Clean Architecture or Ports & Adapters.
+- Decide whether the task needs an architecture/design change or only a local change before creating architecture artifacts.
+- For implementation-bound architecture work, state what changes, what does not change, affected entities/modules/relationships, ownership, boundaries, and dependency direction.
 - Treat collocation as a hard architecture principle: related entities, ports, adapters, and local rules belong with the owning context unless there is a strong contrary constraint.
 - Canonical default for new local context-contract files is uppercase `CONTEXT.md`. If a repo already uses `Context.md`, treat that as an existing alternate spelling rather than a reason to centralize or rename blindly.
 - `CONTEXT.md` files must be local to important folders/contexts and must state ownership, placement rules, allowed modules, and forbidden dependencies.

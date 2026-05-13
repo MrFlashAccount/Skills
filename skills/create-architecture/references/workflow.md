@@ -3,7 +3,7 @@
 Use this file when creating, improving, aligning, or auditing a project's architecture package.
 
 This workflow is option-gated: architecture artifacts come only after an explicit architecture direction is chosen.
-If the task is still vague, route discovery through grilling instead of guessing the target style.
+If the task is still vague, route discovery through grilling instead of guessing the target style. Do not treat ambiguous done/scope as a stable design basis.
 
 ## Stage map
 
@@ -38,6 +38,7 @@ Default outputs:
 - constraint list
 - likely architecture pressure points
 - recommendation for `audit`, `scaffold`, or `improve`
+- whether the request appears to need a design/architecture change or only a local change
 - when in `improve`, whether the repo mainly needs alignment, selective deepening, seam cleanup, or a broader architecture shift
 
 Do not turn this into a canonical ADR or full architecture narrative.
@@ -94,11 +95,13 @@ Attack the proposal like a responsible principal architect.
 
 Check:
 - does the proposal solve the real problem or only redraw boxes?
+- is the change surface concrete enough, or does Architect need to ask architecture-relevant clarifying questions?
 - are seams, ownership, and dependency direction explicit?
 - for existing-codebase improvement, do the proposed modules increase depth, leverage, and locality rather than adding pass-through indirection?
 - is the option overfit to a fashion label?
 - are the required artifacts justified and scoped?
 - is the migration path credible?
+- does the proposal state what changes, what does not change, and the affected entities/modules/relationships clearly enough for implementation?
 
 If the proposal fails, fix it before critic pressure.
 
@@ -134,7 +137,7 @@ Do not smuggle implementation through a polished proposal.
 
 ## 8. Implementation
 
-After approval, create or revise the architecture package.
+After approval, create or revise the architecture package. The implementation-bound output must include the concrete structural change contract: what changes, what does not change, affected entities/modules/relationships, ownership, boundaries, dependency direction, and any required architecture-memory updates.
 
 Required core deliverables:
 1. Architecture Decision
