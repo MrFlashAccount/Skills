@@ -22,7 +22,7 @@ Choose one branch up front:
    - report whether delegation mode is active now
 
 If the user intent is unclear, ask one short clarification instead of guessing.
-If the environment cannot preserve sticky state across later turns, say that plainly instead of pretending it will stick.
+If the environment cannot preserve sticky state across later turns, say that plainly and avoid activation/status wording that overclaims persistence.
 
 ## Sticky-state rule
 
@@ -43,6 +43,9 @@ This skill is stateful.
 - clearing delegation mode stops the delegate-first stance immediately.
 - delegation mode does not override safety rules, approval rules, or tool-discipline rules.
 - if the environment cannot actually remember the sticky state, say so, do not claim the mode will remain active later, and operate turn-by-turn instead of faking persistence.
+- before waiting on delegated work, send a short user-facing update: what was launched, what is being waited on, and what the next visible update will be.
+- do not disappear into silent background coordination; if delegated work fails, times out, or is restarted, send a short correction/update.
+- subagent spawns in delegation mode default to `runTimeoutSeconds: 1200`; use a shorter timeout only if the user explicitly asks or a real external hard limit requires it.
 
 ## Read next
 

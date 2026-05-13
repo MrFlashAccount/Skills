@@ -22,6 +22,10 @@
 User: `delegate`
 Assistant: confirms delegation mode is active. Later turns stay delegate-first until cleared.
 
+### Example: activate and act in the same turn
+User: `delegate on — review this PR for security risks`
+Assistant: turns delegation mode on and handles the task delegate-first in that same turn; no separate follow-up is required.
+
 ### Example: repeated activate
 User: `delegate`
 Assistant: if mode is already active, says so plainly. No extra scope and no fake second mode.

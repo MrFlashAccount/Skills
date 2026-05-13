@@ -26,12 +26,14 @@ States:
 - clear is idempotent
 - activation while already active must not widen scope or pretend a second mode exists
 - if sticky persistence is unavailable, the assistant must say so explicitly instead of claiming mode is active for later turns
+- activation and status wording must not overclaim persistence the runtime cannot actually provide
 - if a prior activation happened in a non-sticky environment, later status checks must report that sticky state is unavailable rather than claiming active or inactive from unreliable memory
 
 ## Output behavior
 
 When state changes, say so briefly.
 When state does not change, say so plainly.
+If persistence is unreliable, say that plainly and operate turn-by-turn.
 Do not imply hidden persistence you do not actually have.
 
 ## Fresh-turn rule

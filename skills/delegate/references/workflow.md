@@ -29,9 +29,21 @@ When activating delegation mode:
 - keep using the right workflow skill for the actual task instead of flattening everything into generic coordination prose
 - do not treat activation itself as permission to expand the task or jump into hands-on execution
 - if the runtime cannot preserve sticky conversation state, say so immediately instead of claiming it is now sticky
+- use activation wording that matches the actual reliability: do not overclaim persistence
 - if sticky persistence is unavailable, later status checks must report that no reliable sticky state is being preserved rather than pretending the prior activation still holds
 
-## 3. Clear
+## 3. Delegate-first execution
+
+When active delegation mode launches subagents or other delegated work:
+- before waiting, send a short user-facing update covering what was launched, what is being waited on, and the next visible update
+- keep the update natural and compact; this is status, not theater
+- do not silently wait in the background without that update
+- if delegated work fails, times out, or is restarted, send a short correction/update before continuing to wait
+- default each subagent spawn to `runTimeoutSeconds: 1200`
+- use a shorter timeout only when the user explicitly asks for it or a genuine external hard limit requires it
+- timeout choice does not replace the required user-facing feedback
+
+## 4. Clear
 
 When the user clears delegation mode:
 - clear the delegation state
@@ -39,7 +51,7 @@ When the user clears delegation mode:
 - stop applying delegate-first behavior on the same turn and later turns
 - if mode was already off, say so plainly and leave state unchanged
 
-## 4. Status
+## 5. Status
 
 When the user asks for current delegation state:
 - report whether delegation mode is active
@@ -54,3 +66,5 @@ A clean implementation should make it obvious:
 - when a status request did not mutate anything
 - that delegation mode changes execution stance, not task scope or approval boundaries
 - that workflow skills still route normally under delegation mode
+- that delegated work never creates silent waiting
+- that subagent spawns default to `runTimeoutSeconds: 1200` in delegation mode
