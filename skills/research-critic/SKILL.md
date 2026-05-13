@@ -44,9 +44,9 @@ Do not own:
 3. For non-trivial research, run `Researcher B attack` using the same role contract to challenge evidence, assumptions, unknowns, decisions needed, candidate approaches, blockers, and risks.
 4. Allow one bounded revise/re-review loop when the attack finds fixable gaps, unless the caller explicitly approves another.
 5. Return one structured wrapper verdict matching `references/output-contract.md`.
-6. Stop there. Another layer may persist or route the result only when the wrapper verdict is approved for handoff.
+6. Stop there. For non-trivial work, another layer may persist or route the result only after the wrapper verdict and explicit user approval.
 
-For architecture-sensitive or structurally underspecified work, the next chain is `Architect A -> Architect B attack -> structural contract -> execution planning`. Architect consumes the challenged Researcher packet and owns structural entities and the final structural contract. For non-architecture-sensitive work, the next stage is execution planning, typically handled by `dev-harness` consuming this wrapper packet.
+For architecture-sensitive or structurally underspecified work, the next chain is `user approval -> Architect A -> Architect B attack -> structural contract -> execution planning`. Architect consumes the challenged Researcher packet and owns structural entities and the final structural contract. For non-architecture-sensitive work, the next stage is execution planning after user approval, typically handled by `dev-harness` consuming this wrapper packet.
 
 ## Rules
 
@@ -57,6 +57,6 @@ For architecture-sensitive or structurally underspecified work, the next chain i
 - `Researcher B attack` is the same role class in adversarial mode, not a separate role identity.
 - Use available context/evidence first and keep answered questions closed unless a contradiction or missing evidence reopens them.
 - If context is insufficient, say exactly what is missing and lower the research-closure verdict.
-- If execution planning would still require broad rediscovery, the packet is not approved for handoff; keep the verdict below ready-for-execution-planning.
+- If execution planning would still require broad rediscovery, the packet is not ready to present for handoff approval; keep the verdict below ready-for-execution-planning.
 - If any blocker or unresolved dependency remains, surface it in the wrapper-level `unresolved_blockers` field.
 - Output should be structured enough that another skill can persist it without reinterpreting prose.

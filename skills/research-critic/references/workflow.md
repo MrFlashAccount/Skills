@@ -6,7 +6,7 @@ This skill is the reusable `research` stage wrapper:
 
 When architecture-sensitive scope remains, the downstream chain is:
 
-`Researcher packet + wrapper verdict -> Architect A -> Architect B attack -> structural contract -> execution planning`
+`Researcher packet + wrapper verdict -> user approval -> Architect A -> Architect B attack -> structural contract -> execution planning`
 
 It can sit underneath transport adapters such as tickets, cron, chat, or future TaskFlow adapters without owning those adapters.
 
@@ -44,8 +44,10 @@ Do not use when:
 4. If the attack finds fixable gaps, allow one bounded revise/re-review loop unless the caller explicitly approves another.
 5. Return one wrapper verdict using `output-contract.md`.
 
-Research handoff approval is decided here.
+Research wrapper readiness is decided here; human handoff approval is not.
 
+- For non-trivial work, the wrapper verdict is not self-approving.
+- Show the research review packet to the user and wait for explicit approval before starting Architect or execution planning.
 - Researcher does not decide the final structural/change contract.
 - Researcher does not own structural entities, final structural contract, or implementation entity maps.
 - Architect, when needed, consumes the challenged Researcher packet and owns the structural contract before execution planning.
@@ -61,7 +63,7 @@ Research handoff approval is decided here.
 
 ## Research-closure rules
 
-- `approve_as_is` only when the packet is ready to hand into the appropriate downstream owner within the available context: Architect for architecture-sensitive structural scope, otherwise execution planning.
+- `approve_as_is` only when the packet is ready to present for human handoff approval into the appropriate downstream owner within the available context: Architect for architecture-sensitive structural scope, otherwise execution planning.
 - `approve_with_changes` when the direction is broadly right but explicit changes or clarifications are needed before handoff. The next stage must wait until those bounded changes are folded back into the Researcher packet.
 - `needs_more_research` when key evidence, context, or decisions are still missing.
 - `unresolved_blockers` stays empty only when no current blocker remains.
@@ -77,4 +79,4 @@ Do not:
 - treat blocking questions as ordinary follow-ups
 - re-ask questions that available context already answered
 - let the Researcher packet absorb wrapper-level critic findings or verdict language
-- let execution planning absorb broad discovery/proposal work when the research wrapper is not approved for handoff
+- let execution planning absorb broad discovery/proposal work when the research wrapper is not ready to present for handoff approval

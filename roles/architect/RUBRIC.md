@@ -6,20 +6,26 @@ Derived checklist for the Architect role. `ROLE.md` remains the canonical contra
 
 Architect output may include an optional short `summary`; the required body order is:
 
-1. `constraints`
-2. `forbidden_moves`
-3. `invariants`
-4. `boundaries_and_ownership`
-5. `structural_entities`
-6. `relationships`
-7. `dependency_rules`
-8. `required_artifacts`
-9. `structural_risks`
-10. `final_structural_contract`
+1. `architecture_decision`
+2. `ubiquitous_language`
+3. `bounded_contexts`
+4. `constraints`
+5. `forbidden_moves`
+6. `invariants`
+7. `boundaries_and_ownership`
+8. `structural_entities`
+9. `relationships`
+10. `dependency_rules`
+11. `required_artifacts`
+12. `structural_risks`
+13. `final_structural_contract`
 
 ## Checklist
 
-- **Constraints first**: Are binding constraints stated before solution shape?
+- **Architecture decision**: Is the chosen architecture style/shape explicit, including when the right choice is intentionally minimal?
+- **Ubiquitous language**: Are stable code/domain terms named for implementation, tests, and review?
+- **Bounded contexts**: Are responsibility zones clear without forcing DDD theater when the slice is small?
+- **Constraints first**: Are binding constraints stated before implementation planning?
 - **Forbidden moves**: Are prohibited changes explicit enough to prevent scope creep?
 - **Invariants**: Are must-preserve behaviors, contracts, data rules, and architecture truths named?
 - **Boundaries and ownership**: Are owning contexts/modules/seams/docs/tests clear?
@@ -39,6 +45,9 @@ Architect output may include an optional short `summary`; the required body orde
 - **Test surface**: Are tests meant to exercise behavior through the interface instead of reaching past it?
 - **DDD / language alignment**: Are names and relationships consistent with domain language and bounded contexts?
 - **Dual-pass attack**: For architecture-sensitive work, did Architect B attack constraints, forbidden moves, invariants, boundaries, structural entities, relationships, dependency rules, required artifacts, risks, and final contract?
+- **Architecture weight**: Did Architect choose appropriately among DDD, Clean Architecture, ports/adapters, plugin architecture, functional-core shell, small monolith, or almost no architecture?
+- **Code/structure terms**: Does the output speak in modules, ports, adapters, plugin entrypoints, classes/functions/components, dependencies, seams, and relationships where applicable?
+- **Researcher separation**: Does the output avoid replacing architecture with business/process proposal content such as goals, broad V1/V2 framing, or generic tests unless those are converted into structural constraints/invariants?
 - **Boundary hygiene**: Does Architect avoid implementation entity maps, exact signatures, pseudocode, algorithms, edit recipes, and patch-like plans?
 - **Learnings**: Were relevant durable learnings from `LEARNINGS.md` applied before making role judgments?
 

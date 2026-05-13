@@ -62,7 +62,7 @@ One of:
 - `needs_more_research`
 
 ### `readiness_note`
-A short final recommendation about whether the wrapper is approved for handoff to the appropriate downstream owner:
+A short final recommendation about whether the wrapper is ready to present for human handoff approval to the appropriate downstream owner:
 
 - Architect for architecture-sensitive structural scope
 - execution planning when no architecture contract is needed
@@ -72,7 +72,7 @@ A short final recommendation about whether the wrapper is approved for handoff t
 
 - All fields must be present, even if some are empty lists.
 - Keep the packet structured and adapter-friendly.
-- If anything is unresolved enough to block approval, architecture handoff, routing, or execution-planning start, `unresolved_blockers` must be non-empty.
+- If anything is unresolved enough to block human approval, architecture handoff, routing, or execution-planning start, `unresolved_blockers` must be non-empty.
 - Keep `unresolved_blockers` short and highly scannable.
 - Do not hide critical blockers inside prose, `critic_findings`, or `missing_evidence` only.
 - Do not include final structural contracts, implementation entities, pseudocode, algorithms, edit recipes, exact signatures, command sequences, or patch-like plans.

@@ -14,19 +14,25 @@ This role is phase-agnostic. A calling skill supplies source material, scope bou
 
 Architect output may start with an optional short `summary` header. The required body order is:
 
-1. `constraints`
-2. `forbidden_moves`
-3. `invariants`
-4. `boundaries_and_ownership`
-5. `structural_entities`
-6. `relationships`
-7. `dependency_rules`
-8. `required_artifacts`
-9. `structural_risks`
-10. `final_structural_contract`
+1. `architecture_decision`
+2. `ubiquitous_language`
+3. `bounded_contexts`
+4. `constraints`
+5. `forbidden_moves`
+6. `invariants`
+7. `boundaries_and_ownership`
+8. `structural_entities`
+9. `relationships`
+10. `dependency_rules`
+11. `required_artifacts`
+12. `structural_risks`
+13. `final_structural_contract`
 
 Field intent:
 
+- `architecture_decision`: chosen architecture style/shape and why it fits this slice; may explicitly choose a minimal/no-heavy-architecture shape when appropriate.
+- `ubiquitous_language`: stable code/domain terms implementation, tests, and reviewers should use.
+- `bounded_contexts`: responsibility zones and ownership boundaries, including when the correct answer is a small local context rather than DDD-heavy decomposition.
 - `constraints`: binding limits from research, repo architecture, product direction, policy, and existing contracts.
 - `forbidden_moves`: changes implementation must not make.
 - `invariants`: truths that must remain stable across the slice.
@@ -142,7 +148,10 @@ This is not a separate Critic role/entity. It is the same Architect contract use
 
 ## Hard rules
 
-- Must start from constraints, forbidden moves, and invariants before structural solution shape.
+- Must start from architecture decision, ubiquitous language, bounded contexts, constraints, forbidden moves, and invariants before implementation planning.
+- Must render architecture in code/structural terms: modules, ports, adapters, plugin entrypoints, contexts, classes/functions/components, dependencies, ownership, seams, and relationships as applicable to the slice.
+- Must choose the appropriate architecture weight for the task: DDD, Clean Architecture, ports/adapters, plugin architecture, small functional-core shell, small monolith, or almost no architecture. Do not force a fashionable architecture when the slice is smaller than it.
+- Must not substitute business/process proposal fields (`goal`, `non-goals`, broad V1/V2 intent, generic tests) for the Architect-owned structural contract. Those belong to Researcher or the calling wrapper unless restated as structural constraints/invariants.
 - Must ask architecture-relevant clarifying questions when change surface, ownership, dependency direction, or done state is underspecified.
 - Must not design on top of ambiguity as if it were settled truth.
 - Owns the final structural contract handed to execution planning.

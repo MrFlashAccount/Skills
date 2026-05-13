@@ -1,6 +1,6 @@
 # Execution Plan Contract
 
-Use this after research has produced an approved-for-handoff research packet and, when needed, after Architect has produced the structural contract. For tiny work, this may be a compact one-paragraph or short-bullet version of the same contract.
+Use this after research has produced a human-approved research packet and, when needed, after Architect has produced the structural contract. For tiny work, this may be a compact one-paragraph or short-bullet version of the same contract.
 
 Execution planning must be concrete enough for implementation shape, ownership, verification, and rollback. It must not become code, pseudocode, algorithms, edit recipes, or a patch plan.
 
@@ -77,7 +77,7 @@ Terminology:
 
 For non-trivial work:
 
-1. `Planner A propose`: creates the execution contract from the approved-for-handoff research packet and structural contract when present.
+1. `Planner A propose`: creates the execution contract from the human-approved research packet and structural contract when present.
 2. `Planner B attack`: challenges implementation entity coverage, file-zone ownership, verification surfaces, rollback surfaces, sensitive surfaces, request-path/contract touchpoints, risks, and max-detail leaks.
 3. Allow one bounded revise/re-review loop when the attack finds fixable gaps, unless the caller explicitly approves another.
 
@@ -85,7 +85,7 @@ This is the same planner role/class in an attack pass, not a separate role.
 
 ## Rules
 
-- Execution planning may start only from an approved-for-handoff research packet: `approve_as_is`, or `approve_with_changes` only after required changes are folded back in.
+- For non-trivial work, execution planning may start only from a human-approved research packet: wrapper `approve_as_is`, or `approve_with_changes` only after required changes are folded back in, must still be shown to the user for explicit approval.
 - One agent per file zone.
 - Each implementer owner must use only `backend` or `frontend` as the role label.
 - Each owner must map to one closed, exclusive file zone. No file may belong to two owners.

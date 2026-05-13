@@ -6,7 +6,8 @@ Thin stage map for non-trivial software work in this repo. Full contracts live i
 
 1. `research`
    - Chain: `Researcher A -> Researcher B attack -> research wrapper verdict`.
-   - Required gate: structured Researcher packet is complete, wrapper verdict says whether downstream ownership may start, and blockers are explicit.
+   - Required gate: structured Researcher packet is complete, wrapper verdict says whether downstream ownership may be proposed, and blockers are explicit.
+   - Human gate: for non-trivial work, the wrapper verdict is not self-approving. Show the research review packet to the user and wait for explicit approval before starting Architect or execution planning.
    - Canonical links:
      - `roles/researcher/ROLE.md`
      - `roles/researcher/RUBRIC.md`
