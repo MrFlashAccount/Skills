@@ -2,7 +2,7 @@
 
 Use this for the existing `dev-harness` planning-time architecture gate when scope is architecture-sensitive, and for tiny slices whenever durable architecture-artifact ownership might move.
 
-Load `roles/architect/ROLE.md`, `roles/architect/RUBRIC.md`, and `roles/architect/references/balanced-coupling.md` first.
+Load `../../roles/architect/ROLE.md`, `../../roles/architect/RUBRIC.md`, and `../../roles/architect/references/balanced-coupling.md` first.
 
 This is a phase-specific adapter for execution planning, not post-implementation review and not a parallel ceremony.
 
