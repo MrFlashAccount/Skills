@@ -1,6 +1,6 @@
 ---
 name: hat
-description: Activate, switch, list, query, or clear a sticky repo-role lens for the current conversation. Use when the user wants answers framed through one of the repo's `roles/*` such as `architect`, `critic`, or `frontend-taste`; when they say `hat <role>`; when they want to know which hat is active; or when they want to turn the hat off. This skill is for temporary role-mode routing only, not for workflow replacement or safety bypass.
+description: Activate, switch, list, query, or clear a sticky repo-role lens for the current conversation. Use when the user wants answers framed through one of the repo's `../../roles/*` such as `architect`, `critic`, or `frontend-taste`; when they say `hat <role>`; when they want to know which hat is active; or when they want to turn the hat off. This skill is for temporary role-mode routing only, not for workflow replacement or safety bypass.
 ---
 
 Turn a repo role into the active sticky lens for the current conversation until it is switched or cleared.
@@ -47,7 +47,7 @@ This skill is stateful.
 - `hat` changes framing, priorities, and judgment lens, not safety rules or approval rules.
 - `hat` does not replace workflow skills like `create-skill`, `create-design`, `dev-harness`, or `code-review-orchestrator`.
 - Keep using the right workflow/tooling for the task; the hat only changes the specialist lens.
-- Resolve hats from repo `roles/*`; do not invent roles that are not present.
+- Resolve hats from repo `../../roles/*`; do not invent roles that are not present.
 - Load the role properly, including any role-local read model that affects what else must be loaded.
 - If a role has richer local loading rules, follow them instead of reducing it to persona cosplay.
 - If the requested role does not exist, say so plainly and offer close available roles.

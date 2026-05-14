@@ -168,7 +168,7 @@ Update the relevant file only when the work produced a durable fact, lesson, or 
 
 Helpers live under this skill root and are meant to run against any target repo without being copied into that repo.
 
-- Resolve helper paths relative to the loaded `dev-harness/SKILL.md`, not relative to the target repo or current shell directory.
+- Resolve helper paths relative to the loaded `SKILL.md`, not relative to the target repo or current shell directory.
 - Helpers must accept an explicit repo path, default safely to the current working directory, and avoid writing to the inspected repo unless their purpose requires it.
 - Helpers should emit stable, machine-readable output that can be included in handoff or review briefs.
 - For sensitive-surface checks, run `python3 <dev-harness-skill-root>/scripts/check_sensitive_surface.py [<repo-path>] [--base <rev>]`.

@@ -12,7 +12,7 @@ In the repo's default flow, this is stage 1: `research`.
 Own only:
 
 - orchestrating `Researcher A -> Researcher B attack -> wrapper verdict`
-- having Researcher build the structured packet defined in `roles/researcher/*`
+- having Researcher build the structured packet defined in `../../roles/researcher/*`
 - having Researcher ask targeted clarifying questions when the desired outcome is fuzzy
 - consuming available context/evidence first instead of re-asking already answered questions
 - keeping the Researcher packet distinct from wrapper-level findings and verdict
@@ -40,7 +40,7 @@ Do not own:
 ## Default workflow
 
 1. Normalize the task into the input contract.
-2. Run `Researcher A` using `roles/researcher/ROLE.md`, `roles/researcher/RUBRIC.md`, and role learnings to build the canonical Researcher packet from provided context/evidence first.
+2. Run `Researcher A` using `../../roles/researcher/ROLE.md`, `../../roles/researcher/RUBRIC.md`, and role learnings to build the canonical Researcher packet from provided context/evidence first.
 3. For non-trivial research, run `Researcher B attack` using the same role contract to challenge evidence, assumptions, unknowns, decisions needed, candidate approaches, blockers, and risks.
 4. Allow one bounded revise/re-review loop when the attack finds fixable gaps, unless the caller explicitly approves another.
 5. Return one structured wrapper verdict matching `references/output-contract.md`.
@@ -52,7 +52,7 @@ For architecture-sensitive or structurally underspecified work, the next chain i
 
 - This skill is generic and GitHub-agnostic. It must not mention boards, issue comments, or status names unless they were part of the task context itself.
 - The Researcher packet must stay distinct from wrapper-level fields such as critic findings, missing evidence, verdict, and readiness note.
-- The canonical Researcher contract lives in `roles/researcher/ROLE.md` and `roles/researcher/RUBRIC.md`; do not duplicate it here beyond links and routing rules.
+- The canonical Researcher contract lives in `../../roles/researcher/ROLE.md` and `../../roles/researcher/RUBRIC.md`; do not duplicate it here beyond links and routing rules.
 - Researcher output may name domain vocabulary, known facts/evidence, decisions needed, and candidate approaches, but not final structural contracts, structural entity maps, implementation entity maps, or implementation instructions.
 - `Researcher B attack` is the same role class in adversarial mode, not a separate role identity.
 - Use available context/evidence first and keep answered questions closed unless a contradiction or missing evidence reopens them.

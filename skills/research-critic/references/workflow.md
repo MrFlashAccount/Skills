@@ -1,5 +1,7 @@
 # Workflow
 
+Paths in this workflow reference are resolved relative to the `research-critic` skill root (`skills/research-critic/`), not relative to this reference file.
+
 This skill is the reusable `research` stage wrapper:
 
 `Researcher A -> Researcher B attack -> wrapper verdict`
@@ -29,12 +31,12 @@ Do not use when:
 ## Stage loop
 
 1. Normalize the input with `input-contract.md`.
-2. Run `Researcher A` using `roles/researcher/ROLE.md`, `roles/researcher/RUBRIC.md`, and `roles/researcher/LEARNINGS.md` when present.
+2. Run `Researcher A` using `../../roles/researcher/ROLE.md`, `../../roles/researcher/RUBRIC.md`, and `../../roles/researcher/LEARNINGS.md` when present.
    - consume available context/evidence first
    - keep answered questions closed unless contradiction or implementation-critical gaps reopen them
    - ask targeted clarifying questions when the desired outcome is fuzzy
    - do not silently fill critical gaps with assumptions
-   - return the canonical Researcher packet from `roles/researcher/ROLE.md`
+   - return the canonical Researcher packet from `../../roles/researcher/ROLE.md`
 3. For non-trivial research, run `Researcher B attack` with the same role contract.
    - challenge weak evidence
    - challenge unsupported assumptions
@@ -55,7 +57,7 @@ Research wrapper readiness is decided here; human handoff approval is not.
 
 ## Role load rules
 
-- Load Researcher only: `roles/researcher/ROLE.md`, `roles/researcher/RUBRIC.md`, and `roles/researcher/LEARNINGS.md` when present.
+- Load Researcher only: `../../roles/researcher/ROLE.md`, `../../roles/researcher/RUBRIC.md`, and `../../roles/researcher/LEARNINGS.md` when present.
 - `Researcher A` builds the packet.
 - `Researcher B attack` pressure-tests the packet using the same role contract.
 - The wrapper returns `critic_findings`, `missing_evidence`, `unresolved_blockers`, `verdict`, and `readiness_note`; those fields do not belong inside `researcher_packet`.

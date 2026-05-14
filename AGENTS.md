@@ -11,6 +11,7 @@
 - Every skill listed in `README.md` must include compact guidance in this exact shape: `What it is`, `Use when`, `Do not use when`.
 - Skills are either simple atomic skills (`caveman`/`forthright`/`hat` style) or workflows that describe a high-level process and the roles they invoke.
 - Do not describe a role as the essence of a skill; workflows orchestrate roles, and reusable roles live under `roles/`.
+- In skill runtime instructions, write shared-role paths relative to the skill root (`skills/<name>/`), not relative to nested reference files; for repo-level roles this is usually `../../roles/<role>/...`.
 - Every role directory must contain `ROLE.md`, `RUBRIC.md`, and `LEARNINGS.md`; `LEARNINGS.md` may be minimal or empty but must exist.
 - Avoid premature shared infrastructure across skills.
 - If a small repeated dependency is simpler to embed as behavior than to turn into cross-skill coupling, embed it.

@@ -35,7 +35,7 @@ Do not treat `staff engineer`, generic `designer`, `financial/risk`, or `reliabi
    - `architect` for seams, layering, dependency shape, file-zone correctness, request-path boundaries, balanced coupling, architecture-memory integrity, and architectural drift from the approved slice
    - `backend` for backend/server correctness
    - `frontend` for client-side correctness, state, routing, async behavior, and contract consumption
-   - `frontend taste` for visual/presentation quality on rendered user-facing surfaces; load the canonical `roles/frontend-taste` materials for that reviewer
+   - `frontend taste` for visual/presentation quality on rendered user-facing surfaces; load the canonical `../../roles/frontend-taste` materials for that reviewer
    - `security` for exploitability, auth, privilege, and trust-boundary regressions
    - `privacy/data-safety` for local-path leakage, committed personal docs, prompt/example leakage, retained user data, unsafe persistence, and consent/retention mistakes
    - `qa/reliability` for failure handling, rollback/recovery, degraded behavior, flaky paths, and test signal
@@ -74,7 +74,7 @@ Do not treat `staff engineer`, generic `designer`, `financial/risk`, or `reliabi
 - even for tiny slices, if durable architecture-artifact ownership or architecture-memory integrity is in doubt, route `architect` explicitly instead of leaving that check implicit.
 - Use `backend` for backend/server correctness.
 - Use `frontend` for frontend/client correctness; if the touched slice is React/Next.js, also load `vercel-react-best-practices`.
-- Use `frontend taste` for visual/presentation quality on rendered UI surfaces; load the canonical `roles/frontend-taste` materials for that reviewer.
+- Use `frontend taste` for visual/presentation quality on rendered UI surfaces; load the canonical `../../roles/frontend-taste` materials for that reviewer.
 - Use `security` when the diff may change exploitability or trust boundaries.
 - Use `privacy/data-safety` for `sensitive-surface` diffs.
 - For `sensitive-surface` diffs, run the scanner and do not call the review clean until `privacy/data-safety` explicitly clears the approved scope or reports a concrete risk.
@@ -90,7 +90,7 @@ Use `sessions_spawn` to create one subagent per role, with the target repo as `c
 
 If the delegated reviewer path is unavailable, fails to start, or cannot be used, stop as `blocked` instead of reviewing directly in the orchestrator session.
 
-For `architect`, load `roles/architect/ROLE.md`, `roles/architect/RUBRIC.md`, and `roles/architect/references/balanced-coupling.md`, then use the `architect` section of `../dev-harness/references/roles/reviewers.md` as the canonical phase-specific review adapter before judging the diff.
+For `architect`, load `../../roles/architect/ROLE.md`, `../../roles/architect/RUBRIC.md`, and `../../roles/architect/references/balanced-coupling.md`, then use the `architect` section of `../dev-harness/references/roles/reviewers.md` as the canonical phase-specific review adapter before judging the diff.
 
 Keep each role prompt short and specific. Include the approved contract or compact acceptance criteria when available, plus only the diff summary, target branch/PR, the review focus for that role, the project’s `AGENTS.md` guidance, and the merge rubric.
 

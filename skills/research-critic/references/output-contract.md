@@ -1,5 +1,7 @@
 # Output Contract
 
+Paths in this output contract are resolved relative to the `research-critic` skill root (`skills/research-critic/`), not relative to this reference file.
+
 Return one structured wrapper packet. Keep the Researcher packet distinct from wrapper-level findings and verdict.
 
 ## Required fields
@@ -13,7 +15,7 @@ Return one structured wrapper packet. Keep the Researcher packet distinct from w
 
 ## `researcher_packet`
 
-Embed the canonical Researcher packet from `roles/researcher/ROLE.md`:
+Embed the canonical Researcher packet from `../../roles/researcher/ROLE.md`:
 
 - `summary`
 - `domain_vocabulary`
