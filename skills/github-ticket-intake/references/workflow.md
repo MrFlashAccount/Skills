@@ -33,7 +33,7 @@ Steps:
    - write now, or draft first?
 3. Decide whether this is one ticket, one ticket with a checklist, or a small linked set.
 4. Choose the markdown template manually from `templates/` if needed, then write the final issue body or bodies yourself.
-5. Run [../scripts/gh-preflight.mjs](../scripts/gh-preflight.mjs) for auth sanity, and for project sanity when project placement is required.
+5. Run [scripts/gh-preflight.mjs](scripts/gh-preflight.mjs) for auth sanity, and for project sanity when project placement is required.
 6. Create the issue with `create-issue.mjs` for one issue or one issue with a checklist. The script only writes the body you pass on stdin.
 7. Create the ticket set with `create-linked-set.mjs` when the shape is a small linked set. Each issue must already contain a final `body`; the script only creates issues then backfills relation links.
 8. Add each created issue to the project board when project placement is explicitly requested or implied by workflow intent, and the target project is known.
