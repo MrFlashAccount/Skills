@@ -1,14 +1,14 @@
 # Role Resolution
 
-Use this file to map a user-supplied hat name onto repo `roles/*`.
+Use this file to map a user-supplied hat name onto repo `../../roles/*`.
 
 ## Source of truth
 
-Resolve roles from the repo `roles/` directory.
+Resolve roles from the repo `../../roles/` directory.
 
 Primary files:
-- `roles/<Role>/ROLE.md`
-- `roles/<Role>/RUBRIC.md` when it exists
+- `../../roles/<Role>/ROLE.md`
+- `../../roles/<Role>/RUBRIC.md` when it exists
 
 ## Resolution rules
 

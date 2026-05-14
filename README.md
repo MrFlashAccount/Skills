@@ -100,6 +100,7 @@ Current non-trivial mappings:
 
 If a skill needs a reusable specialist voice:
 - load from `roles/`
+- in skill runtime instructions, write shared-role paths relative to the skill root (`skills/<name>/`), not relative to nested reference files; for repo-level roles this is usually `../../roles/<role>/...`
 - adapt it to the current phase
 - keep role identity in `roles/`, not in local copied prose
 
