@@ -1,12 +1,14 @@
 # Implementer Roles
 
+Paths in this adapter are resolved relative to the `dev-harness` skill root (`skills/dev-harness/`), not relative to this reference file.
+
 Read only the sections for implementer roles you are about to launch.
 
-`roles/*/ROLE.md` and `roles/*/RUBRIC.md` are the canonical role contracts. The sections below are phase-specific implementation adapters only: ownership boundaries, execution rules, verification expectations, and implementer-specific escalation behavior.
+`../../roles/*/ROLE.md` and `../../roles/*/RUBRIC.md` are the canonical role contracts. The sections below are phase-specific implementation adapters only: ownership boundaries, execution rules, verification expectations, and implementer-specific escalation behavior.
 
 ## Implementer role: `backend` v1
 
-Load `roles/backend/ROLE.md` and `roles/backend/RUBRIC.md` first.
+Load `../../roles/backend/ROLE.md` and `../../roles/backend/RUBRIC.md` first.
 
 - Purpose: own server-side correctness end to end for the approved slice: API/contracts, business logic, validation, error handling, data flow, migration safety, auth/security hygiene, and observability/testability where appropriate. Prefer boring correctness over cleverness, hidden magic, or implicit behavior.
 - Ownership / file-zone scope: backend handlers/controllers, services, domain logic, schemas/contracts, validators, persistence/data-access, migrations, background/server workflows, auth/authz enforcement, backend observability hooks, and tests tied to those zones. Do not edit frontend routes, components, styling, client state, or make visual/UX decisions that belong to frontend ownership.
@@ -38,14 +40,14 @@ Load `roles/backend/ROLE.md` and `roles/backend/RUBRIC.md` first.
 
 ## Implementer role: `frontend` v1
 
-Load `roles/frontend/ROLE.md` and `roles/frontend/RUBRIC.md` first.
+Load `../../roles/frontend/ROLE.md` and `../../roles/frontend/RUBRIC.md` first.
 
 - Purpose: own user-facing implementation quality end to end: UX, visual quality, client-side component/state structure, accessibility-facing behavior, and correct consumption of approved backend contracts. Visual quality is part of correctness, not optional polish.
 - Ownership / file-zone scope: frontend routes, pages, layouts, components, client state, styling, design-system usage, frontend data adapters, and tests/stories tied to those zones. Do not edit backend handlers, schemas, DB/migrations, server-side business logic, or invent/change API contracts without explicit approval and backend ownership.
 - Must-read / must-load references:
   - load `vercel-react-best-practices` when the touched slice is React/Next.js
-  - for user-facing UI work, load repo `DESIGN.md` first when it exists, then load `roles/frontend-taste/ROLE.md`, `roles/frontend-taste/RUBRIC.md`, `roles/frontend-taste/learnings/README.md`, and `roles/frontend-taste/learnings/shared-core.md`
-  - load one routed class file from `roles/frontend-taste/learnings/` only when repo design memory explicitly declares a project type; if the repo has no router or no declared type yet, stop at `shared-core.md`, state that routing is undeclared, and lower confidence for class-specific taste judgments
+  - for user-facing UI work, load repo `DESIGN.md` first when it exists, then load `../../roles/frontend-taste/ROLE.md`, `../../roles/frontend-taste/RUBRIC.md`, `../../roles/frontend-taste/learnings/README.md`, and `../../roles/frontend-taste/learnings/shared-core.md`
+  - load one routed class file from `../../roles/frontend-taste/learnings/` only when repo design memory explicitly declares a project type; if the repo has no router or no declared type yet, stop at `shared-core.md`, state that routing is undeclared, and lower confidence for class-specific taste judgments
   - read the approved task contract, acceptance criteria, assigned file zones, and the existing frontend patterns in the owned area
 - Execution rules:
   - stay inside assigned frontend ownership; consume existing or explicitly approved contracts, do not invent backend fields/endpoints or silently widen scope across the stack

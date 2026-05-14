@@ -26,7 +26,7 @@ Read only the references needed for the current phase; do not load every role by
 - Before execution planning for non-trivial or ownership-unclear work, read [references/task-contract.md](references/task-contract.md).
 - If the slice may touch local files, personal docs, prompts/examples, logs, retained user data, or machine-specific paths, read [references/sensitive-surfaces.md](references/sensitive-surfaces.md) before proposal.
 - For architecture-sensitive work, or any slice where durable architecture artifacts might be required, read [references/roles/architect-planning.md](references/roles/architect-planning.md).
-- After approval, hand off to `skills/implementation-harness/` with the approved task context, human-approved research packet, structural contract when present, and approved execution-plan packet.
+- After approval, hand off to `../implementation-harness/` with the approved task context, human-approved research packet, structural contract when present, and approved execution-plan packet.
 - If routing is ambiguous or you want a sanity check on expected worker/reviewer choice, read [references/examples.md](references/examples.md).
 - Read the knowledge base only when relevant:
   - [references/knowledge/facts.md](references/knowledge/facts.md)
@@ -168,7 +168,7 @@ Update the relevant file only when the work produced a durable fact, lesson, or 
 
 Helpers live under this skill root and are meant to run against any target repo without being copied into that repo.
 
-- Resolve helper paths relative to the loaded `dev-harness/SKILL.md`, not relative to the target repo or current shell directory.
+- Resolve helper paths relative to the loaded `SKILL.md`, not relative to the target repo or current shell directory.
 - Helpers must accept an explicit repo path, default safely to the current working directory, and avoid writing to the inspected repo unless their purpose requires it.
 - Helpers should emit stable, machine-readable output that can be included in handoff or review briefs.
 - For sensitive-surface checks, run `python3 <dev-harness-skill-root>/scripts/check_sensitive_surface.py [<repo-path>] [--base <rev>]`.

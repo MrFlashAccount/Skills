@@ -71,8 +71,8 @@ If the contract breaks under critique, fix the contract first.
 ### 3. Run a short debate for `full-cycle` work
 
 Use two voices:
-- `devrel`: make the strongest clear, attractive, product-aware version using `roles/dev-rel/ROLE.md`
-- `critic`: attack fluff, confusion, overclaim, weak proof, and bad sequencing using `roles/critic/ROLE.md`
+- `devrel`: make the strongest clear, attractive, product-aware version using `../../roles/dev-rel/ROLE.md`
+- `critic`: attack fluff, confusion, overclaim, weak proof, and bad sequencing using `../../roles/critic/ROLE.md`
 
 Run one short round, then synthesize. Do not let the debate sprawl.
 
@@ -113,7 +113,7 @@ For `full-cycle` work, run two review checkpoints: review the whole artifact aga
 
 ## Rules
 
-- Treat `roles/dev-rel/ROLE.md` as the canonical writing/review identity for developer-facing messaging; this skill supplies the devrel-stage workflow and contracts.
+- Treat `../../roles/dev-rel/ROLE.md` as the canonical writing/review identity for developer-facing messaging; this skill supplies the devrel-stage workflow and contracts.
 - Do not invent proof.
 - Do not use exact metrics unless confirmed.
 - Do not promise roadmap items as current reality.

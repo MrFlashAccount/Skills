@@ -76,7 +76,7 @@ Attack hidden setup, bad concept order, premature API surface, jargon before mea
 
 ### Debate
 
-Use one short `techwriter` vs `critic` round only when it helps choose the clearest path. Load `roles/critic/ROLE.md` for the critic side; this skill supplies the documentation-stage wrapper.
+Use one short `techwriter` vs `critic` round only when it helps choose the clearest path. Load `../../roles/critic/ROLE.md` for the critic side; this skill supplies the documentation-stage wrapper.
 
 ### Review
 
@@ -84,7 +84,7 @@ Apply the review policy after writing, not just at the end. For `full-cycle` wor
 
 ## Rules
 
-- Treat `roles/tech-writer/ROLE.md` as the canonical writing/review identity for documentation work; this skill supplies the docs-stage workflow and contracts.
+- Treat `../../roles/tech-writer/ROLE.md` as the canonical writing/review identity for documentation work; this skill supplies the docs-stage workflow and contracts.
 - Optimize for low confusion and fast first success.
 - Prefer teaching over impressing.
 - Do not hide prerequisites or glue code.

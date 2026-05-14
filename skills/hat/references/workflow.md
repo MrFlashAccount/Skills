@@ -24,7 +24,7 @@ If the request names a role unclearly, route to clarification rather than guessi
 ## 2. Activate or switch
 
 When activating or switching:
-- resolve the role against repo `roles/*`
+- resolve the role against repo `../../roles/*`
 - load the role files required by that role's own read model
 - confirm the active hat briefly
 - start applying that lens on the same turn and later turns
@@ -32,7 +32,7 @@ When activating or switching:
 ## 3. List
 
 When the user says only `hat`:
-- list the available roles from `roles/*`
+- list the available roles from `../../roles/*`
 - give a one-line summary for each when possible
 - ask the user which hat they want
 - do not change state yet

@@ -100,6 +100,9 @@ Current non-trivial mappings:
 
 If a skill needs a reusable specialist voice:
 - load from `roles/`
+- in skill runtime instructions, resolve paths relative to the skill root (`skills/<name>/`), not relative to nested reference files
+- for repo-level shared roles/conventions from a skill, use paths like `../../roles/<role>/...` or `../../conventions/<file>.md`
+- for sibling skills from a skill, use paths like `../<skill-name>/...`; reserve `skills/<skill-name>/...` for repo-map prose, not runtime load paths
 - adapt it to the current phase
 - keep role identity in `roles/`, not in local copied prose
 

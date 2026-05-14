@@ -50,4 +50,4 @@ If any of these are missing, prefer `draft-only`:
 
 ## Preflight note
 
-Before write-ready runs, use [../scripts/gh-preflight.mjs](../scripts/gh-preflight.mjs) to check that GitHub auth works and that the target project is reachable when project placement is required.
+Before write-ready runs, use [scripts/gh-preflight.mjs](scripts/gh-preflight.mjs) to check that GitHub auth works and that the target project is reachable when project placement is required.
