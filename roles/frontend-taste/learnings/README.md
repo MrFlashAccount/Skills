@@ -7,6 +7,8 @@ Do not put repo-specific tokens, component inventories, brand rules, or one-off 
 
 ## Read model
 
+First, if the repo has `DESIGN.md` or equivalent design memory, read it as the source of truth. Portable Frontend Taste guidance must not override that local contract.
+
 Always load:
 - `shared-core.md`
 
@@ -38,6 +40,11 @@ If the repo has no `DESIGN.md` or no declared `design/project-type.md` yet:
 - load `shared-core.md` only
 - state that project-class routing is undeclared
 - lower confidence for class-specific taste judgments until repo design memory exists
+- in Create Design flows, help close the base product, audience, requirements, product type, key action, trust posture, density, emotional tone, reference, and state questions needed to create or update `DESIGN.md`
+
+## Design creation support
+
+This library is not only for post-hoc review. When a calling Create Design-style flow is creating `DESIGN.md`, Frontend Taste can act as a design architect for the visual/design-context parts: ask for missing context, challenge generic assumptions, and turn closed answers into durable repo design memory. The actual create-design/dev-harness wiring lives outside this folder.
 
 ## Boundary
 
