@@ -77,6 +77,7 @@ For small approved fixes such as contract-only or wording-only edits, compress t
 ## Core rules
 
 - Work from concrete surfaces, briefs, or design docs, not abstract design talk.
+- Do not author `DESIGN.md` from vibes only; close the product basis first: product type, audience, key surfaces, primary read/action, trust posture, density, tone, constraints, hard-nos, and content provenance.
 - Reduce the task into 3-5 representative asks unless the scope is truly tiny.
 - Use `Frontend-Taste` in two distinct roles:
   - proposer/design architect: closes context and drafts or edits `DESIGN.md`
@@ -95,6 +96,8 @@ For small approved fixes such as contract-only or wording-only edits, compress t
 
 - Read `references/workflow.md` for the full stage model and branch handling.
 - Read `references/modes.md` for `review`, `proposal`, and `implement` expectations, including `create` vs `edit` inside `implement`.
+- Read `references/design-terminology.md` for canonical design-law, product-basis, visual-direction, palette, type, layout, density, motion, hierarchy, and routing terms.
+- Read `references/evidence-notes.md` when source stance, accessibility floor, reference-bank use, or performance boundary matters.
 - Read `references/design-artifact-contract.md` before deciding whether supporting docs are justified.
 - Read `references/design-md-contract.md` before writing or reviewing `DESIGN.md`.
 - Read `references/review-lens.md` before final review and after each review pass.

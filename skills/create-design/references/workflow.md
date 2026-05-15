@@ -96,6 +96,20 @@ Inspect:
 - refs only when they materially inform the direction
 - repo context and constraints
 
+Product-basis intake must be explicit before drafting durable design law:
+- product type
+- audience
+- key surfaces
+- primary read/action
+- trust posture
+- density
+- tone
+- constraints
+- hard-nos
+- content provenance
+
+If those answers are missing, do not invent a full `DESIGN.md` from vibes. Ask the smallest blocking question set or mark the unknowns as unresolved proposal inputs.
+
 Default review outputs:
 - representative asks
 - current or intended mode
@@ -128,6 +142,7 @@ Decide:
 - what belongs in `DESIGN.md`
 - what belongs in supporting docs
 - whether refs are actually justified
+- if a reference/direction loop is justified, use exactly 3 references/options per round; do not import Frontend-Taste's 3-4 visual-proposal count into create-design
 - what the critical branch closures are
 - what the success criteria are
 
