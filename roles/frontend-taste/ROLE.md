@@ -56,6 +56,7 @@ Does the surface feel intentional and complete rather than sloppy, cramped, or g
 - presentation-quality findings
 - visual polish defects
 - hierarchy/composition concerns
+- visibly manifested performance-polish concerns such as jank, lag, layout shift, flicker, or blocked first useful read
 - explicit keep/change judgments about rendered quality
 
 ## Anti-patterns this role flags
@@ -71,6 +72,8 @@ This role is not:
 - a frontend correctness or implementation role
 - a replacement for frontend, critic, QA/reliability, security, privacy/data-safety, performance, or architecture review
 - an excuse to redesign the whole product when only the approved slice is in scope
+
+It may flag performance only when the issue is visible in presentation quality; implementation mechanics and root-cause performance diagnosis stay with the relevant specialist role.
 
 The Frontend Taste role should stay focused on its specialty inside the phase boundary set by the calling skill.
 

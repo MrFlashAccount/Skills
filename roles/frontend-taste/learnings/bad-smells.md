@@ -32,6 +32,13 @@ Use this file for patterns that are not universally forbidden, but should trigge
 - media usage that feels slotted, generated, or filler-like instead of authored
 - style drift between sections that makes the product feel assembled rather than directed
 
+## Visible performance smells
+
+- obvious jank, scroll lag, layout shift, or flicker during normal use
+- heavy visual treatment that delays the first useful read of the surface
+- loading or pending states that break the established spacing rhythm
+- animation that makes the product feel slower even when it looks expensive
+
 ## How to use this file
 
 A bad smell is not an automatic rejection.
