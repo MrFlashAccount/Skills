@@ -4,6 +4,8 @@ Use this file before writing or reviewing `DESIGN.md`.
 
 A usable `DESIGN.md` is not a moodboard in prose. It is an operational design document.
 
+Use `design-terminology.md` for the canonical meaning of design law, product basis, visual direction, constraints, palette, typography, layout, density, motion, hierarchy, and project-class routing.
+
 ## Direction synthesis gate
 
 When creating `DESIGN.md` or repairing design law without an explicit chosen visual direction, do not write or update canonical `DESIGN.md` until the reference refinement loop has produced a direction synthesis.
@@ -27,6 +29,14 @@ Forbidden shortcuts:
 
 ## Minimum contents
 
+Before writing durable rules, confirm the product basis is not missing. A `DESIGN.md` needs enough grounded input to state:
+- product type, audience, and key surfaces
+- primary read/action and trust posture
+- intended density and tone
+- constraints, hard-nos, and content provenance
+
+When this basis is thin, write the gap into the proposal or ask for it; do not fill it with generic aesthetic assumptions.
+
 A good `DESIGN.md` should cover, as applicable to the scope:
 
 1. visual theme / atmosphere
@@ -40,6 +50,7 @@ A good `DESIGN.md` should cover, as applicable to the scope:
 9. anti-patterns / banned defaults
 10. artifact map
 11. downstream usage notes
+12. handoff notes for tokens, components, states, responsive behavior, accessibility floor, and screenshots/previews when implementation will follow
 
 ## Output standard
 
@@ -51,6 +62,7 @@ Downstream usage notes should clarify:
 - who uses this design-memory system
 - precedence order between `DESIGN.md`, supporting docs, and refs
 - how the system should be updated when the design direction changes
+- what design hands to frontend: tokens/components/states/responsive/a11y/screenshots; code, profiling, bundle, and performance metrics stay outside design ownership
 
 ## Operationality test
 
