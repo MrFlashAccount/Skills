@@ -71,6 +71,7 @@ For small approved fixes such as contract-only or wording-only edits, compress t
 ## Core rules
 
 - Work from concrete surfaces, briefs, or design docs, not abstract design talk.
+- Do not author `DESIGN.md` from vibes only; close the product basis first: product type, audience, key surfaces, primary read/action, trust posture, density, tone, constraints, hard-nos, and content provenance.
 - Reduce the task into 3-5 representative asks unless the scope is truly tiny.
 - Keep `DESIGN.md` focused on operational design law, artifact routing, and downstream usage.
 - Add supporting docs only when they remove real ambiguity or bloat.

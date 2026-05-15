@@ -107,6 +107,22 @@ Passes when:
 - loading/empty/degraded states maintain layout rhythm
 - motion and media do not steal priority from comprehension
 
+## Design-to-frontend handoff checklist
+
+Use this only when a design direction or `DESIGN.md` is expected to feed implementation. This is a handoff completeness check, not Frontend-Taste taking ownership of code or performance metrics.
+
+Passes when `DESIGN.md` or its supporting docs define enough for frontend to implement without guessing:
+- tokens: color roles, type scale, spacing/rhythm, radius, borders/elevation, focus and semantic state colors
+- components: core component styling laws, variants, density behavior, and forbidden defaults
+- states: loading, empty, error, success, disabled, active, hover/press, focus, degraded/permission states as relevant
+- responsive: key breakpoints or behavior rules, reflow order, narrow viewport constraints, and overflow expectations
+- a11y: contrast/non-text contrast, visible focus, keyboard-visible path, reduced-motion rule, target affordance
+- screenshots/previews: current surfaces, approved direction, or expected visual references when available; Figma is useful when present but not mandatory
+
+Ownership boundary:
+- design law hands off `DESIGN.md -> tokens/components/states/responsive/a11y/screenshots`
+- frontend implementation owns code translation, framework details, profiling, bundle cost, CLS, INP, Core Web Vitals, and root-cause performance fixes
+
 ## Acceptance checklist
 
 Before calling a surface visually good, answer:

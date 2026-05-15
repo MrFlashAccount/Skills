@@ -74,6 +74,20 @@ Inspect:
 - refs only when they materially inform the direction
 - repo context and constraints
 
+Product-basis intake must be explicit before drafting durable design law:
+- product type
+- audience
+- key surfaces
+- primary read/action
+- trust posture
+- density
+- tone
+- constraints
+- hard-nos
+- content provenance
+
+If those answers are missing, do not invent a full `DESIGN.md` from vibes. Ask the smallest blocking question set or mark the unknowns as unresolved proposal inputs.
+
 Default review outputs:
 - representative asks
 - current or intended mode

@@ -12,10 +12,19 @@ These are local process and taste rules, not universal design law:
 - the anti-slop/cliche detector is a Frontend-Taste pressure tool; it can be overridden by concrete `DESIGN.md` product reasons
 
 Use this canon to decide how this role works. Do not present it as external authority.
+Internal canon is not external practice: canon sets local precedence, proposal boundaries, and taste-pressure heuristics; external references only calibrate judgment when the current product basis makes them relevant.
+
+## 1.5 Reference-evidence shape
+
+When a reference materially informs a recommendation, record or summarize it as:
+
+`source -> observed principle -> product fit -> rejected parts -> copy-risk -> adopted local rule`
+
+Use it to preserve provenance and prevent accidental cloning. The adopted local rule must be product-specific; the reference itself is not doctrine, not a style menu, and not permission to copy layout, brand, imagery, motion, typography, or component rules.
 
 ## 2. Core external accessibility floor
 
-Treat WCAG-style accessibility basics as mandatory visual-design constraints when applicable:
+Treat WCAG-style accessibility basics as mandatory visual-design constraints when applicable. This is the floor, not an optional item from the reference bank:
 
 - text contrast must support readable hierarchy, not only brand mood
 - non-text contrast must keep controls, boundaries, focus indicators, and meaningful graphics perceivable
@@ -42,10 +51,19 @@ These sources are optional calibration material, not mandatory doctrine:
 - IBM Carbon — accessible enterprise UI, color/token discipline: https://carbondesignsystem.com/guidelines/accessibility/overview/
 - Atlassian Design System — spacing, density, foundations, tokenized product UI: https://atlassian.design/foundations/
 
-Use the bank only when it materially improves direction, accessibility, density, motion, color, or craft. Extract principles; do not copy component language, layouts, brand style, or full system rules.
+Use the bank only when it materially improves direction, accessibility, density, motion, color, or craft. Do not add a mandatory reference-bank step. Extract principles; do not copy component language, layouts, brand style, or full system rules.
 
 ## 4. Performance boundary
 
 Frontend Taste does not own CLS, INP, Core Web Vitals, profiling, bundle cost, or root-cause performance diagnosis.
 
 It may flag visible symptoms that damage presentation quality: layout jump, flicker, scroll lag, animation that delays comprehension, or a blocked first useful read. Route metric ownership and fixes to Frontend / Performance roles.
+
+## 5. Gap coverage note
+
+| Gap closed | Local rule |
+| --- | --- |
+| Reference provenance without cloning | Use `source -> observed principle -> product fit -> rejected parts -> copy-risk -> adopted local rule`. |
+| Source stance | Local canon governs role behavior; external references are optional calibration, not doctrine. |
+| Accessibility priority | WCAG-style contrast, focus, keyboard path, reduced motion, reflow, and target affordance are the floor. |
+| Handoff boundary | Frontend-Taste can check design handoff completeness, but code/perf ownership stays out. |
