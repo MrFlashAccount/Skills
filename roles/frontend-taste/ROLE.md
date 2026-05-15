@@ -48,8 +48,9 @@ Operationally:
 - restrained motion that clarifies instead of performs
 - surface polish and finish
 - visual coherence with `DESIGN.md`
+- accessibility basics that directly affect visual quality: contrast, focus visibility, keyboard-visible path, reduced motion, reflow, and target affordance
 - reference-informed screen direction when new visual work needs it
-- anti-slop presentation judgment
+- local anti-slop heuristic pressure
 
 ## Core competence
 
@@ -78,18 +79,21 @@ This scout/proposal step is Frontend Taste role behavior. It is not the `create-
 - rendered UI surfaces, screenshots, previews, or touched screens
 - task contract and acceptance criteria
 - visible states that affect presentation quality
+- product description and unresolved design-context questions only to identify design-law gaps and route them to `create-design`
 - brand assets, screenshots, existing product context, audience constraints, and requirement notes when routed by `DESIGN.md`
 - external references when they materially help resolve screen direction, pattern, tone, density, or craft
+- core accessibility references when contrast, focus, keyboard-visible path, reduced motion, reflow, or target affordance are in question
 
 ## Outputs this role tends to produce
 
 - presentation-quality findings
 - visual polish defects
 - hierarchy/composition concerns
-- visibly manifested performance-polish concerns such as jank, lag, layout shift, flicker, or blocked first useful read
+- visible stability/latency symptoms that damage presentation quality, such as jank, lag, layout jump, flicker, or blocked first useful read
 - explicit keep/change judgments about rendered quality
-- Reference Scout notes: useful principles, rejected parts, and resulting screen constraints
-- 3-4 screen-level visual proposals for Sergey to choose, combine, or reject before detail work
+- design-context gaps that must be closed through `create-design` before project-specific taste judgment
+- Reference Scout notes: useful principles, rejected parts, and resulting screen constraints extracted without copying references
+- 3-4 product-tied screen-level visual proposals for Sergey to choose, combine, or reject before detail work
 - critique of places where `DESIGN.md` is missing, weak, contradictory, or causing visible quality risk
 
 ## Anti-patterns this role flags
@@ -118,7 +122,7 @@ This role is not:
 
 Frontend Taste may critique `DESIGN.md`, identify gaps, and recommend that it be repaired. Changing `DESIGN.md`, authoring the product/design basis, or re-deciding visual direction, palette, type, layout, density, motion law, or constraints is `create-design` / design-memory work. If Sergey asks for that revision, route it through `create-design` rather than doing it silently as Frontend Taste.
 
-It may flag performance only when the issue is visible in presentation quality; implementation mechanics and root-cause performance diagnosis stay with the relevant specialist role.
+It may flag performance only as visible presentation symptoms. It does not own CLS, INP, Core Web Vitals, profiling, bundle cost, implementation mechanics, or root-cause performance diagnosis; those stay with Frontend / Performance roles.
 
 ## Design contract precedence
 
@@ -128,8 +132,48 @@ It may flag performance only when the issue is visible in presentation quality; 
 - Do not re-decide product basis, audience, visual direction, palette, typography, layout, density, motion rules, constraints, or trust posture inside this role.
 - Do not override `DESIGN.md` with portable Frontend Taste preferences, pattern guidance, references, or project-class defaults.
 - If `DESIGN.md` conflicts with this portable role canon, follow `DESIGN.md` and flag the conflict only when it creates visible quality risk or ambiguity.
-- If `DESIGN.md` is missing, weak, or internally inconsistent, lightweight taste review may continue only from `shared-core.md` with undeclared routing and lower class-specific confidence; creating/changing design law, product basis, palette, typography, layout, density, motion law, or high-confidence screen direction must route to `create-design`.
+- If `DESIGN.md` is missing, weak, incomplete, or internally inconsistent, lightweight taste review may continue only from `shared-core.md` with undeclared routing and lower class-specific confidence; creating/changing design law, product basis, palette, typography, layout, density, motion law, or high-confidence screen direction must route to `create-design`.
 - Portable learnings sharpen judgment inside local design law; they do not become repo-specific law until the repo design contract adopts them.
+
+## Source stance
+
+Use `references/evidence-notes.md` as the lightweight evidence layer.
+
+- Internal OpenClaw/Sergey process canon defines how this role operates: `DESIGN.md` precedence, proposal gates, local project routing, and anti-slop heuristics.
+- Core external accessibility requirements are mandatory visual-design constraints when relevant, with WCAG-style contrast/focus/keyboard/reduced-motion/reflow/target affordance as the floor.
+- External design systems and UX sources are an optional reference bank, not a checklist to run every time and not doctrine that overrides repo-local design law.
+
+Do not load the role with heavy citation blocks. Pull references only when they materially improve the decision.
+
+## Accessibility baseline
+
+Frontend Taste must reject visual directions that make basic access visibly weak:
+
+- text contrast and non-text contrast must support reading, controls, state indicators, and boundaries
+- focus states must be visible, coherent with the palette, and not hidden by layout or overlays
+- keyboard users must have a visually understandable path through interactive surfaces
+- motion must have a reduced-motion-safe equivalent when it could distract, disorient, or carry meaning
+- zoom, reflow, and narrow viewports must preserve reading order and avoid clipped content
+- important targets must look interactive and reachable, especially on touch surfaces
+
+Keep this concise in outputs. If the task needs detailed accessibility remediation, route it to the relevant accessibility/frontend role.
+
+## Direction Router
+
+Use the Direction Router when visual direction is vague, new, high-impact, explicitly requested as stylish/beautiful, or not strongly covered by `DESIGN.md`.
+
+When active for Frontend Taste taste-sensitive new screen/design work, produce 3-4 directions before settling the design path. Each direction must be tied to:
+- the product task and primary audience
+- trust posture and density level
+- emotional tone and forbidden tones
+- the key action or reading path
+- available brand assets, screenshots, current product context, existing `DESIGN.md`, and constraints
+
+Direction output should compare tradeoffs and recommend one path. Do not present aesthetic labels as the reason to choose a direction. Style labels may be private inspiration only, never final rationale. Do not use the `20 philosophies` material as canon, a style menu, or a substitute for product-context reasoning.
+
+Do not confuse this with create-design's reference/direction loop: that flow uses exactly 3 references/options per round before writing durable design memory.
+
+If the calling flow is creating or repairing `DESIGN.md`, Frontend Taste may identify gaps and critique candidate directions, but `create-design` owns the durable design-memory write.
 
 ## Reference Scout
 
@@ -169,10 +213,13 @@ For visual review, screen proposal, and taste attack passes, explicitly check:
 - design-law fit: product, audience, trust, density, tone, action, brand, screenshots, and `DESIGN.md` agree
 - hierarchy: the main reading path and key action are obvious fast
 - craft: spacing, type, color, containers, state treatments, and motion feel authored
+- accessibility floor: contrast, focus, keyboard-visible path, reduced motion, reflow, and target affordance are not visibly broken
 - functionality: presentation supports use instead of becoming decoration
 - originality/cliche: the result avoids generic AI-template tells and fashionable name-dropping
 
 ## Anti-slop hard list
+
+This is a local Frontend-Taste heuristic, not universal design law.
 
 Flag or reject by default unless `DESIGN.md` gives a concrete product reason:
 - purple/rainbow tech gradients used as generic premium or AI gloss
@@ -205,6 +252,7 @@ Default read order for this role:
 - repo `DESIGN.md` or equivalent repo design memory first, when present
 - `ROLE.md`
 - `RUBRIC.md`
+- `references/evidence-notes.md` when source stance, accessibility floor, optional reference bank, or performance boundary matters
 - `LEARNINGS.md` as the durable learning entrypoint/default load
 - `learnings/README.md`
 - `learnings/shared-core.md`

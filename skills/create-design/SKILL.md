@@ -5,6 +5,8 @@ description: Create, rewrite, review, or materially restructure a project's desi
 
 Turn a brief, an existing design doc set, or rough visual direction into a clean, operational design-memory workflow.
 
+Create Design is a workflow for repo design-memory work. It orchestrates `Frontend-Taste` as proposer/design architect and attacker/critic, while keeping the skill contract on the design-memory process rather than a role wrapper. It is not separate design bureaucracy and it is not frontend implementation/styling work.
+
 ## Mode selection
 
 Choose one mode up front:
@@ -23,7 +25,7 @@ Choose one mode up front:
 3. `implement`
    - create or revise the design-memory files
    - declare whether this is `create` or `edit`
-   - run critic/fix iterations
+   - run critic/fix iterations, including a separate `Frontend-Taste` attacker/critic pass
    - follow with post-implementation review before calling it done
 
 If the target shape is still fuzzy, use `grill-me` first.
@@ -47,21 +49,29 @@ For non-trivial design-memory work, use this sequence:
 
 1. `source-audit`
    - inspect the brief, existing design docs, refs, and repo context
+   - load `../../roles/frontend-taste/ROLE.md` and `../../roles/frontend-taste/LEARNINGS.md` when available
    - reduce the task to representative asks
    - identify mode, scope, risks, and missing branches
 
 2. `proposal`
+   - use `Frontend-Taste` as the design architect/proposer
+   - close the base design-context questions before drafting
    - define success criteria
    - define target artifact shape
    - decide what belongs in `DESIGN.md` vs supporting docs
    - decide whether refs are justified
+   - for `implement/create` or design-law repair without an explicit chosen visual direction, run the reference refinement loop in `references/workflow.md` before authoring design law
+   - vague labels like `premium dark launcher` are not a chosen visual direction; the bypass bar lives in `references/workflow.md`
 
 3. `implement`
    - create or revise the design-memory files
    - keep `DESIGN.md` lean enough to operate
    - keep claimed capabilities aligned with shipped docs
+   - do not write or update canonical `DESIGN.md` from taste guesses; require direction synthesis first when the reference loop applies
+   - choosing or mixing a reference option approves direction only, not file edits, unless `implement` was already approved
 
 4. `post-implement review`
+   - run a separate `Frontend-Taste` attacker/critic pass before completion
    - verify artifact coherence, workflow coherence, and claimed-vs-shipped alignment
    - confirm the edits match the approved proposal
    - do not call the result done until the reviewed output is clean enough
@@ -71,7 +81,12 @@ For small approved fixes such as contract-only or wording-only edits, compress t
 ## Core rules
 
 - Work from concrete surfaces, briefs, or design docs, not abstract design talk.
+- Do not author `DESIGN.md` from vibes only; close the product basis first: product type, audience, key surfaces, primary read/action, trust posture, density, tone, constraints, hard-nos, and content provenance.
 - Reduce the task into 3-5 representative asks unless the scope is truly tiny.
+- Use `Frontend-Taste` in two distinct roles:
+  - proposer/design architect: closes context and drafts or edits `DESIGN.md`
+  - attacker/critic: attacks the proposal before implementation is considered done
+- The proposer must close these base design-context questions before drafting: product type, audience or closed audience, key action/reading path, requirements and non-goals, trust posture, density, emotional tone, brand assets, screenshots, product context, references, and critical states.
 - Keep `DESIGN.md` focused on operational design law, artifact routing, and downstream usage.
 - Add supporting docs only when they remove real ambiguity or bloat.
 - Do not create extra docs just because a pattern exists in another project.
@@ -85,6 +100,8 @@ For small approved fixes such as contract-only or wording-only edits, compress t
 
 - Read `references/workflow.md` for the full stage model and branch handling.
 - Read `references/modes.md` for `review`, `proposal`, and `implement` expectations, including `create` vs `edit` inside `implement`.
+- Read `references/design-terminology.md` for canonical design-law, product-basis, visual-direction, palette, type, layout, density, motion, hierarchy, and routing terms.
+- Read `references/evidence-notes.md` when source stance, accessibility floor, reference-bank use, or performance boundary matters.
 - Read `references/design-artifact-contract.md` before deciding whether supporting docs are justified.
 - Read `references/design-md-contract.md` before writing or reviewing `DESIGN.md`.
 - Read `references/review-lens.md` before final review and after each review pass.
