@@ -39,9 +39,10 @@ Quick routing:
 
 If the repo has no `DESIGN.md` or no declared `design/project-type.md` yet:
 - do not guess the product class
-- load `shared-core.md` only
-- state that project-class routing is undeclared
+- for lightweight taste review only, load `shared-core.md` only
+- state that design/project-class routing is undeclared
 - lower confidence for class-specific taste judgments until repo design memory exists
+- route to `create-design` before creating/changing design law, product basis, palette, typography, layout, density, motion law, or high-confidence screen direction
 - in Create Design flows, help close the base product, audience, requirements, product type, key action, trust posture, density, emotional tone, reference, and state questions needed to create or update `DESIGN.md`
 
 ## Design creation support

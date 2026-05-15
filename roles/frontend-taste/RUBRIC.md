@@ -8,7 +8,7 @@ Use this as a compact checklist when a calling skill wants frontend taste judgme
 
 - **DESIGN.md first**: If `DESIGN.md` or equivalent repo design memory exists, was it read before Frontend Taste judgment/proposal work?
 - **Design-law obedience**: Did the work operate inside `DESIGN.md` instead of overriding it with portable taste defaults, references, or project-class assumptions?
-- **Missing/weak design law routing**: If `DESIGN.md` is absent, weak, or contradictory, did the role stop and route to `create-design` instead of inventing product basis, audience, visual direction, palette, typography, layout, density, motion law, or constraints?
+- **Missing/weak design law routing**: If `DESIGN.md` is absent, weak, contradictory, or lacks a router, did lightweight taste review stop at `shared-core.md`, state undeclared design routing, and lower class-specific confidence; and did any work needing design law/product basis/audience/visual direction/palette/typography/layout/density/motion law/constraints/high-confidence screen direction route to `create-design`?
 - **Process-vs-role boundary**: Is the split explicit and respected: `create-design` authors/repairs design-memory artifacts and `DESIGN.md`; Frontend Taste operates inside existing design law for concrete screens/states/components?
 - **New screen workflow**: For new screen/design work, was Reference Scout run, were 3-4 visual proposals produced, and did Sergey choose, combine, or reject before detail/spec/implementation work proceeded?
 - **Reference Scout quality**: Were references distilled into useful principles, rejected parts, and current-screen constraints without copying layout, imagery, motion, typography, or brand language?
@@ -31,13 +31,13 @@ Fail or bounce the work when:
 
 - a screen design/review was done without reading existing `DESIGN.md`
 - Frontend Taste invented or rewrote product basis, audience, visual direction, palette, typography, layout, density, motion law, constraints, or trust posture
-- missing/weak `DESIGN.md` was handled by guessing instead of routing to `create-design`
+- missing/weak `DESIGN.md` or absent design router was handled by guessing design law or project class instead of using the lightweight `shared-core.md` fallback or routing law/direction work to `create-design`
 - taste-sensitive new screen work skipped Reference Scout or skipped the 3-4 visual proposals
-- detail/spec/implementation began before Sergey chose, combined, or rejected the proposals
+- detail/spec/implementation began before Sergey chose, combined, or rejected the proposals; proposal critique itself may happen before that choice
 - a proposed change edits `DESIGN.md` or other design-memory artifacts without entering the explicit `create-design` / design-memory path
 
 ## Notes
 
 This rubric is phase-agnostic. A calling skill decides how to apply it in the current phase.
 
-When repo design memory exists, use it as local law and use role learnings as supporting taste canon. When design memory is missing or weak, Frontend Taste routes to `create-design`; it does not author the base contract itself. This mirrors `create-architecture` vs Architect: workflow authors/repairs the contract; role operates inside the contract.
+When repo design memory exists, use it as local law and use role learnings as supporting taste canon. When design memory is missing, weak, or lacks a router, Frontend Taste may do lightweight taste review from `shared-core.md` only with undeclared routing and lower class-specific confidence; law/direction work routes to `create-design`. It does not author the base contract itself. This mirrors `create-architecture` vs Architect: workflow authors/repairs the contract; role operates inside the contract.
