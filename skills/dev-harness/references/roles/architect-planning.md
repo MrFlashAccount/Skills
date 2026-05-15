@@ -2,7 +2,7 @@
 
 Paths in this adapter are resolved relative to the `dev-harness` skill root (`skills/dev-harness/`), not relative to this reference file.
 
-Use this for the existing `dev-harness` planning-time architecture gate when scope is architecture-sensitive, and for tiny slices whenever durable architecture-artifact ownership might move.
+Use this for the existing `dev-harness` planning-time architecture gate when scope is architecture-sensitive, and for tiny slices whenever durable architecture-artifact ownership might move. Full architecture process/package work routes to `create-architecture`; do not use this adapter as a substitute for that workflow.
 
 Load `../../roles/architect/ROLE.md`, `../../roles/architect/RUBRIC.md`, and `../../roles/architect/references/balanced-coupling.md` first.
 
@@ -31,9 +31,13 @@ Architect output may start with an optional short `summary`. The required body o
 5. `structural_entities`
 6. `relationships`
 7. `dependency_rules`
-8. `required_artifacts`
-9. `structural_risks`
-10. `final_structural_contract`
+8. `project_baseline`
+9. `architecture_artifact_manifest`
+10. `required_artifacts`
+11. `structural_risks`
+12. `final_structural_contract`
+
+For new project, new repo, new plugin, and architecture-sensitive work, `project_baseline` records existing docs, source ownership zones, and relevant missing/deferred artifacts. `architecture_artifact_manifest` names the durable artifacts in play: `ARCHITECTURE.md`, meaningful source-zone `CONTEXT.md`, ADR/migration docs as needed, and `DESIGN.md` status when UI/frontend surface is material. Source-focused `CONTEXT.md` defaults only to meaningful source ownership zones, not tests/scripts/fixtures/tooling by default.
 
 `required_artifacts` must include one explicit architecture artifact decision:
 
@@ -41,14 +45,14 @@ Architect output may start with an optional short `summary`. The required body o
 - `update_existing`: update an existing artifact before implementation handoff; name it.
 - `create_new`: create a new durable project artifact before implementation handoff; name intended type/location or the decision still needed.
 
-When an artifact is required, Architect owns the create/update decision before implementation handoff by default.
+When an artifact is required, Architect owns the create/update decision before implementation handoff by default. Architect may also be assigned as the architecture artifact implementer owner for approved artifacts, distinct from architect review and from backend/frontend code owners.
 
 ## Dual-pass architecture
 
 For architecture-sensitive work:
 
 1. `Architect A propose`: drafts the constraints-first structural contract.
-2. `Architect B attack`: challenges constraints, forbidden moves, invariants, boundaries and ownership, structural entities, relationships, dependency rules, required artifacts, structural risks, and final structural contract.
+2. `Architect B attack`: challenges constraints, forbidden moves, invariants, boundaries and ownership, structural entities, relationships, dependency rules, project baseline, architecture artifact manifest, required artifacts, structural risks, and final structural contract.
 3. Allow one bounded revise/re-review loop when the attack finds fixable gaps, unless the caller explicitly approves another.
 
 This is the same Architect role/class in an attack pass, not a separate Critic role/entity.
@@ -64,6 +68,7 @@ Return only planning-safe material:
 - structural entities
 - relationships
 - dependency rules
+- project baseline and architecture artifact manifest when required
 - required architecture artifacts and artifact decision
 - structural risks
 - final structural contract
@@ -83,6 +88,7 @@ Do not return:
 - patch-like diffs
 - implementation entity maps owned by Planner
 - broad redesign outside approved scope
+- full architecture package workflow that belongs in `create-architecture`
 
 ## Decision rule
 
@@ -91,6 +97,7 @@ Do not return:
 - the slice is `non-trivial` and architecture-sensitive
 - the slice introduces or reshapes adapters, service boundaries, structural entities, or contract-touchpoint seams
 - the slice could quietly change architecture records, module ownership, or durable architecture memory if left unchecked
+- the work is for a new project, new repo, or new plugin and needs a baseline before implementation planning
 - a durable architecture artifact may need to be created or updated, even if the slice is otherwise tiny
 
 ### Architecture gate records `none` when:
