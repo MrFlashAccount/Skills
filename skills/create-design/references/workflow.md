@@ -2,18 +2,39 @@
 
 Use this file when creating, rewriting, reviewing, or materially restructuring a project's design-memory system.
 
+Create Design is `Frontend-Taste` acting as design architect for repo design memory. It creates or edits design law, not frontend implementation.
+
 This workflow is approval-gated even for review-only passes.
 If the target mode or scope is still fuzzy, route first-pass discovery through `grill-me`, then come back here.
 
 ## Stage map
 
 1. `source-audit`
-2. `proposal`
+2. `Frontend-Taste proposer` / `proposal`
 3. `implement`
-4. `critic/fix loop`
+4. `Frontend-Taste attacker` / `critic/fix loop`
 5. `post-implement review`
 
-Not every task needs the full weight, but the stage boundaries should stay intact.
+Not every task needs the full weight, but the stage boundaries should stay intact. The proposer and attacker are separate `Frontend-Taste` passes; do not let the drafter self-approve.
+
+## Frontend-Taste role split
+
+Use `roles/frontend-taste/ROLE.md` and `roles/frontend-taste/LEARNINGS.md` when available. Apply the role in two distinct passes:
+
+- `Frontend-Taste proposer/design architect`: closes the base design context, chooses the product-tied direction, and drafts or edits `DESIGN.md`.
+- `Frontend-Taste attacker/critic`: attacks the proposal before the design-memory implementation is considered done.
+
+The proposer must close, or explicitly mark unanswered, these questions before drafting:
+
+- product type or mixed modes
+- audience, including whether it is public, private, internal, invite-only, regulated, expert, or casual
+- key action or reading path
+- requirements, constraints, and non-goals
+- trust posture, density, and emotional tone
+- brand assets, screenshots, product context, competitors, and references
+- visually critical states: loading, empty, error, success, permission, onboarding, long-content, and degraded-data states
+
+`DESIGN.md` remains the operational design law and source of truth. References support the law; they do not replace it.
 
 ## 0. Pick the mode
 
@@ -68,6 +89,7 @@ Start from concrete examples, not abstract design philosophy.
 
 Inspect:
 - the brief or request
+- `roles/frontend-taste/ROLE.md` and `LEARNINGS.md` when available
 - the product/surface type
 - the current `DESIGN.md`, if present
 - supporting design docs, if present
@@ -97,7 +119,9 @@ Use this matrix to close the main workflow branches explicitly:
 
 ## 3. Proposal stage
 
-Turn the audited material into a concrete design-memory shape.
+Run `Frontend-Taste` as the proposer/design architect. Turn the audited material into a concrete design-memory shape.
+
+Before drafting, close the base design-context questions or mark exactly what is unanswered.
 
 Decide:
 - target folder/file shape
@@ -119,7 +143,7 @@ After proposal:
 
 ## 4. Implement stage
 
-Build the smallest useful design-memory structure:
+Run `Frontend-Taste` as the proposer/design architect for the approved write phase. Build the smallest useful design-memory structure:
 - `DESIGN.md` for the main design law and artifact routing
 - supporting docs only when they remove real ambiguity or bloat
 
@@ -132,7 +156,7 @@ Implementation rules:
 
 ## 5. Critic/fix loop
 
-After the first draft, run a structured review/fix loop.
+After the first draft, run a structured review/fix loop. The required adversarial pass is a separate `Frontend-Taste` attacker/critic, not the same proposer re-reading its own work.
 
 Default loop:
 1. draft or revise
@@ -148,10 +172,16 @@ Run a third review/fix round when:
 - downstream usage is still unclear
 
 Critic focus:
-- design doctrine clarity
+- product and audience clarity
+- requirements, constraints, and unanswered questions
+- `DESIGN.md` priority as source of truth
+- direction coherence across product, audience, trust, density, tone, key action, brand, screenshots, and refs
+- reference synthesis quality: extracted principles, rejected mismatches, no copying
+- generic/slop risks and fashionable aesthetic-label thinking
+- missing critical states
+- contradictions between palette, type, layout, spacing, motion, density, and tone
 - artifact contract coherence
 - operational value vs decorative prose
-- contradictions between palette, type, layout, spacing, and motion
 - do/don't clarity
 - downstream usability
 
@@ -159,7 +189,7 @@ Critic focus:
 
 Do not stop at “edits done”.
 
-Review the implemented result against the approved proposal:
+Review the implemented result against the approved proposal and the `Frontend-Taste` attacker findings:
 - did it change the right thing?
 - did it change it the right way?
 - does it match the approved scope?
