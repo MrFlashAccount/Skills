@@ -85,6 +85,7 @@ For small approved fixes such as contract-only or wording-only edits, compress t
 
 - Read `references/workflow.md` for the full stage model and branch handling.
 - Read `references/modes.md` for `review`, `proposal`, and `implement` expectations, including `create` vs `edit` inside `implement`.
+- Read `references/design-terminology.md` for canonical design-law, product-basis, visual-direction, palette, type, layout, density, motion, hierarchy, and routing terms.
 - Read `references/design-artifact-contract.md` before deciding whether supporting docs are justified.
 - Read `references/design-md-contract.md` before writing or reviewing `DESIGN.md`.
 - Read `references/review-lens.md` before final review and after each review pass.

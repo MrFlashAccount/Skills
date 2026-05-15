@@ -4,6 +4,8 @@ Use this file before writing or reviewing `DESIGN.md`.
 
 A usable `DESIGN.md` is not a moodboard in prose. It is an operational design document.
 
+Use `design-terminology.md` for the canonical meaning of design law, product basis, visual direction, constraints, palette, typography, layout, density, motion, hierarchy, and project-class routing.
+
 ## Minimum contents
 
 A good `DESIGN.md` should cover, as applicable to the scope:

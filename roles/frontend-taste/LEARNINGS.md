@@ -43,6 +43,11 @@ Pattern library:
 - `learnings/patterns-states.md`
 - `learnings/patterns-motion.md`
 
+Reference contracts:
+- `references/visual-proposal-contract.md`
+- `references/quality-criteria.md`
+- `references/project-routing.md`
+
 Pressure / examples:
 - `learnings/anti-patterns.md`
 - `learnings/bad-smells.md`
