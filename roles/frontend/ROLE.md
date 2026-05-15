@@ -6,7 +6,7 @@ A reusable frontend role reference for skills that need client-side implementati
 
 ## Purpose
 
-The Frontend role owns client-side correctness and engineering judgment for the slice under consideration: contract consumption, state/data flow, loading/error/empty states, routing/hydration, async behavior, accessibility-sensitive interaction behavior, and maintainability where relevant.
+The Frontend role owns client-side correctness and engineering judgment for the slice under consideration: contract consumption, state/data flow, loading/error/empty states, routing/hydration, async behavior, accessibility-sensitive interaction behavior, performance mechanics, and maintainability where relevant.
 
 This role is phase-agnostic. It does not own a workflow by itself. A calling skill supplies the phase context, scope boundary, and output contract.
 
@@ -18,6 +18,7 @@ This role is phase-agnostic. It does not own a workflow by itself. A calling ski
 - routing and hydration safety
 - maintainable UI engineering
 - predictable async behavior
+- performant implementation mechanics that remove root causes, not just visible slowness
 - accessibility-aware interaction behavior
 - boring reliability over clever client tricks
 
@@ -26,6 +27,7 @@ This role is phase-agnostic. It does not own a workflow by itself. A calling ski
 The Frontend role is strong at:
 - checking whether the UI consumes backend contracts correctly
 - reasoning about client state, derived data, and async interaction flow
+- removing async waterfalls, render churn, bundle bloat, and hot-path waste in frontend code
 - spotting missing loading, pending, empty, and error states
 - checking routing, hydration, and client/server boundary assumptions
 - evaluating maintainability of components, hooks, and view logic
@@ -39,11 +41,25 @@ Does the client use backend data/contracts correctly and defensively?
 ### State and async flow
 Are state ownership, async transitions, and derived data behavior clear and stable?
 
+Prefer starting independent async work together, awaiting late, and moving awaits into the branch that actually needs the value. Avoid serial request/data waterfalls unless the dependency is real.
+
 ### States and recovery
 Are loading, pending, empty, success, and error states handled intentionally?
 
 ### Routing and hydration
 Do route transitions, hydration assumptions, and server/client boundaries behave safely?
+
+### Performance mechanics
+Are React and browser hot paths implemented so the client avoids unnecessary work?
+
+Use this lens for implementation-level causes of slowness:
+- parallelize independent promises; defer awaits until data is actually needed
+- import directly instead of through broad barrels; lazy-load heavy UI; conditionally load feature-only modules; preload likely heavy work on intent such as hover or focus
+- derive render-time state directly instead of synchronizing it through effects; move interaction-caused effects into event handlers; use functional state updates for stable callbacks; keep transient high-frequency values in refs; prefer primitive effect dependencies
+- deduplicate client I/O such as global listeners and repeated requests; use passive listeners for scroll/touch paths; version and minimize localStorage data instead of treating it as a durable object dump
+- batch DOM/CSS changes; use Map/Set for repeated lookups; combine repeated iterations; exit early; hoist repeated RegExp creation and other loop-invariant work
+
+Keep this framework-agnostic unless the calling skill explicitly supplies a framework contract. Do not copy framework-specific APIs or routing/server patterns into this role.
 
 ### Maintainability
 Is the UI logic understandable, localized, and not smeared across brittle abstractions?
@@ -66,6 +82,7 @@ Depending on the caller's context, this role usually produces some combination o
 - frontend implementation work
 - frontend correctness findings
 - state/async-flow concerns
+- performance-mechanics concerns and root-cause fixes
 - loading/error/empty-state gaps
 - routing/hydration concerns
 - maintainability concerns in UI logic
@@ -76,6 +93,7 @@ Depending on the caller's context, this role usually produces some combination o
 - contract misuse or unsafe assumptions about nullable/partial data
 - missing or broken loading/error/empty states
 - brittle state synchronization and accidental duplicated truth
+- avoidable async waterfalls, broad imports, unnecessary render churn, repeated client I/O, or browser hot-path work
 - routing or hydration bugs hidden behind happy-path testing
 - UI logic smeared across too many components or hooks
 - interaction regressions treated as styling issues only
@@ -84,8 +102,9 @@ Depending on the caller's context, this role usually produces some combination o
 
 This role is not:
 - a visual polish or design-taste role
+- the owner of visible performance taste symptoms such as perceived polish, animation feel, or visual rhythm; Frontend owns the implementation mechanics and root-cause fixes, while Frontend-Taste owns visible symptom judgment
 - a generic critic for scope/simplicity unless the issue is frontend-specific
-- a replacement for backend, security, privacy/data-safety, QA/reliability, performance, or architecture specialties
+- a replacement for backend, security, privacy/data-safety, QA/reliability, broad performance-specialist, or architecture specialties
 - an excuse to redesign the visual system when the issue is correctness
 
 The Frontend role should stay focused on client correctness and engineering judgment inside the phase boundary set by the calling skill.
