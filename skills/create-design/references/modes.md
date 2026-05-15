@@ -24,11 +24,13 @@ Expected outputs:
 - mode and branch choice
 - success criteria
 - review plan
+- reference refinement plan when `implement/create` or design-law repair lacks a chosen visual direction
 
 Good fits:
 - unclear scope
 - deciding whether `DESIGN.md` alone is enough
 - deciding whether supporting docs are justified
+- deciding whether a visual-direction reference loop is required before create-design can write design law
 
 ## `implement`
 
@@ -48,6 +50,15 @@ Good fits for `create`:
 - repo with no design doctrine
 - rough brief that needs operational design law
 
+For `implement/create`, if the brief does not already include an explicit visual direction, run the reference refinement loop before writing canonical `DESIGN.md`:
+- start from product basis
+- present 3 meaningfully different references/directions/options per round
+- include multiple palette hypotheses
+- require Sergey to choose, combine, reject, or continue
+- record feedback and hard-no items after each round
+- stop after at most 3 rounds; if the third round is exhausted, require Sergey’s explicit decision before synthesis
+- synthesize direction before `DESIGN.md`
+
 Good fits for `edit`:
 - bloated or vague `DESIGN.md`
 - design docs that drifted out of sync
@@ -60,3 +71,5 @@ Good fits for `edit`:
 - `implement` requires an explicit approved write phase.
 - `implement` must declare `create` or `edit`.
 - If the task changes mode midstream, stop and get the correct approval before continuing.
+- Proposal/create workflows must not skip from rough taste, one nice option, or one palette into canonical `DESIGN.md`.
+- The reference refinement loop is not for lightweight Frontend-Taste screen review inside an existing stable `DESIGN.md`; it is for create-design design-law creation or repair.

@@ -9,9 +9,10 @@ If the target mode or scope is still fuzzy, route first-pass discovery through `
 
 1. `source-audit`
 2. `proposal`
-3. `implement`
-4. `critic/fix loop`
-5. `post-implement review`
+3. `visual-direction calibration` when creating or repairing design law without a chosen direction
+4. `implement`
+5. `critic/fix loop`
+6. `post-implement review`
 
 Not every task needs the full weight, but the stage boundaries should stay intact.
 
@@ -74,6 +75,16 @@ Inspect:
 - refs only when they materially inform the direction
 - repo context and constraints
 
+Before any reference round, capture the product basis:
+- product type
+- audience, including whether it is closed/internal or public
+- primary surfaces
+- tone
+- density expectation
+- interaction model
+- platform constraints
+- what must not be touched
+
 Default review outputs:
 - representative asks
 - current or intended mode
@@ -94,6 +105,8 @@ Use this matrix to close the main workflow branches explicitly:
 - tiny wording or contract-only fix -> may compress ceremony, but still declare the mode and keep the same approval semantics
 - refs justified -> only when they remove ambiguity or materially improve direction
 - refs not justified -> keep the workflow doc-only
+- `implement/create` or design-law repair without a chosen visual direction -> run the reference refinement loop before writing canonical `DESIGN.md`
+- existing `DESIGN.md` lightweight screen review or Frontend-Taste role work -> do not run the create-design reference loop unless the design-law artifact itself is being created or repaired
 
 ## 3. Proposal stage
 
@@ -117,7 +130,60 @@ After proposal:
 - if edits are required, stop and wait for explicit approval before implementation
 - do not smuggle implementation through the proposal stage
 
+## 3A. Visual-direction reference refinement loop
+
+Run this loop before canonical `DESIGN.md` creation or repair when the design direction is not already chosen.
+The goal is calibration, not copying references. Do not write or update `DESIGN.md` from taste guesses.
+
+Applicability:
+- required for `implement/create` when the brief does not already contain an explicit visual direction
+- required for design-law repair when the current direction is incoherent, absent, or based on unstated taste
+- not for lightweight Frontend-Taste screen review inside an existing `DESIGN.md`
+- not for routine implementation review where the canonical design law already exists and is stable
+
+Reference round rules:
+- one round contains exactly 3 references/directions/options
+- the 3 options must be meaningfully different, not near-duplicates
+- vary at least 2-3 relevant axes per round: layout model, palette direction, density, typography character, shape/radius language, interaction/motion tone, emotional tone
+- include multiple palette hypotheses appropriate to the product basis; never present one self-selected palette as the only path
+- do not copy references; extract direction constraints and tradeoffs
+- do not present one nice option and canonize it
+
+Decision point after each round:
+- Sergey may pick one option
+- Sergey may mix parts of multiple options
+- Sergey may reject all options
+- Sergey may ask to continue with another round
+
+After every feedback point, record:
+- what was liked
+- what was rejected
+- direction constraints
+- hard-no items
+
+Iteration limits:
+- maximum 3 rounds
+- each next round must reflect prior feedback
+- do not replay the same variants with cosmetic changes
+- if 3 rounds are exhausted, stop and require an explicit decision; do not auto-synthesize
+
+Before writing or updating canonical `DESIGN.md`, produce a direction synthesis covering:
+- chosen direction
+- rejected directions
+- palette direction
+- typography direction
+- layout direction
+- density
+- shape/radius
+- motion
+- critical hard-no items
+- open risks
+
+Only after that synthesis may create-design write or update canonical `DESIGN.md`.
+
 ## 4. Implement stage
+
+If the visual-direction reference refinement loop applies, enter implementation only after Sergey has chosen, mixed, or explicitly decided a direction and the synthesis exists. No canonical `DESIGN.md` before that gate.
 
 Build the smallest useful design-memory structure:
 - `DESIGN.md` for the main design law and artifact routing
@@ -125,6 +191,7 @@ Build the smallest useful design-memory structure:
 
 Implementation rules:
 - keep `DESIGN.md` lean enough to navigate
+- do not write design law from a single self-selected palette, near-duplicate options, or unapproved reference guesses
 - keep rules operational rather than atmospheric-only
 - do not promise artifacts that do not exist
 - do not let refs replace doctrine
@@ -181,6 +248,8 @@ Validate with representative prompts.
 
 Check:
 - intended asks trigger correctly
+- create/repair asks without a chosen direction trigger the 3-option reference loop and direction synthesis before `DESIGN.md`
+- existing-`DESIGN.md` lightweight role work does not over-trigger the create-design reference loop
 - paraphrases still trigger
 - adjacent prompts do not over-trigger
 - the workflow stays honest when mode or scope changes

@@ -55,11 +55,13 @@ For non-trivial design-memory work, use this sequence:
    - define target artifact shape
    - decide what belongs in `DESIGN.md` vs supporting docs
    - decide whether refs are justified
+   - for `implement/create` or design-law repair without a chosen visual direction, run the reference refinement loop in `references/workflow.md` before authoring design law
 
 3. `implement`
    - create or revise the design-memory files
    - keep `DESIGN.md` lean enough to operate
    - keep claimed capabilities aligned with shipped docs
+   - do not write or update canonical `DESIGN.md` from taste guesses; require direction synthesis first when the reference loop applies
 
 4. `post-implement review`
    - verify artifact coherence, workflow coherence, and claimed-vs-shipped alignment
