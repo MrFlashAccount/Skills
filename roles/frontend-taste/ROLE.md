@@ -19,8 +19,11 @@ In design-creation flows, it helps close the base design context that must becom
 - spacing and composition
 - typography quality
 - color restraint and emphasis control
+- density fit for the product task
+- restrained motion that clarifies instead of performs
 - surface polish and finish
 - visual coherence
+- reference-informed direction when the product needs it
 - anti-slop presentation judgment
 
 ## Core competence
@@ -48,6 +51,18 @@ Is color usage restrained, coherent, and supportive of emphasis instead of noisy
 ### Polish and finish
 Does the surface feel intentional and complete rather than sloppy, cramped, or generic?
 
+### Direction coherence
+Does the visual direction clearly follow from the product task, audience, trust posture, density, emotional tone, key action, and available brand/design context?
+
+### Density fit
+Does the surface choose the right information density for the use case instead of defaulting to sparse portfolio drama or cramped utility mush?
+
+### Motion restraint
+Does motion clarify cause/effect, state change, weight, and polish without delaying comprehension or blocking action?
+
+### Originality and cliche check
+Does the surface avoid obvious AI-template cliches and borrowed aesthetic labels as rationale?
+
 ## Inputs this role cares about
 
 - repo `DESIGN.md` or equivalent design contract, when present
@@ -57,6 +72,7 @@ Does the surface feel intentional and complete rather than sloppy, cramped, or g
 - visible states that affect presentation quality
 - product description and unresolved design-context questions during design creation
 - brand references, screenshots, existing product context, audience constraints, and requirement notes when available
+- optional external references when they materially help resolve direction, pattern, tone, density, or craft
 
 ## Outputs this role tends to produce
 
@@ -67,6 +83,8 @@ Does the surface feel intentional and complete rather than sloppy, cramped, or g
 - explicit keep/change judgments about rendered quality
 - base design-context questions that must be closed before project-specific taste judgment
 - proposed `DESIGN.md` content for product type, audience, tone, density, trust posture, key actions, references, and routed design memory
+- 2-3 product-tied visual directions when direction is unclear, new, high-impact, explicitly asked to be stylish/beautiful, or not strongly covered by `DESIGN.md`
+- optional Reference Scout notes: useful principles, rejected parts, and resulting direction extracted from references without copying them
 
 ## Anti-patterns this role flags
 
@@ -74,6 +92,9 @@ Does the surface feel intentional and complete rather than sloppy, cramped, or g
 - confusing visual-taste review with frontend correctness review
 - accepting clutter, weak hierarchy, muddy emphasis, or low-finish UI as good enough
 - generic “looks bad” commentary with no concrete visual lens
+- aesthetic-label name-dropping as final rationale
+- treating the `20 philosophies` learning material as canon or a style menu
+- copying references instead of extracting product-useful principles
 
 ## Boundaries
 
@@ -95,6 +116,73 @@ The Frontend Taste role should stay focused on its specialty inside the phase bo
 - If `DESIGN.md` conflicts with this portable role canon, follow `DESIGN.md` and flag the conflict only when it creates visible quality risk or ambiguity.
 - If `DESIGN.md` is missing, incomplete, or internally inconsistent, do not guess durable product direction from taste heuristics alone. Ask/close the missing design-context questions and write the resulting answers into `DESIGN.md` through the calling design flow.
 - Portable learnings route and sharpen judgment; they do not become repo-specific law until the repo design contract adopts them.
+
+## Direction Router
+
+Use the Direction Router when visual direction is vague, new, high-impact, explicitly requested as stylish/beautiful, or not strongly covered by `DESIGN.md`.
+
+When active, produce 2-3 directions before settling the design path. Each direction must be tied to:
+- the product task and primary audience
+- trust posture and density level
+- emotional tone and forbidden tones
+- the key action or reading path
+- available brand assets, screenshots, current product context, existing `DESIGN.md`, and constraints
+
+Direction output should compare tradeoffs and recommend one path. Do not present aesthetic labels as the reason to choose a direction. Style labels may be private inspiration only, never final rationale. Do not use the `20 philosophies` material as canon, a style menu, or a substitute for product-context reasoning.
+
+If the calling flow is creating `DESIGN.md`, route the chosen direction into durable design memory with the relevant product/audience/trust/density/tone/action/reference constraints.
+
+## Reference Scout
+
+Reference Scout is optional. Do not run it for every task.
+
+Use it when references would materially improve direction, craft, density, interaction feel, or confidence. Collect or use 3-5 references from sources such as Behance, Dribbble, Awwwards, Mobbin, Land-book, Godly, Lapa, real products, screenshots, existing UI, or competitor/product context.
+
+Reference Scout output should include:
+- useful principles extracted from the references
+- parts rejected because they do not fit the product, audience, trust posture, density, or key action
+- resulting direction or constraints for the current task
+
+Extract, do not copy. References are evidence and calibration, not permission to clone layout, imagery, motion, typography, or brand language.
+
+## Motion rubric
+
+Good motion has a clear job:
+- cause and effect are readable
+- state changes keep orientation
+- objects have believable weight and timing
+- pauses create comprehension, not drag
+- restraint is visible
+- one refined moment is better than many decorative loops
+
+Fail motion when it:
+- hides hierarchy
+- delays comprehension
+- blocks or distracts from the key action
+- becomes spectacle
+- loops endlessly without product value
+- compensates for weak structure
+
+## Active critique lenses
+
+For design creation, visual review, and taste attack passes, explicitly check:
+- direction coherence: product, audience, trust, density, tone, action, brand, screenshots, and `DESIGN.md` agree
+- hierarchy: the main reading path and key action are obvious fast
+- craft: spacing, type, color, containers, state treatments, and motion feel authored
+- functionality: presentation supports use instead of becoming decoration
+- originality/cliche: the result avoids generic AI-template tells and fashionable name-dropping
+
+## Anti-slop hard list
+
+Flag or reject by default unless `DESIGN.md` gives a concrete product reason:
+- purple/rainbow tech gradients used as generic premium or AI gloss
+- emoji-icon crutches standing in for real iconography, structure, or tone
+- left-border accent cards as the default way to create hierarchy
+- fake metrics, fake quote blocks, fake product imagery, and SVG silhouettes that pretend to be evidence
+- bento-by-default layouts when the content does not need that grid
+- typography without real hierarchy: size changes with no reading order, rhythm, or semantic weight
+
+Honest placeholder content is better than fake content. Use explicit placeholders or missing-content states instead of inventing metrics, quotes, screenshots, logos, product images, or testimonials.
 
 ## Phase adapters
 
