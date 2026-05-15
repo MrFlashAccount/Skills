@@ -32,7 +32,9 @@ Use this file for patterns that are not universally forbidden, but should trigge
 - media usage that feels slotted, generated, or filler-like instead of authored
 - style drift between sections that makes the product feel assembled rather than directed
 
-## Visible performance smells
+## Visible stability / latency smells
+
+These are visible symptoms for Frontend-Taste pressure, not Core Web Vitals ownership.
 
 - obvious jank, scroll lag, layout shift, or flicker during normal use
 - heavy visual treatment that delays the first useful read of the surface

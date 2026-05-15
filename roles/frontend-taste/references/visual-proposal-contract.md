@@ -1,6 +1,8 @@
 # Visual Proposal Contract
 
-Use this when visual direction is unclear, new, high-impact, explicitly requested as stylish/beautiful, or weakly covered by `DESIGN.md`.
+Use this when Frontend-Taste is handling taste-sensitive new screen/design direction that is unclear, new, high-impact, explicitly requested as stylish/beautiful, or weakly covered by `DESIGN.md`.
+
+Do not use this count for create-design reference/direction loops. Create-design uses exactly 3 references/options per round before writing durable design memory.
 
 A visual proposal gives Sergey real choices before durable design law or implementation depends on taste guesses.
 
@@ -17,6 +19,7 @@ Each variant must include:
 - layout/composition: grid, spacing rhythm, viewport/chrome, responsive behavior
 - shape/material: radius, borders, shadows/elevation, texture, icon/image treatment
 - motion: allowed moments, duration/easing character, reduced-motion rule
+- accessibility floor: contrast, non-text contrast, focus, reflow, and target-affordance risks
 - state treatment: loading, empty, error, success, permission/degraded states if relevant
 - hard-nos: what this variant must not do
 - tradeoff: what it optimizes and what it sacrifices

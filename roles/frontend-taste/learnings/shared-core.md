@@ -9,7 +9,7 @@ Portable taste canon that should hold across most repos and surfaces.
 - typography should carry meaning through scale, weight, rhythm, and restraint
 - color should support emphasis, not compensate for weak structure
 - polish should feel intentional, not ornamental
-- perceived performance is visible polish: smooth reading, stable layout, and fast first useful comprehension matter to taste
+- visible stability and responsiveness are polish inputs: smooth reading, stable layout, and fast first useful comprehension matter to taste, while metrics and diagnosis stay with Frontend / Performance roles
 - UI should look authored, not template-smeared or AI-generic
 
 ## Anti-slop heuristics
@@ -53,7 +53,7 @@ Portable taste canon that should hold across most repos and surfaces.
 Ask:
 - is the primary action or reading path obvious fast?
 - does the surface look intentional at a glance?
-- does the first useful read arrive without obvious jank, scroll lag, layout shift, or flicker?
+- does the first useful read arrive without obvious jank, scroll lag, layout jump, or flicker?
 - are density and spacing coherent for the product class?
 - is visual polish doing real work, or hiding weak structure?
 - do state treatments feel designed, or merely present?

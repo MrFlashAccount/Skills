@@ -45,6 +45,25 @@ Fails when:
 - spacing almost aligns but keeps feeling accidental
 - content overflows, jitters, or collapses under normal data
 
+## Accessibility floor
+
+Use WCAG-style basics as a visual-quality floor, not as optional polish.
+
+Passes when:
+- text contrast is strong enough for readable hierarchy in real states
+- non-text contrast keeps controls, focus indicators, dividers, charts/icons, and semantic states perceivable
+- focus states are visible, coherent with the palette, and not hidden behind sticky chrome or overlays
+- keyboard/focus order is visually understandable on interactive surfaces
+- reduced-motion mode preserves meaning without relying on animation
+- zoom, reflow, and narrow viewport behavior preserve reading order and avoid clipped content
+- important targets look interactive and reachable, especially on touch surfaces
+
+Fails when:
+- brand color, low-contrast subtlety, or glass/blur effects make content or controls hard to perceive
+- focus is missing, barely visible, or visually disconnected from the active control
+- motion carries meaning without a non-motion equivalent
+- responsive compression breaks the intended read/action path
+
 ## Authored / intentional test
 
 A surface feels authored when:
@@ -61,6 +80,8 @@ It feels accidental when:
 
 ## Generic / cliche detector
 
+This is a local Frontend-Taste heuristic, not universal design law. Use it as pressure unless `DESIGN.md` gives a concrete product reason.
+
 Flag by default:
 - aesthetic labels used as rationale without operational rules
 - generic AI/SaaS gradients, glow, glass, bento, equal-card rows, fake metrics, fake quotes
@@ -70,9 +91,9 @@ Flag by default:
 
 For the hard list, use `../learnings/anti-patterns.md`. For softer smells and examples, use `../learnings/bad-smells.md` and `../learnings/examples.md`.
 
-## Visible performance polish
+## Visible stability / latency symptoms
 
-Presentation quality includes perceived performance.
+Presentation quality includes visible stability and responsiveness symptoms, but Frontend Taste does not own CLS, INP, Core Web Vitals, profiling, bundle cost, or root-cause performance diagnosis. Route metric ownership and fixes to Frontend / Performance roles.
 
 Severity:
 - blocker: first useful read is blocked, major layout shift, obvious loading flicker, scroll unusable, interaction feedback misleading
@@ -93,5 +114,6 @@ Before calling a surface visually good, answer:
 - What is the main action?
 - What density level is this using, and why?
 - What visual law explains palette, type, spacing, shape, and motion?
+- Which accessibility floor checks matter for this surface?
 - Which state or edge case would most likely break the polish?
 - Which generic/cliche pattern was avoided or intentionally justified by `DESIGN.md`?

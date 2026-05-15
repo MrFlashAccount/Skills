@@ -104,6 +104,7 @@ Decide:
 - what belongs in `DESIGN.md`
 - what belongs in supporting docs
 - whether refs are actually justified
+- if a reference/direction loop is justified, use exactly 3 references/options per round; do not import Frontend-Taste's 3-4 visual-proposal count into create-design
 - what the critical branch closures are
 - what the success criteria are
 

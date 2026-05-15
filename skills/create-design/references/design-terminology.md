@@ -48,7 +48,7 @@ Required fields:
 - trust posture: conservative, operational, premium, playful, experimental, high-stakes, etc.
 - density: sparse storytelling, balanced product surface, dense repeat-use utility, data-heavy operations
 - tone: emotional posture plus forbidden tones
-- platform constraints: viewport, device, browser, design system, framework, accessibility, performance, existing UI
+- platform constraints: viewport, device, browser, design system, framework, accessibility, visible stability constraints, existing UI
 - hard-nos: visual, content, interaction, brand, or state treatments that must not appear
 
 Acceptance: a downstream reader can identify what class of product this is, who it serves, what must be obvious first, and what visual defaults are unsafe.
@@ -83,9 +83,11 @@ Constraint classes:
 - motion: duration, easing, trigger, sequencing, reduced-motion alternative
 - accessibility: contrast, focus, keyboard path, target size, reduced motion, readable measure
 - brand: logo usage, tone, assets, forbidden associations
-- performance polish: no layout shift, flicker, scroll lag, blocked first useful read
+- visual stability polish: no visible layout jump, flicker, scroll lag, or blocked first useful read; route metrics and root-cause performance diagnosis to Frontend / Performance roles
 
 Acceptance: a reviewer can point to the screen and say whether the constraint is met. If not observable, it is probably a preference, rationale, or implementation note, not a design constraint.
+
+Accessibility constraints should be concise but concrete. Use WCAG-style basics as the external floor for contrast, non-text contrast, keyboard focus, focus visibility, reduced motion, reflow, and target affordance when relevant. Do not bury these behind optional reference-bank material.
 
 ## Palette / color system
 
