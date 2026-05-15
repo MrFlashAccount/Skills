@@ -45,6 +45,8 @@ Execution planning must be concrete enough to determine implementation shape, ow
 
 The required execution contract starts from [references/task-contract.md](references/task-contract.md) and must include implementation entities when work is non-trivial or multi-surface.
 
+For new project, new repo, new plugin, and architecture-sensitive work, the contract must also carry a `project_baseline` and an architecture artifact manifest. These record the existing project docs, meaningful source ownership zones, and required/deferred architecture or design artifacts before implementation is handed off.
+
 Implementation entity kinds may include:
 
 - `module`
@@ -85,13 +87,14 @@ Implementation entities are planner-level handoff objects. They are not Research
    - the research wrapper verdict is not self-approving
    - `approve_with_changes` is not ready for this gate until required changes are folded back into the Researcher packet
 4. Run the architecture gate before planning:
+   - If the task is to create, revise, or ship a full architecture process/package, route through `create-architecture`; do not replace that workflow with the internal DevHarness Architect gate.
    - For architecture-sensitive scope, run `Architect A -> Architect B attack -> one bounded revise/re-review loop` using [references/roles/architect-planning.md](references/roles/architect-planning.md) and produce the structural contract before execution planning unless the caller explicitly approves another loop.
    - For non-trivial work, explicitly decide whether architecture-sensitive scope or durable architecture artifact pressure exists. If not, record architecture artifact decision `none` and proceed without a structural contract.
    - For tiny work, run this gate only when ownership, seams, dependency direction, structural records, or durable architecture artifacts might move.
    - If an artifact decision is `update_existing` or `create_new`, Architect owns that create/update decision before implementation handoff by default.
 5. Build the execution plan.
    - `Planner A propose`: translate the human-approved research packet and structural contract when present into the execution contract.
-   - `Planner B attack`: challenge entity coverage, file-zone ownership, verification surfaces, rollback surfaces, sensitive surfaces, request-path/contract touchpoints, risks, and max-detail leaks.
+   - `Planner B attack`: challenge entity coverage, file-zone ownership, project baseline coverage, architecture artifact manifest, verification surfaces, rollback surfaces, sensitive surfaces, request-path/contract touchpoints, risks, proposal-workspace hygiene, and max-detail leaks.
    - Allow one bounded revise/re-review loop for non-trivial work when the attack finds fixable gaps, unless the caller explicitly approves another.
    - Keep this as the same planner role/class in an attack pass, not a new separate role.
 6. Show one cleaned execution plan before coding.
@@ -118,6 +121,8 @@ Before approval, execution plans may include:
 - acceptance criteria
 - verification surfaces
 - rollback surfaces
+- project baseline and architecture artifact manifest
+- proposal-workspace decision and publish/PR hygiene constraints
 - sensitive-surface handling
 - request-path / contract touchpoints
 - docs to update
@@ -141,12 +146,17 @@ Before approval, execution plans must not include:
 ## Rules
 
 - Research must be a human-approved research packet before Architect or execution planning starts for non-trivial work: wrapper `approve_as_is`, or `approve_with_changes` only after required changes are folded back in, must still be shown to the user for explicit approval.
-- Architecture-sensitive scope must pass through Architect before execution planning.
-- Do not create parallel architecture ceremony: use [references/roles/architect-planning.md](references/roles/architect-planning.md) for the existing planning-time architecture gate.
+- Architecture-sensitive implementation scope must pass through Architect before execution planning.
+- Full architecture process/package work must route through `create-architecture`; DevHarness's internal Architect gate is only the planning-time structural contract for an implementation slice.
+- Do not create parallel architecture ceremony: use [references/roles/architect-planning.md](references/roles/architect-planning.md) for the existing planning-time architecture gate, or `create-architecture` for a full architecture package.
 - Execution planning owns implementation entities; Architect owns structural entities; Researcher owns domain vocabulary and known facts/evidence.
 - One agent per file zone.
-- Each implementer owner must use only `backend` or `frontend` as the role label.
+- Code implementer owners must use only `backend` or `frontend` as the role label. Architecture artifact implementation may use `architect` only for approved architecture artifacts such as `ARCHITECTURE.md`, meaningful source-zone `CONTEXT.md`, and ADR/migration docs; this is distinct from architect review and must not own backend/frontend code.
 - Do not let two agents edit the same file zone.
+- For new project, new repo, new plugin, and architecture-sensitive work, include `project_baseline` and an architecture artifact manifest in the execution contract before implementation handoff.
+- For UI/frontend surfaces, the project baseline must say whether repo `DESIGN.md` exists, is required, or is explicitly out of scope/deferred; DevHarness does not silently run a project scaffold or design-memory scaffold.
+- Source-focused `CONTEXT.md` defaults only to meaningful source ownership zones. Do not create folder-level context docs for tests, scripts, fixtures, or tooling by default unless they have real ownership or dependency rules.
+- `.proposals/` is opt-in only by explicit Sergey/user request. If created, use `.proposals/<feature-slug>/{research.md,architecture.md,implementation.md}`, ensure it is gitignored in the target repo, treat it as non-final workspace, and fail publish/PR hygiene on root `plan.md`, `architecture-proposal.md`, `implementation-proposal.md`, or other implementation proposal leftovers unless explicitly approved.
 - Do not mix auth, UI, importer, security, and privacy/data-retention changes in one slice.
 - Do not treat backend request-shape, persistence, or async runtime changes as implementation-only details; contract and docs impact must be checked before approval and before review closes.
 - Do not assume external integration contracts from happy-path mocks or one narrow sample; review must name the contract evidence source when such assumptions matter.
