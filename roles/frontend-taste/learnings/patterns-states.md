@@ -7,11 +7,25 @@ Use this file when the question is about loading, empty, error, success, or tran
 Good loading states:
 - preserve the expected structure of the final surface
 - communicate where information will appear
+- keep spacing, rhythm, and major anchors stable while content arrives
 - feel calm and intentional rather than noisy or generic
 
 Bad loading states:
 - generic spinner with no structural clue
 - loading treatment that changes layout dramatically when content arrives
+- flicker, layout shift, or repeated reflow that makes the surface feel unfinished
+
+## Pending and transition states
+
+Good pending and transition states:
+- keep the user oriented and able to continue reading
+- make interactive feedback visible without freezing the whole surface theatrically
+- preserve row, card, and action placement so the interface keeps its rhythm
+
+Bad pending and transition states:
+- block first useful comprehension behind decorative waiting moments
+- replace stable content with jumpy placeholders or sudden density changes
+- make ordinary actions feel slower through overproduced feedback
 
 ## Empty states
 

@@ -8,6 +8,7 @@ Motion is most justified when it:
 - clarifies cause and effect
 - preserves orientation across state change
 - improves perceived polish without delaying use
+- keeps comprehension and action available while the surface changes
 - adds tactile response to interaction
 
 ## Motion that usually works
@@ -26,9 +27,11 @@ Motion is most justified when it:
 
 - motion that competes with content
 - motion that exists only because the screen feels too plain without it
+- motion that delays comprehension, decision, or action
+- scroll, hover, or reveal behavior that makes the surface feel laggy or sticky
 - transitions that are too slow for operational surfaces
 - “premium” animation layered on top of weak hierarchy
 
 ## Rule of thumb
 
-If the same surface becomes clearer and more confident when the motion is removed, the motion probably was not doing enough real work.
+If the same surface becomes clearer, faster to understand, and more confident when the motion is removed, the motion probably was not doing enough real work.
