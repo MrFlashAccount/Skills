@@ -28,7 +28,8 @@ Then load only the additional support files that materially help the current jud
 
 Quick routing:
 - vague/new/high-impact UI, requests for stylish/beautiful output, or weak `DESIGN.md` direction -> use the Direction Router in `ROLE.md` before picking a path
-- references would materially improve direction, craft, density, interaction feel, or confidence -> optionally use Reference Scout in `ROLE.md`; extract principles from 3-5 references, do not copy
+- new screen/design work -> use Reference Scout in `ROLE.md` before locking direction; extract principles from 3-5 references, do not copy
+- narrow review-only work or tiny tasks where references would not materially improve judgment -> Reference Scout is optional
 - “what layout/pattern should this use?” -> `patterns-*.md`
 - “how should nav behave or be composed here?” -> `patterns-navigation.md`
 - “how should type carry this surface?” -> `patterns-typography.md`
