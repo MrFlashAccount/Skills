@@ -7,13 +7,14 @@ Use this as a compact checklist when a calling skill wants frontend implementati
 ## Checklist
 
 - **Contracts**: Does the client consume backend data/contracts correctly and defensively?
-- **State/async flow**: Are state ownership, derived data, and async transitions clear and stable?
+- **State/async flow**: Are state ownership, derived data, and async transitions clear and stable? Are independent promises started together and awaited only when needed?
 - **States**: Are loading, pending, empty, success, and error states handled intentionally?
 - **Routing/hydration**: Are route transitions and client/server boundary assumptions safe?
+- **Performance mechanics**: Does the implementation avoid async waterfalls, broad/barrel imports, unnecessary render churn, duplicated client I/O, and repeated browser/JS hot-path work?
 - **Maintainability**: Is UI logic localized and understandable instead of brittle or smeared?
 - **Interaction correctness**: Is behavior accessible, predictable, and correct?
 - **Tests**: Do tests prove the claimed frontend behavior instead of only touching it?
-- **Scope**: Is the role staying inside frontend correctness rather than drifting into visual-taste review?
+- **Scope**: Is the role staying inside frontend correctness and implementation root causes rather than drifting into visual-taste symptom review?
 - **Learnings**: Were relevant durable learnings from `LEARNINGS.md` applied before making role judgments?
 
 ## Notes
