@@ -6,6 +6,27 @@ A usable `DESIGN.md` is not a moodboard in prose. It is an operational design do
 
 Use `design-terminology.md` for the canonical meaning of design law, product basis, visual direction, constraints, palette, typography, layout, density, motion, hierarchy, and project-class routing.
 
+## Direction synthesis gate
+
+When creating `DESIGN.md` or repairing design law without an explicit chosen visual direction, do not write or update canonical `DESIGN.md` until the reference refinement loop has produced a direction synthesis.
+
+Required before `DESIGN.md` in that path:
+- product basis is captured
+- Sergey has chosen one option, combined options, rejected all with a new direction, or made another explicit decision
+- the chosen direction covers palette, typography, layout, density, shape/radius, motion, and hard-nos, or names an explicit accepted gap for each missing axis
+- feedback records liked, rejected, direction constraints, and hard-no items
+- synthesis states chosen direction, rejected directions, palette, typography, layout, density, shape/radius, motion, critical hard-no items, and open risks
+- write approval exists separately; a direction choice is not file-edit approval unless `implement` was already approved
+
+Forbidden shortcuts:
+- treating vague input like `premium dark launcher` as an explicit chosen visual direction
+- `DESIGN.md` from taste guesses
+- one self-selected palette
+- near-duplicate reference options
+- copying references instead of extracting design constraints
+- one nice option followed by canon
+- auto-synthesis after 3 exhausted rounds without Sergey’s explicit decision
+
 ## Minimum contents
 
 Before writing durable rules, confirm the product basis is not missing. A `DESIGN.md` needs enough grounded input to state:
@@ -50,6 +71,7 @@ A `DESIGN.md` is weak when:
 - it never becomes concrete about what to do
 - it gives no anti-pattern pressure
 - it relies on refs to carry the real decisions
+- it was written before the required visual-direction synthesis
 - it cannot be used without guessing
 
 ## Compression rule
