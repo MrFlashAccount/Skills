@@ -19,7 +19,7 @@ Not every task needs the full weight, but the stage boundaries should stay intac
 
 ## Frontend-Taste role split
 
-Use `roles/frontend-taste/ROLE.md` and `roles/frontend-taste/LEARNINGS.md` when available. Apply the role in two distinct passes:
+Use `../../roles/frontend-taste/ROLE.md` and `../../roles/frontend-taste/LEARNINGS.md` when available. Apply the role in two distinct passes:
 
 - `Frontend-Taste proposer/design architect`: closes the base design context, chooses the product-tied direction, and drafts or edits `DESIGN.md`.
 - `Frontend-Taste attacker/critic`: attacks the proposal before the design-memory implementation is considered done.
@@ -89,7 +89,7 @@ Start from concrete examples, not abstract design philosophy.
 
 Inspect:
 - the brief or request
-- `roles/frontend-taste/ROLE.md` and `LEARNINGS.md` when available
+- `../../roles/frontend-taste/ROLE.md` and `../../roles/frontend-taste/LEARNINGS.md` when available
 - the product/surface type
 - the current `DESIGN.md`, if present
 - supporting design docs, if present
