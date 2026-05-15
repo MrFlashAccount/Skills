@@ -28,7 +28,8 @@ Then load only the additional support files that materially help the current jud
 
 Quick routing:
 - vague/new/high-impact UI, requests for stylish/beautiful output, or weak `DESIGN.md` direction -> use the Direction Router in `ROLE.md` before picking a path
-- references would materially improve direction, craft, density, interaction feel, or confidence -> optionally use Reference Scout in `ROLE.md`; extract principles from 3-5 references, do not copy
+- new screen/design work -> use Reference Scout in `ROLE.md` before locking direction; extract principles from 3-5 references, do not copy
+- narrow review-only work or tiny tasks where references would not materially improve judgment -> Reference Scout is optional
 - “what layout/pattern should this use?” -> `patterns-*.md`
 - “how should nav behave or be composed here?” -> `patterns-navigation.md`
 - “how should type carry this surface?” -> `patterns-typography.md`
@@ -39,9 +40,10 @@ Quick routing:
 
 If the repo has no `DESIGN.md` or no declared `design/project-type.md` yet:
 - do not guess the product class
-- load `shared-core.md` only
-- state that project-class routing is undeclared
+- for lightweight taste review only, load `shared-core.md` only
+- state that design/project-class routing is undeclared
 - lower confidence for class-specific taste judgments until repo design memory exists
+- route to `create-design` before creating/changing design law, product basis, palette, typography, layout, density, motion law, or high-confidence screen direction
 - in Create Design flows, help close the base product, audience, requirements, product type, key action, trust posture, density, emotional tone, reference, and state questions needed to create or update `DESIGN.md`
 
 ## Design creation support

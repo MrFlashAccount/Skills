@@ -168,7 +168,7 @@ Load `../../roles/frontend/ROLE.md` and `../../roles/frontend/RUBRIC.md` first.
 
 ## Reviewer role: `frontend taste` v1
 
-Load repo `DESIGN.md` first when it exists, then load `../../roles/frontend-taste/ROLE.md`, `../../roles/frontend-taste/RUBRIC.md`, `../../roles/frontend-taste/learnings/README.md`, and `../../roles/frontend-taste/learnings/shared-core.md`. Load one routed class file from `../../roles/frontend-taste/learnings/` only when repo design memory explicitly declares a project type. If the repo has no router or no declared type yet, do not guess a class: stop at `shared-core.md`, state that routing is undeclared, and lower confidence for class-specific taste judgments. Repo design law overrides portable taste canon on conflicts.
+Load repo `DESIGN.md` first when it exists, then load `../../roles/frontend-taste/ROLE.md`, `../../roles/frontend-taste/RUBRIC.md`, `../../roles/frontend-taste/learnings/README.md`, and `../../roles/frontend-taste/learnings/shared-core.md`. Load one routed class file from `../../roles/frontend-taste/learnings/` only when repo design memory explicitly declares a project type. If the repo has no router or no declared type yet, do not guess a class: for lightweight taste review, stop at `shared-core.md`, state that routing is undeclared, and lower confidence for class-specific taste judgments; for creating/changing design law, product basis, palette, typography, layout, density, motion law, or high-confidence screen direction, route to `create-design` before proceeding. Repo design law overrides portable taste canon on conflicts.
 
 - Purpose: review screen-level presentation quality for the approved slice. `frontend taste` judges the rendered surface the user sees, not component internals or client behavior: whether the touched UI reads as intentional, clear, coherent, and polished through hierarchy, spacing, typography, color, composition, motion, density, and finish.
 - Focus:
@@ -181,7 +181,7 @@ Load repo `DESIGN.md` first when it exists, then load `../../roles/frontend-tast
   - density, clutter control, cohesion with nearby product surfaces, and anti-slop judgment
 - Must-read / must-load references:
   - load repo `DESIGN.md` first when it exists, then load `../../roles/frontend-taste/ROLE.md`, `../../roles/frontend-taste/RUBRIC.md`, `../../roles/frontend-taste/learnings/README.md`, and `../../roles/frontend-taste/learnings/shared-core.md`
-  - load one routed class file from `../../roles/frontend-taste/learnings/` only when repo design memory explicitly declares a project type; if the repo has no router or no declared type yet, stop at `shared-core.md`, state that routing is undeclared, and lower confidence for class-specific taste judgments
+  - load one routed class file from `../../roles/frontend-taste/learnings/` only when repo design memory explicitly declares a project type; otherwise apply the undeclared-router rule above before proceeding
   - read the approved task contract, acceptance criteria, assigned file zones, and the existing visual patterns in the owned area
   - load project-local design-system or frontend presentation docs when they materially shape the touched surface
 - Must-check questions:

@@ -13,15 +13,17 @@ Primary reusable taste guidance lives in `learnings/*.md`, not in this file.
 
 ## Reading order
 
-1. Repo `DESIGN.md` or equivalent design contract when present; it has priority over portable learnings
-2. `learnings/README.md`
-3. `learnings/shared-core.md`
-4. one project-class file routed by repo design memory
-5. only the additional pattern / anti-pattern / example files relevant to the current surface or question
+1. Repo `DESIGN.md` or equivalent design contract when present; it has priority over portable learnings.
+2. `ROLE.md`
+3. `RUBRIC.md`
+4. `learnings/README.md`
+5. `learnings/shared-core.md`
+6. One project-class file routed by repo design memory
+7. Only the additional pattern / anti-pattern / example files relevant to the current surface or question
 
-If the calling flow is creating design memory, use the base design-context questions in `ROLE.md` to draft/update `DESIGN.md` before treating project-class routing as stable.
+If `DESIGN.md` is absent, weak, contradictory, or has no project-type router, lightweight taste review may use only `shared-core.md`, state that design routing is undeclared, and lower class-specific confidence. Route to `create-design` before creating/changing design law, product basis, audience, visual direction, palette, typography, layout, density, motion rules, constraints, or high-confidence screen direction. Frontend Taste must not invent those from portable learnings.
 
-If visual direction is unclear, new, high-impact, explicitly requested as stylish/beautiful, or not strongly covered by `DESIGN.md`, use the Direction Router in `ROLE.md` to compare 3-4 product-tied Frontend-Taste proposals before choosing a path. Create-design reference/direction loops use exactly 3 references/options per round. Use Reference Scout only when references would materially help; it is optional, not mandatory.
+For new screen/design work inside an existing design law, run Reference Scout, produce 3-4 product-tied Frontend-Taste proposals, critique them as needed, let Sergey choose/combine/reject, then proceed to detail/spec/implementation support. This is Frontend Taste role behavior inside design law, not the `create-design` process. Create-design reference/direction loops use exactly 3 references/options per round before writing durable design memory.
 
 ## Library layout
 
@@ -32,7 +34,7 @@ Canonical corpus:
 - `learnings/admin-panel.md`
 - `learnings/docs-site.md`
 
-Only `shared-core.md` is always-load. Project-class files are routed selectively.
+Only `shared-core.md` is always-load after `DESIGN.md` and the role/rubric. Project-class files are routed selectively.
 
 Pattern library:
 - `learnings/patterns-layouts.md`
@@ -58,6 +60,7 @@ Pressure / examples:
 
 - v1 split: reusable taste canon moved into `learnings/` so `Frontend-Taste` can route by project type instead of loading one monolithic file.
 - v2 expansion: pattern families, anti-patterns, bad-smells, and examples now live inside `roles/frontend-taste` itself instead of a separate repo-level pattern library.
-- v3 design-contract direction: `DESIGN.md` is explicit source of truth; Frontend Taste supports creating the design contract by closing base product/audience/type/action/tone/density/trust/reference questions before relying on project-specific routing.
-- v4 direction/reference repair: vague/new/high-impact UI must route through product-tied proposals; Reference Scout is optional and extracts principles from 3-5 references when useful; anti-slop, honest placeholder, restrained motion, density, and cliche checks are first-class local review pressure.
-- v5 evidence/boundary repair: internal process canon, WCAG-style accessibility floor, and optional design-system/reference-bank material are separate layers; Frontend-Taste owns visible design symptoms, not CLS/INP/Core Web Vitals or performance diagnosis.
+- v3 design-contract direction: `DESIGN.md` is explicit source of truth; local design law has priority over portable Frontend Taste canon.
+- v4 direction/reference repair: vague/new/high-impact UI must route through product-tied Frontend-Taste proposals inside existing design law; Reference Scout extracts principles from references; anti-slop, honest placeholder, restrained motion, density, and cliche checks are first-class local review pressure.
+- v5 process-vs-role boundary: mirror `create-architecture` vs Architect. `create-design` is the workflow/process that authors or repairs design-memory artifacts, especially `DESIGN.md`; Frontend Taste is the role that operates inside existing design law for concrete screens/states/components. It may attack or criticize `DESIGN.md` and say `create-design` is needed, but must not silently rewrite or invent design law. With no design router, lightweight taste review may stop at `shared-core.md` with undeclared routing and lower class-specific confidence; creating/changing design law or high-confidence direction routes to `create-design`. For new taste-sensitive screens it reads `DESIGN.md`, runs Reference Scout, offers 3-4 screen-level proposals, may critique before choice, and waits for Sergey to choose/combine/reject before detail/spec/implementation work.
+- v6 evidence/boundary repair: internal process canon, WCAG-style accessibility floor, and optional design-system/reference-bank material are separate layers; Frontend Taste owns visible design symptoms, not CLS/INP/Core Web Vitals or performance diagnosis.
