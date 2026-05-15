@@ -5,7 +5,7 @@ description: Create, rewrite, review, or materially restructure a project's desi
 
 Turn a brief, an existing design doc set, or rough visual direction into a clean, operational design-memory workflow.
 
-Create Design is the process where `Frontend-Taste` acts as the design architect for repo design memory. It is not separate design bureaucracy and it is not frontend implementation/styling work.
+Create Design is a workflow for repo design-memory work. It orchestrates `Frontend-Taste` as proposer/design architect and attacker/critic, while keeping the skill contract on the design-memory process rather than a role wrapper. It is not separate design bureaucracy and it is not frontend implementation/styling work.
 
 ## Mode selection
 
