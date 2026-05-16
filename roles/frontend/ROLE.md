@@ -67,6 +67,16 @@ Is the UI logic understandable, localized, and not smeared across brittle abstra
 ### Interaction quality
 Does interaction behavior remain accessible, predictable, and correct without drifting into pure visual-taste review?
 
+## Selective reference load
+
+Load these only when the task surface needs them:
+
+- `references/ui-engineering-gate.md`: user-facing UI implementation or review touching components, routes, forms, stateful widgets, layout behavior, or interaction behavior.
+- `references/accessibility-floor.md`: practical accessibility checks for touched UI behavior, forms, dialogs, dynamic states, keyboard paths, focus, labels, and error semantics.
+- `references/react-ui-patterns.md`: React-specific defaults and examples, only when the target repo uses React or a React-based framework.
+
+Do not load UI engineering references for non-UI frontend work unless the calling task touches rendered behavior. Keep framework-specific guidance in references, not in this role contract.
+
 ## Inputs this role cares about
 
 - task contract and acceptance criteria
