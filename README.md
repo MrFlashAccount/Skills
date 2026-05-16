@@ -1,11 +1,12 @@
 # Skills
 
-Editable source repo for OpenClaw skills, reusable roles, and shared conventions.
+Editable source repo for OpenClaw skills, reusable roles, shared reference packages, and conventions.
 
 Use this repo when you want to:
 - find the right skill for a task
 - update how a skill behaves at runtime
 - reuse a role instead of copying role prose into a skill
+- reuse reference material that should not be an active skill
 - keep shared repo conventions in one place
 
 Local OpenClaw reads skills directly from this repo's `SKILL.md` files, so packaged `.skill` bundles are not needed for normal local use.
@@ -17,6 +18,7 @@ Local OpenClaw reads skills directly from this repo's `SKILL.md` files, so packa
 - [Repo map](#repo-map)
 - [Common workflows](#common-workflows)
 - [Skill index](#skill-index)
+- [Shared reference packages](#shared-reference-packages)
 - [Role index](#role-index)
 - [Process docs](#process-docs)
 - [Conventions](#conventions)
@@ -26,13 +28,14 @@ Local OpenClaw reads skills directly from this repo's `SKILL.md` files, so packa
 
 If you need...
 - a runnable skill -> go to [`skills/`](#skill-index)
+- reusable reference material that is not a runnable skill -> go to [`shared/`](#shared-reference-packages)
 - a reusable reviewer/writer/specialist role -> go to [`roles/`](#role-index)
 - a repo-level shared rule or memory convention -> go to [`conventions/`](#conventions)
 - to create or rewrite a skill -> start with [`skills/create-skill`](#skill-index)
 
 ## How this repo works
 
-Think of the repo in three layers:
+Think of the repo in four layers:
 
 1. `skills/` — executable skill source
    - each skill lives in its own folder
@@ -48,11 +51,16 @@ Think of the repo in three layers:
    - shared conventions that multiple roles or skills may reference
    - use these when the rule is broader than one skill but narrower than general repo docs
 
+4. `shared/` — reusable reference packages
+   - these are not runnable skills
+   - use them for cross-skill contracts, snippets, or authoring references that should stay out of the active skill catalog
+
 ## Repo map
 
 ```text
 skills/         runnable skill folders
 roles/          reusable role contracts
+shared/         reusable reference packages, not runtime skills
 conventions/    shared repo-level conventions
 SPDD-lite.md    lightweight process doc
 README.md       onboarding + repo map
@@ -77,6 +85,14 @@ roles/<Role-Name>/
   ROLE.md
   RUBRIC.md
   LEARNINGS.md
+```
+
+### Shared package folder
+
+```text
+shared/<package-name>/
+  README.md
+  *.md          # reference material and snippets
 ```
 
 When a canonical label and folder path differ, the folder path is the source of truth.
@@ -105,6 +121,14 @@ If a skill needs a reusable specialist voice:
 - for sibling skills from a skill, use paths like `../<skill-name>/...`; reserve `skills/<skill-name>/...` for repo-map prose, not runtime load paths
 - adapt it to the current phase
 - keep role identity in `roles/`, not in local copied prose
+
+### Reuse a shared reference package
+
+If a skill needs reusable instructions that are not a runnable skill:
+- load or link the package under `shared/`
+- keep runtime entrypoints out of shared packages; shared packages must not include `SKILL.md`
+- from a skill, reference shared material with skill-root-relative paths like `../../shared/<package>/README.md`
+- copy only the needed snippet or contract into the consuming skill when runtime loading must stay self-contained
 
 ### Add or update a skill
 
@@ -205,6 +229,15 @@ If a skill needs a reusable specialist voice:
   - Use when: the task touches Obsidian notes/workflows.
   - Do not use when: the task has nothing to do with that environment.
 
+## Shared reference packages
+
+Shared packages are reference material for skill authors and workflow skills. They are discoverable from this README but intentionally excluded from the active skill catalog because they do not contain `SKILL.md` entrypoints.
+
+- `shared/delegate`
+  - What it is: reusable delegation-mode principles, worker contract, and inclusion snippets for skills that orchestrate workers or subagents.
+  - Use when: a skill needs to describe delegation behavior, worker handoff constraints, merged reporting, timeouts, or approval boundaries without depending on an active `delegate` skill.
+  - Do not use when: the user is only asking to toggle a runtime delegation mode; there is no installable `delegate` skill in this repo.
+
 ## Role index
 
 Roles are reusable references, not executable skills.
@@ -257,6 +290,7 @@ Use them when a skill needs a stable specialist identity across phases.
 ## Repo rules
 
 - Keep `skills/` as the source of truth for skill runtime behavior.
+- Keep `shared/` as the source of truth for reusable reference packages that must not be active runtime skills.
 - Keep `roles/` as the source of truth for reusable role references.
 - Keep `conventions/` as the source of truth for repo-level reusable conventions.
 - Prefer loading/adapting roles from `roles/` over copying role prose into skills.
