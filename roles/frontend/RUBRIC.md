@@ -8,13 +8,17 @@ Use this as a compact checklist when a calling skill wants frontend implementati
 
 - **Contracts**: Does the client consume backend data/contracts correctly and defensively?
 - **State/async flow**: Are state ownership, derived data, and async transitions clear and stable? Are independent promises started together and awaited only when needed?
-- **States**: Are loading, pending, empty, success, and error states handled intentionally?
+- **States**: Are loading, pending, empty, success, error/retry, focus, disabled, and permission/partial-data states handled intentionally where applicable?
 - **Routing/hydration**: Are route transitions and client/server boundary assumptions safe?
+- **Component architecture**: Are user-facing files/components kept near the ~200 LOC pressure rule, with extraction seams or explicit justification for larger slices? Are data/orchestration and presentation split when that clarifies behavior?
+- **State placement**: Is state kept in the narrowest correct home: local, lifted, context, URL, server/cache, or global client store?
+- **Design-system discipline**: Does the UI use existing tokens, primitives, and scales instead of raw colors, arbitrary spacing, inline style escapes, or local visual law?
 - **Performance mechanics**: Does the implementation avoid async waterfalls, broad/barrel imports, unnecessary render churn, duplicated client I/O, and repeated browser/JS hot-path work?
 - **Maintainability**: Is UI logic localized and understandable instead of brittle or smeared?
-- **Interaction correctness**: Is behavior accessible, predictable, and correct?
-- **Tests**: Do tests prove the claimed frontend behavior instead of only touching it?
-- **Scope**: Is the role staying inside frontend correctness and implementation root causes rather than drifting into visual-taste symptom review?
+- **Accessibility/interaction correctness**: Are native semantics preferred, controls keyboard reachable, accessible names present, focus visible, color not the only signal, and disabled/busy/error semantics correct?
+- **Responsive QA**: Were touched layouts checked at relevant breakpoints, defaulting to 320/768/1024/1440 CSS px when no repo breakpoints are known?
+- **Verification**: Do build/lint/typecheck/tests and, when relevant, screenshots, preview/browser smoke, axe/a11y, or keyboard walkthrough evidence prove the claimed frontend behavior?
+- **Scope**: Is the role staying inside frontend correctness and implementation root causes rather than drifting into visual-taste symptom review or invention?
 - **Learnings**: Were relevant durable learnings from `LEARNINGS.md` applied before making role judgments?
 
 ## Notes
