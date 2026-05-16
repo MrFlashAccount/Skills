@@ -72,6 +72,8 @@ Does interaction behavior remain accessible, predictable, and correct without dr
 Load these only when the task surface needs them:
 
 - `references/ui-engineering-gate.md`: user-facing UI implementation or review touching components, routes, forms, stateful widgets, layout behavior, or interaction behavior.
+- `references/ui-baseline-red-flags.md`: compact PR red flags for ordinary user-facing UI surfaces, especially primitives, destructive actions, mobile viewport traps, forms, data/text presentation, layering, and empty states.
+- `references/interaction-motion-craft.md`: animation, transitions, popovers, press feedback, gestures, reduced motion, or motion-performance implementation.
 - `references/accessibility-floor.md`: practical accessibility checks for touched UI behavior, forms, dialogs, dynamic states, keyboard paths, focus, labels, and error semantics.
 - `references/react-ui-patterns.md`: React-specific defaults and examples, only when the target repo uses React or a React-based framework.
 

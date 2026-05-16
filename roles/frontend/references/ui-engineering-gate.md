@@ -15,6 +15,10 @@ For the touched UI, check:
 - design-system/token discipline
 - verification evidence
 
+Load focused references only when they match the touched surface:
+- `ui-baseline-red-flags.md` for compact PR checks on primitives, destructive actions, mobile viewport traps, forms, data/text presentation, layering, and empty states.
+- `interaction-motion-craft.md` for animation, transitions, popovers, press feedback, gestures, reduced motion, and motion-performance behavior.
+
 Escalate a finding when a failure blocks task completion, hides state, breaks keyboard or assistive-technology use, creates duplicated truth, or makes future changes brittle.
 
 ## Component boundaries
