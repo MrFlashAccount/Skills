@@ -231,7 +231,7 @@ Use them when a skill needs a stable specialist identity across phases.
 - `roles/researcher`
   - Research packet building, context closure, ambiguity cleanup, and readiness preparation before critique and downstream ownership.
 - `roles/security`
-  - Exploitability, auth, injection, secrets, and trust-boundary risk.
+  - Stack-aware exploitability, auth, injection, secrets, and trust-boundary review; includes language/framework references.
 - `roles/tech-writer`
   - Teaching-oriented technical documentation writing and review.
 

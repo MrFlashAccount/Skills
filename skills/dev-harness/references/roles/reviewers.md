@@ -212,22 +212,32 @@ Load repo `DESIGN.md` first when it exists, then load `../../roles/frontend-tast
 
 ## Reviewer role: `security` v1
 
-Load `../../roles/security/ROLE.md` and `../../roles/security/RUBRIC.md` first.
+Load `../../roles/security/ROLE.md`, `../../roles/security/RUBRIC.md`, and `../../roles/security/references/security-review-workflow.md` first. Then identify the languages/frameworks in the approved slice and load every relevant file from `../../roles/security/references/` before judging the diff.
 
-- Purpose: run a focused security review after auth/apps behavior exists for the approved slice. `security` asks whether the touched path is exploitable or introduces a security regression; it is not a second general correctness pass.
+- Purpose: run a focused, stack-aware security review for the approved slice. `security` asks whether the touched path is exploitable or introduces a trust-boundary/security regression; it is not a second general correctness pass and not an implementer.
 - Focus:
+  - identify the language/frameworks from manifests, imports, routes, middleware, config, server/client boundaries, and touched files
+  - load matching security references, including both frontend and backend guidance for full-stack web slices
   - exploitability and security regressions on auth-sensitive or permission-sensitive surfaces
   - auth bypass, privilege escalation, admin-only route/action exposure, and other broken authorization paths
   - CSRF, cookie/session handling, token handling, and trust of client-held auth state
-  - open redirects, iframe/embed/sandbox issues, and remote/local trust-boundary leaks
+  - open redirects, iframe/embed/sandbox issues, SSRF, path traversal, unsafe parsing/deserialization, injection, and remote/local trust-boundary leaks
   - unsafe defaults, unsafe fallbacks, secret leakage, and unsafe logging or transport of sensitive data when they change exploitability or security posture
   - validation or trust-boundary mistakes only when they materially change exploitability
+- Must-read / must-load references:
+  - always load `../../roles/security/ROLE.md`, `../../roles/security/RUBRIC.md`, and `../../roles/security/references/security-review-workflow.md`
+  - load matching files from `../../roles/security/references/`, using `<language>-<framework>-<stack>-security.md` and matching general stack references when present
+  - if no matching reference exists, state that explicitly and continue only with high-confidence general security review
 - Must-check questions:
+  - which language/framework references were loaded, and what evidence selected them?
   - can an unauthenticated or underprivileged actor reach something they should not?
   - can cookies, sessions, CSRF protections, or token handling be bypassed, replayed, or trusted incorrectly?
-  - does any redirect, embed, iframe, origin, remote/local rule, or admin-only path create a concrete security regression?
+  - does any redirect, embed, iframe, origin, remote/local rule, admin-only path, parser, or external-send path create a concrete security regression?
   - did the change introduce an unsafe default, fallback, or exposure that weakens an existing protection?
   - is any validation or trust decision placed at the wrong boundary in a way that changes exploitability?
+- Output contract:
+  - each finding includes severity, impact, `file:line` evidence, reasoning, suggested fix, owner (`backend` or `frontend`), and re-review trigger
+  - if no issue is found, say so and list the reviewed scope plus references loaded
 - Non-goals:
   - not the primary reviewer for business logic, contract hygiene, or generic validation unless the issue changes exploitability or weakens a protection
   - not the primary reviewer for local-path leakage, committed personal docs, prompt/example leakage, retained user data, or consent/retention mistakes when exploitability is not the primary issue; that belongs to `privacy/data-safety`
@@ -237,6 +247,7 @@ Load `../../roles/security/ROLE.md` and `../../roles/security/RUBRIC.md` first.
   - not the primary reviewer for raw runtime performance; that belongs to `performance`
   - not an implementer rewrite pass
 - Escalation rules:
+  - route security fixes to `backend` or `frontend` by code ownership, then re-review after the implementer changes land
   - route correctness, data-flow, and contract issues to `backend` when security is not the primary issue; route client behavior and wiring issues to `frontend`
   - route local-path leakage, committed personal docs, prompt/example leakage, retained user data, and consent/retention mistakes to `privacy/data-safety`
   - route resilience, recovery, rollback, or test-flake concerns to `qa/reliability`
@@ -244,7 +255,8 @@ Load `../../roles/security/ROLE.md` and `../../roles/security/RUBRIC.md` first.
   - route simplification and scope concerns to `critic`
   - if a finding would require cross-ownership edits or scope expansion beyond the approved slice, stop and send it back for re-approval
 - Done criteria:
-  - findings are concrete and security-specific: exploitability, auth bypass, privilege exposure, CSRF/cookie/session issues, open redirects, iframe/embed/sandbox problems, admin-only exposure, secret leakage, unsafe defaults, or trust-boundary leaks
+  - findings are concrete and security-specific: exploitability, auth bypass, privilege exposure, CSRF/cookie/session issues, open redirects, iframe/embed/sandbox problems, admin-only exposure, secret leakage, unsafe defaults, injection/unsafe parsing, or trust-boundary leaks
+  - findings use `file:line` evidence and include suggested fix, owner, and re-review trigger
   - review stays distinct from `backend`, `frontend`, `frontend taste`, `critic`, `privacy/data-safety`, `qa/reliability`, `performance`, and implementer roles
   - output identifies a real security risk/regression or states clearly that no security issue was found in the approved scope
 
