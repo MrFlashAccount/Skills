@@ -207,10 +207,7 @@ If a skill needs reusable instructions that are not a runnable skill:
 
 ### Frontend and architecture specialties
 
-- `skills/vercel-react-best-practices`
-  - What it is: reusable React/Next.js guidance.
-  - Use when: frontend work touches React/Next.js slices.
-  - Do not use when: the task is not React/Next.js work.
+React/Next.js best-practice guidance now lives under `roles/frontend/references/react-ui-patterns.md` and is loaded through the `frontend` role rather than a standalone skill.
 
 - `skills/improve-codebase-architecture`
   - What it is: architecture improvement guidance and artifacts.

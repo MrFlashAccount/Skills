@@ -135,7 +135,7 @@ Load `../../roles/frontend/ROLE.md` and `../../roles/frontend/RUBRIC.md` first.
   - overfetching, duplicate fetch chains, waterfall-heavy loading, brittle async orchestration, and hidden coupling that makes the touched path brittle, unclear, or hard to test
   - bounded transitional UI compatibility only when rollout risk genuinely requires it
 - Must-read / must-load references:
-  - load `vercel-react-best-practices` when the touched slice is React/Next.js
+  - load `../../roles/frontend/references/react-ui-patterns.md` when the touched slice is React/Next.js or another React-based framework
   - read the approved task contract, acceptance criteria, assigned file zones, and the existing frontend patterns in the owned area
   - load project-local frontend, testing, and routing docs when they apply to the owned slice
 - Must-check questions:

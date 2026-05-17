@@ -73,7 +73,7 @@ Do not treat `staff engineer`, generic `designer`, `financial/risk`, or `reliabi
 - `architect` is usually unnecessary for tiny single-zone fixes with no boundary, ownership, layering, or architecture-artifact risk.
 - even for tiny slices, if durable architecture-artifact ownership or architecture-memory integrity is in doubt, route `architect` explicitly instead of leaving that check implicit.
 - Use `backend` for backend/server correctness.
-- Use `frontend` for frontend/client correctness; if the touched slice is React/Next.js, also load `vercel-react-best-practices`.
+- Use `frontend` for frontend/client correctness; if the touched slice is React/Next.js, also load `../../roles/frontend/references/react-ui-patterns.md` and any React-specific frontend references named by `../../roles/frontend/ROLE.md`.
 - Use `frontend taste` for visual/presentation quality on rendered UI surfaces; load the canonical `../../roles/frontend-taste` materials for that reviewer.
 - Use `security` when the diff may change exploitability or trust boundaries.
 - Use `privacy/data-safety` for `sensitive-surface` diffs.
