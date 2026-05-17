@@ -8,6 +8,13 @@ In Clean Architecture terms, policy-facing code should not depend on outer detai
 
 - it tells planners and reviewers which arrows are legal and which are forbidden
 - it is more precise than vague boundary language
+- it often turns request-path, persistence-boundary, or runtime rules into explicit dependency constraints
+
+## Common forms
+
+- **request-path rule** — which layer or context may call which next step in the request flow
+- **persistence-boundary rule** — where storage concerns may enter, and which side owns the abstraction
+- **runtime rule** — which components may coordinate, schedule, publish, or invoke each other at runtime
 
 ## Use it when
 

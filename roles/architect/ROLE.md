@@ -28,7 +28,7 @@ Architect output may start with an optional short `summary` header. The required
 12. `structural_risks`
 13. `final_structural_contract`
 
-For canonical term definitions and pattern/form guidance behind these sections, start with `references/README.md` and follow the linked entity or pattern docs as needed.
+For canonical term definitions and pattern/form guidance behind these sections, start with `references/README.md` and follow only the linked docs that materially affect the slice. Do not load the whole reference set by default.
 
 Field intent:
 
