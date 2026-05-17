@@ -214,39 +214,12 @@ Load repo `DESIGN.md` first when it exists, then load `../../roles/frontend-tast
 
 Load `../../roles/security/ROLE.md` and `../../roles/security/RUBRIC.md` first.
 
-- Purpose: run a focused security review after auth/apps behavior exists for the approved slice. `security` asks whether the touched path is exploitable or introduces a security regression; it is not a second general correctness pass.
-- Focus:
-  - exploitability and security regressions on auth-sensitive or permission-sensitive surfaces
-  - auth bypass, privilege escalation, admin-only route/action exposure, and other broken authorization paths
-  - CSRF, cookie/session handling, token handling, and trust of client-held auth state
-  - open redirects, iframe/embed/sandbox issues, and remote/local trust-boundary leaks
-  - unsafe defaults, unsafe fallbacks, secret leakage, and unsafe logging or transport of sensitive data when they change exploitability or security posture
-  - validation or trust-boundary mistakes only when they materially change exploitability
-- Must-check questions:
-  - can an unauthenticated or underprivileged actor reach something they should not?
-  - can cookies, sessions, CSRF protections, or token handling be bypassed, replayed, or trusted incorrectly?
-  - does any redirect, embed, iframe, origin, remote/local rule, or admin-only path create a concrete security regression?
-  - did the change introduce an unsafe default, fallback, or exposure that weakens an existing protection?
-  - is any validation or trust decision placed at the wrong boundary in a way that changes exploitability?
-- Non-goals:
-  - not the primary reviewer for business logic, contract hygiene, or generic validation unless the issue changes exploitability or weakens a protection
-  - not the primary reviewer for local-path leakage, committed personal docs, prompt/example leakage, retained user data, or consent/retention mistakes when exploitability is not the primary issue; that belongs to `privacy/data-safety`
-  - not the primary reviewer for frontend correctness or UX unless the issue creates a security regression
-  - not the primary reviewer for simplification, scope pressure, or overbuilding; that belongs to `critic`
-  - not the primary reviewer for resilience, rollback, flaky behavior, or incident-process review; that belongs to `qa/reliability`
-  - not the primary reviewer for raw runtime performance; that belongs to `performance`
-  - not an implementer rewrite pass
-- Escalation rules:
-  - route correctness, data-flow, and contract issues to `backend` when security is not the primary issue; route client behavior and wiring issues to `frontend`
-  - route local-path leakage, committed personal docs, prompt/example leakage, retained user data, and consent/retention mistakes to `privacy/data-safety`
-  - route resilience, recovery, rollback, or test-flake concerns to `qa/reliability`
-  - route throughput, latency, or resource-budget issues to `performance`
-  - route simplification and scope concerns to `critic`
-  - if a finding would require cross-ownership edits or scope expansion beyond the approved slice, stop and send it back for re-approval
+- Purpose: use the canonical Security role as the reviewer-only adapter for exploitability, abuse-path, and trust-boundary risk in the approved slice. The Security role owns its own workflow details.
+- Phase boundary: apply Security only when the primary issue is security posture or exploitability; route privacy/data-safety, plain backend/frontend correctness, resilience, performance, taste, and scope-pressure issues to their own reviewers.
 - Done criteria:
-  - findings are concrete and security-specific: exploitability, auth bypass, privilege exposure, CSRF/cookie/session issues, open redirects, iframe/embed/sandbox problems, admin-only exposure, secret leakage, unsafe defaults, or trust-boundary leaks
-  - review stays distinct from `backend`, `frontend`, `frontend taste`, `critic`, `privacy/data-safety`, `qa/reliability`, `performance`, and implementer roles
-  - output identifies a real security risk/regression or states clearly that no security issue was found in the approved scope
+  - review stays inside the approved slice and does not become an implementation pass
+  - findings are evidence-backed and security-specific, or the reviewer states that Security found no issue in scope
+  - any requested fix remains owned by the appropriate implementer role, with Security re-review after the fix lands
 
 ## Reviewer role: `privacy/data-safety` v1
 
