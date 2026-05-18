@@ -15,10 +15,8 @@ Build the writing contract before drafting or restructuring anything.
 
 - Read [`../../roles/dev-rel/ROLE.md`](../../roles/dev-rel/ROLE.md).
 - Read [`../../roles/dev-rel/RUBRIC.md`](../../roles/dev-rel/RUBRIC.md).
-- Read [`../../roles/dev-rel/LEARNINGS.md`](../../roles/dev-rel/LEARNINGS.md).
 - Start with [references/task-contract.md](references/task-contract.md).
 - Read [references/readme-workflow.md](references/readme-workflow.md).
-- Read [`../../roles/dev-rel/references/readme-checklist.md`](../../roles/dev-rel/references/readme-checklist.md) before structure selection and final review.
 - Read [references/review-policy.md](references/review-policy.md) before the first independent review.
 
 ## Routing
@@ -41,9 +39,9 @@ If unsure, treat it as `full-cycle`.
 
 ## Rules
 
-- Treat `../../roles/dev-rel/ROLE.md` and `../../roles/dev-rel/RUBRIC.md` as the general DevRel doctrine.
-- Treat `../../roles/dev-rel/references/readme-checklist.md` as the repository `readme` doctrine and final quality bar.
+- Treat `../../roles/dev-rel/ROLE.md` and `../../roles/dev-rel/RUBRIC.md` as the general DevRel doctrine for this skill.
 - This skill owns the action sequence and process gates for repository `readme` work.
+- Use the DevRel role boundary for final quality judgment without deep-linking to DevRel learnings or role-internal references from this skill.
 - Run the pre-draft contract/structure attack before writing the full draft.
 - Do not invent proof.
 - Do not use exact metrics unless confirmed.

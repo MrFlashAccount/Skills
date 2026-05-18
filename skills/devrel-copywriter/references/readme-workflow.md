@@ -2,7 +2,7 @@
 
 Use this only for repository `readme` work.
 
-This file owns the process. Use `../../roles/dev-rel/ROLE.md` and `../../roles/dev-rel/RUBRIC.md` for the general DevRel quality bar. Use `../../roles/dev-rel/references/readme-checklist.md` for concrete repository `readme` doctrine.
+This file owns the process. Use `../../roles/dev-rel/ROLE.md` and `../../roles/dev-rel/RUBRIC.md` for the general DevRel quality bar. Do not deep-link from this skill into DevRel learnings or role-internal reference files.
 
 ## Flow
 
@@ -77,13 +77,13 @@ For each direction, state:
 
 Choose a direction before full drafting.
 
-Reject directions that cannot satisfy the role-owned repository `readme` checklist.
+Reject directions that cannot satisfy the DevRel role's repository `readme` quality bar.
 
 ## 5. Pre-draft critique / contract attack
 
 Attack the plan before writing the full draft.
 
-Check the proposed contract and structure against the role lenses plus `../../roles/dev-rel/references/readme-checklist.md`.
+Check the proposed contract and structure against the DevRel role lenses plus the DevRel rubric.
 
 Attack especially for:
 - vague or fake-differentiated positioning
@@ -111,7 +111,7 @@ If the task already authorizes the rewrite direction, proceed.
 
 Write for scan speed and first-use confidence.
 
-Use the chosen structure direction plus the role-owned repository `readme` checklist to guide the draft.
+Use the chosen structure direction plus the DevRel role guidance and rubric to guide the draft.
 
 ## 8. DevRel critic attack
 
@@ -119,7 +119,7 @@ This stage is required.
 
 After the first full draft, run a critic-style attack using the DevRel and critic lenses. The critic should attack the draft, not lightly polish it.
 
-The critic must attack the draft using the DevRel lenses and `../../roles/dev-rel/references/readme-checklist.md`, with special attention to first-screen clarity, product identity, proof, and whether the promised first-value path is real.
+The critic must attack the draft using the DevRel role lenses and rubric, with special attention to first-screen clarity, product identity, proof, and whether the promised first-value path is real.
 
 Fix structural issues before final polish.
 
@@ -133,4 +133,4 @@ Run a humanizer-style cleanup after meaningful fixes. Improve tone and rhythm wi
 
 ## 11. Final review and checklist
 
-Run independent review, then pass the DevRel repository `readme` checklist/final role review before finalizing.
+Run independent review, then pass final DevRel role/rubric review before finalizing.
