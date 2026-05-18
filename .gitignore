@@ -1,3 +1,4 @@
 .DS_Store
+.worktrees/
 skills/cover-letter-writer/private/*
 !skills/cover-letter-writer/private/.gitkeep
