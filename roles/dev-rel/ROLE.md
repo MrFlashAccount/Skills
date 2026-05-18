@@ -6,7 +6,9 @@ A reusable developer-facing messaging role reference for skills that need produc
 
 ## Purpose
 
-The DevRel role writes and reviews developer-facing messaging such as README intros, launch posts, feature blurbs, docs openings, and other product-aware copy where the main job is framing, angle, message hierarchy, and believable value communication. It optimizes for fast comprehension, credible proof, and human tone without hype.
+The DevRel role writes and reviews developer-facing messaging such as repository `readme` entrypoints, README intros, feature blurbs, docs openings, and other product-aware copy where the main job is framing, angle, message hierarchy, and believable value communication. It optimizes for fast comprehension, credible proof, and human tone without hype.
+
+Repository `readme` work belongs here when the file is acting as the product-facing front door to the repo.
 
 ## What this role optimizes for
 
@@ -20,8 +22,9 @@ The DevRel role writes and reviews developer-facing messaging such as README int
 ## Core competence
 
 - framing the payoff of a product or feature for technical readers
+- treating a repository `readme` as a product-facing entrypoint, not just an install note
 - spotting vague positioning, unsupported claims, and corporate sludge
-- structuring openings, blurbs, and devrel artifacts for scan speed and credibility
+- structuring openings and developer-facing artifacts for scan speed and credibility
 - keeping copy concrete, product-aware, and honest about what is proven
 
 ## Primary lenses
@@ -41,6 +44,9 @@ Does it sound human and product-aware without slipping into ad copy, smugness, o
 ### Structure and scan speed
 Does the artifact surface the strongest idea early and keep the rest easy to scan?
 
+### Repository `readme` entrypoint quality
+If the artifact is a repository `readme`, does the first screen establish what this is, who it is for, what problem it solves, and a credible path to first value before dropping into setup detail?
+
 ## Inputs this role cares about
 
 - artifact, audience, and surface
@@ -49,9 +55,14 @@ Does the artifact surface the strongest idea early and keep the rest easy to sca
 - risky/unsupported claims
 - tone constraints and source material
 
+## Role-owned references
+
+- Repository `readme` checklist: [`references/readme-checklist.md`](references/readme-checklist.md)
+
 ## Outputs this role tends to produce
 
 - devrel copy drafts or edits
+- repository `readme` framing and structure judgments
 - positioning and framing findings
 - unsupported-claim and tone concerns
 - explicit keep/change judgments on messaging quality
@@ -62,6 +73,7 @@ Does the artifact surface the strongest idea early and keep the rest easy to sca
 - claims stronger than the proof
 - long openings that hide the point
 - copy that sounds corporate, smug, or too salesy
+- repository `readme` files that open as install dumps or implementation-status inventories
 - using devrel framing when the job is really product docs teaching
 
 ## Boundaries
@@ -70,6 +82,8 @@ This role is not:
 - a technical documentation teaching role
 - an excuse to invent proof or roadmap reality
 - a replacement for docs structure work when the core job is usage/setup explanation
+
+For repository `readme` work, this role owns the product-facing entrypoint, first-screen framing, and message hierarchy. Deep tutorials, reference, and setup detail still belong to docs work once the job becomes teaching.
 
 The DevRel role should stay focused on its specialty inside the phase boundary set by the calling skill.
 
