@@ -18,8 +18,17 @@ Own framing, positioning, message hierarchy, and copy polish. Prioritize believa
 - Read [`../../roles/dev-rel/ROLE.md`](../../roles/dev-rel/ROLE.md).
 - Read [`../../roles/dev-rel/RUBRIC.md`](../../roles/dev-rel/RUBRIC.md).
 - Start with [references/task-contract.md](references/task-contract.md).
-- For `full-cycle` work, also read [references/surfaces.md](references/surfaces.md).
+- For repository `readme` work, also read [references/readme-checklist.md](references/readme-checklist.md).
+- For non-`readme` `full-cycle` work, also read [references/surfaces.md](references/surfaces.md).
 - Read [references/review-policy.md](references/review-policy.md) before the first independent review.
+
+## Routing
+
+Route first.
+
+- If the main job is explaining usage, setup, product flow, migration, or API behavior, use `docs-writer` instead.
+- If the job is a repository `readme` as the product-facing entry point, keep it in this skill and load [references/readme-checklist.md](references/readme-checklist.md).
+- `readme` work in this skill owns repository framing end-to-end: product identity, first-screen pitch, structure choice, quickstart path, and final messaging quality.
 
 ## Task class
 
@@ -31,7 +40,8 @@ If unsure, treat it as `full-cycle`.
 ## Workflow
 
 - `tiny`: short contract -> edit -> humanizer pass -> one independent review.
-- `full-cycle`: contract -> critique -> short debate -> draft -> humanizer pass -> review checkpoint 1 -> fix -> humanizer pass -> review checkpoint 2.
+- standard `full-cycle`: contract -> critique -> short debate -> draft -> humanizer pass -> review checkpoint 1 -> fix -> humanizer pass -> review checkpoint 2.
+- repository `readme` `full-cycle`: contract -> product identity pass -> `2-3` structure directions -> choose direction -> draft -> humanizer pass -> mandatory DevRel critic attack -> fix -> humanizer pass -> review checkpoint 1 -> fix -> humanizer pass -> review checkpoint 2.
 
 ## Workflow details
 
@@ -76,6 +86,8 @@ Use two voices:
 
 Run one short round, then synthesize. Do not let the debate sprawl.
 
+For repository `readme` work, use this same adversarial lens again later as the mandatory critic attack stage after the first full draft.
+
 Skip debate for `tiny` edits.
 
 ### 4. Draft or edit
@@ -89,6 +101,12 @@ Defaults:
 - prefer one strong idea per paragraph
 - use examples when they remove ambiguity fast
 - compress instead of stacking adjectives
+
+For repository `readme` work:
+- make the first screen carry product identity, audience, problem, and payoff fast
+- show what the product does before deep implementation detail
+- include a believable path to first value, usually a short quickstart
+- push limits, caveats, and deeper internals below the opening unless immediately blocking
 
 ### 5. Run the built-in humanizer pass
 
@@ -110,13 +128,16 @@ Review must happen after the relevant humanizer pass.
 
 For `tiny` work, run one independent review pass.
 For `full-cycle` work, run two review checkpoints: review the whole artifact against the policy, fix findings, then re-humanize and review again before finalizing.
+For repository `readme` work, the final review must also pass the checklist in [references/readme-checklist.md](references/readme-checklist.md).
 
 ## Rules
 
 - Treat `../../roles/dev-rel/ROLE.md` as the canonical writing/review identity for developer-facing messaging; this skill supplies the devrel-stage workflow and contracts.
+- Repository `readme` work stays inside this skill; do not offload the product-facing entry-point framing to `docs-writer`.
 - Do not invent proof.
 - Do not use exact metrics unless confirmed.
 - Do not promise roadmap items as current reality.
 - Do not sound like ad copy unless the user explicitly wants ad copy.
 - Keep developer trust above cleverness.
 - Prefer fast, clean structure over ornate phrasing.
+- For repository `readme` work, do not let installation, internal context, or implementation status replace product identity and first-use clarity.
