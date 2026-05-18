@@ -55,6 +55,10 @@ If the artifact is a repository `readme`, does the first screen establish what t
 - risky/unsupported claims
 - tone constraints and source material
 
+## Role-owned references
+
+- Repository `readme` checklist: [`references/readme-checklist.md`](references/readme-checklist.md)
+
 ## Outputs this role tends to produce
 
 - devrel copy drafts or edits

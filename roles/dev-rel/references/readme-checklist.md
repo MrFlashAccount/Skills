@@ -2,7 +2,7 @@
 
 Use this only for repository `readme` work.
 
-This is a surface-level final check. The canonical quality doctrine lives in `../../roles/dev-rel/ROLE.md`, `../../roles/dev-rel/RUBRIC.md`, and `../../roles/dev-rel/LEARNINGS.md`.
+This is a surface-level final check. The canonical quality doctrine lives in `../ROLE.md`, `../RUBRIC.md`, and `../LEARNINGS.md`.
 
 ## Final check
 

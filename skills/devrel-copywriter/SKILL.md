@@ -18,7 +18,7 @@ Build the writing contract before drafting or restructuring anything.
 - Read [`../../roles/dev-rel/LEARNINGS.md`](../../roles/dev-rel/LEARNINGS.md).
 - Start with [references/task-contract.md](references/task-contract.md).
 - Read [references/readme-workflow.md](references/readme-workflow.md).
-- Read [references/readme-checklist.md](references/readme-checklist.md) before final review.
+- Read [`../../roles/dev-rel/references/readme-checklist.md`](../../roles/dev-rel/references/readme-checklist.md) before final review.
 - Read [references/review-policy.md](references/review-policy.md) before the first independent review.
 
 ## Routing
