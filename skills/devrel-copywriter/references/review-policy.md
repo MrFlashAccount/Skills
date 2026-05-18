@@ -1,6 +1,14 @@
 # Devrel review policy
 
-Review every draft for these failure modes. Review after the humanizer pass, not before.
+Review every draft for these failure modes.
+
+For full-cycle work, keep review passes independent:
+- one independent pre-draft critique of the contract/structure proposal
+- one independent draft attack before synthesis
+- review checkpoint 1 after the first humanizer pass
+- review checkpoint 2 after fixes and the second humanizer pass
+
+If feasible, the reviewer at a checkpoint should not be the author of the current draft/pass.
 
 ## Must catch
 
@@ -12,6 +20,7 @@ Review every draft for these failure modes. Review after the humanizer pass, not
 - tone that sounds corporate, smug, or too salesy
 - copy that assumes context the reader does not have
 - humanizer edits that softened the voice but distorted facts, angle, or structure
+- review passes that quietly turned into self-review or light polishing instead of an actual attack/checkpoint
 
 ## Nice-to-have improvements
 
@@ -22,6 +31,8 @@ Review every draft for these failure modes. Review after the humanizer pass, not
 - cut repeated ideas
 
 ## Final check
+
+Humanizer is polish, not the structural decision-maker. Structural disputes should be resolved before or during synthesis, not by the humanizer.
 
 Before finalizing, ask:
 - Would a skeptical developer believe this?
