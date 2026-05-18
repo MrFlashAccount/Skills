@@ -52,7 +52,7 @@ Load `../../roles/backend/ROLE.md` and `../../roles/backend/RUBRIC.md` first.
   - treat migration and rollout safety as part of correctness; avoid unsafe destructive changes unless explicitly approved
   - keep auth, security checks, logging, and testability aligned with project-local backend patterns for the touched slice
   - if code changes the real backend contract, update the contract-adjacent docs/architecture notes in-slice when they exist; do not leave docs describing an older request shape or persistence behavior
-  - before finishing, ensure required file headers and JSDoc/TSDoc for the owned slice are present and current; if contract, lifecycle, side effects, or invariants changed in a non-obvious way, the code is incomplete until the docs reflect it
+  - before finishing, ensure required file headers and language-appropriate code docs for the owned slice are present and current; if contract, lifecycle, side effects, or invariants changed in a non-obvious way, the code is incomplete until the docs reflect it
   - do not add ornamental comments; document contract-bearing behavior only
   - if a required contract or frontend dependency is missing, contradictory, or would force cross-ownership edits, stop and surface the blocker instead of guessing
 - Non-goals:
@@ -83,7 +83,7 @@ Load `../../roles/frontend/ROLE.md` and `../../roles/frontend/RUBRIC.md` first.
   - stay inside assigned frontend ownership; consume existing or explicitly approved contracts, do not invent backend fields/endpoints or silently widen scope across the stack
   - prefer clear component boundaries, predictable client state, and framework-native React/Next.js patterns over ad hoc helpers or incidental complexity
   - treat UX quality, interaction clarity, responsive behavior, and visual fit with the product as implementation requirements
-  - before finishing, ensure required file headers and JSDoc/TSDoc for the owned slice are present and current; if state ownership, async lifecycle, side effects, accessibility-sensitive behavior, or contract assumptions changed in a non-obvious way, the code is incomplete until the docs reflect it
+  - before finishing, ensure required file headers and language-appropriate code docs for the owned slice are present and current; if state ownership, async lifecycle, side effects, accessibility-sensitive behavior, or contract assumptions changed in a non-obvious way, the code is incomplete until the docs reflect it
   - do not add ornamental comments; document contract-bearing behavior only
   - if the backend contract is missing, contradictory, or insufficient, stop and surface the blocker instead of guessing
   - keep changes reviewable and scoped to the approved slice

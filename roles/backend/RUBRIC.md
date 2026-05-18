@@ -11,7 +11,7 @@ Use this as a compact checklist when a calling skill wants backend implementatio
 - **Validation**: Are invalid input, failure, and edge-case paths handled intentionally?
 - **Auth/permissions**: Are access checks and trust boundaries enforced in the right place?
 - **Persistence/rollout**: Are migration, rollback, and compatibility risks accounted for?
-- **Code docs**: For changed backend surfaces, are file headers and typed JSDoc/TSDoc present where contracts, data shapes, side effects, error semantics, or invariants would otherwise stay implicit?
+- **Code docs**: For changed backend surfaces, are file headers and language-appropriate code docs present where contracts, data shapes, side effects, error semantics, or invariants would otherwise stay implicit?
 - **Observability**: Will failures be diagnosable in production or during operation?
 - **Tests**: Do tests prove the claimed backend behavior instead of only touching it?
 - **Scope**: Is the role staying inside the backend slice rather than drifting into unrelated ownership?

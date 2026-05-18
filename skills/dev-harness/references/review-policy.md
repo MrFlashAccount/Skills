@@ -26,7 +26,7 @@ Read this before any review pass.
 - After an in-scope fix pass, re-run validation before re-review, and prefer a fresh independent reviewer for re-review by default.
 - If blockers remain after the max passes, stop as blocked and surface unresolved findings.
 - `Sensitive-surface` work is not clean until the scanner is clean or explicitly dispositioned, and the relevant reviewer states either a concrete risk or that the approved slice is clean within scope.
-- Absence of required file headers or JSDoc/TSDoc blocks closure when contract, lifecycle, side effects, invariants, or failure semantics would otherwise remain implicit.
+- Absence of required file headers or language-appropriate code docs blocks closure when contract, lifecycle, side effects, invariants, or failure semantics would otherwise remain implicit.
 - For trivial, internal, or otherwise obvious changes, documentation gaps should be treated as `should-fix` or `not-applicable`, not as an automatic blocker.
 
 ## Critic contract
