@@ -107,16 +107,8 @@ Current non-trivial mappings:
 
 - developer-facing README intros, technical launch framing, developer-facing product positioning -> `skills/devrel-copywriter`
 - docs, setup, usage, onboarding, API explanation -> `skills/docs-writer`
-- customer research, VOC, ICP, JTBD, win/loss synthesis -> `skills/customer-research`
-- market-facing messaging, landing-page/product copy, positioning-in-copy -> `skills/copywriting`
-- editing or refreshing existing market-facing copy -> `skills/copy-editing`
-- content planning, topic strategy, editorial priorities -> `skills/content-strategy`
-- launch planning and go-to-market rollout framing -> `skills/launch`
-- pricing, packaging, monetization, pricing-page strategy -> `skills/pricing`
-- sales collateral, objection handling, rep-facing materials -> `skills/sales-enablement`
-- competitor profiles and comparison-ready competitive research -> `skills/competitor-profiling`
-- cold outreach, founder-led outbound, prospecting emails -> `skills/cold-email`
-- welcome, nurture, onboarding, re-engagement, or trigger-based email flows -> `skills/lifecycle-email`
+- market-facing copy, copy refreshes, content planning, launch planning, pricing/packaging, sales collateral, competitor dossiers, customer research, cold outreach, or lifecycle email -> `skills/marketing`
+  - routing inside Marketing: cold outreach -> `roles/marketing/references/cold-email.md`; warm/product-triggered email -> `roles/marketing/references/lifecycle-email.md`; launch planning -> `roles/marketing/references/launch.md`; pricing/packaging -> `roles/marketing/references/pricing.md`; sales collateral -> `roles/marketing/references/sales-enablement.md`; market-facing net-new copy -> `roles/marketing/references/copywriting.md`; refresh existing market copy -> `roles/marketing/references/copy-editing.md`; content planning -> `roles/marketing/references/content-strategy.md`; VOC/ICP/JTBD research -> `roles/marketing/references/customer-research.md`; competitor dossiers/comparison inputs -> `roles/marketing/references/competitor-profiling.md`
 - create or refactor a skill -> `skills/create-skill`
 - planning + slice + approval flow for code work -> `skills/dev-harness`
 - multi-role review -> `skills/code-review-orchestrator`
@@ -185,55 +177,11 @@ If a skill needs reusable instructions that are not a runnable skill:
 
 ### Marketing and go-to-market
 
-- `skills/customer-research`
-  - What it is: customer-evidence synthesis for ICP, JTBD, VOC, objections, proof, and research-backed marketing decisions.
-  - Use when: the task needs customer research, review mining, interview/call synthesis, or evidence-backed segment understanding.
-  - Do not use when: the main job is direct competitor dossiers from URLs rather than customer-side evidence.
-
-- `skills/copywriting`
-  - What it is: market-facing copywriting for pages, campaigns, ads, email blocks, and sales surfaces.
-  - Use when: the main job is writing or rewriting new market-facing copy with audience fit, proof discipline, and conversion logic.
-  - Do not use when: the main job is developer-facing README/product framing or technical docs.
-
-- `skills/copy-editing`
-  - What it is: editing and refresh workflow for existing market-facing copy.
-  - Use when: the asset already exists and needs tighter clarity, proof, fit, or CTA flow.
-  - Do not use when: the page or campaign needs a net-new strategy or rewrite.
-
-- `skills/content-strategy`
-  - What it is: planning harness for market-facing content programs, topic systems, and editorial priorities.
-  - Use when: the task is deciding what content to create, for whom, why, and in what order.
-  - Do not use when: the job is writing final landing-page copy or repository docs.
-
-- `skills/launch`
-  - What it is: launch planning and rollout framing for releases, betas, GA pushes, relaunches, and launch packets.
-  - Use when: the main job is audience/asset sequencing, launch framing, proof boundaries, or cross-functional handoffs.
-  - Do not use when: the task is docs-only, pricing-only, or pure research synthesis.
-
-- `skills/pricing`
-  - What it is: pricing, packaging, monetization, and pricing-message strategy.
-  - Use when: the task is deciding what to charge, how to package value, or how to explain a pricing change credibly.
-  - Do not use when: the task is just generic site copy or standalone paywall UX.
-
-- `skills/sales-enablement`
-  - What it is: buyer-facing collateral, objection handling, decks, one-pagers, and sales-message systems.
-  - Use when: reps or champions need credible materials to move deals forward.
-  - Do not use when: the task is deciding the pricing model or planning the launch itself.
-
-- `skills/competitor-profiling`
-  - What it is: evidence-backed competitor profiles and comparison-ready competitive intelligence.
-  - Use when: the task needs structured competitor dossiers, market scans, or inputs for comparison pages and battlecards.
-  - Do not use when: the main job is customer-side VOC/ICP research or final public comparison copy.
-
-- `skills/cold-email`
-  - What it is: outbound email strategy and copy for net-new prospects, including first-touch emails, subject lines, and short follow-up sequences.
-  - Use when: the main job is earning replies from unsolicited B2B outreach without sounding templated.
-  - Do not use when: the audience is already warm or the sequence is lifecycle-driven.
-
-- `skills/lifecycle-email`
-  - What it is: warm email sequence planning and drafting for welcome, onboarding, nurture, re-engagement, expansion, and launch-follow-up flows.
-  - Use when: the task is triggered by a user, product, customer, or campaign lifecycle moment.
-  - Do not use when: the main job is cold prospecting or SDR outbound.
+- `skills/marketing`
+  - What it is: a thin entrypoint for market-facing work that loads the Marketing role and routes to the right role-owned reference.
+  - Use when: the task is copywriting, copy editing, content strategy, launch planning, pricing/packaging, sales collateral, competitor profiling, customer research, cold outreach, or lifecycle email.
+  - Do not use when: the main job is developer-facing README/docs/adoption/trust work; keep that in `skills/devrel-copywriter` or `skills/docs-writer`.
+  - Routing: `roles/marketing/references/cold-email.md`, `lifecycle-email.md`, `launch.md`, `pricing.md`, `sales-enablement.md`, `copywriting.md`, `copy-editing.md`, `content-strategy.md`, `customer-research.md`, `competitor-profiling.md`
 
 ### Planning, review, and implementation flow
 
@@ -316,7 +264,7 @@ Use them when a skill needs a stable specialist identity across phases.
 - `roles/dev-rel`
   - Developer-facing framing, positioning, and messaging quality.
 - `roles/marketing`
-  - Marketing positioning, messaging, ICP/personas, launch/campaign framing, and objection handling.
+  - Marketing positioning, messaging, ICP/personas, launch/campaign framing, and objection handling, with task-type references owned under `roles/marketing/references/`.
 - `roles/frontend`
   - Frontend/client implementation and review judgment.
 - `roles/frontend-taste`

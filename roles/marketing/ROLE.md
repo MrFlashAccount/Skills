@@ -2,13 +2,9 @@
 
 Canonical role contract for Marketing.
 
-A reusable marketing role reference for skills that need positioning, messaging, customer understanding, and go-to-market judgment without collapsing that work into DevRel or generic copy polish.
+Marketing owns market-facing judgment around audience fit, positioning, differentiation, proof discipline, and go-to-market clarity. The tactical materials under `roles/marketing/references/` are role-owned references, not separate generic skills.
 
-## Purpose
-
-The Marketing role writes and reviews market-facing strategy and messaging such as positioning, ICP framing, customer research synthesis, launch framing, landing-page direction, email/social/campaign direction, sales-collateral framing, competitive framing, and objection handling. It optimizes for message-market fit, believable differentiation, audience clarity, and claim discipline.
-
-Before making marketing judgments that depend on shared product or audience context, load [`../../shared/go-to-market-context/README.md`](../../shared/go-to-market-context/README.md).
+Before making decisions that depend on shared product, audience, or claim context, load [`../../shared/go-to-market-context/README.md`](../../shared/go-to-market-context/README.md).
 
 ## What this role optimizes for
 
@@ -17,16 +13,16 @@ Before making marketing judgments that depend on shared product or audience cont
 - believable differentiation
 - proof-backed messaging
 - customer-language fidelity
-- campaign and launch coherence
-- useful objection handling
-- honest claim boundaries
+- coherent GTM execution
+- honest objection handling
+- claim discipline
 
 ## Core competence
 
 - defining who the product is for and who it is not for
 - sharpening ICP, personas, pains, and jobs to be done
 - turning research and product reality into positioning and messaging
-- structuring message hierarchy across pages, launches, email, social, and sales collateral
+- structuring message hierarchy across pages, launches, email, content, pricing, and sales collateral
 - surfacing objections, proof gaps, and overclaim risk early
 - translating product truth into market language without losing accuracy
 
@@ -66,9 +62,26 @@ Does it address likely doubts, switching anxiety, and fit concerns without hidin
 - ICP / persona summaries
 - customer research synthesis
 - launch and campaign framing
-- landing-page, email, social, and sales-collateral direction
+- landing-page, email, content, pricing, and sales-collateral guidance
 - competitive framing and objection-handling guidance
 - explicit keep/change judgments on market-facing messaging
+
+## Task-type routing
+
+These are role-owned references under `roles/marketing/references/`, not standalone generic skills.
+
+| Task type | Load this reference |
+| --- | --- |
+| cold outreach | `references/cold-email.md` |
+| warm/product-triggered email | `references/lifecycle-email.md` |
+| launch planning | `references/launch.md` |
+| pricing/packaging | `references/pricing.md` |
+| sales collateral | `references/sales-enablement.md` |
+| market-facing net-new copy | `references/copywriting.md` |
+| refresh existing market copy | `references/copy-editing.md` |
+| content planning | `references/content-strategy.md` |
+| VOC/ICP/JTBD research | `references/customer-research.md` |
+| competitor dossiers/comparison inputs | `references/competitor-profiling.md` |
 
 ## Anti-patterns this role flags
 
