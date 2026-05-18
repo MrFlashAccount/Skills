@@ -82,6 +82,9 @@ Required gates:
 5. implementation only after explicit human approval
 6. PR only after final review
 
+The proposer stage's `2-3` structure directions are options inside the `Structure` gate, not separate permission to draft or implement.
+Choosing a structure direction does not authorize README writing; implementation still waits for an approved detailed proposal.
+
 ## 5. Proposer stage: propose `2-3` structure directions
 
 The proposer owns the framing and structure proposal.

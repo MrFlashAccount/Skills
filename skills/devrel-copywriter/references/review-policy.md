@@ -5,9 +5,15 @@ Review every draft for these failure modes.
 For full-cycle work, keep review passes independent.
 Each README co-design gate needs its own independent reviewer, not only the final draft:
 - logo / visual direction
+  - attack fit, recognizability, mismatch with repo/user/audience, generic AI slop, misleading polish
 - punch / tagline
+  - attack clarity, memorability, boringness, overclaim, wrong tone, first-screen payoff
 - structure
+  - attack audience routing, first path to value, missing sections, catalog/architecture-first trap, duplicated flow
 - detailed proposal
+  - attack factual claims, source of truth, implementation scope, unapproved assumptions, overclaiming
+- implementation / final draft
+  - attack drift from approved proposal, unsupported runtime/install claims, link/path accuracy, tone, completeness
 - one independent pre-draft critique of the contract/structure proposal
 - one independent draft attack before synthesis
 - review checkpoint 1 after the first humanizer pass
