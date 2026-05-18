@@ -140,4 +140,4 @@ Run a humanizer-style cleanup after meaningful fixes. Improve tone and rhythm wi
 
 ## 11. Final review and checklist
 
-Run independent review, then pass [readme-checklist.md](readme-checklist.md) before finalizing.
+Run independent review, then pass [readme-checklist.md](../../../roles/dev-rel/references/readme-checklist.md) before finalizing.
