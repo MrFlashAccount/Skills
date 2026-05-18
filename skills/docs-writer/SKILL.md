@@ -23,6 +23,7 @@ Do not use this skill when the main job is messaging:
 - launch copy, changelog blurbs, or marketing-leaning narrative
 
 For those, use `devrel-copywriter`.
+A full repository `readme` rewrite or product-facing repo `readme` entrypoint remains DevRel-owned even when `docs-writer` is consulted for source-grounding or deeper sections.
 
 ## Read order
 
@@ -90,5 +91,6 @@ Apply the review policy after writing, not just at the end. For `full-cycle` wor
 - Do not hide prerequisites or glue code.
 - Do not let onboarding turn into full reference.
 - Treat README teaching sections as docs work; treat README framing and polish as messaging work.
+- Do not claim ownership of the full product-facing repository `readme`; that entrypoint belongs to `devrel-copywriter`.
 - Prefer one strong example over many weak ones.
 - Keep style polish optional and subordinate to clarity.

@@ -4,7 +4,7 @@ Build a short contract before drafting.
 
 ## Required fields
 
-- `Artifact`: README intro, launch post, X thread, feature blurb, changelog note, landing section, docs opener, etc.
+- `Artifact`: repository `readme`, README opening, or repo-entrypoint rewrite.
 - `Audience`: who this is for and how technical they are.
 - `Surface`: where it will live.
 - `Goal`: what the reader should understand, feel, or do.
