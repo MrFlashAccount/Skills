@@ -8,20 +8,21 @@ This file owns the process. Use `../../roles/dev-rel/ROLE.md` and `../../roles/d
 
 1. discovery / contract
 2. gather references
-3. product identity pass
-4. proposer stage: propose `2-3` structure directions
-5. independent pre-draft critique / contract attack
-6. short debate / reconciliation
-7. get approval when the chosen direction materially changes public positioning or structure expectations
-8. draft
-9. independent DevRel critic attack
-10. synthesizer/editor resolves critique and owns the final draft
-11. humanizer pass
-12. review checkpoint 1
-13. fix
-14. humanizer pass
-15. review checkpoint 2
-16. final checklist
+3. product truth gate
+4. product identity pass
+5. proposer stage: propose `2-3` structure directions
+6. independent pre-draft critique / contract attack
+7. short debate / reconciliation
+8. get approval when the chosen direction materially changes public positioning or structure expectations
+9. draft
+10. independent DevRel critic attack
+11. synthesizer/editor resolves critique and owns the final draft
+12. humanizer pass
+13. review checkpoint 1
+14. fix
+15. humanizer pass
+16. review checkpoint 2
+17. final checklist
 
 ## 1. Discovery / contract
 
@@ -49,9 +50,27 @@ Collect the concrete sources that can ground the `readme`:
 
 Do not invent a quickstart. Verify the proposed first-value path against repo/source/config/examples/docs before treating it as usable.
 
-## 3. Product identity pass
+## 3. Product truth gate
 
-Do this before choosing structure or drafting.
+Do this before visual direction, structure choice, or drafting.
+
+You must be able to state, from inspected sources, all of the following:
+
+- what the product or project is
+- who the target audience or user is
+- the audience `JTBD`
+- why it exists / what purpose it serves
+- the primary promise or selling point
+- the key features or capabilities
+- what makes it meaningfully different
+- the shortest believable path to first value
+- the source or proof basis for each of the above
+
+If any of these are unknown, fuzzy, or unsupported, stop. Ask, research, or inspect the repo/docs/product sources until the contract is real enough to support the README.
+
+## 4. Product identity pass
+
+Do this only after the product truth gate is satisfied and before choosing structure or drafting.
 
 Lock the product packaging:
 
@@ -84,6 +103,8 @@ Required gates:
 
 The proposer stage's `2-3` structure directions are options inside the `Structure` gate, not separate permission to draft or implement.
 Choosing a structure direction does not authorize README writing; implementation still waits for an approved detailed proposal.
+
+If the first-screen README framing depends on a logo, hero, or visual direction that is not fixed yet, stop before draft or implementation. Compare concrete metaphor territories, get human approval on the direction, fix the asset choice, then continue.
 
 ## 5. Proposer stage: propose `2-3` structure directions
 
