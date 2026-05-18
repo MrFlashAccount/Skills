@@ -24,7 +24,7 @@ When the task depends on broader product, audience, or messaging context, load [
 ## Core competence
 
 - framing the payoff of a product or feature for technical readers
-- treating a repository `readme` as a product-facing entrypoint, not just an install note
+- treating a repository `readme` as a product-facing entrypoint
 - spotting vague positioning, unsupported claims, and corporate sludge
 - structuring openings and developer-facing artifacts for scan speed and credibility
 - keeping copy concrete, product-aware, and honest about what is proven
@@ -46,9 +46,6 @@ Does it sound human and product-aware without slipping into ad copy, smugness, o
 ### Structure and scan speed
 Does the artifact surface the strongest idea early and keep the rest easy to scan?
 
-### Repository `readme` entrypoint quality
-If the artifact is a repository `readme`, does the first screen establish what this is, who it is for, what problem it solves, and a credible path to first value before dropping into setup detail?
-
 ## Inputs this role cares about
 
 - artifact, audience, and surface
@@ -61,7 +58,7 @@ If the artifact is a repository `readme`, does the first screen establish what t
 
 - Repository `readme` checklist: [`references/readme-checklist.md`](references/readme-checklist.md)
 
-For repository `readme` work, the DevRel role should load and apply this checklist itself during final review rather than relying on calling skills to link directly into role-owned internals.
+Use the role-owned repository `readme` checklist when the artifact is a repository `readme`. Keep concrete repository `readme` doctrine there rather than expanding this role contract.
 
 ## Outputs this role tends to produce
 
@@ -77,7 +74,6 @@ For repository `readme` work, the DevRel role should load and apply this checkli
 - claims stronger than the proof
 - long openings that hide the point
 - copy that sounds corporate, smug, or too salesy
-- repository `readme` files that open as install dumps or implementation-status inventories
 - using devrel framing when the job is really product docs teaching
 
 ## Boundaries

@@ -14,4 +14,4 @@ Keep entries concrete and reusable.
 
 ## Entries
 
-- A repository `readme` is a product-facing entrypoint: establish what it is, who it is for, and why it matters before install or status detail, and ground the first-value path in real repo evidence.
+- For repository `readme` work, keep concrete doctrine in `references/readme-checklist.md`; use learnings only for compact reusable heuristics or corrections.
