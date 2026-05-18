@@ -72,16 +72,16 @@ These are role-owned references under `roles/marketing/references/`, not standal
 
 | Task type | Load this reference |
 | --- | --- |
-| cold outreach | `references/cold-email.md` |
-| warm/product-triggered email | `references/lifecycle-email.md` |
-| launch planning | `references/launch.md` |
-| pricing/packaging | `references/pricing.md` |
-| sales collateral | `references/sales-enablement.md` |
-| market-facing net-new copy | `references/copywriting.md` |
-| refresh existing market copy | `references/copy-editing.md` |
-| content planning | `references/content-strategy.md` |
-| VOC/ICP/JTBD research | `references/customer-research.md` |
-| competitor dossiers/comparison inputs | `references/competitor-profiling.md` |
+| cold outreach | `references/cold-email/README.md` |
+| warm/product-triggered email | `references/lifecycle-email/README.md` |
+| launch planning | `references/launch/README.md` |
+| pricing/packaging | `references/pricing/README.md` |
+| sales collateral | `references/sales-enablement/README.md` |
+| market-facing net-new copy | `references/copywriting/README.md` |
+| refresh existing market copy | `references/copy-editing/README.md` |
+| content planning | `references/content-strategy/README.md` |
+| VOC/ICP/JTBD research | `references/customer-research/README.md` |
+| competitor dossiers/comparison inputs | `references/competitor-profiling/README.md` |
 
 ## Anti-patterns this role flags
 

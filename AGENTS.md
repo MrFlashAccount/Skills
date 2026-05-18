@@ -14,6 +14,10 @@
 - Skills are either simple atomic skills (`caveman`/`forthright`/`hat` style) or workflows that describe a high-level process and the roles they invoke.
 - Do not describe a role as the essence of a skill; workflows orchestrate roles, and reusable roles live under `roles/`.
 - Skills may invoke, load, or adapt roles, but skill workflows must not deep-link role-internal references or checklists.
+- Roles are self-contained; use `hat <role>` when you need to work through a role lens.
+- A skill is a workflow/process tool, not a facade for re-exporting a role.
+- Do not create `skills/<role>` just to mirror or re-export `roles/<role>`.
+- Skills must not deep-load role internals unless an explicit repo-level exception documents that coupling.
 - Roles own and load their own local references and checklists for their domain; if a skill needs a role-specific quality gate, tell the role to run it rather than pointing to role-internal files.
 - In skill runtime instructions, resolve paths relative to the skill root (`skills/<name>/`), not relative to nested reference files.
 - For repo-level shared roles/conventions from a skill, use skill-root-relative paths such as `../../roles/<role>/...` or `../../conventions/<file>.md`.
