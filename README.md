@@ -235,6 +235,11 @@ Shared packages are reference material for skill authors and workflow skills. Th
   - Use when: a skill needs to describe delegation behavior, worker handoff constraints, merged reporting, timeouts, or approval boundaries without depending on an active `delegate` skill.
   - Do not use when: the user is only asking to toggle a runtime delegation mode; there is no installable `delegate` skill in this repo.
 
+- `shared/go-to-market-context`
+  - What it is: reusable GTM/product messaging foundation covering product overview, audience, JTBD, pains, alternatives, differentiation, objections, proof points, messaging hierarchy, constraints, and open questions.
+  - Use when: a role or skill needs shared product/audience/messaging context before doing positioning, launch framing, campaign work, or developer-facing framing.
+  - Do not use when: the task only needs a standalone workflow or artifact-specific execution with no shared context dependency.
+
 ## Role index
 
 Roles are reusable references, not executable skills.
@@ -248,6 +253,8 @@ Use them when a skill needs a stable specialist identity across phases.
   - Adversarial pressure on assumptions, scope, risk, and complexity.
 - `roles/dev-rel`
   - Developer-facing framing, positioning, and messaging quality.
+- `roles/marketing`
+  - Marketing positioning, messaging, ICP/personas, launch/campaign framing, and objection handling.
 - `roles/frontend`
   - Frontend/client implementation and review judgment.
 - `roles/frontend-taste`

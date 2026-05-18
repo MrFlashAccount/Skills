@@ -26,5 +26,6 @@ Apply these when the artifact is a repository `readme`.
 
 ## Notes
 
+Load `../../shared/go-to-market-context/README.md` when broader product/audience/messaging context is needed before evaluating developer-facing framing.
 This rubric is phase-agnostic.
 A calling skill decides how to apply it in the current phase.

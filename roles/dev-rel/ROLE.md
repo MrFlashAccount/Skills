@@ -10,6 +10,8 @@ The DevRel role writes and reviews developer-facing messaging such as repository
 
 Repository `readme` work belongs here when the file is acting as the product-facing front door to the repo.
 
+When the task depends on broader product, audience, or messaging context, load [`../../shared/go-to-market-context/README.md`](../../shared/go-to-market-context/README.md) first, then adapt it for technical readers.
+
 ## What this role optimizes for
 
 - believable value
@@ -84,8 +86,11 @@ This role is not:
 - a technical documentation teaching role
 - an excuse to invent proof or roadmap reality
 - a replacement for docs structure work when the core job is usage/setup explanation
+- a generic marketing owner for ICP, campaign strategy, or broad market positioning outside developer-facing framing
 
 For repository `readme` work, this role owns the product-facing entrypoint, first-screen framing, and message hierarchy. Deep tutorials, reference, and setup detail still belong to docs work once the job becomes teaching.
+
+DevRel and Marketing may share the same GTM foundation, but they optimize for different outcomes: DevRel for developer trust and credible technical framing; Marketing for audience fit, market positioning, and campaign performance.
 
 The DevRel role should stay focused on its specialty inside the phase boundary set by the calling skill.
 
