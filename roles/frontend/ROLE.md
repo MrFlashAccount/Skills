@@ -35,6 +35,15 @@ The Frontend role is strong at:
 
 ## Primary lenses
 
+### Documentation contracts
+Does the slice keep contract-significant code documentation current where signatures, types, or component names do not fully explain behavior?
+
+For frontend work, this means:
+- typed docs for exported hooks, components, helpers, composables, and data adapters when state ownership, async lifecycle, interaction invariants, or contract assumptions are not obvious from the signature
+- file-level headers for non-trivial route, page, container, stateful UI, or orchestration files
+- documentation that captures loading, error, and empty-state expectations, side effects, ownership of state, accessibility-sensitive behavior, and intentional non-goals when those contracts would otherwise stay implicit
+- comments that explain lifecycle, contract, or behavior rather than narrating obvious JSX or syntax
+
 ### Contract consumption
 Does the client use backend data/contracts correctly and defensively?
 

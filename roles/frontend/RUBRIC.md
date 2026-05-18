@@ -12,6 +12,7 @@ Use this as a compact checklist when a calling skill wants frontend implementati
 - **Routing/hydration**: Are route transitions and client/server boundary assumptions safe?
 - **Component architecture**: Are user-facing files/components kept near the ~200 LOC pressure rule, with extraction seams or explicit justification for larger slices? Are data/orchestration and presentation split when that clarifies behavior?
 - **State placement**: Is state kept in the narrowest correct home: local, lifted, context, URL, server/cache, or global client store?
+- **Code docs**: Are file purpose, state ownership, async/data-contract assumptions, critical UI states, and exported hook/helper/component contracts documented where they would otherwise be non-obvious?
 - **Design-system discipline**: Does the UI use existing tokens, primitives, and scales instead of raw colors, arbitrary spacing, inline style escapes, mixed primitive systems, or local visual law?
 - **Baseline UI red flags**: Are destructive actions confirmed, mobile viewport/fixed UI safe, errors near their fields/actions, paste allowed, data/text formatted robustly, z-index layered by scale, and empty states given one clear next action?
 - **Interaction/motion craft**: If motion exists, does it have a purpose, frequency-appropriate duration, origin-aware behavior, interruptible transitions/gestures, reduced-motion fallback, and transform/opacity-first performance?

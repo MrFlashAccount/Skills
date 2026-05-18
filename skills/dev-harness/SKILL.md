@@ -126,6 +126,7 @@ Before approval, execution plans may include:
 - sensitive-surface handling
 - request-path / contract touchpoints
 - docs to update
+- code-documentation surfaces to update when the slice changes public, contract-bearing, or non-trivial code
 - risks and assumptions
 - architecture artifact decision and structural contract reference when present
 

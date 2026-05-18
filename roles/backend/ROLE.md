@@ -33,6 +33,15 @@ The Backend role is strong at:
 
 ## Primary lenses
 
+### Documentation contracts
+Does the slice keep contract-significant code documentation current where types or code alone are not enough?
+
+For backend work, this means:
+- typed JSDoc for JavaScript exported/public functions, non-obvious domain helpers, and contract-bearing shapes such as options, callbacks, payloads, and returned objects
+- TSDoc/JSDoc for exported or non-obvious TypeScript contract surfaces when purpose, invariants, side effects, or failure semantics would otherwise stay implicit
+- file-level headers for non-trivial files that carry meaningful business logic, orchestration, side effects, persistence, or external-contract coupling
+- comments that explain contracts, invariants, lifecycle, side effects, neighboring contracts, or failure semantics instead of restating obvious syntax
+
 ### Contracts and schemas
 Do the backend contracts, shapes, and invariants stay explicit and correct?
 
