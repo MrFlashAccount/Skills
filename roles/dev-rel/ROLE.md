@@ -59,6 +59,8 @@ If the artifact is a repository `readme`, does the first screen establish what t
 
 - Repository `readme` checklist: [`references/readme-checklist.md`](references/readme-checklist.md)
 
+For repository `readme` work, the DevRel role should load and apply this checklist itself during final review rather than relying on calling skills to link directly into role-owned internals.
+
 ## Outputs this role tends to produce
 
 - devrel copy drafts or edits
