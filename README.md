@@ -105,8 +105,18 @@ Current non-trivial mappings:
 
 ### Find the right skill
 
-- README/launch framing, messaging, positioning -> `skills/devrel-copywriter`
+- developer-facing README intros, technical launch framing, developer-facing product positioning -> `skills/devrel-copywriter`
 - docs, setup, usage, onboarding, API explanation -> `skills/docs-writer`
+- customer research, VOC, ICP, JTBD, win/loss synthesis -> `skills/customer-research`
+- market-facing messaging, landing-page/product copy, positioning-in-copy -> `skills/copywriting`
+- editing or refreshing existing market-facing copy -> `skills/copy-editing`
+- content planning, topic strategy, editorial priorities -> `skills/content-strategy`
+- launch planning and go-to-market rollout framing -> `skills/launch`
+- pricing, packaging, monetization, pricing-page strategy -> `skills/pricing`
+- sales collateral, objection handling, rep-facing materials -> `skills/sales-enablement`
+- competitor profiles and comparison-ready competitive research -> `skills/competitor-profiling`
+- cold outreach, founder-led outbound, prospecting emails -> `skills/cold-email`
+- welcome, nurture, onboarding, re-engagement, or trigger-based email flows -> `skills/lifecycle-email`
 - create or refactor a skill -> `skills/create-skill`
 - planning + slice + approval flow for code work -> `skills/dev-harness`
 - multi-role review -> `skills/code-review-orchestrator`
@@ -172,6 +182,58 @@ If a skill needs reusable instructions that are not a runnable skill:
   - What it is: ultra-compressed reply mode.
   - Use when: the user wants short, blunt, token-efficient output.
   - Do not use when: the reply needs nuance, safety wording, or normal tone.
+
+### Marketing and go-to-market
+
+- `skills/customer-research`
+  - What it is: customer-evidence synthesis for ICP, JTBD, VOC, objections, proof, and research-backed marketing decisions.
+  - Use when: the task needs customer research, review mining, interview/call synthesis, or evidence-backed segment understanding.
+  - Do not use when: the main job is direct competitor dossiers from URLs rather than customer-side evidence.
+
+- `skills/copywriting`
+  - What it is: market-facing copywriting for pages, campaigns, ads, email blocks, and sales surfaces.
+  - Use when: the main job is writing or rewriting new market-facing copy with audience fit, proof discipline, and conversion logic.
+  - Do not use when: the main job is developer-facing README/product framing or technical docs.
+
+- `skills/copy-editing`
+  - What it is: editing and refresh workflow for existing market-facing copy.
+  - Use when: the asset already exists and needs tighter clarity, proof, fit, or CTA flow.
+  - Do not use when: the page or campaign needs a net-new strategy or rewrite.
+
+- `skills/content-strategy`
+  - What it is: planning harness for market-facing content programs, topic systems, and editorial priorities.
+  - Use when: the task is deciding what content to create, for whom, why, and in what order.
+  - Do not use when: the job is writing final landing-page copy or repository docs.
+
+- `skills/launch`
+  - What it is: launch planning and rollout framing for releases, betas, GA pushes, relaunches, and launch packets.
+  - Use when: the main job is audience/asset sequencing, launch framing, proof boundaries, or cross-functional handoffs.
+  - Do not use when: the task is docs-only, pricing-only, or pure research synthesis.
+
+- `skills/pricing`
+  - What it is: pricing, packaging, monetization, and pricing-message strategy.
+  - Use when: the task is deciding what to charge, how to package value, or how to explain a pricing change credibly.
+  - Do not use when: the task is just generic site copy or standalone paywall UX.
+
+- `skills/sales-enablement`
+  - What it is: buyer-facing collateral, objection handling, decks, one-pagers, and sales-message systems.
+  - Use when: reps or champions need credible materials to move deals forward.
+  - Do not use when: the task is deciding the pricing model or planning the launch itself.
+
+- `skills/competitor-profiling`
+  - What it is: evidence-backed competitor profiles and comparison-ready competitive intelligence.
+  - Use when: the task needs structured competitor dossiers, market scans, or inputs for comparison pages and battlecards.
+  - Do not use when: the main job is customer-side VOC/ICP research or final public comparison copy.
+
+- `skills/cold-email`
+  - What it is: outbound email strategy and copy for net-new prospects, including first-touch emails, subject lines, and short follow-up sequences.
+  - Use when: the main job is earning replies from unsolicited B2B outreach without sounding templated.
+  - Do not use when: the audience is already warm or the sequence is lifecycle-driven.
+
+- `skills/lifecycle-email`
+  - What it is: warm email sequence planning and drafting for welcome, onboarding, nurture, re-engagement, expansion, and launch-follow-up flows.
+  - Use when: the task is triggered by a user, product, customer, or campaign lifecycle moment.
+  - Do not use when: the main job is cold prospecting or SDR outbound.
 
 ### Planning, review, and implementation flow
 

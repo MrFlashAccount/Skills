@@ -94,6 +94,21 @@ Marketing and DevRel may share the same GTM foundation, but they have different 
 
 The Marketing role should stay focused on its specialty inside the phase boundary set by the calling skill.
 
+## Routing and handoff
+
+Marketing owns market-facing judgment built on audience, positioning, proof, and go-to-market fit.
+
+Route out when the main job shifts to:
+- `roles/dev-rel` or `skills/devrel-copywriter`: developer-facing README entrypoints, technical launch framing, repo-first product positioning, and developer-trust messaging
+- `roles/tech-writer` or `skills/docs-writer`: setup, onboarding, migration, usage, reference docs, and other success-through-explanation work
+- `skills/forthright` or `skills/humanizer`: pure compression, polish, or tone cleanup without meaningful marketing judgment
+- architecture, planning, or repo-structure skills: process, codebase, and structural work that is not really a marketing decision
+
+Collaborate rather than hand off completely when:
+- DevRel needs shared GTM context but the final surface is still developer-facing
+- Docs need messaging boundaries, claim discipline, or audience context from Marketing
+- Sales, launch, pricing, or customer-research work needs Marketing judgment plus their own execution workflow
+
 ## Phase adapters
 
 Calling skills should adapt this role by phase instead of forking its identity.
