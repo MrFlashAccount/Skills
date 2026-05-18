@@ -13,18 +13,9 @@ Use this as a compact checklist when a calling skill wants devrel judgment. `ROL
 - **Structure and scan speed**: Does the artifact surface the strongest idea early and keep the rest easy to scan?
 - **Learnings**: Were relevant durable learnings from `LEARNINGS.md` applied before making role judgments?
 
-## Repository `readme` checks
-
-Apply these when the artifact is a repository `readme`.
-
-- **First screen**: Is it immediately clear what this is, who it is for, and why it matters?
-- **Pitch quality**: Does it explain the problem solved and what the product does without generic filler?
-- **Audience / JTBD**: Is the intended reader or job-to-be-done explicit enough to shape the structure?
-- **First-value path**: Is there a credible, grounded path to first value based on the repo, config, examples, docs, or source reality?
-- **Examples and links**: Are examples or deeper links used where they earn trust or reduce ambiguity?
-- **Content discipline**: Does it avoid turning the opening into an implementation-status dump, roadmap dump, or deep-doc replacement?
-
 ## Notes
 
+Load `../../shared/go-to-market-context/README.md` when broader product/audience/messaging context is needed before evaluating developer-facing framing.
+When the artifact is a repository `readme`, apply `references/readme-checklist.md` for the concrete repository `readme` doctrine and final pass.
 This rubric is phase-agnostic.
 A calling skill decides how to apply it in the current phase.

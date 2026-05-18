@@ -105,8 +105,9 @@ Current non-trivial mappings:
 
 ### Find the right skill
 
-- README/launch framing, messaging, positioning -> `skills/devrel-copywriter`
+- developer-facing README intros, technical launch framing, developer-facing product positioning -> `skills/devrel-copywriter`
 - docs, setup, usage, onboarding, API explanation -> `skills/docs-writer`
+- market-facing copy, copy refreshes, content planning, launch planning, pricing/packaging, sales collateral, competitor dossiers, customer research, cold outreach, or lifecycle email -> `roles/marketing` (start at `roles/marketing/ROLE.md` and follow the role's own task-type routing table)
 - create or refactor a skill -> `skills/create-skill`
 - planning + slice + approval flow for code work -> `skills/dev-harness`
 - multi-role review -> `skills/code-review-orchestrator`
@@ -173,6 +174,15 @@ If a skill needs reusable instructions that are not a runnable skill:
   - Use when: the user wants short, blunt, token-efficient output.
   - Do not use when: the reply needs nuance, safety wording, or normal tone.
 
+### Marketing and go-to-market
+
+- `roles/marketing`
+  - What it is: the self-contained Marketing role for market-facing work.
+  - Start at: `roles/marketing/ROLE.md`
+  - Use when: the task is copywriting, copy editing, content strategy, launch planning, pricing/packaging, sales collateral, competitor profiling, customer research, cold outreach, or lifecycle email.
+  - Do not use when: the main job is developer-facing README/docs/adoption/trust work; keep that in `skills/devrel-copywriter` or `skills/docs-writer`.
+  - Routing: follow the Marketing role's own task-type routing table.
+
 ### Planning, review, and implementation flow
 
 - `skills/create-skill`
@@ -235,6 +245,11 @@ Shared packages are reference material for skill authors and workflow skills. Th
   - Use when: a skill needs to describe delegation behavior, worker handoff constraints, merged reporting, timeouts, or approval boundaries without depending on an active `delegate` skill.
   - Do not use when: the user is only asking to toggle a runtime delegation mode; there is no installable `delegate` skill in this repo.
 
+- `shared/go-to-market-context`
+  - What it is: reusable GTM/product messaging foundation covering product overview, audience, JTBD, pains, alternatives, differentiation, objections, proof points, messaging hierarchy, constraints, and open questions.
+  - Use when: a role or skill needs shared product/audience/messaging context before doing positioning, launch framing, campaign work, or developer-facing framing.
+  - Do not use when: the task only needs a standalone workflow or artifact-specific execution with no shared context dependency.
+
 ## Role index
 
 Roles are reusable references, not executable skills.
@@ -248,6 +263,8 @@ Use them when a skill needs a stable specialist identity across phases.
   - Adversarial pressure on assumptions, scope, risk, and complexity.
 - `roles/dev-rel`
   - Developer-facing framing, positioning, and messaging quality.
+- `roles/marketing`
+  - Marketing positioning, messaging, ICP/personas, launch/campaign framing, and objection handling.
 - `roles/frontend`
   - Frontend/client implementation and review judgment.
 - `roles/frontend-taste`

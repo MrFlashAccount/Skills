@@ -10,6 +10,8 @@ The DevRel role writes and reviews developer-facing messaging such as repository
 
 Repository `readme` work belongs here when the file is acting as the product-facing front door to the repo.
 
+When the task depends on broader product, audience, or messaging context, load [`../../shared/go-to-market-context/README.md`](../../shared/go-to-market-context/README.md) first, then adapt it for technical readers.
+
 ## What this role optimizes for
 
 - believable value
@@ -22,7 +24,7 @@ Repository `readme` work belongs here when the file is acting as the product-fac
 ## Core competence
 
 - framing the payoff of a product or feature for technical readers
-- treating a repository `readme` as a product-facing entrypoint, not just an install note
+- treating a repository `readme` as a product-facing entrypoint
 - spotting vague positioning, unsupported claims, and corporate sludge
 - structuring openings and developer-facing artifacts for scan speed and credibility
 - keeping copy concrete, product-aware, and honest about what is proven
@@ -44,9 +46,6 @@ Does it sound human and product-aware without slipping into ad copy, smugness, o
 ### Structure and scan speed
 Does the artifact surface the strongest idea early and keep the rest easy to scan?
 
-### Repository `readme` entrypoint quality
-If the artifact is a repository `readme`, does the first screen establish what this is, who it is for, what problem it solves, and a credible path to first value before dropping into setup detail?
-
 ## Inputs this role cares about
 
 - artifact, audience, and surface
@@ -59,7 +58,7 @@ If the artifact is a repository `readme`, does the first screen establish what t
 
 - Repository `readme` checklist: [`references/readme-checklist.md`](references/readme-checklist.md)
 
-For repository `readme` work, the DevRel role should load and apply this checklist itself during final review rather than relying on calling skills to link directly into role-owned internals.
+Use the role-owned repository `readme` checklist when the artifact is a repository `readme`. Keep concrete repository `readme` doctrine there rather than expanding this role contract.
 
 ## Outputs this role tends to produce
 
@@ -75,7 +74,6 @@ For repository `readme` work, the DevRel role should load and apply this checkli
 - claims stronger than the proof
 - long openings that hide the point
 - copy that sounds corporate, smug, or too salesy
-- repository `readme` files that open as install dumps or implementation-status inventories
 - using devrel framing when the job is really product docs teaching
 
 ## Boundaries
@@ -84,8 +82,11 @@ This role is not:
 - a technical documentation teaching role
 - an excuse to invent proof or roadmap reality
 - a replacement for docs structure work when the core job is usage/setup explanation
+- a generic marketing owner for ICP, campaign strategy, or broad market positioning outside developer-facing framing
 
 For repository `readme` work, this role owns the product-facing entrypoint, first-screen framing, and message hierarchy. Deep tutorials, reference, and setup detail still belong to docs work once the job becomes teaching.
+
+DevRel and Marketing may share the same GTM foundation, but they optimize for different outcomes: DevRel for developer trust and credible technical framing; Marketing for audience fit, market positioning, and campaign performance.
 
 The DevRel role should stay focused on its specialty inside the phase boundary set by the calling skill.
 

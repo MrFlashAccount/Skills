@@ -13,8 +13,17 @@
 - Every skill listed in `README.md` must include compact guidance in this exact shape: `What it is`, `Use when`, `Do not use when`.
 - Skills are either simple atomic skills (`caveman`/`forthright`/`hat` style) or workflows that describe a high-level process and the roles they invoke.
 - Do not describe a role as the essence of a skill; workflows orchestrate roles, and reusable roles live under `roles/`.
-- Skills may invoke, load, or adapt roles, but skill workflows must not deep-link role-internal references or checklists.
-- Roles own and load their own local references and checklists for their domain; if a skill needs a role-specific quality gate, tell the role to run it rather than pointing to role-internal files.
+- Roles are self-contained knowledge/thinking containers.
+- Use `hat <role>` when you need to converse or work through a role lens.
+- A skill is a workflow/process tool, not a facade for one role.
+- Do not create `skills/<role>` just to mirror, load, or re-export `roles/<role>`.
+- Skills may reference a role entrypoint and rubric when the skill is a real process adapter that needs that role boundary or quality bar.
+- Allowed from `skills/**`: `roles/<role>/ROLE.md`.
+- Allowed from `skills/**`: `roles/<role>/RUBRIC.md`.
+- Forbidden from `skills/**`: `roles/<role>/LEARNINGS.md`.
+- Forbidden from `skills/**`: `roles/<role>/references/**`.
+- Detailed role references, checklists, and templates are loaded by the role itself, not by skills.
+- If a process adapter needs an exception, make that exception explicit and local; do not imply blanket access to role internals.
 - In skill runtime instructions, resolve paths relative to the skill root (`skills/<name>/`), not relative to nested reference files.
 - For repo-level shared roles/conventions from a skill, use skill-root-relative paths such as `../../roles/<role>/...` or `../../conventions/<file>.md`.
 - For sibling skills from a skill, use skill-root-relative paths such as `../<skill-name>/...`; do not use `skills/<skill-name>/...` inside runtime instructions unless describing the repository map rather than a load path.
