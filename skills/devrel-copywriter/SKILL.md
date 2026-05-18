@@ -35,16 +35,19 @@ If unsure, treat it as `full-cycle`.
 ## Workflow
 
 - `tiny`: short contract -> edit -> humanizer pass -> one independent review. If feasible, the reviewer should not be the author of the current draft/pass.
-- repository `readme` `full-cycle`: contract -> proposer framing/structure proposal -> independent pre-draft DevRel critic attack -> short debate/reconciliation -> draft -> independent DevRel critic attack -> synthesizer/editor resolves critique and owns the final draft -> humanizer pass -> review checkpoint 1 -> fix -> humanizer pass -> review checkpoint 2 -> final checklist.
+- repository `readme` `full-cycle`: contract -> product/audience/proof gate -> proposer framing/structure proposal -> independent pre-draft DevRel critic attack -> short debate/reconciliation -> draft -> independent DevRel critic attack -> synthesizer/editor resolves critique and owns the final draft -> humanizer pass -> review checkpoint 1 -> fix -> humanizer pass -> review checkpoint 2 -> final checklist.
 
 ## Rules
 
 - Treat `../../roles/dev-rel/ROLE.md` and `../../roles/dev-rel/RUBRIC.md` as the general DevRel doctrine for this skill.
 - This skill owns the action sequence and process gates for repository `readme` work.
-- Use the DevRel role boundary for final quality judgment without deep-linking to DevRel learnings or role-internal references from this skill.
+- Use the DevRel role boundary for final quality judgment without deep-linking to DevRel learnings or role-internal reference files from this skill.
+- In `full-cycle` README work, do not choose visual direction, structure, or draft until you can state what the product is, who it is for, why it exists, its primary promise, key capabilities, differentiation, first-value path, and the source basis for those claims.
+- If the README opening depends on an unfixed logo, hero, or visual direction, stop before drafting or implementation; compare concrete metaphor territories, get human approval, then continue.
 - In full-cycle mode, the proposer owns the framing/structure proposal.
 - The independent DevRel critic attacks the proposal and later the draft; the critic does not act as a light polisher.
 - The synthesizer/editor resolves critique and owns the final draft; do not average proposer and critic output or blindly accept either side.
+- Require the quickstart or first-value path to be checked against the repo, source, config, examples, or docs before presenting it as real.
 - Run the pre-draft contract/structure attack before writing the full draft.
 - Do not invent proof.
 - Do not use exact metrics unless confirmed.
