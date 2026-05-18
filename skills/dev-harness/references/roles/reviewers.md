@@ -70,6 +70,7 @@ Load `../../roles/critic/ROLE.md` and `../../roles/critic/RUBRIC.md` first.
   - did the task widen beyond the approved goal, file zones, or acceptance?
   - is there a simpler, cheaper, or clearer path that preserves the contract?
   - does anything add brittleness, hidden coupling, or rollout risk without enough payoff?
+  - are contract-significant docs missing where that absence hides invariants, lifecycle, side effects, or failure semantics, or are comments noisy/stale enough to add drift risk?
 - Non-goals:
   - not a second implementer, rewrite pass, or redesign machine
   - not a second discovery worker or repo-tour role unless a concrete contradiction forces it
@@ -100,6 +101,7 @@ Load `../../roles/backend/ROLE.md` and `../../roles/backend/RUBRIC.md` first.
 - Must-check questions:
   - does this preserve or intentionally change the backend contract in a clear, reviewable way, without silent widening or hidden invariant drift?
   - did request payload shape, persistence behavior, or side effects drift without the contract/docs being updated to match?
+  - is any required code documentation missing such that public/backend contract surfaces, side effects, invariants, or error semantics can no longer be read reliably from the slice?
   - are validation, retry/timeout handling, and error paths explicit enough for the touched backend flow?
   - does any async or request-serving path now perform blocking synchronous persistence/I/O or equivalent avoidable blocking work?
   - do data writes, reads, async work, and background-job behavior stay coherent under edge cases, partial failure, retries, and duplicate delivery?
@@ -141,6 +143,7 @@ Load `../../roles/frontend/ROLE.md` and `../../roles/frontend/RUBRIC.md` first.
 - Must-check questions:
   - is data/loading ownership at the right boundary for this stack, or has it leaked into arbitrary component or watcher flows?
   - do loading, error, empty, pending, and success states exist, wire correctly, and provide clear user feedback?
+  - is any required code documentation missing such that state ownership, async lifecycle, side effects, accessibility-sensitive behavior, or contract assumptions can no longer be read reliably from the slice?
   - can any async action or promise hang without terminal state or visible feedback?
   - is contract consumption clear and stable, without hidden coupling to route state, hydration state, or server data?
   - does the pattern create racey state, duplicated fetch ownership, waterfall chains, or behavior that is hard to test with confidence?

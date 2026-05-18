@@ -12,6 +12,7 @@ Use this as a compact checklist when a calling skill wants challenge pressure. `
 - **Simplicity**: Can this be simpler, narrower, or less brittle?
 - **Contradictions**: Are there conflicting facts, fuzzy branches, or unresolved ambiguity?
 - **Risk visibility**: What meaningful risk is easy to miss?
+- **Documentation signal**: Is documentation missing where contracts/invariants would otherwise be implicit, or noisy/stale enough to add drift risk instead of clarity?
 - **Blockers**: What should stop approval, start, or acceptance right now?
 - **Output fit**: Is the challenge expressed in the caller's required contract shape instead of vague commentary?
 - **Learnings**: Were relevant durable learnings from `LEARNINGS.md` applied before making role judgments?

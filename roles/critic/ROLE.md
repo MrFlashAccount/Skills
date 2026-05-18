@@ -51,6 +51,9 @@ Do the inputs, proposal, or result contain contradictions, fuzzy branches, or un
 ### Risk visibility
 What meaningful risk is present but easy to miss if the work is accepted too quickly?
 
+### Documentation signal
+Is the code documentation sufficient where missing docs would hide contracts or invariants, while also resisting noisy, stale, or duplicative comments?
+
 ## Inputs this role cares about
 
 - task contract, acceptance criteria, or review basis
@@ -75,6 +78,8 @@ Depending on the caller's context, this role usually produces some combination o
 
 - confident conclusions with thin evidence
 - complexity justified only by hand-waving
+- documentation gaps on contract-bearing logic
+- noisy, stale, or duplicative comments treated as harmless
 - scope creep hidden inside "just one more thing"
 - blockers buried in narrative instead of surfaced directly
 - open questions mislabeled as settled
