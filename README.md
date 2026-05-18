@@ -107,8 +107,7 @@ Current non-trivial mappings:
 
 - developer-facing README intros, technical launch framing, developer-facing product positioning -> `skills/devrel-copywriter`
 - docs, setup, usage, onboarding, API explanation -> `skills/docs-writer`
-- market-facing copy, copy refreshes, content planning, launch planning, pricing/packaging, sales collateral, competitor dossiers, customer research, cold outreach, or lifecycle email -> `skills/marketing`
-  - routing inside Marketing: cold outreach -> `roles/marketing/references/cold-email.md`; warm/product-triggered email -> `roles/marketing/references/lifecycle-email.md`; launch planning -> `roles/marketing/references/launch.md`; pricing/packaging -> `roles/marketing/references/pricing.md`; sales collateral -> `roles/marketing/references/sales-enablement.md`; market-facing net-new copy -> `roles/marketing/references/copywriting.md`; refresh existing market copy -> `roles/marketing/references/copy-editing.md`; content planning -> `roles/marketing/references/content-strategy.md`; VOC/ICP/JTBD research -> `roles/marketing/references/customer-research.md`; competitor dossiers/comparison inputs -> `roles/marketing/references/competitor-profiling.md`
+- market-facing copy, copy refreshes, content planning, launch planning, pricing/packaging, sales collateral, competitor dossiers, customer research, cold outreach, or lifecycle email -> `roles/marketing` (start at `roles/marketing/ROLE.md` and follow the role's own task-type routing table)
 - create or refactor a skill -> `skills/create-skill`
 - planning + slice + approval flow for code work -> `skills/dev-harness`
 - multi-role review -> `skills/code-review-orchestrator`
@@ -177,11 +176,12 @@ If a skill needs reusable instructions that are not a runnable skill:
 
 ### Marketing and go-to-market
 
-- `skills/marketing`
-  - What it is: a thin entrypoint for market-facing work that loads the Marketing role and routes to the right role-owned reference.
+- `roles/marketing`
+  - What it is: the self-contained Marketing role for market-facing work.
+  - Start at: `roles/marketing/ROLE.md`
   - Use when: the task is copywriting, copy editing, content strategy, launch planning, pricing/packaging, sales collateral, competitor profiling, customer research, cold outreach, or lifecycle email.
   - Do not use when: the main job is developer-facing README/docs/adoption/trust work; keep that in `skills/devrel-copywriter` or `skills/docs-writer`.
-  - Routing: `roles/marketing/references/cold-email.md`, `lifecycle-email.md`, `launch.md`, `pricing.md`, `sales-enablement.md`, `copywriting.md`, `copy-editing.md`, `content-strategy.md`, `customer-research.md`, `competitor-profiling.md`
+  - Routing: follow the Marketing role's own task-type routing table.
 
 ### Planning, review, and implementation flow
 
@@ -264,7 +264,7 @@ Use them when a skill needs a stable specialist identity across phases.
 - `roles/dev-rel`
   - Developer-facing framing, positioning, and messaging quality.
 - `roles/marketing`
-  - Marketing positioning, messaging, ICP/personas, launch/campaign framing, and objection handling, with task-type references owned under `roles/marketing/references/`.
+  - Marketing positioning, messaging, ICP/personas, launch/campaign framing, and objection handling.
 - `roles/frontend`
   - Frontend/client implementation and review judgment.
 - `roles/frontend-taste`
