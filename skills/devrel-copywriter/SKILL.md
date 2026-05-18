@@ -22,6 +22,7 @@ Build the writing contract before drafting or restructuring anything.
 ## Routing
 
 - Route repository `readme` requests here when the file is the product-facing entrypoint and needs framing, structure choice, first-screen pitch, or overall message hierarchy.
+- For a new README or major README rewrite, do not start with a draft or direct edit. Run the README co-design workflow first.
 - Route deep docs, reference, tutorial, migration, API explanation, and README teaching sections whose main job is procedural success to `docs-writer`.
 - If the request is only a tiny wording fix inside an already-correct repo `readme`, still keep it here when the edited lines affect framing, positioning, or first-screen comprehension.
 
@@ -35,7 +36,7 @@ If unsure, treat it as `full-cycle`.
 ## Workflow
 
 - `tiny`: short contract -> edit -> humanizer pass -> one independent review. If feasible, the reviewer should not be the author of the current draft/pass.
-- repository `readme` `full-cycle`: contract -> proposer framing/structure proposal -> independent pre-draft DevRel critic attack -> short debate/reconciliation -> draft -> independent DevRel critic attack -> synthesizer/editor resolves critique and owns the final draft -> humanizer pass -> review checkpoint 1 -> fix -> humanizer pass -> review checkpoint 2 -> final checklist.
+- repository `readme` `full-cycle`: README co-design workflow first -> contract -> proposer framing/structure proposal -> independent pre-draft DevRel critic attack -> short debate/reconciliation -> draft -> independent DevRel critic attack -> synthesizer/editor resolves critique and owns the final draft -> humanizer pass -> review checkpoint 1 -> fix -> humanizer pass -> review checkpoint 2 -> final checklist.
 
 ## Rules
 
@@ -46,6 +47,7 @@ If unsure, treat it as `full-cycle`.
 - The independent DevRel critic attacks the proposal and later the draft; the critic does not act as a light polisher.
 - The synthesizer/editor resolves critique and owns the final draft; do not average proposer and critic output or blindly accept either side.
 - Run the pre-draft contract/structure attack before writing the full draft.
+- No implementation before a human-approved detailed proposal.
 - Do not invent proof.
 - Do not use exact metrics unless confirmed.
 - Do not promise roadmap items as current reality.

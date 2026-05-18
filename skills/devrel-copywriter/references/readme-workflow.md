@@ -64,7 +64,25 @@ Lock the product packaging:
 - `What it is`
 - `Why it exists`
 
-## 4. Proposer stage: propose `2-3` structure directions
+## 4. README co-design workflow
+
+Use this gate set for a new repository `readme` or any major rewrite.
+
+This path is intentionally slower and more bureaucratic than normal copy edits.
+Each gate needs an independent reviewer.
+Do not move to the next gate without human approval.
+Do not edit the README before the detailed proposal is approved.
+Use image generation when it materially helps the logo or visual-direction decision.
+
+Required gates:
+1. `Logo / visual direction`
+2. `Punch / tagline`
+3. `Structure`
+4. `Detailed proposal`
+5. implementation only after explicit human approval
+6. PR only after final review
+
+## 5. Proposer stage: propose `2-3` structure directions
 
 The proposer owns the framing and structure proposal.
 
@@ -86,7 +104,7 @@ Choose a direction before full drafting.
 
 Reject directions that cannot satisfy the DevRel role's repository `readme` quality bar.
 
-## 5. Independent pre-draft critique / contract attack
+## 6. Independent pre-draft critique / contract attack
 
 Attack the plan before writing the full draft.
 
@@ -105,13 +123,13 @@ If the contract or structure breaks under critique, fix that first.
 
 Before drafting, confirm the chosen direction can satisfy the checklist with real repo evidence.
 
-## 6. Short debate / reconciliation
+## 7. Short debate / reconciliation
 
 Resolve the proposer/critic disagreement before drafting. Do not average both sides or blindly accept either side.
 
 The goal is a single chosen direction with explicit tradeoffs and evidence backing it.
 
-## 7. Approval when needed
+## 8. Approval when needed
 
 Pause before the full draft when the chosen direction materially changes:
 
@@ -120,15 +138,15 @@ Pause before the full draft when the chosen direction materially changes:
 - product naming/tagline choices
 - expected repo information architecture
 
-If the task already authorizes the rewrite direction, proceed.
+For README co-design work, require explicit human approval after each gate and before the full draft implementation.
 
-## 8. Draft
+## 9. Draft
 
 Write for scan speed and first-use confidence.
 
 Use the chosen structure direction plus the DevRel role guidance and rubric to guide the draft.
 
-## 9. Independent DevRel critic attack
+## 10. Independent DevRel critic attack
 
 This stage is required.
 
@@ -138,34 +156,34 @@ The critic must attack the draft using the DevRel role lenses and rubric, with s
 
 Fix structural issues before final polish.
 
-## 10. Synthesizer/editor resolves critique and owns the final draft
+## 11. Synthesizer/editor resolves critique and owns the final draft
 
 The synthesizer/editor resolves critique from the proposal attack and the draft attack, then owns the resulting draft.
 
 Do not average proposer and critic output or blindly accept either side.
 
-## 11. Humanizer pass
+## 12. Humanizer pass
 
 Run a humanizer-style cleanup after meaningful fixes. Improve tone and rhythm without changing facts, claims, or structure by accident.
 
 Humanizer is a polish pass, not the structural decision-maker.
 
-## 12. Review checkpoint 1
+## 13. Review checkpoint 1
 
 Run one independent review after the first humanizer pass.
 
-## 13. Fix
+## 14. Fix
 
 Apply the checkpoint 1 fixes before the second polish pass.
 
-## 14. Humanizer pass
+## 15. Humanizer pass
 
 Run a second humanizer pass only after fixes if the copy still needs tone/rhythm cleanup.
 
-## 15. Review checkpoint 2
+## 16. Review checkpoint 2
 
 Run the second independent review/checkpoint on the updated draft.
 
-## 16. Final checklist
+## 17. Final checklist
 
 Pass final DevRel role/rubric review before finalizing.
