@@ -8,6 +8,15 @@ Read only the sections for implementer roles you are about to launch.
 
 Role label alone is never sufficient. Before spawning an implementer worker/subagent, the parent must include the selected section below plus the selected role's canonical `ROLE.md` and `RUBRIC.md`. The worker must load those files before implementation, follow the loaded role files for any additional references or learnings, and return `role_files_loaded` listing `ROLE.md`, `RUBRIC.md`, and any additional files actually loaded because the role instructed it, or `blocked` if required role loading could not be completed. The parent must not accept required implementer output when this evidence is absent or mismatched.
 
+## Common implementer quality gates
+
+Apply these gates to every code implementer role, especially `backend` and `frontend`:
+
+- Prefer one local responsibility per function/method: either perform side effects or compute/transform data. If a slice must mix both, keep the reason local, explicit, and easy for review to verify.
+- Reuse canonical constants/names for event names, statuses, artifact kinds, action names, and similar symbolic values. Do not add raw string references outside canonical definitions, tests/fixtures, or explicitly bounded migration compatibility.
+- When introducing or renaming a symbolic value, grep/check the touched area for scattered literals and consolidate them unless the exception is intentional and documented.
+- Keep functions/files reviewable; extract or split when a change creates a mixed-responsibility orchestration blob or a hard-to-review surface.
+
 ## Implementer role: `architect` v1 (architecture artifacts only)
 
 Load `../../roles/architect/ROLE.md` and `../../roles/architect/RUBRIC.md` first, then follow the loaded role files for any additional architecture references. If the task is a full architecture process/package rather than an approved artifact update for an implementation slice, stop and route through `create-architecture`.

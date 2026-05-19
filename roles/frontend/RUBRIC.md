@@ -11,6 +11,8 @@ Use this as a compact checklist when a calling skill wants frontend implementati
 - **States**: Are loading, pending, empty, success, error/retry, focus, disabled, and permission/partial-data states handled intentionally where applicable?
 - **Routing/hydration**: Are route transitions and client/server boundary assumptions safe?
 - **Component architecture**: Are user-facing files/components kept near the ~200 LOC pressure rule, with extraction seams or explicit justification for larger slices? Are data/orchestration and presentation split when that clarifies behavior?
+- **Canonical values**: Are client-visible statuses, actions, artifact kinds, route/state names, and similar symbolic values reused through canonical constants/names instead of scattered raw strings, except definitions, tests/fixtures, or explicit migration compatibility?
+- **Side-effect boundaries**: Do functions/hooks avoid mixing side effects with compute/transform logic unless the reason is local and explicit?
 - **State placement**: Is state kept in the narrowest correct home: local, lifted, context, URL, server/cache, or global client store?
 - **Code docs**: Are file purpose, state ownership, async/data-contract assumptions, critical UI states, and exported hook/helper/component contracts documented where they would otherwise be non-obvious?
 - **Design-system discipline**: Does the UI use existing tokens, primitives, and scales instead of raw colors, arbitrary spacing, inline style escapes, mixed primitive systems, or local visual law?

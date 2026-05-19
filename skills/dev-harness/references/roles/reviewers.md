@@ -24,6 +24,15 @@ Canonical label -> role folder mapping when the spelling differs:
 - `privacy/data-safety` -> `../../roles/privacy-data-safety`
 - `qa/reliability` -> `../../roles/qa-reliability`
 
+## Common review hardening checks
+
+Relevant reviewers must include a short delta-complexity judgment for non-trivial code changes: what became more complex, what grew, and what duplication or indirect coupling appeared. Treat these as review findings when they materially affect the approved slice:
+
+- canonical symbolic values are bypassed by raw strings outside canonical definitions, tests/fixtures, or explicitly bounded migration compatibility
+- newly introduced or renamed event names, statuses, artifact kinds, actions, or similar symbolic values are scattered as literals instead of reused through the canonical name/constant
+- functions/files grow into mixed-responsibility blobs, large orchestration surfaces, or hard-to-review change surfaces without a local justification
+- a function/method mixes side effects with compute/transform logic without an explicit reason that is local to the code
+
 ## Reviewer role: `architect` v1
 
 Load `../../roles/architect/ROLE.md` and `../../roles/architect/RUBRIC.md` first, then follow the loaded role files for any additional architecture references.
@@ -65,16 +74,17 @@ Load `../../roles/architect/ROLE.md` and `../../roles/architect/RUBRIC.md` first
 
 Load `../../roles/critic/ROLE.md` and `../../roles/critic/RUBRIC.md` first.
 
-- Purpose: pressure-test the slice for avoidable complexity, weak trade-offs, hidden fragility, and scope creep. Critic asks whether the proposal or approved solution can be simpler, cheaper, clearer, and less brittle without breaking the contract.
+- Purpose: pressure-test the slice for avoidable complexity, weak trade-offs, hidden fragility, and scope creep. Critic asks whether the proposal or approved solution can be simpler, cheaper, clearer, and less brittle without breaking the contract, including bloat, duplication, and hidden coupling that other roles may normalize as implementation detail.
 - Must-check questions:
   - can this be simpler with fewer moving parts or a narrower change surface?
   - is any abstraction, dependency, or extension point unjustified for this slice?
   - did the task widen beyond the approved goal, file zones, or acceptance?
   - is there a simpler, cheaper, or clearer path that preserves the contract?
   - does anything add brittleness, hidden coupling, or rollout risk without enough payoff?
+  - did the change grow functions/files, duplicate literals, or spread symbolic values in a way that makes the slice harder to review or maintain?
   - are contract-significant docs missing where that absence hides invariants, lifecycle, side effects, or failure semantics, or are comments noisy/stale enough to add drift risk?
 - Non-goals:
-  - not a second implementer, rewrite pass, or redesign machine
+  - not a second implementer, rewrite pass, or redesign machine; flagging bloat, duplication, or hidden coupling is allowed, but prescribing the implementation is not
   - not a second discovery worker or repo-tour role unless a concrete contradiction forces it
   - not the primary reviewer for domain correctness, security, privacy/data-safety, QA/reliability, or performance; route those to the specialist reviewer unless the issue is mainly simplification, trade-off pressure, or risk-of-complexity
 - Escalation rules:
@@ -100,11 +110,14 @@ Load `../../roles/backend/ROLE.md` and `../../roles/backend/RUBRIC.md` first.
   - validation, failure handling, edge cases, and permission/authz enforcement in the touched backend slice
   - migration, rollout, rollback, and bounded transitional compatibility when real rollout risk requires it
   - testability and observability for the changed backend behavior
+  - backend-specific bloat: growing functions/files, mixed handler/service responsibilities, raw symbolic values, and orchestration blobs that hide contracts or side effects
 - Must-check questions:
   - does this preserve or intentionally change the backend contract in a clear, reviewable way, without silent widening or hidden invariant drift?
   - did request payload shape, persistence behavior, or side effects drift without the contract/docs being updated to match?
   - is any required code documentation missing such that public/backend contract surfaces, side effects, invariants, or error semantics can no longer be read reliably from the slice?
   - are validation, retry/timeout handling, and error paths explicit enough for the touched backend flow?
+  - are canonical backend event/status/artifact/action names reused instead of scattered raw strings, except in definitions, tests/fixtures, or explicit migration compatibility?
+  - did handlers, services, jobs, or persistence helpers grow into mixed-responsibility blobs where data transformation and side effects are no longer reviewable separately?
   - does any async or request-serving path now perform blocking synchronous persistence/I/O or equivalent avoidable blocking work?
   - do data writes, reads, async work, and background-job behavior stay coherent under edge cases, partial failure, retries, and duplicate delivery?
   - are authn/authz and permission boundaries still enforced at the right backend boundary, including indirect or newly reachable paths?
@@ -148,7 +161,8 @@ Load `../../roles/frontend/ROLE.md` and `../../roles/frontend/RUBRIC.md` first.
   - is any required code documentation missing such that state ownership, async lifecycle, side effects, accessibility-sensitive behavior, or contract assumptions can no longer be read reliably from the slice?
   - can any async action or promise hang without terminal state or visible feedback?
   - is contract consumption clear and stable, without hidden coupling to route state, hydration state, or server data?
-  - does the pattern create racey state, duplicated fetch ownership, waterfall chains, or behavior that is hard to test with confidence?
+  - are canonical client-visible statuses, actions, artifact kinds, route/state names, or similar symbolic values reused instead of scattered as literals?
+  - does the pattern create racey state, duplicated fetch ownership, waterfall chains, oversized components/hooks, or behavior that is hard to test with confidence?
   - if a new UI path replaces an old one, are we wrongly keeping a parallel flow without a real rollout reason and removal plan?
 - Non-goals:
   - not the primary reviewer for visual taste, copy, hierarchy, polish, or anti-slop presentation; that belongs to `frontend taste`
