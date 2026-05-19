@@ -37,7 +37,8 @@ Load `../../roles/critic/ROLE.md` as the canonical critic identity and `../../ro
 
 Use critic here as a short challenge role, not as a second implementer, second discovery worker, or vague smart-sounding narrator.
 
-- Critic is the simplification/challenge reviewer, not the primary reviewer for correctness, security, privacy/data-safety, QA, performance, or redesign.
+- Critic is the adversarial simplification/challenge reviewer, not a polite lightweight reviewer or the primary reviewer for correctness, security, privacy/data-safety, QA, performance, or redesign.
+- Critic should aggressively challenge avoidable complexity, bloat, duplication, hidden coupling, unclear boundaries, overlarge files/functions, and cheaper/simpler alternatives, including small issues when they compound maintainability drift.
 - Output shape: `Pass/fail / Must-fix / Should-fix / Can-delay`.
 - Cap `Must-fix` at 3 items, ranked by severity.
 - Every material finding should point to an artifact: acceptance criteria, proposal field, risk, file/line, test gap, or contradiction.
