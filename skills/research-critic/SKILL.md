@@ -31,7 +31,7 @@ Do not own:
 1. Read [references/input-contract.md](references/input-contract.md).
 2. Read [`../../roles/researcher/ROLE.md`](../../roles/researcher/ROLE.md).
 3. Read [`../../roles/researcher/RUBRIC.md`](../../roles/researcher/RUBRIC.md).
-4. Read [`../../roles/researcher/LEARNINGS.md`](../../roles/researcher/LEARNINGS.md) if present.
+4. Follow the loaded Researcher role files for any additional references or learnings they require.
 5. Read [references/output-contract.md](references/output-contract.md).
 6. Read [references/workflow.md](references/workflow.md).
 7. Read [references/verdicts.md](references/verdicts.md).
@@ -40,7 +40,7 @@ Do not own:
 ## Default workflow
 
 1. Normalize the task into the input contract.
-2. Run `Researcher A` using `../../roles/researcher/ROLE.md`, `../../roles/researcher/RUBRIC.md`, and role learnings to build the canonical Researcher packet from provided context/evidence first.
+2. Run `Researcher A` using `../../roles/researcher/ROLE.md`, `../../roles/researcher/RUBRIC.md`, and any additional role files discovered from the loaded role contract to build the canonical Researcher packet from provided context/evidence first.
 3. For non-trivial research, run `Researcher B attack` using the same role contract to challenge evidence, assumptions, unknowns, decisions needed, candidate approaches, blockers, and risks.
 4. Allow one bounded revise/re-review loop when the attack finds fixable gaps, unless the caller explicitly approves another.
 5. Return one structured wrapper verdict matching `references/output-contract.md`.

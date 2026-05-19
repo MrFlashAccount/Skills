@@ -49,7 +49,7 @@ For non-trivial design-memory work, use this sequence:
 
 1. `source-audit`
    - inspect the brief, existing design docs, refs, and repo context
-   - load `../../roles/frontend-taste/ROLE.md` and `../../roles/frontend-taste/LEARNINGS.md` when available
+   - load `../../roles/frontend-taste/ROLE.md` and `../../roles/frontend-taste/RUBRIC.md`, then follow the loaded role files for any additional design-memory or learning references
    - reduce the task to representative asks
    - identify mode, scope, risks, and missing branches
 
