@@ -126,6 +126,8 @@ Implementation rules:
 
 After the first draft, run a structured review/fix loop.
 
+If a critic/reviewer pass is delegated to a worker/subagent, role label alone is not enough. The parent prompt must include an explicit load block for `../../roles/critic/ROLE.md`, `../../roles/critic/RUBRIC.md`, [references/checklist.md](checklist.md), and the relevant create-skill workflow/testing references for the current stage. The worker must load those files before judging the skill and return `role_files_loaded` listing loaded files, or `blocked` if required files could not be loaded. Do not accept the critic/reviewer pass for a required gate when that evidence is absent or wrong.
+
 Default loop:
 1. draft or revise
 2. critic review

@@ -6,6 +6,8 @@ Read only the sections for reviewers you actually selected for the current slice
 
 `../../roles/*/ROLE.md` and `../../roles/*/RUBRIC.md` are the canonical role contracts. The sections below are phase-specific review adapters only: output shape, review boundaries, escalation rules, and reviewer-only checks.
 
+Role label alone is never sufficient. Before spawning a reviewer worker/subagent, the parent must include the selected section below plus the required canonical role files named by it. The worker must load those files before review and return `role_files_loaded` listing loaded `ROLE.md`, `RUBRIC.md`, and adapter/reference files, or `blocked` if any required file could not be loaded. The parent must not accept required reviewer output when this evidence is absent or mismatched.
+
 Canonical reviewer roles:
 - `critic`
 - `architect`

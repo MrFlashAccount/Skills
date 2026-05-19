@@ -37,6 +37,8 @@ The proposer must close, or explicitly mark unanswered, these questions before d
 
 `DESIGN.md` remains the operational design law and source of truth. References support the law; they do not replace it.
 
+When either Frontend-Taste pass is delegated to a worker/subagent, role label alone is not enough. The parent prompt must include this role split plus an explicit load block for `../../roles/frontend-taste/ROLE.md`, `../../roles/frontend-taste/RUBRIC.md`, `../../roles/frontend-taste/LEARNINGS.md` when available, relevant Frontend-Taste learnings/references, and the applicable create-design references for the current stage. The worker must load those files before proposing, attacking, or reviewing, then return `role_files_loaded` listing loaded files, or `blocked` if required files could not be loaded. Do not accept the pass for a required gate when that evidence is absent or wrong.
+
 ## 0. Pick the mode
 
 Choose one of these explicitly:

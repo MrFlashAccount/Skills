@@ -6,6 +6,8 @@ Read only the sections for implementer roles you are about to launch.
 
 `../../roles/*/ROLE.md` and `../../roles/*/RUBRIC.md` are the canonical role contracts. The sections below are phase-specific implementation adapters only: ownership boundaries, execution rules, verification expectations, and implementer-specific escalation behavior.
 
+Role label alone is never sufficient. Before spawning an implementer worker/subagent, the parent must include the selected section below plus the required canonical role files named by it. The worker must load those files before implementation and return `role_files_loaded` listing loaded `ROLE.md`, `RUBRIC.md`, and adapter/reference files, or `blocked` if any required file could not be loaded. The parent must not accept required implementer output when this evidence is absent or mismatched.
+
 ## Implementer role: `architect` v1 (architecture artifacts only)
 
 Load `../../roles/architect/ROLE.md`, `../../roles/architect/RUBRIC.md`, and `../../roles/architect/references/balanced-coupling.md` first. If the task is a full architecture process/package rather than an approved artifact update for an implementation slice, stop and route through `create-architecture`.

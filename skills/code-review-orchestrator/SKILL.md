@@ -86,7 +86,16 @@ Do not treat `staff engineer`, generic `designer`, `financial/risk`, or `reliabi
 - For non-trivial code work, at least one reviewer must return an explicit pass/fail verdict against the approved contract.
 
 ## How to run it
+Before any `sessions_spawn`, read [references/role-prompts.md](references/role-prompts.md) and use its selected role section as the role-load contract. A reviewer label alone is never sufficient.
+
 Use `sessions_spawn` to create one subagent per role, with the target repo as `cwd` and a shared compact brief. Even for small diffs, keep the review gate as delegated reviewer work rather than replacing it with an in-orchestrator review.
+
+Each reviewer prompt must include:
+- the applicable section from [references/role-prompts.md](references/role-prompts.md), including canonical role files to load
+- an instruction to load those `ROLE.md` / `RUBRIC.md` / reference files before judging the diff
+- required final evidence field: `role_files_loaded`, listing the loaded role/reference files, or `blocked` if any required role file could not be loaded
+
+Do not accept reviewer output for a required gate when `role_files_loaded` is absent, incomplete, or mismatched to the selected role. Mark that reviewer gate `blocked` instead.
 
 If the delegated reviewer path is unavailable, fails to start, or cannot be used, stop as `blocked` instead of reviewing directly in the orchestrator session.
 
@@ -97,6 +106,8 @@ Keep each role prompt short and specific. Include the approved contract or compa
 Suggested reviewer prompt shape:
 
 > Review this diff as the {role}. Approved contract: {contract-summary}. Focus on {focus}. Judge it adversarially against that contract. Return only: pass/fail, must-fix / should-fix / can-delay, evidence, and confidence. Call out file:line when possible. If nothing is wrong, say so briefly.
+
+Add the selected role-load block from [references/role-prompts.md](references/role-prompts.md) before that instruction, and require `role_files_loaded` in the response.
 
 For `architect`, bias the prompt toward seam decisions, dependency correctness, file ownership/zone boundaries, request-path boundaries, balanced coupling, architecture-memory integrity, and whether the implementation introduces unnecessary coupling or the wrong abstraction layer.
 

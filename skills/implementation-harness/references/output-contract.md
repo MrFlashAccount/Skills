@@ -40,7 +40,7 @@ Field intent:
 - `branch_name`: working branch used or prepared for transport.
 - `pr_url`: published PR URL when transport already supplied one; otherwise empty.
 - `change_summary`: concise user-visible changes.
-- `verification_results`: commands/checks run, results, and notable gaps.
+- `verification_results`: commands/checks run, results, notable gaps, and each delegated implementer's `role_files_loaded` evidence, or the `blocked` state if required role files were not loaded.
 - `review_handoff`: compact handoff for the separate review stage, including intended reviewer coverage and any review-sensitive hotspots.
 - `blockers`: unresolved blockers that prevent safe progress. Keep this limited to concrete execution blockers, contradictions, or missing implementation-critical facts that survived earlier stages.
 - `warnings`: non-blocking risks, follow-ups, or caveats.
