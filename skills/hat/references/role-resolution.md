@@ -41,7 +41,7 @@ You must:
 - respect repo design memory or architecture memory when that role depends on it
 
 Example:
-- `Frontend-Taste` may require `learnings/README.md`, `shared-core.md`, one routed project-class file, and selectively relevant support files depending on the task
+- `Frontend-Taste` may require additional supporting files depending on the task; discover those by following the loaded role files, not by hardcoding role-internal paths here
 
 ## Missing role behavior
 

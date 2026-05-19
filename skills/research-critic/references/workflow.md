@@ -31,7 +31,7 @@ Do not use when:
 ## Stage loop
 
 1. Normalize the input with `input-contract.md`.
-2. Run `Researcher A` using `../../roles/researcher/ROLE.md`, `../../roles/researcher/RUBRIC.md`, and `../../roles/researcher/LEARNINGS.md` when present.
+2. Run `Researcher A` using `../../roles/researcher/ROLE.md` and `../../roles/researcher/RUBRIC.md`, then follow the loaded role files for any additional references or learnings.
    - consume available context/evidence first
    - keep answered questions closed unless contradiction or implementation-critical gaps reopen them
    - ask targeted clarifying questions when the desired outcome is fuzzy
@@ -57,7 +57,7 @@ Research wrapper readiness is decided here; human handoff approval is not.
 
 ## Role load rules
 
-- Load Researcher only: `../../roles/researcher/ROLE.md`, `../../roles/researcher/RUBRIC.md`, and `../../roles/researcher/LEARNINGS.md` when present.
+- Load Researcher only: `../../roles/researcher/ROLE.md` and `../../roles/researcher/RUBRIC.md` directly, then follow the loaded role files for any additional references or learnings.
 - `Researcher A` builds the packet.
 - `Researcher B attack` pressure-tests the packet using the same role contract.
 - The wrapper returns `critic_findings`, `missing_evidence`, `unresolved_blockers`, `verdict`, and `readiness_note`; those fields do not belong inside `researcher_packet`.

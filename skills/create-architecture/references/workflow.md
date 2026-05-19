@@ -19,7 +19,7 @@ If the task is still vague, route discovery through grilling instead of guessing
 
 Do not collapse stages 1-6 straight into artifact writing.
 
-When Architect or Critic passes are delegated to workers/subagents, role label alone is not enough. The parent prompt must include the applicable load block: Architect loads `../../roles/architect/ROLE.md`, `../../roles/architect/RUBRIC.md`, `../../roles/architect/references/balanced-coupling.md`, and the relevant create-architecture references; Critic loads `../../roles/critic/ROLE.md`, `../../roles/critic/RUBRIC.md`, and the relevant create-architecture review/option references. Each worker must load those files before judging, implementing, or reviewing and return `role_files_loaded` listing loaded files, or `blocked` if required files could not be loaded. Do not accept a required gate when role-load evidence is absent or wrong.
+When Architect or Critic passes are delegated to workers/subagents, role label alone is not enough. The parent prompt must include the selected role/phase overlay and require Architect to load `../../roles/architect/ROLE.md` plus `../../roles/architect/RUBRIC.md`, or Critic to load `../../roles/critic/ROLE.md` plus `../../roles/critic/RUBRIC.md`, before judging, implementing, or reviewing. Each worker must then follow the loaded role files for any additional role references or learnings, load the relevant create-architecture references for the current stage, and return `role_files_loaded` listing `ROLE.md`, `RUBRIC.md`, and any additional files actually loaded, or `blocked` if required role loading could not be completed. Do not accept a required gate when role-load evidence is absent or wrong.
 
 ## 1. Source-audit
 
