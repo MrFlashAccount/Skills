@@ -1,8 +1,8 @@
 # Role prompts
 
-Paths in this adapter are resolved relative to the `code-review-orchestrator` skill root (`skills/code-review-orchestrator/`), not relative to this reference file.
+Paths in this phase overlay are resolved relative to the `code-review-orchestrator` skill root (`skills/code-review-orchestrator/`), not relative to this reference file.
 
-Use these as the per-role focus when spawning reviewers.
+Use these as per-role focus overlays when spawning reviewers. These overlays may name only canonical role `ROLE.md` and `RUBRIC.md` files directly; any role-internal references or learnings must be discovered by following instructions inside the loaded role files.
 
 When a canonical reviewer label and repo folder spelling differ, load by repo path, not by mechanically derived label path:
 - `frontend taste` -> `../../roles/frontend-taste`
@@ -11,40 +11,42 @@ When a canonical reviewer label and repo folder spelling differ, load by repo pa
 
 ## Shared rules for all roles
 - Read the repo’s `AGENTS.md` first.
+- Role label is not a role contract. Before reviewing, load the canonical `ROLE.md` and `RUBRIC.md` named by your selected section below.
 - Read the diff first, then the smallest relevant surrounding context.
 - Prefer file:line evidence over abstract commentary.
 - Keep answers short.
 - The parent/orchestrator session owns delegation. You are the delegated reviewer worker/subagent for your assigned role; do not re-delegate the review or tell the parent to review it directly.
 - For non-trivial code work, judge the slice adversarially against the approved contract and return an explicit binary pass/fail verdict.
 - Return an explicit binary pass/fail verdict plus three buckets only: must-fix, should-fix, can-delay.
+- Return `role_files_loaded` listing `ROLE.md`, `RUBRIC.md`, and any additional files you loaded because the role itself instructed it. If required role loading cannot be completed, return `blocked` instead of a review verdict.
 - If nothing is wrong, say that and stop.
 
 ## Architect
-Load `../../roles/architect/ROLE.md`, `../../roles/architect/RUBRIC.md`, and `../../roles/architect/references/balanced-coupling.md` first. Then load the `architect` section from `../dev-harness/references/roles/reviewers.md` and use that as the canonical frozen-scope architecture review adapter for this skill.
+Load `../../roles/architect/ROLE.md` and `../../roles/architect/RUBRIC.md` first. Then follow the loaded role files for any additional architecture references before applying this frozen-scope architecture review overlay.
 
 ## Critic
-Load `../../roles/critic/ROLE.md` and `../../roles/critic/RUBRIC.md` first. In this skill, use them as a frozen-scope review-pressure adapter: check avoidable complexity, weak trade-offs, hidden fragility, and scope creep. Ask whether the slice can be simpler, narrower, or less brittle without breaking the approved contract.
+Load `../../roles/critic/ROLE.md` and `../../roles/critic/RUBRIC.md` first. Then follow the loaded role files for any additional references before applying this frozen-scope review-pressure overlay: check avoidable complexity, weak trade-offs, hidden fragility, and scope creep. Ask whether the slice can be simpler, narrower, or less brittle without breaking the approved contract.
 
 ## Backend
-Load `../../roles/backend/ROLE.md` and `../../roles/backend/RUBRIC.md` first. In this skill, use them as a frozen-scope backend review adapter: check backend/server correctness, contracts, data flow, validation, edge cases, auth/permission hygiene, rollout/rollback safety, and observability/testability where relevant.
+Load `../../roles/backend/ROLE.md` and `../../roles/backend/RUBRIC.md` first. Then follow the loaded role files for any additional references before applying this frozen-scope backend review overlay: check backend/server correctness, contracts, data flow, validation, edge cases, auth/permission hygiene, rollout/rollback safety, and observability/testability where relevant.
 
 ## Frontend
-Load `../../roles/frontend/ROLE.md` and `../../roles/frontend/RUBRIC.md` first. In this skill, use them as a frozen-scope frontend review adapter: check frontend/client correctness, contract consumption, state/data flow, loading/error/empty/pending states, routing/hydration, async behavior, and maintainability. For React/Next.js slices, also load `../../roles/frontend/references/react-ui-patterns.md` and any React-specific frontend references named by `../../roles/frontend/ROLE.md`.
+Load `../../roles/frontend/ROLE.md` and `../../roles/frontend/RUBRIC.md` first. Then follow the loaded role files for any additional frontend references before applying this frozen-scope frontend review overlay: check frontend/client correctness, contract consumption, state/data flow, loading/error/empty/pending states, routing/hydration, async behavior, and maintainability.
 
 ## Frontend taste
-Load repo `DESIGN.md` first when it exists, then load `../../roles/frontend-taste/ROLE.md`, `../../roles/frontend-taste/RUBRIC.md`, `../../roles/frontend-taste/learnings/README.md`, and `../../roles/frontend-taste/learnings/shared-core.md`. Load one routed class file from `../../roles/frontend-taste/learnings/` only when repo design memory explicitly declares a project type. If the repo has no router or no declared type yet, do not guess a class: stop at `shared-core.md`, state that routing is undeclared, and lower confidence for class-specific taste judgments. Repo design law overrides portable taste canon on conflicts. In this skill, use them as a rendered-surface review adapter: check hierarchy, spacing, typography, color, composition, motion, density, and polish. Stay out of client correctness unless the issue is visibly manifested.
+Read repo `DESIGN.md` first when it exists, then load `../../roles/frontend-taste/ROLE.md` and `../../roles/frontend-taste/RUBRIC.md`. Follow the loaded role files for any additional design-memory or learning references; do not hardcode routed role-internal files in this overlay. Repo design law overrides portable taste canon on conflicts. In this skill, use this as a rendered-surface review overlay: check hierarchy, spacing, typography, color, composition, motion, density, and polish. Stay out of client correctness unless the issue is visibly manifested.
 
 ## Security
-Load `../../roles/security/ROLE.md` and `../../roles/security/RUBRIC.md` first. In this skill, use Security as the reviewer-only adapter for exploitability and trust-boundary risk in the approved slice; the role owns its own workflow details.
+Load `../../roles/security/ROLE.md` and `../../roles/security/RUBRIC.md` first. Then follow the loaded role files for any additional references before applying this reviewer-only overlay for exploitability and trust-boundary risk in the approved slice; the role owns its own workflow details.
 
 ## Privacy / data-safety
-Load `../../roles/privacy-data-safety/ROLE.md` and `../../roles/privacy-data-safety/RUBRIC.md` first. In this skill, use them as a private-content and retention-safety review adapter: check local-path leakage, committed personal docs, prompt/example leakage, retained user data, consent/retention mistakes, and repo-visible private content.
+Load `../../roles/privacy-data-safety/ROLE.md` and `../../roles/privacy-data-safety/RUBRIC.md` first. Then follow the loaded role files for any additional references before applying this private-content and retention-safety review overlay: check local-path leakage, committed personal docs, prompt/example leakage, retained user data, consent/retention mistakes, and repo-visible private content.
 
 ## QA / reliability
-Load `../../roles/qa-reliability/ROLE.md` and `../../roles/qa-reliability/RUBRIC.md` first. In this skill, use them as a resilience-review adapter: check timeouts, retries, fallbacks, rollback/recovery behavior, observability/diagnosability, nondeterminism/flakiness, and test coverage/signal gaps.
+Load `../../roles/qa-reliability/ROLE.md` and `../../roles/qa-reliability/RUBRIC.md` first. Then follow the loaded role files for any additional references before applying this resilience-review overlay: check timeouts, retries, fallbacks, rollback/recovery behavior, observability/diagnosability, nondeterminism/flakiness, and test coverage/signal gaps.
 
 ## Performance
-Load `../../roles/performance/ROLE.md` and `../../roles/performance/RUBRIC.md` first. In this skill, use them as a hot-path/resource review adapter: check hot paths, blocking IO, unnecessary work, repeated calls, large allocations, leaks, and avoidable latency.
+Load `../../roles/performance/ROLE.md` and `../../roles/performance/RUBRIC.md` first. Then follow the loaded role files for any additional references before applying this hot-path/resource review overlay: check hot paths, blocking IO, unnecessary work, repeated calls, large allocations, leaks, and avoidable latency.
 
 ## Merge rubric
 - Must-fix: security issue, privacy/data-safety leak, data loss, approved-contract failure, or high-confidence functional bug.

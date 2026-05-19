@@ -1,12 +1,12 @@
-# Architect Planning Adapter
+# Architect Planning Overlay
 
-Paths in this adapter are resolved relative to the `dev-harness` skill root (`skills/dev-harness/`), not relative to this reference file.
+Paths in this phase overlay are resolved relative to the `dev-harness` skill root (`skills/dev-harness/`), not relative to this reference file.
 
-Use this for the existing `dev-harness` planning-time architecture gate when scope is architecture-sensitive, and for tiny slices whenever durable architecture-artifact ownership might move. Full architecture process/package work routes to `create-architecture`; do not use this adapter as a substitute for that workflow.
+Use this for the existing `dev-harness` planning-time architecture gate when scope is architecture-sensitive, and for tiny slices whenever durable architecture-artifact ownership might move. Full architecture process/package work routes to `create-architecture`; do not use this overlay as a substitute for that workflow.
 
-Load `../../roles/architect/ROLE.md`, `../../roles/architect/RUBRIC.md`, and `../../roles/architect/references/balanced-coupling.md` first.
+Load `../../roles/architect/ROLE.md` and `../../roles/architect/RUBRIC.md` first, then follow the loaded role files for any additional architecture references.
 
-This is a phase-specific adapter for execution planning, not post-implementation review and not a parallel ceremony.
+This is a phase-specific overlay for execution planning, not post-implementation review and not a parallel ceremony.
 
 ## Purpose
 
@@ -17,7 +17,7 @@ Use Architect during planning when the main risk is structural, not merely factu
 - dependency shape or layering risk
 - likely contract drift across modules
 - adapter/seam decisions that could introduce shallow indirection or accidental coupling
-- balanced-coupling questions where integration strength, distance, or volatility may be mismatched
+- balanced coupling questions where integration strength, distance, or volatility may be mismatched
 - uncertainty about whether architecture notes/ADRs/context docs must move with the slice
 
 ## Required output

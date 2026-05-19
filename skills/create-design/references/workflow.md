@@ -20,7 +20,7 @@ Not every task needs the full weight, but the stage boundaries should stay intac
 
 ## Frontend-Taste role split
 
-Use `../../roles/frontend-taste/ROLE.md` and `../../roles/frontend-taste/LEARNINGS.md` when available. Apply the role in two distinct passes:
+Use `../../roles/frontend-taste/ROLE.md` and `../../roles/frontend-taste/RUBRIC.md` directly, then follow the loaded role files for any additional design-memory or learning references. Apply the role in two distinct passes:
 
 - `Frontend-Taste proposer/design architect`: closes the base design context, chooses the product-tied direction, and drafts or edits `DESIGN.md`.
 - `Frontend-Taste attacker/critic`: attacks the proposal before the design-memory implementation is considered done.
@@ -36,6 +36,8 @@ The proposer must close, or explicitly mark unanswered, these questions before d
 - visually critical states: loading, empty, error, success, permission, onboarding, long-content, and degraded-data states
 
 `DESIGN.md` remains the operational design law and source of truth. References support the law; they do not replace it.
+
+When either Frontend-Taste pass is delegated to a worker/subagent, role label alone is not enough. The parent prompt must include this role split plus the selected role/phase overlay and require direct loading of only `../../roles/frontend-taste/ROLE.md` and `../../roles/frontend-taste/RUBRIC.md`; the worker must follow the loaded role files for any additional design-memory or learning references and load the applicable create-design references for the current stage. The worker must return `role_files_loaded` listing `ROLE.md`, `RUBRIC.md`, and any additional files actually loaded, or `blocked` if required role loading could not be completed. Do not accept the pass for a required gate when that evidence is absent or wrong.
 
 ## 0. Pick the mode
 
@@ -90,7 +92,7 @@ Start from concrete examples, not abstract design philosophy.
 
 Inspect:
 - the brief or request
-- `../../roles/frontend-taste/ROLE.md` and `../../roles/frontend-taste/LEARNINGS.md` when available
+- `../../roles/frontend-taste/ROLE.md` and `../../roles/frontend-taste/RUBRIC.md`, then any additional role files discovered from the loaded role files
 - the product/surface type
 - the current `DESIGN.md`, if present
 - supporting design docs, if present
