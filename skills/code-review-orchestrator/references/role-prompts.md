@@ -11,12 +11,14 @@ When a canonical reviewer label and repo folder spelling differ, load by repo pa
 
 ## Shared rules for all roles
 - Read the repo’s `AGENTS.md` first.
+- Role label is not a role contract. Before reviewing, load the files named by your selected section below.
 - Read the diff first, then the smallest relevant surrounding context.
 - Prefer file:line evidence over abstract commentary.
 - Keep answers short.
 - The parent/orchestrator session owns delegation. You are the delegated reviewer worker/subagent for your assigned role; do not re-delegate the review or tell the parent to review it directly.
 - For non-trivial code work, judge the slice adversarially against the approved contract and return an explicit binary pass/fail verdict.
 - Return an explicit binary pass/fail verdict plus three buckets only: must-fix, should-fix, can-delay.
+- Return `role_files_loaded` listing the `ROLE.md`, `RUBRIC.md`, and role/reference adapter files you actually loaded. If any required file cannot be loaded, return `blocked` instead of a review verdict.
 - If nothing is wrong, say that and stop.
 
 ## Architect

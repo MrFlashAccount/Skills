@@ -16,6 +16,8 @@ Choose implementers from the approved execution plan:
 2. Map file zones to `backend` and/or `frontend` exactly as approved.
 3. Stay in orchestrator mode: do not implement inside the parent session. Spawn delegated implementer worker/subagent owner(s) for the approved file zones even when direct manual execution in the parent session would be faster or more convenient.
    - if the required implementer worker/subagent path is unavailable, fails to start, or cannot be used, stop as `blocked` instead of implementing manually in the parent session
+   - role label alone is not enough: include the selected adapter from `../dev-harness/references/roles/implementers.md` and tell the worker to load the named canonical role files before editing
+   - require worker output field `role_files_loaded`, listing loaded role/reference files, or `blocked` if they could not be loaded
 4. Implement only the approved slice and approved direction through those delegated implementer worker/subagent owner(s).
 5. Run the smallest meaningful verification.
 6. Package the development handoff for the separate review stage.
@@ -27,6 +29,7 @@ For non-trivial code work, make the loop explicit in execution notes and handoff
 
 - Verification is mandatory before handoff.
 - Implementer self-report is never sufficient to mark non-trivial code work done.
+- Implementer role-load evidence is mandatory before acceptance. If `role_files_loaded` is absent, incomplete, or mismatched to the owner, treat that owner output as `blocked` and do not hand the slice to review as complete.
 - Parent-session convenience is never a valid reason to bypass delegated implementation when this harness applies.
 - Delegate failure or unavailability is not a license to bypass the harness; if required implementer delegation cannot run, stop as `blocked`.
 - Verification should check the changed code, the approved contract touchpoints, and any execution-time fact that could invalidate the handoff.
