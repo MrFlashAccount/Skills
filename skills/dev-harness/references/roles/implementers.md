@@ -1,14 +1,16 @@
 # Implementer Roles
 
-Paths in this adapter are resolved relative to the `dev-harness` skill root (`skills/dev-harness/`), not relative to this reference file.
+Paths in this phase overlay are resolved relative to the `dev-harness` skill root (`skills/dev-harness/`), not relative to this reference file.
 
 Read only the sections for implementer roles you are about to launch.
 
-`../../roles/*/ROLE.md` and `../../roles/*/RUBRIC.md` are the canonical role contracts. The sections below are phase-specific implementation adapters only: ownership boundaries, execution rules, verification expectations, and implementer-specific escalation behavior.
+`../../roles/*/ROLE.md` and `../../roles/*/RUBRIC.md` are the only canonical role files this overlay may require directly. The sections below are phase-specific implementation overlays only: ownership boundaries, execution rules, verification expectations, and implementer-specific escalation behavior. Any role-internal references or learnings must be discovered by following instructions inside the loaded role files.
+
+Role label alone is never sufficient. Before spawning an implementer worker/subagent, the parent must include the selected section below plus the selected role's canonical `ROLE.md` and `RUBRIC.md`. The worker must load those files before implementation, follow the loaded role files for any additional references or learnings, and return `role_files_loaded` listing `ROLE.md`, `RUBRIC.md`, and any additional files actually loaded because the role instructed it, or `blocked` if required role loading could not be completed. The parent must not accept required implementer output when this evidence is absent or mismatched.
 
 ## Implementer role: `architect` v1 (architecture artifacts only)
 
-Load `../../roles/architect/ROLE.md`, `../../roles/architect/RUBRIC.md`, and `../../roles/architect/references/balanced-coupling.md` first. If the task is a full architecture process/package rather than an approved artifact update for an implementation slice, stop and route through `create-architecture`.
+Load `../../roles/architect/ROLE.md` and `../../roles/architect/RUBRIC.md` first, then follow the loaded role files for any additional architecture references. If the task is a full architecture process/package rather than an approved artifact update for an implementation slice, stop and route through `create-architecture`.
 
 - Purpose: implement approved durable architecture artifacts for the slice after the Architect structural contract and artifact decision are approved. This is an artifact implementer owner, not architect review and not backend/frontend code ownership.
 - Ownership / file-zone scope: `ARCHITECTURE.md`, meaningful source-zone `CONTEXT.md`, ADRs, migration docs, and architecture artifact indexes/manifests named by the approved contract. Do not edit backend/frontend application code, tests, scripts, fixtures, or unrelated docs under this role.
@@ -75,9 +77,9 @@ Load `../../roles/frontend/ROLE.md` and `../../roles/frontend/RUBRIC.md` first.
 - Purpose: own user-facing implementation quality end to end: UX, visual quality, client-side component/state structure, accessibility-facing behavior, and correct consumption of approved backend contracts. Visual quality is part of correctness, not optional polish.
 - Ownership / file-zone scope: frontend routes, pages, layouts, components, client state, styling, design-system usage, frontend data adapters, and tests/stories tied to those zones. Do not edit backend handlers, schemas, DB/migrations, server-side business logic, or invent/change API contracts without explicit approval and backend ownership.
 - Must-read / must-load references:
-  - load `../../roles/frontend/references/react-ui-patterns.md` when the touched slice is React/Next.js or another React-based framework
-  - for user-facing UI work, load repo `DESIGN.md` first when it exists, then load `../../roles/frontend-taste/ROLE.md`, `../../roles/frontend-taste/RUBRIC.md`, `../../roles/frontend-taste/learnings/README.md`, and `../../roles/frontend-taste/learnings/shared-core.md`
-  - load one routed class file from `../../roles/frontend-taste/learnings/` only when repo design memory explicitly declares a project type; if the repo has no router or no declared type yet and the task is lightweight taste review, stop at `shared-core.md`, state that routing is undeclared, and lower confidence for class-specific taste judgments; if the task requires creating/changing design law, product basis, palette, typography, layout, density, motion law, or high-confidence screen direction, route to `create-design` before proceeding
+  - follow the loaded frontend role files for any framework-specific references; do not hardcode role-internal frontend reference paths in this overlay
+  - for user-facing UI work, read repo `DESIGN.md` when it exists or is named by the task contract; follow the loaded role files for any design-memory or taste references they require
+  - if the task requires creating/changing design law, product basis, palette, typography, layout, density, motion law, or high-confidence screen direction, route to `create-design` before proceeding
   - read the approved task contract, acceptance criteria, assigned file zones, and the existing frontend patterns in the owned area
 - Execution rules:
   - stay inside assigned frontend ownership; consume existing or explicitly approved contracts, do not invent backend fields/endpoints or silently widen scope across the stack

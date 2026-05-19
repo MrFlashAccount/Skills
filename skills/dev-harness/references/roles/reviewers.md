@@ -1,10 +1,12 @@
 # Reviewer Roles
 
-Paths in this adapter are resolved relative to the `dev-harness` skill root (`skills/dev-harness/`), not relative to this reference file.
+Paths in this phase overlay are resolved relative to the `dev-harness` skill root (`skills/dev-harness/`), not relative to this reference file.
 
 Read only the sections for reviewers you actually selected for the current slice.
 
-`../../roles/*/ROLE.md` and `../../roles/*/RUBRIC.md` are the canonical role contracts. The sections below are phase-specific review adapters only: output shape, review boundaries, escalation rules, and reviewer-only checks.
+`../../roles/*/ROLE.md` and `../../roles/*/RUBRIC.md` are the only canonical role files this overlay may require directly. The sections below are phase-specific review overlays only: output shape, review boundaries, escalation rules, and reviewer-only checks. Any role-internal references or learnings must be discovered by following instructions inside the loaded role files.
+
+Role label alone is never sufficient. Before spawning a reviewer worker/subagent, the parent must include the selected section below plus the selected role's canonical `ROLE.md` and `RUBRIC.md`. The worker must load those files before review, follow the loaded role files for any additional references or learnings, and return `role_files_loaded` listing `ROLE.md`, `RUBRIC.md`, and any additional files actually loaded because the role instructed it, or `blocked` if required role loading could not be completed. The parent must not accept required reviewer output when this evidence is absent or mismatched.
 
 Canonical reviewer roles:
 - `critic`
@@ -24,7 +26,7 @@ Canonical label -> role folder mapping when the spelling differs:
 
 ## Reviewer role: `architect` v1
 
-Load `../../roles/architect/ROLE.md`, `../../roles/architect/RUBRIC.md`, and `../../roles/architect/references/balanced-coupling.md` first.
+Load `../../roles/architect/ROLE.md` and `../../roles/architect/RUBRIC.md` first, then follow the loaded role files for any additional architecture references.
 
 - Purpose: review whether the implemented slice preserves the approved architecture shape instead of introducing accidental coupling, wrong ownership, shallow seams, undocumented structural drift, or architecture-memory debt. `architect` judges architecture fit and boundary correctness for the approved slice; it is not a second general correctness pass.
 - Focus:
@@ -55,7 +57,7 @@ Load `../../roles/architect/ROLE.md`, `../../roles/architect/RUBRIC.md`, and `..
   - if the architectural finding would require cross-ownership edits or scope expansion beyond the approved slice, stop and send it back for re-approval
   - keep findings anchored to the approved contract, architecture records, touched file zones, and explicit artifact-decision gate rather than broad taste
 - Done criteria:
-  - findings are concrete and architecture-specific: ownership drift, seam/layering mistakes, accidental coupling, balanced-coupling failures, file-zone mismatch, request-path boundary drift, or missing/misowned architecture-record updates
+  - findings are concrete and architecture-specific: ownership drift, seam/layering mistakes, accidental coupling, balanced coupling failures, file-zone mismatch, request-path boundary drift, or missing/misowned architecture-record updates
   - review stays distinct from `critic`, `backend`, `frontend`, `security`, `privacy/data-safety`, `qa/reliability`, `performance`, and implementer roles
   - output identifies a real architecture-fit risk or states clearly that the approved slice is structurally clean
 
@@ -137,7 +139,7 @@ Load `../../roles/frontend/ROLE.md` and `../../roles/frontend/RUBRIC.md` first.
   - overfetching, duplicate fetch chains, waterfall-heavy loading, brittle async orchestration, and hidden coupling that makes the touched path brittle, unclear, or hard to test
   - bounded transitional UI compatibility only when rollout risk genuinely requires it
 - Must-read / must-load references:
-  - load `../../roles/frontend/references/react-ui-patterns.md` when the touched slice is React/Next.js or another React-based framework
+  - follow the loaded frontend role files for any framework-specific references; do not hardcode role-internal frontend reference paths in this overlay
   - read the approved task contract, acceptance criteria, assigned file zones, and the existing frontend patterns in the owned area
   - load project-local frontend, testing, and routing docs when they apply to the owned slice
 - Must-check questions:
@@ -171,7 +173,7 @@ Load `../../roles/frontend/ROLE.md` and `../../roles/frontend/RUBRIC.md` first.
 
 ## Reviewer role: `frontend taste` v1
 
-Load repo `DESIGN.md` first when it exists, then load `../../roles/frontend-taste/ROLE.md`, `../../roles/frontend-taste/RUBRIC.md`, `../../roles/frontend-taste/learnings/README.md`, and `../../roles/frontend-taste/learnings/shared-core.md`. Load one routed class file from `../../roles/frontend-taste/learnings/` only when repo design memory explicitly declares a project type. If the repo has no router or no declared type yet, do not guess a class: for lightweight taste review, stop at `shared-core.md`, state that routing is undeclared, and lower confidence for class-specific taste judgments; for creating/changing design law, product basis, palette, typography, layout, density, motion law, or high-confidence screen direction, route to `create-design` before proceeding. Repo design law overrides portable taste canon on conflicts.
+Read repo `DESIGN.md` first when it exists, then load `../../roles/frontend-taste/ROLE.md` and `../../roles/frontend-taste/RUBRIC.md`. Follow the loaded role files for any additional design-memory or learning references; do not hardcode routed role-internal files in this overlay. If the task requires creating/changing design law, product basis, palette, typography, layout, density, motion law, or high-confidence screen direction, route to `create-design` before proceeding. Repo design law overrides portable taste canon on conflicts.
 
 - Purpose: review screen-level presentation quality for the approved slice. `frontend taste` judges the rendered surface the user sees, not component internals or client behavior: whether the touched UI reads as intentional, clear, coherent, and polished through hierarchy, spacing, typography, color, composition, motion, density, and finish.
 - Focus:
@@ -183,8 +185,7 @@ Load repo `DESIGN.md` first when it exists, then load `../../roles/frontend-tast
   - motion/transition feel, interaction polish, and perceived smoothness only as visible presentation quality
   - density, clutter control, cohesion with nearby product surfaces, and anti-slop judgment
 - Must-read / must-load references:
-  - load repo `DESIGN.md` first when it exists, then load `../../roles/frontend-taste/ROLE.md`, `../../roles/frontend-taste/RUBRIC.md`, `../../roles/frontend-taste/learnings/README.md`, and `../../roles/frontend-taste/learnings/shared-core.md`
-  - load one routed class file from `../../roles/frontend-taste/learnings/` only when repo design memory explicitly declares a project type; otherwise apply the undeclared-router rule above before proceeding
+  - read repo `DESIGN.md` first when it exists, then follow the loaded frontend-taste role files for any additional design-memory or learning references they require
   - read the approved task contract, acceptance criteria, assigned file zones, and the existing visual patterns in the owned area
   - load project-local design-system or frontend presentation docs when they materially shape the touched surface
 - Must-check questions:
@@ -217,7 +218,7 @@ Load repo `DESIGN.md` first when it exists, then load `../../roles/frontend-tast
 
 Load `../../roles/security/ROLE.md` and `../../roles/security/RUBRIC.md` first.
 
-- Purpose: use the canonical Security role as the reviewer-only adapter for exploitability, abuse-path, and trust-boundary risk in the approved slice. The Security role owns its own workflow details.
+- Purpose: use the canonical Security role through this reviewer-only overlay for exploitability, abuse-path, and trust-boundary risk in the approved slice. The Security role owns its own workflow details.
 - Phase boundary: apply Security only when the primary issue is security posture or exploitability; route privacy/data-safety, plain backend/frontend correctness, resilience, performance, taste, and scope-pressure issues to their own reviewers.
 - Done criteria:
   - review stays inside the approved slice and does not become an implementation pass

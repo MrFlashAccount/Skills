@@ -35,7 +35,7 @@ Do not treat `staff engineer`, generic `designer`, `financial/risk`, or `reliabi
    - `architect` for seams, layering, dependency shape, file-zone correctness, request-path boundaries, balanced coupling, architecture-memory integrity, and architectural drift from the approved slice
    - `backend` for backend/server correctness
    - `frontend` for client-side correctness, state, routing, async behavior, and contract consumption
-   - `frontend taste` for visual/presentation quality on rendered user-facing surfaces; load the canonical `../../roles/frontend-taste` materials for that reviewer
+   - `frontend taste` for visual/presentation quality on rendered user-facing surfaces; select `frontend taste` as the canonical reviewer role, include only its `ROLE.md`/`RUBRIC.md` load requirement, and tell the worker to follow the loaded role files for any additional references
    - `security` for exploitability, auth, privilege, and trust-boundary regressions
    - `privacy/data-safety` for local-path leakage, committed personal docs, prompt/example leakage, retained user data, unsafe persistence, and consent/retention mistakes
    - `qa/reliability` for failure handling, rollback/recovery, degraded behavior, flaky paths, and test signal
@@ -73,8 +73,8 @@ Do not treat `staff engineer`, generic `designer`, `financial/risk`, or `reliabi
 - `architect` is usually unnecessary for tiny single-zone fixes with no boundary, ownership, layering, or architecture-artifact risk.
 - even for tiny slices, if durable architecture-artifact ownership or architecture-memory integrity is in doubt, route `architect` explicitly instead of leaving that check implicit.
 - Use `backend` for backend/server correctness.
-- Use `frontend` for frontend/client correctness; if the touched slice is React/Next.js, also load `../../roles/frontend/references/react-ui-patterns.md` and any React-specific frontend references named by `../../roles/frontend/ROLE.md`.
-- Use `frontend taste` for visual/presentation quality on rendered UI surfaces; load the canonical `../../roles/frontend-taste` materials for that reviewer.
+- Use `frontend` for frontend/client correctness; for React/Next.js slices, require only `../../roles/frontend/ROLE.md` and `../../roles/frontend/RUBRIC.md` directly, then let the loaded role files decide any additional React-specific references.
+- Use `frontend taste` for visual/presentation quality on rendered UI surfaces; select `frontend taste` as the canonical reviewer role, require only its `ROLE.md`/`RUBRIC.md` direct loads, and let the loaded role files decide any additional references.
 - Use `security` when the diff may change exploitability or trust boundaries.
 - Use `privacy/data-safety` for `sensitive-surface` diffs.
 - For `sensitive-surface` diffs, run the scanner and do not call the review clean until `privacy/data-safety` explicitly clears the approved scope or reports a concrete risk.
@@ -86,17 +86,26 @@ Do not treat `staff engineer`, generic `designer`, `financial/risk`, or `reliabi
 - For non-trivial code work, at least one reviewer must return an explicit pass/fail verdict against the approved contract.
 
 ## How to run it
+Before any `sessions_spawn`, read [references/role-prompts.md](references/role-prompts.md) and include its selected phase overlay in the worker prompt. A reviewer label alone is never sufficient.
+
 Use `sessions_spawn` to create one subagent per role, with the target repo as `cwd` and a shared compact brief. Even for small diffs, keep the review gate as delegated reviewer work rather than replacing it with an in-orchestrator review.
 
-If the delegated reviewer path is unavailable, fails to start, or cannot be used, stop as `blocked` instead of reviewing directly in the orchestrator session.
+Each reviewer prompt must include:
+- the applicable section from [references/role-prompts.md](references/role-prompts.md), including the selected role/phase overlay prompt
+- an instruction to load only the canonical role `ROLE.md` and `RUBRIC.md` directly before judging the diff, then follow those loaded role files for any additional references or learnings
+- required final evidence field: `role_files_loaded`, listing `ROLE.md`, `RUBRIC.md`, and any additional files loaded because the role itself instructed it, or `blocked` if required role loading could not be completed
 
-For `architect`, load `../../roles/architect/ROLE.md`, `../../roles/architect/RUBRIC.md`, and `../../roles/architect/references/balanced-coupling.md`, then use the `architect` section of `../dev-harness/references/roles/reviewers.md` as the canonical phase-specific review adapter before judging the diff.
+Do not accept reviewer output for a required gate when `role_files_loaded` is absent, incomplete, or mismatched to the selected role. Mark that reviewer gate `blocked` instead.
+
+If the delegated reviewer path is unavailable, fails to start, or cannot be used, stop as `blocked` instead of reviewing directly in the orchestrator session.
 
 Keep each role prompt short and specific. Include the approved contract or compact acceptance criteria when available, plus only the diff summary, target branch/PR, the review focus for that role, the project’s `AGENTS.md` guidance, and the merge rubric.
 
 Suggested reviewer prompt shape:
 
 > Review this diff as the {role}. Approved contract: {contract-summary}. Focus on {focus}. Judge it adversarially against that contract. Return only: pass/fail, must-fix / should-fix / can-delay, evidence, and confidence. Call out file:line when possible. If nothing is wrong, say so briefly.
+
+Add the selected phase overlay from [references/role-prompts.md](references/role-prompts.md) before that instruction, and require `role_files_loaded` in the response.
 
 For `architect`, bias the prompt toward seam decisions, dependency correctness, file ownership/zone boundaries, request-path boundaries, balanced coupling, architecture-memory integrity, and whether the implementation introduces unnecessary coupling or the wrong abstraction layer.
 
