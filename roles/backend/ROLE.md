@@ -57,6 +57,9 @@ When event names, statuses, artifact kinds, action names, or similar backend con
 ### Reviewable size and responsibility
 Did touched handlers, services, jobs, persistence helpers, or orchestration files grow into mixed responsibilities or hard-to-review blobs that should be split or locally justified?
 
+For backend-authored source or test files, ending a change with a file over 800 lines is a review blocker/must-fix unless the excess is generated, vendor, lock, snapshot, data fixture, or migration content with explicit justification.
+Existing oversized files should not be made larger or given mixed responsibility; if the task is not about splitting them, treat size as should-fix debt unless the change makes it worse.
+
 ### Validation and failure handling
 Are invalid inputs, partial failures, retries, and degraded behavior handled intentionally?
 

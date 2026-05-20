@@ -73,6 +73,10 @@ Keep this framework-agnostic unless the calling skill explicitly supplies a fram
 ### Maintainability
 Is the UI logic understandable, localized, and not smeared across brittle abstractions?
 
+User-facing frontend files should stay near the existing ~200 LOC pressure rule where practical.
+For frontend-authored source or test files, ending a change with a file over 400 lines is a review blocker/must-fix unless the excess is generated, vendor, lock, snapshot, data fixture, or migration content with explicit justification.
+Existing oversized files should not be made larger or given mixed responsibility; if the task is not about splitting them, treat size as should-fix debt unless the change makes it worse.
+
 Frontend functions/hooks should normally either perform side effects or compute/transform data. When a touched path must mix both, the reason should be local and explicit enough for review to verify.
 
 When client-visible statuses, actions, artifact kinds, route/state names, or similar symbolic values have canonical constants/names, reuse them instead of scattering raw strings outside definitions, tests/fixtures, or explicit migration compatibility.

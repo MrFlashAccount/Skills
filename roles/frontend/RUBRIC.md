@@ -10,7 +10,9 @@ Use this as a compact checklist when a calling skill wants frontend implementati
 - **State/async flow**: Are state ownership, derived data, and async transitions clear and stable? Are independent promises started together and awaited only when needed?
 - **States**: Are loading, pending, empty, success, error/retry, focus, disabled, and permission/partial-data states handled intentionally where applicable?
 - **Routing/hydration**: Are route transitions and client/server boundary assumptions safe?
-- **Component architecture**: Are user-facing files/components kept near the ~200 LOC pressure rule, with extraction seams or explicit justification for larger slices? Are data/orchestration and presentation split when that clarifies behavior?
+- **Component architecture**: Are user-facing files/components kept near the ~200 LOC pressure rule, with extraction seams or explicit justification for larger slices?
+  Frontend-authored source/test files over 400 lines after a change are blockers unless explicitly justified as generated, vendor, lock, snapshot, data fixture, or migration exceptions; existing oversized files must not be made worse.
+  Are data/orchestration and presentation split when that clarifies behavior?
 - **Canonical values**: Are client-visible statuses, actions, artifact kinds, route/state names, and similar symbolic values reused through canonical constants/names instead of scattered raw strings, except definitions, tests/fixtures, or explicit migration compatibility?
 - **Side-effect boundaries**: Do functions/hooks avoid mixing side effects with compute/transform logic unless the reason is local and explicit?
 - **State placement**: Is state kept in the narrowest correct home: local, lifted, context, URL, server/cache, or global client store?
