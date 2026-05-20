@@ -7,6 +7,7 @@ description: Legacy donor/reference skill for existing-codebase deepening concep
 
 This skill is kept as a donor/reference artifact.
 For active architecture work, route through `create-architecture` in `improve` mode so the work stays inside the main architecture workflow, approval gate, and artifact system.
+Do not use this legacy donor skill for active role-owned architecture delegation. Route active Architect/Critic passes through `create-architecture`, which owns the Delegated Role Load Contract.
 
 What remains useful here:
 - module/interface/seam/depth/locality vocabulary

@@ -60,6 +60,7 @@ Research wrapper readiness is decided here; human handoff approval is not.
 - Load Researcher only: `../../roles/researcher/ROLE.md` and `../../roles/researcher/RUBRIC.md` directly, then follow the loaded role files for any additional references or learnings.
 - `Researcher A` builds the packet.
 - `Researcher B attack` pressure-tests the packet using the same role contract.
+- If either Researcher pass is delegated to a worker/subagent, the parent prompt must require `role_files_loaded` evidence for `../../roles/researcher/ROLE.md`, `../../roles/researcher/RUBRIC.md`, and any role-directed extra files. Delegated Researcher output without that evidence is `blocked`, not completion evidence.
 - The wrapper returns `critic_findings`, `missing_evidence`, `unresolved_blockers`, `verdict`, and `readiness_note`; those fields do not belong inside `researcher_packet`.
 - Architect is downstream of this skill and should not redo generic research.
 

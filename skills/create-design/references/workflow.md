@@ -39,6 +39,8 @@ The proposer must close, or explicitly mark unanswered, these questions before d
 
 When either Frontend-Taste pass is delegated to a worker/subagent, role label alone is not enough. The parent prompt must include this role split plus the selected role/phase overlay and require direct loading of only `../../roles/frontend-taste/ROLE.md` and `../../roles/frontend-taste/RUBRIC.md`; the worker must follow the loaded role files for any additional design-memory or learning references and load the applicable create-design references for the current stage. The worker must return `role_files_loaded` listing `ROLE.md`, `RUBRIC.md`, and any additional files actually loaded, or `blocked` if required role loading could not be completed. Do not accept the pass for a required gate when that evidence is absent or wrong.
 
+A design-memory artifact produced by a delegated Frontend-Taste pass without valid `role_files_loaded` is not accepted as proposal, critic, or completion evidence.
+
 ## 0. Pick the mode
 
 Choose one of these explicitly:

@@ -6,6 +6,8 @@ Read only the sections for implementer roles you are about to launch.
 
 `../../roles/*/ROLE.md` and `../../roles/*/RUBRIC.md` are the only canonical role files this overlay may require directly. The sections below are phase-specific implementation overlays only: ownership boundaries, execution rules, verification expectations, and implementer-specific escalation behavior. Any role-internal references or learnings must be discovered by following instructions inside the loaded role files.
 
+Shared implementer delegation rule: each implementer section is only a phase overlay. Parent prompt must include the selected section and require direct role loading of the selected role's canonical `ROLE.md` and `RUBRIC.md`. The worker result must include `role_files_loaded`; otherwise the owned file zone remains `blocked`.
+
 Role label alone is never sufficient. Before spawning an implementer worker/subagent, the parent must include the selected section below plus the selected role's canonical `ROLE.md` and `RUBRIC.md`. The worker must load those files before implementation, follow the loaded role files for any additional references or learnings, and return `role_files_loaded` listing `ROLE.md`, `RUBRIC.md`, and any additional files actually loaded because the role instructed it, or `blocked` if required role loading could not be completed. The parent must not accept required implementer output when this evidence is absent or mismatched.
 
 ## Common implementer quality gates

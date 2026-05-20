@@ -47,6 +47,7 @@ This skill is stateful.
 - `hat` changes framing, priorities, and judgment lens, not safety rules or approval rules.
 - `hat` does not replace workflow skills like `create-skill`, `create-design`, `dev-harness`, or `code-review-orchestrator`.
 - Keep using the right workflow/tooling for the task; the hat only changes the specialist lens.
+- A hat is not worker role-load evidence. If a later workflow delegates a role-owned worker, that workflow must still include its own Delegated Role Load Contract and require `role_files_loaded`.
 - Resolve hats from repo `../../roles/*`; do not invent roles that are not present.
 - Load the role properly, including any role-local read model that affects what else must be loaded.
 - If a role has richer local loading rules, follow them instead of reducing it to persona cosplay.

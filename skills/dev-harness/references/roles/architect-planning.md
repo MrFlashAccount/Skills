@@ -4,7 +4,7 @@ Paths in this phase overlay are resolved relative to the `dev-harness` skill roo
 
 Use this for the existing `dev-harness` planning-time architecture gate when scope is architecture-sensitive, and for tiny slices whenever durable architecture-artifact ownership might move. Full architecture process/package work routes to `create-architecture`; do not use this overlay as a substitute for that workflow.
 
-Load `../../roles/architect/ROLE.md` and `../../roles/architect/RUBRIC.md` first, then follow the loaded role files for any additional architecture references.
+Delegated Architect pass requirement: parent prompt must include this overlay and the shared Delegated Role Load Contract. Architect must load `../../roles/architect/ROLE.md` and `../../roles/architect/RUBRIC.md` first, then follow loaded role files for additional architecture references. Output without matching `role_files_loaded` is invalid for the architecture gate.
 
 This is a phase-specific overlay for execution planning, not post-implementation review and not a parallel ceremony.
 

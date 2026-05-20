@@ -6,7 +6,18 @@ Read only the sections for reviewers you actually selected for the current slice
 
 `../../roles/*/ROLE.md` and `../../roles/*/RUBRIC.md` are the only canonical role files this overlay may require directly. The sections below are phase-specific review overlays only: output shape, review boundaries, escalation rules, and reviewer-only checks. Any role-internal references or learnings must be discovered by following instructions inside the loaded role files.
 
-Role label alone is never sufficient. Before spawning a reviewer worker/subagent, the parent must include the selected section below plus the selected role's canonical `ROLE.md` and `RUBRIC.md`. The worker must load those files before review, follow the loaded role files for any additional references or learnings, and return `role_files_loaded` listing `ROLE.md`, `RUBRIC.md`, and any additional files actually loaded because the role instructed it, or `blocked` if required role loading could not be completed. The parent must not accept required reviewer output when this evidence is absent or mismatched.
+Role label alone is not a role contract.
+
+Before spawning a reviewer worker/subagent, the parent/orchestrator must include:
+- the selected review stage and scope;
+- the selected reviewer overlay from this file;
+- exact canonical role paths for `ROLE.md` and `RUBRIC.md`;
+- instruction to follow the loaded role files for additional references, learnings, or local read requirements;
+- required final evidence field `role_files_loaded`.
+
+The worker must load the selected role's canonical `ROLE.md` and `RUBRIC.md` before reviewing. The worker must then follow those loaded role files for any additional references/learnings. If required role loading cannot be completed, the worker returns `blocked` instead of a review verdict.
+
+Parent acceptance rule: do not accept a required reviewer gate when `role_files_loaded` is absent, incomplete, or mismatched to the selected role. Mark the gate `blocked`, fix the delegation prompt, and rerun or stop.
 
 Canonical reviewer roles:
 - `critic`

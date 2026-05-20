@@ -35,6 +35,14 @@ A full repository `readme` rewrite or product-facing repo `readme` entrypoint re
 6. If `tiny`, still name the current or target doc mode in the contract; read [references/doc-modes.md](references/doc-modes.md) too if the mode is not obvious.
 7. Read [references/review-policy.md](references/review-policy.md) before the first independent review.
 
+## Delegated Role Load Rule
+
+If a `tech-writer` writing/review pass or `critic` debate/review pass is delegated, include the selected role load block in the worker prompt. The worker must load the relevant canonical role files:
+- Tech Writer: `../../roles/tech-writer/ROLE.md`, `../../roles/tech-writer/RUBRIC.md`
+- Critic: `../../roles/critic/ROLE.md`, `../../roles/critic/RUBRIC.md`
+
+The worker must return `role_files_loaded`; delegated output without it cannot satisfy the docs review/debate gate.
+
 ## Task class
 
 - `tiny`: local clarity fix, one option or field, one narrow patch, or similar edit that does not change the teaching flow or primary doc mode.

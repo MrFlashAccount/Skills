@@ -19,7 +19,8 @@ Execution planning must be concrete enough for implementation shape, ownership, 
 - Implementation entities:
 - Reviewer roles:
 - Reviewer plan:
-- Role-load contract: required phase overlays plus direct `ROLE.md` / `RUBRIC.md` loads for delegated Architect, Planner, implementer, and reviewer workers; each required worker must return `role_files_loaded` or be treated as `blocked`
+- Role-load contract: required phase overlays plus direct `ROLE.md` / `RUBRIC.md` loads for delegated Architect, implementer, and reviewer workers; each required role-owned worker must return `role_files_loaded` or be treated as `blocked`
+- Planner A/B contract: Planner is a task-contract phase, not a canonical role. Delegated Planner prompts must include the applicable Planner section from this file and return explicit planner contract evidence, not `role_files_loaded`.
 - Acceptance criteria:
 - Design-test: required/not-required/unknown (draft-only before approval) + why
 - Design-test scope: intended UI shape, required components, critical states/behavior, detail expectations
@@ -158,7 +159,7 @@ A valid plan says what implementation must preserve and integrate with; it does 
 - Owner-to-zone map
 - Implementation entities
 - Reviewer roles and reviewer plan
-- Role-load contract and required `role_files_loaded` evidence for delegated workers
+- Role-load contract and required `role_files_loaded` evidence for delegated role-owned workers; Planner A/B task-contract evidence when Planner is delegated
 - Explicit handoff notes
 - Verification surfaces
 - Rollback surfaces

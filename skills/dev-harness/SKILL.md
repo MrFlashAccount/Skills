@@ -26,13 +26,25 @@ Read only the references needed for the current phase; do not load every role by
 - Before execution planning for non-trivial or ownership-unclear work, read [references/task-contract.md](references/task-contract.md).
 - If the slice may touch local files, personal docs, prompts/examples, logs, retained user data, or machine-specific paths, read [references/sensitive-surfaces.md](references/sensitive-surfaces.md) before proposal.
 - For architecture-sensitive work, or any slice where durable architecture artifacts might be required, read [references/roles/architect-planning.md](references/roles/architect-planning.md).
-- Before any delegated Architect, Planner, implementer, or reviewer worker is spawned, include the applicable phase overlay/load block from [references/roles/architect-planning.md](references/roles/architect-planning.md), [references/roles/implementers.md](references/roles/implementers.md), [references/roles/reviewers.md](references/roles/reviewers.md), or [references/task-contract.md](references/task-contract.md). A role label alone is not a role contract; the worker must directly load the selected role's `ROLE.md` and `RUBRIC.md`, then follow those loaded role files for any additional references.
+- Before any delegated Architect, implementer, or reviewer worker is spawned, include the applicable phase overlay/load block from [references/roles/architect-planning.md](references/roles/architect-planning.md), [references/roles/implementers.md](references/roles/implementers.md), or [references/roles/reviewers.md](references/roles/reviewers.md). A role label alone is not a role contract; the worker must directly load the selected role's `ROLE.md` and `RUBRIC.md`, then follow those loaded role files for any additional references. Planner A/B is a task-contract phase, not a canonical role; delegated Planner prompts must include the applicable section from [references/task-contract.md](references/task-contract.md) and return explicit planner contract evidence.
 - After approval, hand off to `../implementation-harness/` with the approved task context, human-approved research packet, structural contract when present, and approved execution-plan packet.
 - If routing is ambiguous or you want a sanity check on expected worker/reviewer choice, read [references/examples.md](references/examples.md).
 - Read the knowledge base only when relevant:
   - [references/knowledge/facts.md](references/knowledge/facts.md)
   - [references/knowledge/lessons.md](references/knowledge/lessons.md)
   - [references/knowledge/open-questions.md](references/knowledge/open-questions.md)
+
+## Delegated Role Load Contract
+
+Before spawning any role-owned worker/subagent for Architect, implementer, or reviewer work, the parent/orchestrator must embed the applicable phase overlay plus this load block in the worker prompt.
+
+Role label alone is invalid. The worker must:
+- load the selected canonical role `ROLE.md` and `RUBRIC.md` directly before judging, planning, editing, or reviewing;
+- follow those loaded role files for any additional references, learnings, or project-local read requirements;
+- return `role_files_loaded` listing exact paths loaded, including `ROLE.md`, `RUBRIC.md`, and any additional files loaded because the role instructed it;
+- return `blocked` instead of a verdict/output if required role loading cannot be completed.
+
+Parent acceptance rule: do not accept a required Architect, implementer, or reviewer gate when `role_files_loaded` is absent, incomplete, or mismatched to the selected role. Mark that gate `blocked` and fix the delegation prompt or rerun the gate. Do not use this role-load evidence rule for Planner A/B; Planner is governed by the task-contract phase evidence.
 
 ## Task class
 
@@ -171,7 +183,7 @@ Before approval, execution plans must not include:
 - Plain user action verbs like `fix`, `do`, `сделай`, or `исправь` do not count as permission for direct parent-session implementation; only an explicit request for direct in-session execution overrides the orchestrator default.
 - Speed is not a reason to bypass worker/subagent execution. If the workflow applies, keep the orchestrator in orchestration mode.
 - If required delegated execution is unavailable, fails to start, or cannot be used, stop as `blocked` rather than implementing or reviewing manually in the parent session.
-- Delegated role/worker prompts must require `role_files_loaded` listing loaded `ROLE.md`, `RUBRIC.md`, and any additional files loaded because the role itself instructed it, or `blocked` if required role loading could not be completed. Do not accept delegated Architect, Planner, implementer, or reviewer output for a required gate when that evidence is absent or wrong.
+- Delegated Architect, implementer, or reviewer prompts must require `role_files_loaded` listing loaded `ROLE.md`, `RUBRIC.md`, and any additional files loaded because the role itself instructed it, or `blocked` if required role loading could not be completed. Do not accept delegated role-owned output for a required gate when that evidence is absent or wrong. Delegated Planner prompts must instead include the relevant task-contract section and return planner contract evidence.
 
 ## Knowledge base
 

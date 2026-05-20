@@ -19,7 +19,22 @@ If the task is still vague, route discovery through grilling instead of guessing
 
 Do not collapse stages 1-6 straight into artifact writing.
 
-When Architect or Critic passes are delegated to workers/subagents, role label alone is not enough. The parent prompt must include the selected role/phase overlay and require Architect to load `../../roles/architect/ROLE.md` plus `../../roles/architect/RUBRIC.md`, or Critic to load `../../roles/critic/ROLE.md` plus `../../roles/critic/RUBRIC.md`, before judging, implementing, or reviewing. Each worker must then follow the loaded role files for any additional role references or learnings, load the relevant create-architecture references for the current stage, and return `role_files_loaded` listing `ROLE.md`, `RUBRIC.md`, and any additional files actually loaded, or `blocked` if required role loading could not be completed. Do not accept a required gate when role-load evidence is absent or wrong.
+## Delegated Role Load Contract
+
+Role label alone is not a role contract.
+
+Before spawning a delegated Architect or Critic worker/subagent, the parent/orchestrator must include:
+- the selected workflow stage and scope;
+- the selected role/phase overlay;
+- exact canonical role paths for `ROLE.md` and `RUBRIC.md`;
+- instruction to follow the loaded role files for additional references, learnings, or local read requirements;
+- required final evidence field `role_files_loaded`.
+
+Architect delegates must load `../../roles/architect/ROLE.md` and `../../roles/architect/RUBRIC.md`. Critic delegates must load `../../roles/critic/ROLE.md` and `../../roles/critic/RUBRIC.md`. The worker must load the selected role's canonical `ROLE.md` and `RUBRIC.md` before judging, implementing, or reviewing. The worker must then follow those loaded role files for any additional references/learnings and load the relevant create-architecture references for the current stage. If required role loading cannot be completed, the worker returns `blocked` instead of a verdict/output.
+
+Parent acceptance rule: do not accept a required role-owned gate when `role_files_loaded` is absent, incomplete, or mismatched to the selected role. Mark the gate `blocked`, fix the delegation prompt, and rerun or stop.
+
+Artifact requirement: architecture proposal/review artifacts must list `role_files_loaded` for delegated Architect/Critic passes. If a prior artifact lists skill/reference files but not `roles/architect/ROLE.md`, `roles/architect/RUBRIC.md`, and role-directed learnings/references, that artifact is invalid for the delegated Architect gate.
 
 ## 1. Source-audit
 

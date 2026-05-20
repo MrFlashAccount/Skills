@@ -46,6 +46,14 @@ Keep these stage boundaries intact:
 Hard rule: do not write canonical architecture artifacts before option choice and approval.
 That includes ADRs, C4 diagrams, strategic/tactical DDD docs, ports-and-adapters contracts, `ARCHITECTURE.md`, and folder-level `CONTEXT.md` docs.
 
+## Delegated Role Load Contract
+
+When any Architect or Critic pass is delegated to a worker/subagent, the parent prompt must include the stage name, selected create-architecture references, and the role load block. Role label alone is invalid.
+
+Architect delegates must load `../../roles/architect/ROLE.md` and `../../roles/architect/RUBRIC.md`. Critic delegates must load `../../roles/critic/ROLE.md` and `../../roles/critic/RUBRIC.md`. Each worker must follow the loaded role files for any additional references/learnings and return `role_files_loaded` with exact loaded paths.
+
+Do not accept required `architect-review`, `critic-pressure`, implementation-bound Architect, or post-implementation Architect/Critic output when `role_files_loaded` is missing, incomplete, or mismatched. Mark the stage `blocked` and rerun with the correct load block.
+
 ## Core rules
 
 - This skill is not a prose generator. Work from the actual repo, constraints, and change surface.

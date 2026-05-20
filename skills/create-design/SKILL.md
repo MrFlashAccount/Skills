@@ -78,6 +78,12 @@ For non-trivial design-memory work, use this sequence:
 
 For small approved fixes such as contract-only or wording-only edits, compress the amount of ceremony but keep the same stage boundaries.
 
+## Delegated Frontend-Taste Load Contract
+
+When `Frontend-Taste proposer/design architect` or `Frontend-Taste attacker/critic` is delegated, the parent prompt must include the pass name, applicable create-design references, and this load block.
+
+The worker must load `../../roles/frontend-taste/ROLE.md` and `../../roles/frontend-taste/RUBRIC.md` directly, follow those loaded role files for additional design-memory/learnings, and return `role_files_loaded` with exact paths. Do not accept delegated proposer or attacker output without valid `role_files_loaded`; mark the pass `blocked`.
+
 ## Core rules
 
 - Work from concrete surfaces, briefs, or design docs, not abstract design talk.

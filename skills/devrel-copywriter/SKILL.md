@@ -19,6 +19,10 @@ Build the writing contract before drafting or restructuring anything.
 - Read [references/readme-workflow.md](references/readme-workflow.md).
 - Read [references/review-policy.md](references/review-policy.md) before the first independent review.
 
+## Delegated Role Load Rule
+
+If a DevRel writing/review pass is delegated, the parent prompt must require loading `../../roles/dev-rel/ROLE.md` and `../../roles/dev-rel/RUBRIC.md`, following loaded role files for any additional references, and returning `role_files_loaded`. Do not accept delegated DevRel output for a required pass without that evidence.
+
 ## Routing
 
 - Route repository `readme` requests here when the file is the product-facing entrypoint and needs framing, structure choice, first-screen pitch, or overall message hierarchy.

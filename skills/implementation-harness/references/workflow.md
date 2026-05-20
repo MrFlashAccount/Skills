@@ -18,6 +18,7 @@ Choose implementers from the approved execution plan:
    - if the required implementer worker/subagent path is unavailable, fails to start, or cannot be used, stop as `blocked` instead of implementing manually in the parent session
    - role label alone is not enough: include the selected phase overlay from `../dev-harness/references/roles/implementers.md` and tell the worker to load the selected role's canonical `ROLE.md` and `RUBRIC.md` before editing, then follow those loaded role files for any additional references
    - require worker output field `role_files_loaded`, listing `ROLE.md`, `RUBRIC.md`, and any additional files loaded because the role itself instructed it, or `blocked` if required role loading could not be completed
+   - do not spawn implementer workers until the prompt contains the selected implementer overlay and the Implementer Role Load Contract; implementation notes without `role_files_loaded` are not completion evidence
 4. Implement only the approved slice and approved direction through those delegated implementer worker/subagent owner(s).
 5. Run the smallest meaningful verification.
 6. Package the development handoff for the separate review stage.

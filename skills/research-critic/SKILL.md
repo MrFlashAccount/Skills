@@ -37,6 +37,10 @@ Do not own:
 7. Read [references/verdicts.md](references/verdicts.md).
 8. For validation or maintenance of this skill itself, read [references/testing.md](references/testing.md).
 
+## Delegated Researcher Load Contract
+
+If `Researcher A` or `Researcher B attack` is delegated to a worker/subagent, the parent prompt must require direct loading of `../../roles/researcher/ROLE.md` and `../../roles/researcher/RUBRIC.md`, then following loaded role files for additional references/learnings. The worker must return `role_files_loaded`; otherwise the Researcher packet or attack is `blocked`.
+
 ## Default workflow
 
 1. Normalize the task into the input contract.

@@ -92,12 +92,13 @@ Before any `sessions_spawn`, read [references/role-prompts.md](references/role-p
 
 Use `sessions_spawn` to create one subagent per role, with the target repo as `cwd` and a shared compact brief. Even for small diffs, keep the review gate as delegated reviewer work rather than replacing it with an in-orchestrator review.
 
-Each reviewer prompt must include:
-- the applicable section from [references/role-prompts.md](references/role-prompts.md), including the selected role/phase overlay prompt
-- an instruction to load only the canonical role `ROLE.md` and `RUBRIC.md` directly before judging the diff, then follow those loaded role files for any additional references or learnings
-- required final evidence field: `role_files_loaded`, listing `ROLE.md`, `RUBRIC.md`, and any additional files loaded because the role itself instructed it, or `blocked` if required role loading could not be completed
+Use the shared Delegated Role Load Contract for every reviewer. Reviewer prompt must include:
+- selected section from [references/role-prompts.md](references/role-prompts.md);
+- exact canonical role path mapping;
+- instruction to load only canonical `ROLE.md` and `RUBRIC.md` directly, then follow loaded role files;
+- required `role_files_loaded` exact-path evidence.
 
-Do not accept reviewer output for a required gate when `role_files_loaded` is absent, incomplete, or mismatched to the selected role. Mark that reviewer gate `blocked` instead.
+Reviewer output without valid `role_files_loaded` is `blocked`, not a review.
 
 If the delegated reviewer path is unavailable, fails to start, or cannot be used, stop as `blocked` instead of reviewing directly in the orchestrator session.
 

@@ -74,6 +74,7 @@ For small approved fixes such as metadata-only or structure-only edits, compress
 - Add `scripts/` only for deterministic repeated work.
 - Add `assets/` only for output resources.
 - If the skill is a sensitive surface, keep repo-visible content redacted/local-safe and run privacy/data-safety review before calling it done.
+- For any skill that delegates role-owned workers/subagents, require an explicit Delegated Role Load Contract: parent prompt requirements, worker `ROLE.md`/`RUBRIC.md` load requirements, `role_files_loaded` evidence, and parent rejection rule.
 - If the workflow has repeated staged handoffs or unfinished-vs-finished leakage risk, read `references/state-machine-case-study.md` and consider an explicit state machine.
 - After the main edit pass, run critic/fix review loops and then one post-implementation review gate before finalizing.
 - If wording is still bloated after the main review/fix loop, run a late-stage compression pass through `forthright` for AI-only skill material, then sanity-check that no trigger boundary or safety rule was weakened.

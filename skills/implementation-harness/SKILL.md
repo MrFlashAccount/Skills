@@ -15,6 +15,14 @@ Use only after approval. This skill executes against approved research and appro
 4. Read [references/testing.md](references/testing.md) before verification.
 5. Read [references/output-contract.md](references/output-contract.md) before returning results.
 
+## Implementer Role Load Contract
+
+Before spawning an implementer worker, read `../dev-harness/references/roles/implementers.md`, select exactly one implementer section, and embed that section plus this load block in the prompt.
+
+The implementer must load the selected role's canonical `ROLE.md` and `RUBRIC.md` before editing, follow loaded role instructions for additional references/learnings, and return `role_files_loaded` with exact paths. If role loading fails, the worker returns `blocked` and makes no edits.
+
+Parent acceptance rule: do not accept implementation output for a required file zone when `role_files_loaded` is absent, incomplete, or mismatched. Keep that zone `blocked`.
+
 ## What this skill owns
 
 - Takes approved task context plus approved research and execution-plan context as input.
