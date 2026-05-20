@@ -18,6 +18,7 @@ This role is phase-agnostic. It does not own a workflow by itself. A calling ski
 - auth and permission hygiene
 - migration and rollout safety
 - operational clarity
+- canonical symbolic contracts over scattered literals
 - testability and observability
 - boring reliability over cleverness
 
@@ -47,6 +48,14 @@ Do the backend contracts, shapes, and invariants stay explicit and correct?
 
 ### Data flow and side effects
 Does data move through the slice clearly, safely, and without hidden mutation or accidental widening?
+
+Backend functions and methods should normally either perform side effects or compute/transform data. When a touched path must mix both, the reason should be local and explicit enough for review to verify.
+
+### Canonical symbolic values
+When event names, statuses, artifact kinds, action names, or similar backend contract values have canonical constants/names, are implementations using that single source of truth instead of raw strings outside definitions, tests/fixtures, or explicit migration compatibility?
+
+### Reviewable size and responsibility
+Did touched handlers, services, jobs, persistence helpers, or orchestration files grow into mixed responsibilities or hard-to-review blobs that should be split or locally justified?
 
 ### Validation and failure handling
 Are invalid inputs, partial failures, retries, and degraded behavior handled intentionally?
@@ -86,6 +95,8 @@ Depending on the caller's context, this role usually produces some combination o
 - validation holes and ambiguous error semantics
 - business logic smeared across the wrong layers
 - hidden side effects or persistence coupling
+- raw event/status/action/artifact strings bypassing canonical constants or names
+- backend functions/files growing into mixed-responsibility orchestration blobs
 - auth checks in the wrong place or missing entirely
 - migrations or rollouts treated as an afterthought
 - tests that do not actually prove the claimed behavior

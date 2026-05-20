@@ -73,6 +73,10 @@ Keep this framework-agnostic unless the calling skill explicitly supplies a fram
 ### Maintainability
 Is the UI logic understandable, localized, and not smeared across brittle abstractions?
 
+Frontend functions/hooks should normally either perform side effects or compute/transform data. When a touched path must mix both, the reason should be local and explicit enough for review to verify.
+
+When client-visible statuses, actions, artifact kinds, route/state names, or similar symbolic values have canonical constants/names, reuse them instead of scattering raw strings outside definitions, tests/fixtures, or explicit migration compatibility.
+
 ### Interaction quality
 Does interaction behavior remain accessible, predictable, and correct without drifting into pure visual-taste review?
 
@@ -117,6 +121,8 @@ Depending on the caller's context, this role usually produces some combination o
 - avoidable async waterfalls, broad imports, unnecessary render churn, repeated client I/O, or browser hot-path work
 - routing or hydration bugs hidden behind happy-path testing
 - UI logic smeared across too many components or hooks
+- raw status/action/artifact/route/state strings bypassing canonical constants or names
+- components, hooks, or helpers growing past reviewable responsibility without extraction or local justification
 - interaction regressions treated as styling issues only
 
 ## Boundaries

@@ -18,6 +18,8 @@ Read this before any review pass.
 - Review external contract assumptions when the slice depends on a CLI, API, SDK, webhook, or similar integration.
 - Require at least one contract evidence source: docs, captured sample, fixture, or local parser/runtime verification.
 - Check relevant assumption classes: payload shape/envelope, key names/field semantics, auth scopes/permissions/feature flags, nullability/empty states/optional fields, pagination/truncation/partial results, and dry-run-vs-live or mock-vs-real parity.
+- Check review-gate quality drift: canonical symbolic values, duplicated literals, function/file growth, mixed responsibilities, and new indirect coupling.
+- When event names, statuses, artifact kinds, action names, or similar symbolic values have canonical constants/names, flag new raw string use outside the canonical definition, tests/fixtures, or explicit migration compatibility.
 - Collect findings into a short report.
 - Feed in-scope fixes back to the relevant implementers without asking for fresh approval each pass.
 - If a review finding expands scope, forces redesign, or surfaces a high-risk contradiction, stop and go back to the user for re-approval.
@@ -35,7 +37,8 @@ Load `../../roles/critic/ROLE.md` as the canonical critic identity and `../../ro
 
 Use critic here as a short challenge role, not as a second implementer, second discovery worker, or vague smart-sounding narrator.
 
-- Critic is the simplification/challenge reviewer, not the primary reviewer for correctness, security, privacy/data-safety, QA, performance, or redesign.
+- Critic is the adversarial simplification/challenge reviewer, not a polite lightweight reviewer or the primary reviewer for correctness, security, privacy/data-safety, QA, performance, or redesign.
+- Critic should aggressively challenge avoidable complexity, bloat, duplication, hidden coupling, unclear boundaries, overlarge files/functions, and cheaper/simpler alternatives, including small issues when they compound maintainability drift.
 - Output shape: `Pass/fail / Must-fix / Should-fix / Can-delay`.
 - Cap `Must-fix` at 3 items, ranked by severity.
 - Every material finding should point to an artifact: acceptance criteria, proposal field, risk, file/line, test gap, or contradiction.
