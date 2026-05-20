@@ -10,6 +10,7 @@ Use this as a compact checklist when a calling skill wants backend implementatio
 - **Data flow**: Is data movement and side-effect ownership clear? Do functions/methods avoid mixing side effects with compute/transform logic unless the reason is local and explicit?
 - **Canonical values**: Are event names, statuses, artifact kinds, actions, and similar symbolic values reused through canonical constants/names instead of scattered raw strings, except definitions, tests/fixtures, or explicit migration compatibility?
 - **Size/responsibility**: Are touched backend files/functions kept reviewable instead of growing into mixed-responsibility orchestration blobs?
+  Backend-authored source/test files over 800 lines after a change are blockers unless explicitly justified as generated, vendor, lock, snapshot, data fixture, or migration exceptions; existing oversized files must not be made worse.
 - **Validation**: Are invalid input, failure, and edge-case paths handled intentionally?
 - **Auth/permissions**: Are access checks and trust boundaries enforced in the right place?
 - **Persistence/rollout**: Are migration, rollback, and compatibility risks accounted for?

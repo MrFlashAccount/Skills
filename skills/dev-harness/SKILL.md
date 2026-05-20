@@ -107,7 +107,7 @@ Implementation entities are planner-level handoff objects. They are not Research
    - spawn implementation through delegated worker/subagent via `implementation-harness`; do not implement in the orchestrator session unless the user explicitly requested direct in-session execution
    - if delegated execution is unavailable, fails to start, or cannot be used, stop as `blocked`
 9. `implementation-harness` owns post-approval development and smallest meaningful verification.
-10. `code-review-orchestrator` owns the explicit post-implementation review gate and fix/re-review loop.
+10. `code-review-orchestrator` owns the explicit post-implementation review gate and fix/re-review loop, including contract/docs drift checks when contract-bearing surfaces changed.
 11. If development or review finds scope growth, redesign pressure, or a high-risk contradiction, return for re-approval.
 12. Append to the knowledge base only when the task produced a durable fact, lesson, or open question.
 
@@ -127,6 +127,7 @@ Before approval, execution plans may include:
 - sensitive-surface handling
 - request-path / contract touchpoints
 - docs to update
+- contract/docs drift surfaces and final-review inputs, including expected docs/tests/source-contract artifacts when contract-bearing surfaces may change
 - code-documentation surfaces to update when the slice changes public, contract-bearing, or non-trivial code
 - risks and assumptions
 - architecture artifact decision and structural contract reference when present
@@ -161,6 +162,7 @@ Before approval, execution plans must not include:
 - `.proposals/` is opt-in only by explicit Sergey/user request. If created, use `.proposals/<feature-slug>/{research.md,architecture.md,implementation.md}`, ensure it is gitignored in the target repo, treat it as non-final workspace, and fail publish/PR hygiene on root `plan.md`, `architecture-proposal.md`, `implementation-proposal.md`, or other implementation proposal leftovers unless explicitly approved.
 - Do not mix auth, UI, importer, security, and privacy/data-retention changes in one slice.
 - Do not treat backend request-shape, persistence, or async runtime changes as implementation-only details; contract and docs impact must be checked before approval and before review closes.
+- Docs-to-update and contract touchpoints are final-review inputs, not only planning fields; contract/docs impact must be reconciled in final Architect review before closure when contract-bearing surfaces changed.
 - Do not assume external integration contracts from happy-path mocks or one narrow sample; review must name the contract evidence source when such assumptions matter.
 - If the slice touches local files, personal docs, prompts/examples, logs/traces, retained user data, or machine-specific paths, treat it as `sensitive-surface` until proven otherwise.
 - Do not commit real user documents, machine-specific paths, or retained private data into repo-visible `references/`, `assets/`, examples, fixtures, or logs.

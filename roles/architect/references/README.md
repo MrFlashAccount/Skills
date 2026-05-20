@@ -9,11 +9,11 @@ Use these references selectively. Start here, then open only the docs that mater
 - **What architecture weight fits this slice?** → `criteria/architecture-weight.md`
 - **Is the right answer DDD because language and boundaries are the problem?** → `patterns/strategic-ddd.md`, `entities/bounded-context.md`, `entities/ubiquitous-language.md`, `formats/context-map.md`
 - **Does one context need richer domain mechanics?** → `patterns/tactical-ddd.md`, `entities/invariant.md`
-- **Do dependency direction, ports, request paths, or persistence boundaries matter?** → `patterns/clean-architecture.md`, `patterns/ports-and-adapters.md`, `entities/dependency-rule.md`
+- **Do dependency direction, import-export seams, ports, request paths, or persistence boundaries matter?** → `patterns/clean-architecture.md`, `patterns/ports-and-adapters.md`, `entities/dependency-rule.md`, `entities/relationships.md`
 - **Is controlled extensibility the point?** → `patterns/plugin-architecture.md`
 - **Can this stay a small functional core with side effects at the edge?** → `patterns/functional-core-shell.md`
 - **Should this remain a small monolith or almost no extra architecture?** → `criteria/architecture-weight.md`, `criteria/collocation.md`
-- **Who owns this change and what must not move?** → `entities/boundaries-and-ownership.md`, `entities/forbidden-moves.md`, `entities/relationships.md`
+- **Who owns this change, what is the entity delta, and what must not move?** → `entities/boundaries-and-ownership.md`, `entities/forbidden-moves.md`, `entities/structural-entity.md`, `entities/relationships.md`
 - **Is this architecture-sensitive at all?** → `criteria/change-classification.md`, `criteria/architecture-fit.md`, `criteria/design-basis.md`
 - **How should the shape be rendered or recorded?** → `formats/c4-views.md`, `formats/context-map.md`, `formats/adr.md`, `formats/architecture-records.md`
 - **What risks or smells deserve explicit callout?** → `criteria/structural-risks.md`, `balanced-coupling.md`
@@ -31,9 +31,9 @@ Use these references selectively. Start here, then open only the docs that mater
 - `entities/bounded-context.md` — responsibility zones, language protection, and ownership boundaries.
 - `entities/ubiquitous-language.md` — stable shared vocabulary for code, docs, tests, and review.
 - `entities/boundaries-and-ownership.md` — who owns the behavior, seam, docs, and tests, and where the change must stop.
-- `entities/structural-entity.md` — architecture-level units the structural contract reasons about.
-- `entities/relationships.md` — directional structural relationships between entities or contexts.
-- `entities/dependency-rule.md` — allowed and forbidden dependency direction, including request-path or persistence-boundary pressure when relevant.
+- `entities/structural-entity.md` — architecture-level units the structural contract reasons about, including entity delta.
+- `entities/relationships.md` — directional structural relationships between entities or contexts, including import-export maps when seams are affected.
+- `entities/dependency-rule.md` — allowed and forbidden dependency direction, including `must_not_import`, request-path, persistence-boundary, or check pressure when relevant.
 - `entities/constraint.md` — binding limits on the solution space.
 - `entities/invariant.md` — truths that must remain stable while the slice changes.
 - `entities/forbidden-moves.md` — explicit structural no-go changes.

@@ -12,13 +12,15 @@ This is a phase-specific overlay for execution planning, not post-implementation
 
 Use Architect during planning when the main risk is structural, not merely factual discovery:
 
-- unclear file-zone boundaries
+- unclear target architecture or file-zone boundaries
 - unclear request-path or module seams
 - dependency shape or layering risk
 - likely contract drift across modules
 - adapter/seam decisions that could introduce shallow indirection or accidental coupling
 - balanced coupling questions where integration strength, distance, or volatility may be mismatched
 - uncertainty about whether architecture notes/ADRs/context docs must move with the slice
+- evolving requirements that may no longer fit the current source shape without an architecture evolution/refactor slice
+- risk that a chosen bounded-context, ports-and-adapters, Clean Architecture, or equivalent shape will be hidden in flat/global modules instead of revealed by source layout
 
 ## Required output
 
@@ -37,7 +39,9 @@ Architect output may start with an optional short `summary`. The required body o
 11. `structural_risks`
 12. `final_structural_contract`
 
-For new project, new repo, new plugin, and architecture-sensitive work, `project_baseline` records existing docs, source ownership zones, and relevant missing/deferred artifacts. `architecture_artifact_manifest` names the durable artifacts in play: `ARCHITECTURE.md`, meaningful source-zone `CONTEXT.md`, ADR/migration docs as needed, and `DESIGN.md` status when UI/frontend surface is material. Source-focused `CONTEXT.md` defaults only to meaningful source ownership zones, not tests/scripts/fixtures/tooling by default.
+For new project, new repo, new plugin, and architecture-sensitive work, `project_baseline` records existing docs, current and target source ownership zones, and relevant missing/deferred artifacts. `architecture_artifact_manifest` names the durable artifacts in play: `ARCHITECTURE.md`, meaningful source-zone `CONTEXT.md`, ADR/migration docs as needed, and `DESIGN.md` status when UI/frontend surface is material. Source-focused `CONTEXT.md` defaults only to meaningful source ownership zones, not tests/scripts/fixtures/tooling by default.
+
+`constraints` and `final_structural_contract` must name the target architecture for the slice, including any architecture evolution/refactor that must happen before feature implementation.
 
 `required_artifacts` must include one explicit architecture artifact decision:
 
@@ -61,10 +65,10 @@ This is the same Architect role/class in an attack pass, not a separate Critic r
 
 Return only planning-safe material:
 
-- constraints
+- constraints, including target architecture and any required architecture evolution/refactor pressure
 - forbidden moves
 - invariants
-- boundaries and ownership
+- boundaries and ownership, including source-layout expectations
 - structural entities
 - relationships
 - dependency rules
@@ -96,9 +100,10 @@ Do not return:
 
 - the slice is `non-trivial` and architecture-sensitive
 - the slice introduces or reshapes adapters, service boundaries, structural entities, or contract-touchpoint seams
-- the slice could quietly change architecture records, module ownership, or durable architecture memory if left unchecked
+- the slice could quietly change architecture records, module ownership, source layout, or durable architecture memory if left unchecked
 - the work is for a new project, new repo, or new plugin and needs a baseline before implementation planning
 - a durable architecture artifact may need to be created or updated, even if the slice is otherwise tiny
+- the next feature slice would put a major new responsibility into a flat/global module because the current architecture has not evolved to fit the requirement
 
 ### Architecture gate records `none` when:
 
@@ -121,5 +126,8 @@ Do not return:
 - Stay read-only during planning.
 - Stay inside approved scope.
 - Convert architecture concerns into contract constraints, not broad redesign.
+- Planning Architect must describe/evolve the target architecture, not merely validate local seams.
+- When current architecture no longer fits evolving requirements, propose an architecture evolution/refactor slice before implementation planning adds feature debt.
+- Screaming architecture is binding when selected: chosen contexts, ports/adapters, policy/detail layers, and owning zones must be visible in source layout unless the contract records an explicit exception.
 - Keep Researcher domain vocabulary, Architect structural entities, and Planner implementation entities distinct.
 - If the real issue is still open-ended discovery/proposal, send it back to `research` instead of stretching planning to absorb it.

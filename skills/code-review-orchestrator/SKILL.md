@@ -60,6 +60,7 @@ Do not treat `staff engineer`, generic `designer`, `financial/risk`, or `reliabi
 8. Return a short report with a clear verdict and next step.
 9. When the user wants an iterative loop, feed the report back into the same review process and repeat up to 3 passes total.
    - after an in-scope fix pass, prefer a fresh independent reviewer for re-review by default; reuse the same reviewer only when reviewer availability is constrained and the slice stayed within frozen scope
+   - re-review must preserve the contract/docs drift check and must not narrow only to the original code finding when the fix touched a contract-bearing surface
 10. For every code task, keep a review gate in the loop; the question is only how much review depth is needed.
 11. Do not treat implementer completion notes as authoritative for non-trivial work; the slice stays open until validation and independent review pass.
 
@@ -69,6 +70,7 @@ Do not treat `staff engineer`, generic `designer`, `financial/risk`, or `reliabi
 - Use `critic` when the main question is simplification, scope pressure, hidden fragility, or trade-offs.
 - Use `architect` when the main question is seams, layering, dependency direction, file-zone boundaries, request-path shape, balanced coupling, architecture-memory integrity, or whether the implementation matches the intended architecture of the approved slice.
 - `architect` is mandatory when the approved slice introduced or reshaped backend/service/adaptor seams across multiple zones and those boundaries are a primary review risk.
+- `architect` is mandatory for final/re-review passes when implementation changes or may change contract-bearing docs, artifacts, states, schemas, workflows, process contracts, or symbolic lifecycle values, unless the approved execution contract explicitly assigns that drift gate to another reviewer as an approved exception.
 - `architect` is recommended for non-trivial backend refactors, platforming, or coupling-sensitive work even when one `backend` reviewer could probably catch plain correctness issues.
 - `architect` is usually unnecessary for tiny single-zone fixes with no boundary, ownership, layering, or architecture-artifact risk.
 - even for tiny slices, if durable architecture-artifact ownership or architecture-memory integrity is in doubt, route `architect` explicitly instead of leaving that check implicit.
@@ -107,7 +109,7 @@ Suggested reviewer prompt shape:
 
 Add the selected phase overlay from [references/role-prompts.md](references/role-prompts.md) before that instruction, and require `role_files_loaded` in the response.
 
-For `architect`, bias the prompt toward seam decisions, dependency correctness, file ownership/zone boundaries, request-path boundaries, balanced coupling, architecture-memory integrity, and whether the implementation introduces unnecessary coupling or the wrong abstraction layer.
+For `architect`, bias the prompt toward the planning-fixed architecture contract, seam decisions, dependency correctness, file ownership/zone boundaries, source-layout expectations, request-path boundaries, balanced coupling, architecture-memory integrity, and whether the implementation introduces unnecessary coupling, unapproved flat/global responsibility placement, or the wrong abstraction layer.
 
 ## If context is missing
 Ask only for the missing target, repo path, branch, or PR.
@@ -126,4 +128,5 @@ Ask only for the missing target, repo path, branch, or PR.
 - Do not collapse disagreements into mush, keep both sides.
 - If all reviewers are clean, say that plainly and mention the highest-risk area that was checked.
 - For non-trivial work, the merged verdict must say whether the approved contract passed or failed review.
+- For non-trivial or contract-bearing work, the merged verdict must say whether contract/docs drift was checked and cleared, failed, or `not-required` for non-contract-bearing work.
 - For `sensitive-surface` diffs, say explicitly whether `privacy/data-safety` and `security` were run, and which one cleared the slice.

@@ -22,6 +22,8 @@ Use this file during architect review, critic pressure, and the final post-imple
 
 ### 4. Dependency and seam clarity
 - Is the dependency rule explicit where Clean Architecture or Ports & Adapters is used?
+- Is the import-export map clear enough to show what imports/exports what and who owns each exposed seam?
+- Are binding `must_not_import` rules stated for no-go imports that would break the architecture?
 - Are inbound/outbound ports and adapters real, or decorative?
 - For existing-codebase improvement, does each new seam have real variation or at least a credible second adapter?
 - Is composition root / DI shape clear enough to implement?
@@ -34,14 +36,16 @@ Use this file during architect review, critic pressure, and the final post-imple
 
 ### 5. Artifact boundaries
 - Is `ARCHITECTURE.md` the entrypoint and selected product architecture contract rather than the whole universe?
-- Does `ARCHITECTURE.md` capture the chosen option, constraints, binding rules, boundaries, dependency direction, and pointers to local `CONTEXT.md` docs instead of turning into a catalog of options or generic architecture advice?
+- Does `ARCHITECTURE.md` capture the chosen option, constraints, binding rules, entity delta, boundaries, dependency direction, source-layout/doc deltas, and pointers to local `CONTEXT.md` docs instead of turning into a catalog of options or generic architecture advice?
 - Are supporting artifacts justified and linked?
 - Are local `CONTEXT.md` docs placed near the folders they govern?
 - Are related entities, ports, adapters, and local rules colocated with the owning context instead of being pulled into a central mirror?
+- When bounded contexts, ports-and-adapters, Clean Architecture, or equivalent zones are chosen, does source layout make those zones obvious?
 - Do local `CONTEXT.md` docs act as the distributed source of truth for ownership, placement, and forbidden dependencies instead of deferring everything upward?
 
 ### 6. Migration realism
 - Can the migration be sliced into reviewable PRs?
+- Does PR slicing state what each slice changes structurally and which architecture checks should pass?
 - Are sequencing constraints and high-risk moves named?
 - Did the package avoid freezing a fantasy end-state with no path from here to there?
 
@@ -52,6 +56,7 @@ Use this file during architect review, critic pressure, and the final post-imple
 - Was everything centralized into one mega-doc?
 - Were forbidden dependencies and ownership rules left implicit?
 - Did the improvement add indirection without depth, locality, or test-surface clarity?
+- Did the package claim bounded contexts, ports-and-adapters, Clean Architecture, or equivalent zones while source layout still hides major responsibilities in flat/global modules?
 
 ## Typical failures
 
@@ -67,7 +72,10 @@ Use this file during architect review, critic pressure, and the final post-imple
 - `ARCHITECTURE.md` turned into an encyclopedia of architecture options, heuristics, or generic best practices instead of the selected contract
 - pass-through module extraction presented as architecture improvement
 - PR slicing too vague to guide implementation
+- missing entity delta, import-export/dependency map, binding no-go imports, source-layout/doc deltas, or checks needed to review the proposal
 
 ## Final gate
 
 Do not call the result clean if it still reads like architecture theater.
+
+Do not call the result clean until source, tests/checks, docs/architecture artifacts, local context docs, state-machine/workflow records, schemas, and artifact maps agree on every changed contract-bearing surface.
