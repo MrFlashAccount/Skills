@@ -70,7 +70,7 @@ Do not treat `staff engineer`, generic `designer`, `financial/risk`, or `reliabi
 - Use `critic` when the main question is simplification, scope pressure, hidden fragility, or trade-offs.
 - Use `architect` when the main question is seams, layering, dependency direction, file-zone boundaries, request-path shape, balanced coupling, architecture-memory integrity, or whether the implementation matches the intended architecture of the approved slice.
 - `architect` is mandatory when the approved slice introduced or reshaped backend/service/adaptor seams across multiple zones and those boundaries are a primary review risk.
-- `architect` is mandatory for final/re-review passes when implementation changes or may change contract-bearing docs, artifacts, states, schemas, workflows, process contracts, or symbolic lifecycle values, even if the diff otherwise looks small.
+- `architect` is mandatory for final/re-review passes when implementation changes or may change contract-bearing docs, artifacts, states, schemas, workflows, process contracts, or symbolic lifecycle values, unless the approved execution contract explicitly assigns that drift gate to another reviewer as an approved exception.
 - `architect` is recommended for non-trivial backend refactors, platforming, or coupling-sensitive work even when one `backend` reviewer could probably catch plain correctness issues.
 - `architect` is usually unnecessary for tiny single-zone fixes with no boundary, ownership, layering, or architecture-artifact risk.
 - even for tiny slices, if durable architecture-artifact ownership or architecture-memory integrity is in doubt, route `architect` explicitly instead of leaving that check implicit.
