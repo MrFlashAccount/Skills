@@ -107,7 +107,7 @@ Suggested reviewer prompt shape:
 
 Add the selected phase overlay from [references/role-prompts.md](references/role-prompts.md) before that instruction, and require `role_files_loaded` in the response.
 
-For `architect`, bias the prompt toward seam decisions, dependency correctness, file ownership/zone boundaries, request-path boundaries, balanced coupling, architecture-memory integrity, and whether the implementation introduces unnecessary coupling or the wrong abstraction layer.
+For `architect`, bias the prompt toward the planning-fixed architecture contract, seam decisions, dependency correctness, file ownership/zone boundaries, source-layout expectations, request-path boundaries, balanced coupling, architecture-memory integrity, and whether the implementation introduces unnecessary coupling, unapproved flat/global responsibility placement, or the wrong abstraction layer.
 
 ## If context is missing
 Ask only for the missing target, repo path, branch, or PR.

@@ -56,15 +56,17 @@ That includes ADRs, C4 diagrams, strategic/tactical DDD docs, ports-and-adapters
 - Tactical DDD is selective. Do not spray entities, aggregates, and repositories everywhere just to sound architectural.
 - Make the dependency rule explicit when using Clean Architecture or Ports & Adapters.
 - Decide whether the task needs an architecture/design change or only a local change before creating architecture artifacts.
-- For implementation-bound architecture work, state what changes, what does not change, affected entities/modules/relationships, ownership, boundaries, and dependency direction.
+- For implementation-bound architecture work, state the target architecture, what changes, what does not change, affected entities/modules/relationships, ownership, boundaries, source-layout expectations, and dependency direction.
 - Treat collocation as a hard architecture principle: related entities, ports, adapters, and local rules belong with the owning context unless there is a strong contrary constraint.
+- Treat screaming architecture as a hard rule when bounded contexts, ports-and-adapters, Clean Architecture, or equivalent responsibility zones are chosen: the source layout should reveal the target architecture, and new major responsibilities need owning source zones or an explicit architecture exception.
+- If evolving requirements no longer fit the current shape, propose a reviewable architecture evolution/refactor slice before feature slices deepen the mismatch.
 - Canonical default for new local context-contract files is uppercase `CONTEXT.md`. If a repo already uses `Context.md`, treat that as an existing alternate spelling rather than a reason to centralize or rename blindly.
 - `CONTEXT.md` files must be local to important folders/contexts and must state ownership, placement rules, allowed modules, and forbidden dependencies.
 - Central architecture docs should index and discover local context rules, not mirror them.
 - `ARCHITECTURE.md` should capture the chosen option, chosen constraints, binding rules, entities/contexts/boundaries, dependency direction, and pointers to local `CONTEXT.md` files. Option catalogs, heuristics, best practices, and generic architecture judgment belong in the Architect role and create-architecture references, not in the product contract itself.
 - Migration guidance must be sliceable into reviewable PRs. Do not leave migration as one giant future blob.
 - After the first implementation pass, run architect review, critic pressure, fixes, and a final post-implementation review before calling it done.
-- Watch the main failure modes explicitly: writing docs too early, dumping the as-is state without decisions, omitting C4, collapsing DDD into buzzwords, centralizing everything into one doc, centralizing local ownership rules that should stay colocated, and freezing a folder tree that the repo has not earned.
+- Watch the main failure modes explicitly: writing docs too early, dumping the as-is state without decisions, omitting C4, collapsing DDD into buzzwords, centralizing everything into one doc, centralizing local ownership rules that should stay colocated, hiding chosen architecture in flat/global source modules, and freezing a folder tree that the repo has not earned.
 
 ## Read next
 

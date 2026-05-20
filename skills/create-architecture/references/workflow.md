@@ -31,7 +31,7 @@ Inspect:
 - runtime and deployment shape when relevant
 - domain language already present in the repo
 - known pain, goals, constraints, and planned change surface
-- for `improve` work, current module/interface/seam shape, shallow-module clusters, adapter reality, local `CONTEXT.md` coverage, and whether ownership artifacts are actually colocated
+- for `improve` work, current module/interface/seam shape, shallow-module clusters, adapter reality, local `CONTEXT.md` coverage, whether ownership artifacts are actually colocated, and whether source layout reveals the intended architecture
 
 Default outputs:
 - representative asks
@@ -41,7 +41,7 @@ Default outputs:
 - likely architecture pressure points
 - recommendation for `audit`, `scaffold`, or `improve`
 - whether the request appears to need a design/architecture change or only a local change
-- when in `improve`, whether the repo mainly needs alignment, selective deepening, seam cleanup, or a broader architecture shift
+- when in `improve`, whether the repo mainly needs alignment, selective deepening, seam cleanup, a broader architecture shift, or a dedicated evolution/refactor slice before feature work continues
 
 Do not turn this into a canonical ADR or full architecture narrative.
 
@@ -103,7 +103,7 @@ Check:
 - is the option overfit to a fashion label?
 - are the required artifacts justified and scoped?
 - is the migration path credible?
-- does the proposal state what changes, what does not change, and the affected entities/modules/relationships clearly enough for implementation?
+- does the proposal state the target architecture, what changes, what does not change, and the affected entities/modules/relationships/source zones clearly enough for implementation?
 
 If the proposal fails, fix it before critic pressure.
 
@@ -119,6 +119,7 @@ Pressure-test:
 - accidental framework lock-in
 - excessive documentation burden
 - under-specified context ownership
+- target architecture hidden behind flat/global source modules
 - shallow wrappers that fail the deletion test
 - new seams with only hypothetical adapters
 - PR slices that are too big or interdependent
@@ -139,7 +140,7 @@ Do not smuggle implementation through a polished proposal.
 
 ## 8. Implementation
 
-After approval, create or revise the architecture package. The implementation-bound output must include the concrete structural change contract: what changes, what does not change, affected entities/modules/relationships, ownership, boundaries, dependency direction, and any required architecture-memory updates.
+After approval, create or revise the architecture package. The implementation-bound output must include the concrete structural change contract: target architecture, what changes, what does not change, affected entities/modules/relationships, owning source zones, boundaries, dependency direction, and any required architecture-memory updates.
 
 Required core deliverables:
 1. Architecture Decision
@@ -160,6 +161,7 @@ Implementation rules:
 - let central architecture docs index/discover local context rules instead of mirroring them
 - prefer Mermaid for diagrams unless text is clearer
 - do not freeze an imaginary future structure as if it already exists
+- when chosen contexts, ports/adapters, or policy/detail layers are real, make the target source layout reveal them instead of routing new major responsibilities through flat/global modules
 - tie every artifact to the chosen option, not to architecture buzzwords
 - keep option catalogs, heuristics, best practices, and generic architectural judgment in the Architect role and create-architecture references; the produced `ARCHITECTURE.md` should capture the applied selected contract
 
@@ -168,7 +170,7 @@ Implementation rules:
 Review the implemented result against the approved proposal.
 
 Check:
-- did the package reflect the approved option faithfully?
+- did the package reflect the approved option faithfully, including target source-layout pressure?
 - are C4, DDD, dependency rule, and context docs present where required?
 - did any artifact regress into as-is documentation only?
 - are ownership and forbidden dependencies explicit?

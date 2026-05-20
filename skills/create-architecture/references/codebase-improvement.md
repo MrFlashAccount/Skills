@@ -58,6 +58,7 @@ A good improvement increases both:
 - Put placement rules, allowed modules, forbidden dependencies, and ownership near the code they govern.
 - Update the nearest relevant `CONTEXT.md` when a module's responsibility, ownership, or terminology changes.
 - Do not collapse distributed context contracts back into one centralized folder dump or mirror them into central docs beyond indexing/discovery.
+- If chosen architecture relies on bounded contexts, ports/adapters, Clean Architecture, or equivalent zones, make the source layout reveal those zones; do not place new major responsibilities in flat/global modules unless the structural contract records an explicit exception.
 
 ## Typical smells
 
@@ -67,6 +68,7 @@ A good improvement increases both:
 - domain language in `CONTEXT.md` drifting away from module names and interfaces
 - large folders with no local ownership/placement contract
 - central ports/adapters/entities areas that pull ownership artifacts away from their real context without a strong reason
+- target architecture documented in prose while new responsibilities still land in ownerless flat/global source modules
 - architecture docs that talk about contexts globally but leave local rules implicit
 
 ## How to use these checks

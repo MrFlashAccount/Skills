@@ -38,6 +38,7 @@ Use this file during architect review, critic pressure, and the final post-imple
 - Are supporting artifacts justified and linked?
 - Are local `CONTEXT.md` docs placed near the folders they govern?
 - Are related entities, ports, adapters, and local rules colocated with the owning context instead of being pulled into a central mirror?
+- When bounded contexts, ports-and-adapters, Clean Architecture, or equivalent zones are chosen, does source layout make those zones obvious?
 - Do local `CONTEXT.md` docs act as the distributed source of truth for ownership, placement, and forbidden dependencies instead of deferring everything upward?
 
 ### 6. Migration realism
@@ -52,6 +53,7 @@ Use this file during architect review, critic pressure, and the final post-imple
 - Was everything centralized into one mega-doc?
 - Were forbidden dependencies and ownership rules left implicit?
 - Did the improvement add indirection without depth, locality, or test-surface clarity?
+- Did the package claim bounded contexts, ports-and-adapters, Clean Architecture, or equivalent zones while source layout still hides major responsibilities in flat/global modules?
 
 ## Typical failures
 

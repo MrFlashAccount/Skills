@@ -8,8 +8,8 @@ Always require these deliverables in the implemented package:
 
 1. `ARCHITECTURE.md`
    - entrypoint artifact for the selected product architecture contract
-   - states the chosen architecture direction
-   - captures chosen constraints, binding rules, entities/contexts/boundaries, dependency direction, and pointers to local `CONTEXT.md` docs
+   - states the chosen architecture direction and target source-layout shape
+   - captures chosen constraints, binding rules, entities/contexts/boundaries, dependency direction, source-zone ownership, and pointers to local `CONTEXT.md` docs
    - links every supporting artifact and says what each one is for
 
 2. Architecture Decision
@@ -103,5 +103,6 @@ Fail the package if it does any of these:
 - one centralized mega-doc instead of routed artifacts
 - `ARCHITECTURE.md` bloated with generic option catalogs or architect lore instead of the selected contract
 - folder tree frozen as doctrine without migration logic
+- chosen architecture hidden behind flat/global modules instead of source zones that reveal ownership and dependency direction
 - as-is inventory presented as target architecture
 - ports/adapters named without dependency rule or composition root

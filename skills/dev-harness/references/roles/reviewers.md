@@ -37,22 +37,24 @@ Relevant reviewers must include a short delta-complexity judgment for non-trivia
 
 Load `../../roles/architect/ROLE.md` and `../../roles/architect/RUBRIC.md` first, then follow the loaded role files for any additional architecture references.
 
-- Purpose: review whether the implemented slice preserves the approved architecture shape instead of introducing accidental coupling, wrong ownership, shallow seams, undocumented structural drift, or architecture-memory debt. `architect` judges architecture fit and boundary correctness for the approved slice; it is not a second general correctness pass.
+- Purpose: review whether the implemented slice preserves the planning-fixed architecture contract instead of introducing accidental coupling, wrong ownership, shallow seams, undocumented structural drift, or architecture-memory debt. `architect` judges architecture fit and boundary correctness for the approved slice; it is not a second general correctness pass and must not invent a new target layout during review.
 - Focus:
   - seam correctness, layering, dependency direction, and module ownership
-  - file-zone correctness against the approved execution plan
+  - file-zone correctness against the approved execution plan and planning-fixed architecture contract
   - request-path boundary shape when the slice touched backend flow, adapters, services, or contracts
   - balanced coupling across integration strength, architectural distance, and volatility
   - architecture-note drift: `CONTEXT.md`, `CONTEXT-MAP.md`, ADRs, or repo-equivalent records named by the approved contract
   - architecture-memory integrity: whether required durable architecture artifacts were updated in-project by the right owner instead of being left in assistant memory or developer-only notes
   - unnecessary abstractions, shallow adapters, or convenience-driven structure that weakens locality
+  - screaming architecture enforcement when bounded contexts, ports-and-adapters, Clean Architecture, or equivalent zones were chosen: new/expanded major responsibilities must live in the owning source zone unless an approved exception exists
   - naming or concept drift when it changes architectural clarity
 - Must-check questions:
   - does the implementation still match the intended architecture of the approved slice?
   - are responsibilities concentrated in the right module or context, or smeared across callers/layers?
   - is each new seam or adapter earned by real variation, or is it shallow indirection?
   - is the coupling strength justified for the architectural distance and volatility involved, or did the slice tighten the wrong boundary for convenience?
-  - did file ownership or request-path boundaries drift from the approved execution plan?
+  - did file ownership, source-layout expectations, or request-path boundaries drift from the approved execution plan or architecture contract?
+  - were new or expanded major responsibilities placed outside their owning source zone, in flat/global modules, or in shared dumping grounds without an approved architecture exception?
   - if the approved contract required a durable architecture artifact, was it updated in-project by the Architect or other explicitly assigned owner rather than being left implicit?
   - if the approved contract did not require an artifact, did the implementation nonetheless create architecture-memory debt that should have triggered one?
   - did naming or concept boundaries drift in a way that weakens the domain model?
@@ -63,10 +65,10 @@ Load `../../roles/architect/ROLE.md` and `../../roles/architect/RUBRIC.md` first
   - not an implementer rewrite pass
 - Escalation rules:
   - route plain backend/server correctness to `backend`, client correctness to `frontend`, exploitability to `security`, privacy exposure to `privacy/data-safety`, resilience/test-signal issues to `qa/reliability`, and raw performance issues to `performance`
-  - if the architectural finding would require cross-ownership edits or scope expansion beyond the approved slice, stop and send it back for re-approval
+  - if the architectural finding would require a new target layout, cross-ownership edits, or scope expansion beyond the approved slice, stop and send it back for planning/re-approval
   - keep findings anchored to the approved contract, architecture records, touched file zones, and explicit artifact-decision gate rather than broad taste
 - Done criteria:
-  - findings are concrete and architecture-specific: ownership drift, seam/layering mistakes, accidental coupling, balanced coupling failures, file-zone mismatch, request-path boundary drift, or missing/misowned architecture-record updates
+  - findings are concrete and architecture-specific: ownership drift, seam/layering mistakes, accidental coupling, balanced coupling failures, file-zone/source-layout mismatch, request-path boundary drift, unapproved flat/global responsibility placement, or missing/misowned architecture-record updates
   - review stays distinct from `critic`, `backend`, `frontend`, `security`, `privacy/data-safety`, `qa/reliability`, `performance`, and implementer roles
   - output identifies a real architecture-fit risk or states clearly that the approved slice is structurally clean
 
