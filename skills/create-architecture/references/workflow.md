@@ -85,7 +85,11 @@ Minimum contents:
 - shortlisted options with recommended choice
 - tradeoffs and rejected alternatives
 - target artifact map
-- migration / PR slicing sketch
+- entity delta for architecture-level contexts/modules/seams/artifacts
+- dependency/import-export map when source seams are affected, including binding `must_not_import` rules
+- source-layout and doc deltas, including what does not change
+- migration / PR slicing sketch with reviewable increments
+- checks that can prove the structural rules hold
 - open questions that materially affect the architecture decision
 
 This proposal artifact may include lightweight sketches.
@@ -103,7 +107,7 @@ Check:
 - is the option overfit to a fashion label?
 - are the required artifacts justified and scoped?
 - is the migration path credible?
-- does the proposal state the target architecture, what changes, what does not change, and the affected entities/modules/relationships/source zones clearly enough for implementation?
+- does the proposal state the target architecture, what changes, what does not change, the entity delta, affected relationships, import-export/dependency direction, source-layout/doc deltas, PR slicing, and checks clearly enough for implementation?
 
 If the proposal fails, fix it before critic pressure.
 
@@ -123,6 +127,7 @@ Pressure-test:
 - shallow wrappers that fail the deletion test
 - new seams with only hypothetical adapters
 - PR slices that are too big or interdependent
+- missing entity delta, import-export map, binding `must_not_import` rules, source-layout/doc deltas, or checks
 
 If pressure reveals a real flaw, revise the proposal instead of rationalizing it.
 
@@ -140,7 +145,7 @@ Do not smuggle implementation through a polished proposal.
 
 ## 8. Implementation
 
-After approval, create or revise the architecture package. The implementation-bound output must include the concrete structural change contract: target architecture, what changes, what does not change, affected entities/modules/relationships, owning source zones, boundaries, dependency direction, and any required architecture-memory updates.
+After approval, create or revise the architecture package. The implementation-bound output must include the concrete structural change contract: target architecture, what changes, what does not change, entity delta for affected structural units, import-export/dependency map, owning source zones, boundaries, binding `must_not_import` rules, source-layout and doc deltas, PR slicing constraints, checks, and any required architecture-memory updates.
 
 Required core deliverables:
 1. Architecture Decision
@@ -177,5 +182,8 @@ Check:
 - are local rules and related ownership artifacts still properly colocated?
 - is the migration path actually sliceable into PRs?
 - did the package avoid the known failure modes?
+- are architecture contracts, workflow states, artifact kinds, schemas, symbolic values, and source-layout contracts reflected consistently in docs and local `CONTEXT.md` records?
+- do tests/checks exercise the same changed contract that source and docs describe?
+- does any disagreement remain among source, tests/checks, and docs even if the code works locally?
 
 Do not call the result done until both the architect lens and critic lens are clean enough.

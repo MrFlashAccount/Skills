@@ -17,6 +17,7 @@ Read this before any review pass.
 - Add `qa/reliability` review when retries, timeouts, duplicate-delivery, rollback, or degraded-mode behavior materially changes.
 - Review external contract assumptions when the slice depends on a CLI, API, SDK, webhook, or similar integration.
 - Require at least one contract evidence source: docs, captured sample, fixture, or local parser/runtime verification.
+- For contract-bearing slices, final review must reconcile implementation, tests/checks, and docs/architecture/source-contract records. Stale or missing docs are blocker-level when they misstate user-visible/runtime behavior, workflow states, schemas, artifacts, symbolic lifecycle values, or review/process contracts.
 - Check relevant assumption classes: payload shape/envelope, key names/field semantics, auth scopes/permissions/feature flags, nullability/empty states/optional fields, pagination/truncation/partial results, and dry-run-vs-live or mock-vs-real parity.
 - Check review-gate quality drift: canonical symbolic values, duplicated literals, function/file growth, mixed responsibilities, and new indirect coupling.
 - When event names, statuses, artifact kinds, action names, or similar symbolic values have canonical constants/names, flag new raw string use outside the canonical definition, tests/fixtures, or explicit migration compatibility.
@@ -26,6 +27,7 @@ Read this before any review pass.
 - For non-trivial work, run up to 3 review/fix passes; stop early when review is clean.
 - For non-trivial work, the loop is explicit: `IMPLEMENT -> VALIDATE -> REVIEW -> FIX -> RE-VALIDATE -> RE-REVIEW`.
 - After an in-scope fix pass, re-run validation before re-review, and prefer a fresh independent reviewer for re-review by default.
+- Re-review after fixes must re-run the contract/docs drift check for any contract surface touched by the fix.
 - If blockers remain after the max passes, stop as blocked and surface unresolved findings.
 - `Sensitive-surface` work is not clean until the scanner is clean or explicitly dispositioned, and the relevant reviewer states either a concrete risk or that the approved slice is clean within scope.
 - Absence of required file headers or language-appropriate code docs blocks closure when contract, lifecycle, side effects, invariants, or failure semantics would otherwise remain implicit.

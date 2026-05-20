@@ -9,7 +9,7 @@ Always require these deliverables in the implemented package:
 1. `ARCHITECTURE.md`
    - entrypoint artifact for the selected product architecture contract
    - states the chosen architecture direction and target source-layout shape
-   - captures chosen constraints, binding rules, entities/contexts/boundaries, dependency direction, source-zone ownership, and pointers to local `CONTEXT.md` docs
+   - captures chosen constraints, binding rules, entity delta, entities/contexts/boundaries, dependency direction, import-export map when relevant, source-zone ownership, `must_not_import` rules, source-layout/doc deltas, and pointers to local `CONTEXT.md` docs
    - links every supporting artifact and says what each one is for
 
 2. Architecture Decision
@@ -26,6 +26,7 @@ Always require these deliverables in the implemented package:
    - how to move from here to there
    - split into reviewable increments
    - include sequencing dependencies and rollback pressure where relevant
+   - name the architecture checks each slice should preserve or introduce
 
 ## Required when domain and ownership boundaries matter
 
@@ -53,10 +54,12 @@ Use them selectively for the contexts that need them.
 
 Add a Clean Architecture / Ports & Adapters view:
 - dependency rule
+- import-export map for affected modules/packages
 - inbound ports
 - outbound ports
 - adapters
 - composition root / DI shape
+- binding `must_not_import` rules and available checks
 
 This may be a dedicated doc or an explicit section in a focused supporting artifact.
 It must show what depends on what, not just name-drop the style.
@@ -106,3 +109,4 @@ Fail the package if it does any of these:
 - chosen architecture hidden behind flat/global modules instead of source zones that reveal ownership and dependency direction
 - as-is inventory presented as target architecture
 - ports/adapters named without dependency rule or composition root
+- missing entity delta, import-export/dependency map, binding no-go imports, source-layout/doc deltas, PR slicing, or checks where the approved direction depends on them

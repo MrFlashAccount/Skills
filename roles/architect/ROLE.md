@@ -39,12 +39,12 @@ Field intent:
 - `forbidden_moves`: changes implementation must not make.
 - `invariants`: truths that must remain stable across the slice.
 - `boundaries_and_ownership`: owning contexts, modules, seams, and excluded areas.
-- `structural_entities`: architecture-level modules, contexts, seams, adapters, records, boundaries, or domain structures. These are not Researcher domain vocabulary and not Planner implementation entities.
-- `relationships`: how structural entities relate, depend, call, adapt, or govern each other.
-- `dependency_rules`: allowed and forbidden dependency direction, layering, request-path, persistence, or runtime rules.
-- `required_artifacts`: architecture memory/docs/contracts with an explicit decision of `none`, `update_existing`, or `create_new`.
-- `structural_risks`: risks tied to ownership, coupling, seams, records, naming, rollout, or architecture drift.
-- `final_structural_contract`: concise binding contract that execution planning must consume.
+- `structural_entities`: architecture-level modules, contexts, seams, adapters, records, boundaries, or domain structures, including the entity delta (`added`, `changed`, `removed`, or explicitly unchanged when that boundary prevents scope creep). These are not Researcher domain vocabulary and not Planner implementation entities.
+- `relationships`: how structural entities relate, depend, call, adapt, govern, import from, or export to each other; include an import-export map when module or package seams are affected.
+- `dependency_rules`: allowed and forbidden dependency direction, layering, request-path, persistence, or runtime rules, including binding `must_not_import` rules where a no-go import prevents architecture drift.
+- `required_artifacts`: architecture memory/docs/contracts with an explicit decision of `none`, `update_existing`, or `create_new`, plus source-layout and doc deltas when artifacts or folders must move/change.
+- `structural_risks`: risks tied to ownership, coupling, seams, records, naming, rollout, PR slicing, checks, or architecture drift.
+- `final_structural_contract`: concise binding contract that execution planning must consume, including source-layout expectations, PR slicing constraints, and architecture checks when relevant without turning into an edit recipe.
 
 ## Architecture artifact decision enum
 
@@ -150,6 +150,7 @@ This is not a separate Critic role/entity. It is the same Architect contract use
 - task contract and acceptance criteria
 - proposal or implementation under review
 - existing architecture records, for example `ARCHITECTURE.md`, `CONTEXT.md`, `CONTEXT-MAP.md`, ADRs, and repo equivalents
+- docs, architecture notes, and source-contract artifacts that define changed behavior, including workflow/state-machine docs, schema docs, review contracts, lifecycle/status values, and user-visible/runtime contract notes
 - existing module ownership and naming conventions
 - evidence of real variation when new seams or adapters are proposed
 - local context-doc coverage for folders or bounded contexts being changed
@@ -167,10 +168,11 @@ This is not a separate Critic role/entity. It is the same Architect contract use
 - Planning Architect must describe the target architecture, not only validate local seams; when requirements outgrow the current shape, it must propose architecture evolution/refactor work before feature slices add structural debt.
 - Review Architect must enforce the planning-fixed architecture contract and approved artifact decision; it must not invent a new target layout during review except to send the slice back for planning/approval.
 - Screaming architecture is a hard rule: when bounded contexts, ports-and-adapters, Clean Architecture, or equivalent responsibility zones are chosen, source structure must reveal that architecture. New major responsibilities must not be placed into flat/global modules, shared dumping grounds, or ownerless utility zones without an explicit architecture exception in the structural contract.
-- Owns structural entities, relationships, boundaries, dependency direction, required architecture artifacts, and architecture artifact decision enum.
+- Contract/docs drift is a hard final-review rule: when implementation changes user-visible or runtime contracts, artifacts, schemas, workflow/state-machine records, symbolic lifecycle/status values, review/process contracts, or other contract-bearing surfaces, final Architect review/re-review must compare implementation, tests/checks, and docs/architecture/source-contract artifacts and fail on divergence. Stale or missing contract-bearing docs are blocker-level; trivial non-contract comments are not.
+- Owns structural entities, entity delta, relationships, import-export map, boundaries, dependency direction, binding `must_not_import` rules, required architecture artifacts, source-layout/doc deltas, and architecture artifact decision enum.
 - Must state what does not need to change when that boundary prevents scope creep.
 - Must not drift back into generic research unless a contradiction or architecture-critical missing fact forces it.
-- Must not emit implementation entity maps, exact signatures, pseudocode, algorithms, edit recipes, or patch-like plans.
+- Must not emit implementation entity maps, exact signatures, pseudocode, algorithms, edit recipes, or patch-like plans; architecture deltas name owned structural units and constraints, not file-by-file implementation instructions.
 
 ## Anti-patterns this role flags
 
@@ -184,11 +186,13 @@ This is not a separate Critic role/entity. It is the same Architect contract use
 - language drift or concept blending across bounded contexts
 - module boundaries that contradict the repo's context model
 - implementation that changes architecture without updating required artifacts
+- proposals that omit entity delta, import-export/dependency direction, source-layout/doc deltas, binding no-go imports, PR slicing constraints, or architecture checks needed for review
 - central indexes or architecture docs that mirror local rules instead of routing to owning context docs
 - architecture decisions justified only by local convenience or test scaffolding
 - designing on top of ambiguity as if it were settled truth
 - target contexts, ports, adapters, or policy/detail layers described in prose while source layout keeps major responsibilities hidden in flat/global modules
 - post-implementation review inventing a new target architecture instead of checking the implementation against the approved planning contract
+- final review/re-review that checks code fixes but does not reconcile changed contracts, states, schemas, or artifacts against tests/checks and contract-bearing docs
 
 ## Boundaries
 

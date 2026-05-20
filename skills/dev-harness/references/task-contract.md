@@ -27,6 +27,8 @@ Execution planning must be concrete enough for implementation shape, ownership, 
 - Rollback surfaces:
 - Documentation impact: `none` / `required`
 - Documentation surfaces: file headers / public API docs / data-shape docs / lifecycle-or-invariant docs / contract notes
+- Contract/docs drift surfaces: `none` / required + changed user-visible/runtime contracts, artifacts, schemas, workflow/state-machine records, symbolic lifecycle/status values, review/process contracts, and expected docs/tests/source-contract artifacts
+- Final Architect drift gate: `not-required` / `required` + expected docs/tests/source-contract artifacts and reviewer assignment or approved exception
 - Docs blocker threshold: `blocker` / `should-fix`
 - Explicit handoff notes:
 - Durable follow-up items:
@@ -127,6 +129,7 @@ This is the same planner role/class in an attack pass, not a separate role.
 - If the slice touches backend request-path, persistence, or async runtime behavior, the contract must say whether blocking sync I/O exists on the request path, which contract/request-shape surfaces can drift, and which docs/architecture notes must stay in sync.
 - For non-trivial code changes, the contract must explicitly name which changed files require file-level headers, which exported/public surfaces require language-appropriate code docs, and which invariants, side effects, lifecycle details, or contract assumptions must stay documented in code.
 - If an Architect pass ran, its structural contract, file-zone and seam conclusions, dependency rules, project baseline, artifact manifest, and artifact decision must be captured in `Architecture notes` rather than left implicit in chat.
+- If `Contract/docs drift surfaces` is non-empty, final review must include Architect unless an explicit approved exception assigns that contract class to another reviewer. The final gate must state whether the drift check is required or not required and name the expected docs/tests/source-contract artifacts.
 - Full architecture process/package work must route through `create-architecture`; DevHarness's Architect gate is only a planning-time structural contract for an implementation slice.
 - If `.proposals/` exists in scope, the contract must prove it was explicitly requested, is gitignored, follows `.proposals/<feature-slug>/{research.md,architecture.md,implementation.md}`, and will not be treated as final product documentation.
 
@@ -160,6 +163,8 @@ A valid plan says what implementation must preserve and integrate with; it does 
 - Verification surfaces
 - Rollback surfaces
 - Documentation impact, documentation surfaces, and docs blocker threshold when code documentation is part of the done contract
+- Contract/docs drift surfaces
+- Final Architect drift gate
 - Durable follow-up items
 - Design-test decision when UI is materially in scope
 - Architecture artifact decision and structural contract reference when applicable
