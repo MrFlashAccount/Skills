@@ -39,7 +39,7 @@ Field intent:
 - `forbidden_moves`: changes implementation must not make.
 - `invariants`: truths that must remain stable across the slice.
 - `boundaries_and_ownership`: owning contexts, modules, seams, and excluded areas.
-- `structural_entities`: architecture-level modules, contexts, seams, adapters, records, boundaries, or domain structures, including the entity delta (`added`, `changed`, `removed`, or explicitly unchanged when that boundary prevents scope creep). These are not Researcher domain vocabulary and not Planner implementation entities.
+- `structural_entities`: architecture-level modules, contexts, seams, adapters, records, boundaries, or domain structures, including the entity delta (`added`, `changed`, `removed`, or explicitly unchanged when that boundary prevents scope creep). These are not Researcher domain vocabulary and not Planner implementation entities. A thing may be called an entity only when it has identity plus lifecycle plus invariants/behavior; otherwise classify it honestly as a record, projection/read model, DTO, schema, descriptor, adapter wrapper, snapshot, or compatibility surface.
 - `relationships`: how structural entities relate, depend, call, adapt, govern, import from, or export to each other; include an import-export map when module or package seams are affected.
 - `dependency_rules`: allowed and forbidden dependency direction, layering, request-path, persistence, or runtime rules, including binding `must_not_import` rules where a no-go import prevents architecture drift.
 - `required_artifacts`: architecture memory/docs/contracts with an explicit decision of `none`, `update_existing`, or `create_new`, plus source-layout and doc deltas when artifacts or folders must move/change.
@@ -134,7 +134,18 @@ Is the coupling strength justified by the architectural distance and volatility 
 ### Architecture records
 Does this slice require `none`, `update_existing`, or `create_new` for durable architecture artifacts?
 
+### Domain/source proof
+When architecture-sensitive triggers are present, can every domain concept, source zone, schema/record, port/adapter, workflow state, gate, artifact, verdict, or compatibility surface be traced to an owner, allowed paths, forbidden paths, runtime entrypoint, invariant/lifecycle or non-domain reason, and a negative check?
+
+### Naming honesty
+Do names reveal the actual layer and ownership, or do they launder projections, snapshots, descriptors, debug metadata, adapter/provider details, or deprecated wrappers as core domain entities?
+
+### Compatibility surfaces
+Are deprecated exports, re-export wrappers, aliases, and legacy import paths explicitly deleted now, kept temporarily with owner/expiry/removal condition, or approved as public exceptions with checks?
+
 ## Dual-pass architecture
+
+Architecture-sensitive triggers include source layout/module ownership; entities/records/schemas; ports/adapters/integrations; workflow state, gates, artifacts, approvals, handoff packets, and review verdicts; compatibility wrappers/deprecated exports; and architecture docs such as `ARCHITECTURE.md`, `CONTEXT.md`, or context/module maps. These triggers require proof-oriented review, not generic DDD inventory.
 
 For architecture-sensitive work, use the same Architect role class in two instances:
 
@@ -160,6 +171,7 @@ This is not a separate Critic role/entity. It is the same Architect contract use
 
 - Must start from architecture decision, ubiquitous language, bounded contexts, constraints, forbidden moves, and invariants before implementation planning.
 - Must render architecture in code/structural terms: modules, ports, adapters, plugin entrypoints, contexts, classes/functions/components, dependencies, ownership, seams, and relationships as applicable to the slice.
+- For architecture-sensitive triggers, must produce or verify a compact `domain_source_proof_map` for affected concepts: concept, classification, owner context/module, allowed paths, forbidden paths/layers, runtime/source entrypoint, invariant/lifecycle or reason non-domain, schema/durable fields owner, compatibility decision, negative checks, and reviewer gate.
 - Must choose the appropriate architecture weight for the task: DDD, Clean Architecture, ports/adapters, plugin architecture, small functional-core shell, small monolith, or almost no architecture. Do not force a fashionable architecture when the slice is smaller than it.
 - Must not substitute business/process proposal fields (`goal`, `non-goals`, broad V1/V2 intent, generic tests) for the Architect-owned structural contract. Those belong to Researcher or the calling wrapper unless restated as structural constraints/invariants.
 - Must ask architecture-relevant clarifying questions when change surface, ownership, dependency direction, or done state is underspecified.
@@ -169,6 +181,8 @@ This is not a separate Critic role/entity. It is the same Architect contract use
 - Review Architect must enforce the planning-fixed architecture contract and approved artifact decision; it must not invent a new target layout during review except to send the slice back for planning/approval.
 - Screaming architecture is a hard rule: when bounded contexts, ports-and-adapters, Clean Architecture, or equivalent responsibility zones are chosen, source structure must reveal that architecture. New major responsibilities must not be placed into flat/global modules, shared dumping grounds, or ownerless utility zones without an explicit architecture exception in the structural contract.
 - Contract/docs drift is a hard final-review rule: when implementation changes user-visible or runtime contracts, artifacts, schemas, workflow/state-machine records, symbolic lifecycle/status values, review/process contracts, or other contract-bearing surfaces, final Architect review/re-review must compare implementation, tests/checks, and docs/architecture/source-contract artifacts and fail on divergence. Stale or missing contract-bearing docs are blocker-level; trivial non-contract comments are not.
+- Fake-module/deletion proof is required for new or retained source zones under architecture-sensitive triggers: name the module path, owned behavior/contract/policy, runtime usage, why it is not folder theater, and what breaks if deleted. A folder that exists for one port, one wrapper, or no owned behavior fails unless approved as a temporary migration surface.
+- Compatibility surfaces may not survive by accident. Deprecated re-exports, wrappers, aliases, and legacy paths need a decision of `delete_now`, `keep_temporarily`, or `public_exception`, with owner, expiry/removal condition, imports to update, and a negative check proving absence when deleted.
 - Owns structural entities, entity delta, relationships, import-export map, boundaries, dependency direction, binding `must_not_import` rules, required architecture artifacts, source-layout/doc deltas, and architecture artifact decision enum.
 - Must state what does not need to change when that boundary prevents scope creep.
 - Must not drift back into generic research unless a contradiction or architecture-critical missing fact forces it.
@@ -193,6 +207,8 @@ This is not a separate Critic role/entity. It is the same Architect contract use
 - target contexts, ports, adapters, or policy/detail layers described in prose while source layout keeps major responsibilities hidden in flat/global modules
 - post-implementation review inventing a new target architecture instead of checking the implementation against the approved planning contract
 - final review/re-review that checks code fixes but does not reconcile changed contracts, states, schemas, or artifacts against tests/checks and contract-bearing docs
+- `Projection` or read-model objects placed under `entities`, snapshot/record wrappers accepted as entities, descriptor/debug metadata treated as core domain, or adapter/provider terms made canonical domain language without proof
+- compatibility wrappers, deprecated re-exports, fake modules, and ownerless source zones surviving because tests are green and review skipped path-level negative checks
 
 ## Boundaries
 

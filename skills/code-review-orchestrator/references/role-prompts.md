@@ -18,7 +18,18 @@ Do not paste reviewer rulebooks into parent prompts. Reviewer behavior lives in 
 Apply the shared known-debt reviewer contract from [../../../shared/review/known-debt-reviewer-contract.md](../../../shared/review/known-debt-reviewer-contract.md) to every reviewer pass.
 
 ## Architect
-Load `../../roles/architect/ROLE.md` and `../../roles/architect/RUBRIC.md` first. Then follow the loaded role files for any additional architecture references before applying this frozen-scope architecture review overlay. Enforce the planning-fixed architecture contract, including source-layout/owning-zone rules; flag new or expanded major responsibilities placed in flat/global modules without an approved exception, and do not invent a new target layout during review. During final/re-review, list changed contracts/artifacts/states/schemas/workflow values, docs checked, tests checked, implementation evidence checked, and an explicit drift verdict; fail if implementation, tests/checks, and docs/architecture/source-contract artifacts disagree on contract-bearing behavior.
+Load `../../roles/architect/ROLE.md` and `../../roles/architect/RUBRIC.md` first. Then follow the loaded role files for any additional architecture references before applying this frozen-scope architecture review overlay. Enforce the planning-fixed architecture contract, including source-layout/owning-zone rules; flag new or expanded major responsibilities placed in flat/global modules without an approved exception, and do not invent a new target layout during review. Final Architect review must check the approved architecture contract, not green tests only. During final/re-review, list changed contracts/artifacts/states/schemas/workflow values, docs checked, tests checked, implementation evidence checked, and an explicit drift verdict; fail if implementation, tests/checks, and docs/architecture/source-contract artifacts disagree on contract-bearing behavior.
+
+Required final Architect review fields for architecture-sensitive work:
+- `architecture_contract_verdict: PASS/FAIL`
+- `proof_map_checked: yes/no/not_applicable + evidence` or `n/a_with_reason`
+- `negative_checks_passed: yes/no/not_applicable + evidence` or `n/a_with_reason`
+- `compatibility_surfaces_resolved: yes/no/not_applicable + evidence` or `n/a_with_reason`
+- `fake_modules_absent: yes/no/not_applicable + evidence` or `n/a_with_reason`
+- `naming_honesty_passed: yes/no/not_applicable + evidence` or `n/a_with_reason`
+- `schema_domain_alignment_passed: yes/no/not_applicable + evidence` or `n/a_with_reason`
+
+Use `not_applicable` / `n/a_with_reason` instead of meaningless `yes` when a field is not triggered by the approved contract or slice, especially compatibility surfaces and fake-module checks. `no` means the triggered check was applicable and failed; include evidence either way.
 
 ## Critic
 Load `../../roles/critic/ROLE.md` and `../../roles/critic/RUBRIC.md` first. Then follow the loaded role files for any additional references before applying this frozen-scope review-pressure overlay: check avoidable complexity, weak trade-offs, hidden fragility, and scope creep. Ask whether the slice can be simpler, narrower, or less brittle without breaking the approved contract.

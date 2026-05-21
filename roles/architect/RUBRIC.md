@@ -29,7 +29,7 @@ Architect output may include an optional short `summary`; the required body orde
 - **Forbidden moves**: Are prohibited changes explicit enough to prevent scope creep?
 - **Invariants**: Are must-preserve behaviors, contracts, data rules, and architecture truths named?
 - **Boundaries and ownership**: Are owning contexts/modules/seams/docs/tests clear?
-- **Structural entities**: Are architecture-level modules, contexts, seams, adapters, records, boundaries, or domain structures named with an entity delta (`added`, `changed`, `removed`, or explicitly unchanged where it matters) and without confusing them with Researcher domain vocabulary or Planner implementation entities?
+- **Structural entities**: Are architecture-level modules, contexts, seams, adapters, records, boundaries, or domain structures named with an entity delta (`added`, `changed`, `removed`, or explicitly unchanged where it matters) and without confusing them with Researcher domain vocabulary or Planner implementation entities? Did each domain entity prove identity, lifecycle, and invariants/behavior, while records/projections/DTOs/schemas/wrappers stayed classified as such?
 - **Relationships**: Are relationships among structural entities explicit, including import-export relationships when package/module seams are affected?
 - **Dependency rules**: Are allowed and forbidden dependency directions concrete enough for planning and review, including binding `must_not_import` rules where no-go imports matter?
 - **Required artifacts**: Is the architecture artifact decision one of `none`, `update_existing`, or `create_new`, with target artifacts named when required and source-layout/doc deltas called out?
@@ -51,10 +51,19 @@ Architect output may include an optional short `summary`; the required body orde
 - **Drift fail condition**: Did Architect fail the review when contract-bearing docs/artifacts/tests/source records disagree with implementation, while not treating trivial non-contract comments as blockers?
 - **Explicit drift evidence**: Did the review output list changed surfaces, implementation evidence, tests/checks, docs/artifacts checked, and a drift verdict?
 - **Architecture weight**: Did Architect choose appropriately among DDD, Clean Architecture, ports/adapters, plugin architecture, functional-core shell, small monolith, or almost no architecture?
+- **Trigger-based proof map**: When architecture-sensitive triggers exist, is there a compact `domain_source_proof_map` covering concept, classification, owner context/module, allowed paths, forbidden paths/layers, runtime/source entrypoint, invariant/lifecycle or non-domain reason, schema/durable fields owner, compatibility decision, negative checks, and reviewer gate?
+- **Fake-module/deletion proof**: For each new or retained module/source zone, is there owned behavior/contract/policy, runtime usage, why it is not folder theater, and what breaks if deleted? Fail one-port fake modules unless explicitly temporary.
+- **Naming honesty**: Fail if `Projection`/read models live under `entities`, snapshot/record wrappers are called entities, descriptor/debug metadata becomes core domain, or adapter/provider terms become canonical domain language without proof.
+- **Compatibility surfaces**: Are wrappers, deprecated exports, aliases, and legacy import paths deleted or captured in a compatibility surface plan with owner, expiry/removal condition, imports to update, and negative checks?
+- **Schema/domain alignment**: Do schemas, durable fields, records, runtime contracts, workflow states, gates, artifacts, approvals, handoff packets, and verdicts have clear domain/source owners and matching docs/tests?
 - **Code/structure terms**: Does the output speak in modules, ports, adapters, plugin entrypoints, classes/functions/components, dependencies, seams, and relationships where applicable?
 - **Researcher separation**: Does the output avoid replacing architecture with business/process proposal content such as goals, broad V1/V2 framing, or generic tests unless those are converted into structural constraints/invariants?
 - **Boundary hygiene**: Does Architect avoid implementation entity maps, exact signatures, pseudocode, algorithms, edit recipes, and patch-like plans while still naming structural deltas and binding no-go dependency rules?
 - **Learnings**: Were relevant durable learnings from `LEARNINGS.md` applied before making role judgments?
+
+## Additional fail conditions
+
+Fail architecture-sensitive outputs when they omit proof map, fake-module/deletion proof, compatibility surface plan, naming honesty, or schema/domain ownership alignment needed by the triggered slice. Green tests/checks do not compensate for missing path-level proof or negative checks.
 
 ## Notes
 
