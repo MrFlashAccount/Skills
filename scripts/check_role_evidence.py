@@ -47,6 +47,12 @@ DUPLICATED_DELEGATION_SNIPPETS = (
     "The worker must follow all instructions in loaded role material",
     "Each worker must follow all instructions in loaded role material",
 )
+ROLE_WRAPPER_SMELLS = (
+    "## Shared rules for all roles",
+    "For `architect`, bias the prompt toward",
+    "Attack the proposal like a responsible principal architect",
+    "Pressure-test:\n- hidden coupling",
+)
 
 
 def canonical_block(repo_relative_path: str) -> str:
@@ -89,6 +95,16 @@ def scan_parent_prompt_boundaries(errors: list[str]) -> None:
 
 
 
+def scan_delegated_role_wrapper_smells(errors: list[str]) -> None:
+    for rel in DELEGATION_DOCS:
+        path = ROOT / rel
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for smell in ROLE_WRAPPER_SMELLS:
+            if smell in text:
+                errors.append(f"{rel}: contains parent-side role wrapper smell {smell!r}")
+
 
 def scan_implementer_prompt_compactness(errors: list[str]) -> None:
     rel = "skills/dev-harness/references/roles/implementers.md"
@@ -98,7 +114,7 @@ def scan_implementer_prompt_compactness(errors: list[str]) -> None:
         return
     lines = path.read_text(encoding="utf-8").splitlines()
     headings = [(idx, line) for idx, line in enumerate(lines) if line.startswith("## Implementer role:")]
-    for role in ("backend", "frontend"):
+    for role in ("architect", "backend", "frontend"):
         matching = [(idx, line) for idx, line in headings if f"`{role}`" in line]
         if len(matching) != 1:
             errors.append(f"{rel}: expected exactly one compact {role} implementer section")
@@ -110,9 +126,12 @@ def scan_implementer_prompt_compactness(errors: list[str]) -> None:
         section_line_count = end - start
         if section_line_count > 25:
             errors.append(f"{rel}: {role} implementer section is too long for compact parent prompt guidance ({section_line_count} lines)")
-        if f"Do not paste {role}" not in section:
+        if f"Do not paste {role}" not in section and "Do not paste architecture" not in section:
             errors.append(f"{rel}: {role} implementer section must forbid inline role-specific rule walls")
         forbidden_phrases = (
+            "Purpose: implement approved durable architecture artifacts",
+            "Ownership / file-zone scope:",
+            "Must-read / must-load references:",
             "Purpose: own server-side correctness",
             "Purpose: own user-facing implementation quality",
             "Execution rules:",
@@ -138,6 +157,7 @@ def main() -> int:
             errors.append(f"{DELEGATED_ROLE_TEMPLATE_REL}: missing neutral role-material output requirement wording")
 
     scan_parent_prompt_boundaries(errors)
+    scan_delegated_role_wrapper_smells(errors)
     scan_implementer_prompt_compactness(errors)
 
     for rel in DELEGATION_DOCS:

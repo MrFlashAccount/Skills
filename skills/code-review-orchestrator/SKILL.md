@@ -108,7 +108,7 @@ Suggested reviewer prompt shape:
 
 Build the full worker prompt with the shared delegated role task template from [../../shared/delegate/delegated-role-task-template.md](../../shared/delegate/delegated-role-task-template.md), then add the selected role material path, compact focus block from [references/role-prompts.md](references/role-prompts.md), approved contract/acceptance context, and the review instruction above.
 
-For `architect`, bias the prompt toward the planning-fixed architecture contract, seam decisions, dependency correctness, file ownership/zone boundaries, source-layout expectations, request-path boundaries, balanced coupling, architecture-memory integrity, and whether the implementation introduces unnecessary coupling, unapproved flat/global responsibility placement, or the wrong abstraction layer.
+For `architect`, use the compact Architect focus block from [references/role-prompts.md](references/role-prompts.md); do not inline architecture rule walls into the worker prompt.
 
 ## If context is missing
 Ask only for the missing target, repo path, branch, or PR.
