@@ -88,15 +88,13 @@ Do not treat `staff engineer`, generic `designer`, `financial/risk`, or `reliabi
 - For non-trivial code work, at least one reviewer must return an explicit pass/fail verdict against the approved contract.
 
 ## How to run it
-Before any `sessions_spawn`, read [references/role-prompts.md](references/role-prompts.md) and include its selected phase overlay in the worker prompt. A reviewer label alone is never sufficient.
+Before any `sessions_spawn`, read [references/role-prompts.md](references/role-prompts.md) and [../../shared/delegate/delegated-role-task-template.md](../../shared/delegate/delegated-role-task-template.md). A reviewer label alone is never sufficient.
 
 Use `sessions_spawn` to create one subagent per role, with the target repo as `cwd` and a shared compact brief. Even for small diffs, keep the review gate as delegated reviewer work rather than replacing it with an in-orchestrator review.
 
 Each reviewer prompt must include:
+- the shared delegated role task template from [../../shared/delegate/delegated-role-task-template.md](../../shared/delegate/delegated-role-task-template.md), filled with the selected reviewer role, role file, task, scope, and output format
 - the applicable section from [references/role-prompts.md](references/role-prompts.md), including the selected role/phase overlay prompt
-- an instruction to load the selected role material before judging the diff
-- an instruction to follow all instructions in loaded role material, including loading additional role material, references, rubrics, learnings, or task guidance when the loaded role material requires it
-- an instruction to satisfy any final-answer requirements defined by the loaded role material, or return `blocked` if required material cannot be loaded or final-answer requirements cannot be satisfied
 
 Do not accept reviewer output for a required gate when required role material cannot be loaded or the role material's final-answer requirements cannot be satisfied. Mark that reviewer gate `blocked` instead.
 
@@ -108,7 +106,7 @@ Suggested reviewer prompt shape:
 
 > Review this diff as the {role}. Approved contract: {contract-summary}. Focus on {focus}. Judge it adversarially against that contract. Return only: pass/fail, must-fix / should-fix / can-delay, evidence, and confidence. Call out file:line when possible. If nothing is wrong, say so briefly.
 
-Add the selected phase overlay from [references/role-prompts.md](references/role-prompts.md) before that instruction, and require the reviewer to satisfy the loaded role material's final-answer requirements.
+Build the full worker prompt with the shared delegated role task template from [../../shared/delegate/delegated-role-task-template.md](../../shared/delegate/delegated-role-task-template.md), then add the selected phase overlay from [references/role-prompts.md](references/role-prompts.md) and the review instruction above.
 
 For `architect`, bias the prompt toward the planning-fixed architecture contract, seam decisions, dependency correctness, file ownership/zone boundaries, source-layout expectations, request-path boundaries, balanced coupling, architecture-memory integrity, and whether the implementation introduces unnecessary coupling, unapproved flat/global responsibility placement, or the wrong abstraction layer.
 

@@ -6,13 +6,7 @@ Read only the sections for reviewers you actually selected for the current slice
 
 `../../roles/*/ROLE.md` and `../../roles/*/RUBRIC.md` are the only canonical role files this overlay may require directly. The sections below are phase-specific review overlays only: output shape, review boundaries, escalation rules, and reviewer-only checks.
 
-Role label alone is never sufficient. Before spawning a reviewer worker/subagent, the parent must include the selected section below plus the delegated role instructions:
-
-- load selected role material;
-- follow all instructions in loaded role material;
-- if loaded role material tells you to load additional role material/references/rubrics/learnings, load them before final answer;
-- if loaded role material defines additional final-answer requirements, satisfy them exactly;
-- if required material cannot be loaded or final-answer requirements cannot be satisfied, return `BLOCKED`.
+Role label alone is never sufficient. Before spawning a reviewer worker/subagent, the parent must include the shared delegated role task template from [../../../../shared/delegate/delegated-role-task-template.md](../../../../shared/delegate/delegated-role-task-template.md), filled for the selected role, plus the selected section below.
 
 Canonical reviewer roles:
 - `critic`

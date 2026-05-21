@@ -2,7 +2,7 @@
 
 Paths in this phase overlay are resolved relative to the `code-review-orchestrator` skill root (`skills/code-review-orchestrator/`), not relative to this reference file.
 
-Use these as per-role focus overlays when spawning reviewers. These overlays may name only canonical role `ROLE.md` and `RUBRIC.md` files directly; any role-internal references or learnings must be discovered by following instructions inside the loaded role files.
+Use these as per-role focus overlays when spawning reviewers. Parent prompts must combine the shared delegated role task template from [../../../shared/delegate/delegated-role-task-template.md](../../../shared/delegate/delegated-role-task-template.md) with the selected overlay below. These overlays may name only canonical role `ROLE.md` and `RUBRIC.md` files directly; any role-internal references or learnings must be discovered by following instructions inside the loaded role files.
 
 When a canonical reviewer label and repo folder spelling differ, load by repo path, not by mechanically derived label path:
 - `frontend taste` -> `../../roles/frontend-taste`

@@ -6,13 +6,7 @@ Read only the sections for implementer roles you are about to launch.
 
 `../../roles/*/ROLE.md` and `../../roles/*/RUBRIC.md` are the only canonical role files this overlay may require directly. The sections below are phase-specific implementation overlays only: ownership boundaries, execution rules, verification expectations, and implementer-specific escalation behavior.
 
-Role label alone is never sufficient. Before spawning an implementer worker/subagent, the parent must include the selected section below plus the delegated role instructions:
-
-- load selected role material;
-- follow all instructions in loaded role material;
-- if loaded role material tells you to load additional role material/references/rubrics/learnings, load them before final answer;
-- if loaded role material defines additional final-answer requirements, satisfy them exactly;
-- if required material cannot be loaded or final-answer requirements cannot be satisfied, return `BLOCKED`.
+Role label alone is never sufficient. Before spawning an implementer worker/subagent, the parent must include the shared delegated role task template from [../../../../shared/delegate/delegated-role-task-template.md](../../../../shared/delegate/delegated-role-task-template.md), filled for the selected role, plus the selected section below.
 
 ## Common implementer quality gates
 

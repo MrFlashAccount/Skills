@@ -19,7 +19,7 @@ Execution planning must be concrete enough for implementation shape, ownership, 
 - Implementation entities:
 - Reviewer roles:
 - Reviewer plan:
-- Role-load contract: required phase overlays plus delegated role instructions for Architect, Planner, implementer, and reviewer workers; each required worker must satisfy the role material's final-answer requirements or be treated as `blocked`
+- Delegation prompt contract: shared delegated role task template from [../../../shared/delegate/delegated-role-task-template.md](../../../shared/delegate/delegated-role-task-template.md) plus required phase overlays for Architect, Planner, implementer, and reviewer workers; each required worker must satisfy the role material's final-answer requirements or be treated as `blocked`
 - Acceptance criteria:
 - Design-test: required/not-required/unknown (draft-only before approval) + why
 - Design-test scope: intended UI shape, required components, critical states/behavior, detail expectations

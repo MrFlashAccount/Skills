@@ -19,7 +19,7 @@ If the task is still vague, route discovery through grilling instead of guessing
 
 Do not collapse stages 1-6 straight into artifact writing.
 
-When Architect or Critic passes are delegated to workers/subagents, role label alone is not enough. The parent prompt must include the selected role/phase overlay and require the worker to load the selected role material before judging, implementing, or reviewing. Each worker must follow all instructions in loaded role material, including loading additional role material, references, rubrics, learnings, task guidance, and relevant create-architecture references when required. If loaded role material defines final-answer requirements, the worker must satisfy them. Do not accept a required gate when required material cannot be loaded or final-answer requirements cannot be satisfied.
+When Architect or Critic passes are delegated to workers/subagents, role label alone is not enough. The parent prompt must include the shared delegated role task template from [../../../shared/delegate/delegated-role-task-template.md](../../../shared/delegate/delegated-role-task-template.md), filled for the selected role and task, plus the selected role/phase overlay. Do not accept a required gate when required material cannot be loaded or final-answer requirements cannot be satisfied.
 
 ## 1. Source-audit
 

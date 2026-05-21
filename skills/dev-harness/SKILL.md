@@ -26,7 +26,7 @@ Read only the references needed for the current phase; do not load every role by
 - Before execution planning for non-trivial or ownership-unclear work, read [references/task-contract.md](references/task-contract.md).
 - If the slice may touch local files, personal docs, prompts/examples, logs, retained user data, or machine-specific paths, read [references/sensitive-surfaces.md](references/sensitive-surfaces.md) before proposal.
 - For architecture-sensitive work, or any slice where durable architecture artifacts might be required, read [references/roles/architect-planning.md](references/roles/architect-planning.md).
-- Before any delegated Architect, Planner, implementer, or reviewer worker is spawned, include the applicable phase overlay/load block from [references/roles/architect-planning.md](references/roles/architect-planning.md), [references/roles/implementers.md](references/roles/implementers.md), [references/roles/reviewers.md](references/roles/reviewers.md), or [references/task-contract.md](references/task-contract.md). A role label alone is not a role contract; include the delegated role instructions from that overlay/load block.
+- Before any delegated Architect, Planner, implementer, or reviewer worker is spawned, include the shared delegated role task template from [../../shared/delegate/delegated-role-task-template.md](../../shared/delegate/delegated-role-task-template.md) plus the applicable phase overlay/load block from [references/roles/architect-planning.md](references/roles/architect-planning.md), [references/roles/implementers.md](references/roles/implementers.md), [references/roles/reviewers.md](references/roles/reviewers.md), or [references/task-contract.md](references/task-contract.md). A role label alone is not a role contract.
 - After approval, hand off to `../implementation-harness/` with the approved task context, human-approved research packet, structural contract when present, and approved execution-plan packet.
 - If routing is ambiguous or you want a sanity check on expected worker/reviewer choice, read [references/examples.md](references/examples.md).
 - Read the knowledge base only when relevant:
@@ -171,7 +171,7 @@ Before approval, execution plans must not include:
 - Plain user action verbs like `fix`, `do`, `сделай`, or `исправь` do not count as permission for direct parent-session implementation; only an explicit request for direct in-session execution overrides the orchestrator default.
 - Speed is not a reason to bypass worker/subagent execution. If the workflow applies, keep the orchestrator in orchestration mode.
 - If required delegated execution is unavailable, fails to start, or cannot be used, stop as `blocked` rather than implementing or reviewing manually in the parent session.
-- Delegated role/worker prompts must include the applicable delegated role instructions. Do not accept delegated Architect, Planner, implementer, or reviewer output for a required gate when required role material cannot be loaded or the loaded role material's final-answer requirements cannot be satisfied.
+- Delegated role/worker prompts must use the shared delegated role task template from [../../shared/delegate/delegated-role-task-template.md](../../shared/delegate/delegated-role-task-template.md) plus the applicable phase overlay. Do not accept delegated Architect, Planner, implementer, or reviewer output for a required gate when required role material cannot be loaded or the loaded role material's final-answer requirements cannot be satisfied.
 
 ## Knowledge base
 

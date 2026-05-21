@@ -8,6 +8,38 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 ROLE_HEADING = "## Final role evidence"
 OLD_FIELD = "role_files_loaded"
+DELEGATED_ROLE_TEMPLATE = ROOT / "shared" / "delegate" / "delegated-role-task-template.md"
+DELEGATED_ROLE_TEMPLATE_REL = "shared/delegate/delegated-role-task-template.md"
+TEMPLATE_FORBIDDEN_TERMS = (
+    "loaded",
+    "role_evidence",
+    "role_files_loaded",
+    "final role evidence",
+    "field names",
+    "evidence",
+    "envelope",
+    "yaml",
+    "json",
+)
+DELEGATION_DOCS = (
+    "skills/code-review-orchestrator/SKILL.md",
+    "skills/code-review-orchestrator/references/role-prompts.md",
+    "skills/create-architecture/references/workflow.md",
+    "skills/create-design/references/workflow.md",
+    "skills/create-skill/references/workflow.md",
+    "skills/dev-harness/SKILL.md",
+    "skills/dev-harness/references/roles/implementers.md",
+    "skills/dev-harness/references/roles/reviewers.md",
+    "skills/dev-harness/references/task-contract.md",
+    "skills/implementation-harness/SKILL.md",
+    "skills/implementation-harness/references/workflow.md",
+)
+DUPLICATED_DELEGATION_SNIPPETS = (
+    "load selected role material;\n- follow all instructions in loaded role material;",
+    "require the worker to load the selected role material before",
+    "The worker must follow all instructions in loaded role material",
+    "Each worker must follow all instructions in loaded role material",
+)
 
 
 def canonical_block(repo_relative_path: str) -> str:
@@ -30,6 +62,27 @@ def final_block(text: str) -> str | None:
 
 def main() -> int:
     errors: list[str] = []
+
+    if not DELEGATED_ROLE_TEMPLATE.exists():
+        errors.append(f"{DELEGATED_ROLE_TEMPLATE_REL}: missing shared delegated role task template")
+    else:
+        template_text = DELEGATED_ROLE_TEMPLATE.read_text(encoding="utf-8")
+        template_lower = template_text.lower()
+        for term in TEMPLATE_FORBIDDEN_TERMS:
+            if term in template_lower:
+                errors.append(f"{DELEGATED_ROLE_TEMPLATE_REL}: contains forbidden delegation-template term {term!r}")
+
+    for rel in DELEGATION_DOCS:
+        path = ROOT / rel
+        if not path.exists():
+            errors.append(f"{rel}: missing delegation doc")
+            continue
+        text = path.read_text(encoding="utf-8")
+        if "delegated-role-task-template.md" not in text:
+            errors.append(f"{rel}: does not reference shared delegated role task template")
+        for snippet in DUPLICATED_DELEGATION_SNIPPETS:
+            if snippet in text:
+                errors.append(f"{rel}: duplicates delegated role task instructions instead of referencing shared template")
 
     role_files = sorted((ROOT / "roles").rglob("*.md"))
     for path in role_files:
