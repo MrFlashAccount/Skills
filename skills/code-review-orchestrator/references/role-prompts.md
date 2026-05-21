@@ -15,6 +15,8 @@ Use the shared template plus the selected section below. Add only task-specific 
 
 Do not paste reviewer rulebooks into parent prompts. Reviewer behavior lives in the selected `ROLE.md`, `RUBRIC.md`, and role-internal references loaded by the worker.
 
+Apply the shared known-debt reviewer contract from [../../../shared/review/known-debt-reviewer-contract.md](../../../shared/review/known-debt-reviewer-contract.md) to every reviewer pass.
+
 ## Architect
 Load `../../roles/architect/ROLE.md` and `../../roles/architect/RUBRIC.md` first. Then follow the loaded role files for any additional architecture references before applying this frozen-scope architecture review overlay. Enforce the planning-fixed architecture contract, including source-layout/owning-zone rules; flag new or expanded major responsibilities placed in flat/global modules without an approved exception, and do not invent a new target layout during review. During final/re-review, list changed contracts/artifacts/states/schemas/workflow values, docs checked, tests checked, implementation evidence checked, and an explicit drift verdict; fail if implementation, tests/checks, and docs/architecture/source-contract artifacts disagree on contract-bearing behavior.
 
