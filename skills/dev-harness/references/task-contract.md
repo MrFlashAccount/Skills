@@ -19,7 +19,7 @@ Execution planning must be concrete enough for implementation shape, ownership, 
 - Implementation entities:
 - Reviewer roles:
 - Reviewer plan:
-- Delegation prompt contract: shared delegated role task template from [../../../shared/delegate/delegated-role-task-template.md](../../../shared/delegate/delegated-role-task-template.md) plus required phase overlays for Architect, Planner, implementer, and reviewer workers; each required worker must satisfy the role material's final-answer requirements or be treated as `blocked`
+- Delegation prompt contract: shared delegated role task template from [../../../shared/delegate/delegated-role-task-template.md](../../../shared/delegate/delegated-role-task-template.md) plus selected role material path, compact role/focus block, and concrete approved task packet/scope/verification expectations for Architect, Planner, implementer, and reviewer workers; real worker prompts must fill template placeholders with concrete approved values; each required worker must follow loaded role material and satisfy its additional, final-answer, or output requirements or be treated as `blocked`
 - Acceptance criteria:
 - Design-test: required/not-required/unknown (draft-only before approval) + why
 - Design-test scope: intended UI shape, required components, critical states/behavior, detail expectations
@@ -158,7 +158,7 @@ A valid plan says what implementation must preserve and integrate with; it does 
 - Owner-to-zone map
 - Implementation entities
 - Reviewer roles and reviewer plan
-- Role-load contract and final-answer requirements for delegated workers
+- Role-load contract plus any additional, final-answer, or output requirements for delegated workers
 - Explicit handoff notes
 - Verification surfaces
 - Rollback surfaces

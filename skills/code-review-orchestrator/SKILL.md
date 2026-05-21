@@ -94,9 +94,9 @@ Use `sessions_spawn` to create one subagent per role, with the target repo as `c
 
 Each reviewer prompt must include:
 - the shared delegated role task template from [../../shared/delegate/delegated-role-task-template.md](../../shared/delegate/delegated-role-task-template.md), filled with the selected reviewer role, role file, task, scope, and output format
-- the applicable section from [references/role-prompts.md](references/role-prompts.md), including the selected role/phase overlay prompt
+- the applicable compact focus section from [references/role-prompts.md](references/role-prompts.md) for the selected reviewer role
 
-Do not accept reviewer output for a required gate when required role material cannot be loaded or the role material's final-answer requirements cannot be satisfied. Mark that reviewer gate `blocked` instead.
+Do not accept reviewer output for a required gate when required role material cannot be loaded or loaded role material's additional, final-answer, or output requirements cannot be satisfied. Mark that reviewer gate `blocked` instead.
 
 If the delegated reviewer path is unavailable, fails to start, or cannot be used, stop as `blocked` instead of reviewing directly in the orchestrator session.
 
@@ -106,7 +106,7 @@ Suggested reviewer prompt shape:
 
 > Review this diff as the {role}. Approved contract: {contract-summary}. Focus on {focus}. Judge it adversarially against that contract. Return only: pass/fail, must-fix / should-fix / can-delay, evidence, and confidence. Call out file:line when possible. If nothing is wrong, say so briefly.
 
-Build the full worker prompt with the shared delegated role task template from [../../shared/delegate/delegated-role-task-template.md](../../shared/delegate/delegated-role-task-template.md), then add the selected phase overlay from [references/role-prompts.md](references/role-prompts.md) and the review instruction above.
+Build the full worker prompt with the shared delegated role task template from [../../shared/delegate/delegated-role-task-template.md](../../shared/delegate/delegated-role-task-template.md), then add the selected role material path, compact focus block from [references/role-prompts.md](references/role-prompts.md), approved contract/acceptance context, and the review instruction above.
 
 For `architect`, bias the prompt toward the planning-fixed architecture contract, seam decisions, dependency correctness, file ownership/zone boundaries, source-layout expectations, request-path boundaries, balanced coupling, architecture-memory integrity, and whether the implementation introduces unnecessary coupling, unapproved flat/global responsibility placement, or the wrong abstraction layer.
 

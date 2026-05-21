@@ -1,21 +1,22 @@
 # Implementer Roles
 
-Paths in this phase overlay are resolved relative to the `dev-harness` skill root (`skills/dev-harness/`), not relative to this reference file.
+Paths in this compact role/focus guidance are resolved relative to the `dev-harness` skill root (`skills/dev-harness/`), not relative to this reference file.
 
 Read only the sections for implementer roles you are about to launch.
 
-`../../roles/*/ROLE.md` and `../../roles/*/RUBRIC.md` are the only canonical role files this overlay may require directly. The sections below are phase-specific implementation overlays only: ownership boundaries, execution rules, verification expectations, and implementer-specific escalation behavior.
+`../../roles/*/ROLE.md` and `../../roles/*/RUBRIC.md` are the only canonical role files this overlay may require directly. The sections below are routing/load guidance and compact prompt-shape guidance, not duplicated role rulebooks.
 
-Role label alone is never sufficient. Before spawning an implementer worker/subagent, the parent must include the shared delegated role task template from [../../../../shared/delegate/delegated-role-task-template.md](../../../../shared/delegate/delegated-role-task-template.md), filled for the selected role, plus the selected section below.
+Role label alone is never sufficient. Before spawning an implementer worker/subagent, the parent must include the shared delegated role task template from [../../../../shared/delegate/delegated-role-task-template.md](../../../../shared/delegate/delegated-role-task-template.md), filled for the selected role, plus the selected compact section below.
 
-## Common implementer quality gates
+## Common implementer prompt contract
 
-Apply these gates to every code implementer role, especially `backend` and `frontend`:
+Apply this to every code implementer prompt:
 
-- Prefer one local responsibility per function/method: either perform side effects or compute/transform data. If a slice must mix both, keep the reason local, explicit, and easy for review to verify.
-- Reuse canonical constants/names for event names, statuses, artifact kinds, action names, and similar symbolic values. Do not add raw string references outside canonical definitions, tests/fixtures, or explicitly bounded migration compatibility.
-- When introducing or renaming a symbolic value, grep/check the touched area for scattered literals and consolidate them unless the exception is intentional and documented.
-- Keep functions/files reviewable; extract or split when a change creates a mixed-responsibility orchestration blob or a hard-to-review surface.
+- Keep the parent/orchestrator prompt neutral and compact.
+- Include only: the shared delegated role task template, selected role name/path, approved task packet, assigned file zones, scope/non-goals, verification expectations, and requested output.
+- Do not inline backend-specific, frontend-specific, framework-specific, or stack-specific implementation rules into the parent prompt. Those rules belong in the loaded role material and any role-internal references it tells the worker to read.
+- If a worker needs more role detail, the worker must get it by loading the selected `ROLE.md`, `RUBRIC.md`, `LEARNINGS.md` when required, and role-referenced files.
+- Treat this file as routing/load guidance, not as a duplicated implementation rulebook.
 
 ## Implementer role: `architect` v1 (architecture artifacts only)
 
@@ -46,64 +47,30 @@ Load `../../roles/architect/ROLE.md` and `../../roles/architect/RUBRIC.md` first
 
 ## Implementer role: `backend` v1
 
-Load `../../roles/backend/ROLE.md` and `../../roles/backend/RUBRIC.md` first.
+Load `../../roles/backend/ROLE.md` and `../../roles/backend/RUBRIC.md` first. Then follow the loaded role files for `LEARNINGS.md` or other backend references they require.
 
-- Purpose: own server-side correctness end to end for the approved slice: API/contracts, business logic, validation, error handling, data flow, migration safety, auth/security hygiene, and observability/testability where appropriate. Prefer boring correctness over cleverness, hidden magic, or implicit behavior.
-- Ownership / file-zone scope: backend handlers/controllers, services, domain logic, schemas/contracts, validators, persistence/data-access, migrations, background/server workflows, auth/authz enforcement, backend observability hooks, and tests tied to those zones. Do not edit frontend routes, components, styling, client state, or make visual/UX decisions that belong to frontend ownership.
-- Must-read / must-load references:
-  - read the approved task contract, acceptance criteria, assigned file zones, and the existing backend patterns in the owned area
-  - read the currently approved API/contracts and any migration constraints for the touched surface
-  - load project-local stack, security, and testing docs when they apply to the owned slice
-- Execution rules:
-  - stay inside assigned backend ownership; do not drift into frontend ownership or make UI/visual decisions
-  - preserve approved contracts unless the task explicitly approves a contract change; do not silently widen, loosen, or break request/response, event, schema, or data invariants
-  - treat request shape, persistence semantics, and async runtime behavior as contract-adjacent; do not slip in handler/request-field drift, storage-side defaults, or background side effects without making them explicit
-  - on async or request-serving paths, avoid blocking synchronous persistence/I/O unless the task explicitly allows it and the cost is called out; prefer the project-native non-blocking pattern for the touched stack
-  - prefer explicit validation, readable control flow, and predictable failure modes over clever abstractions or hidden behavior
-  - treat migration and rollout safety as part of correctness; avoid unsafe destructive changes unless explicitly approved
-  - keep auth, security checks, logging, and testability aligned with project-local backend patterns for the touched slice
-  - if code changes the real backend contract, update the contract-adjacent docs/architecture notes in-slice when they exist; do not leave docs describing an older request shape or persistence behavior
-  - before finishing, ensure required file headers and language-appropriate code docs for the owned slice are present and current; if contract, lifecycle, side effects, or invariants changed in a non-obvious way, the code is incomplete until the docs reflect it
-  - do not add ornamental comments; document contract-bearing behavior only
-  - if a required contract or frontend dependency is missing, contradictory, or would force cross-ownership edits, stop and surface the blocker instead of guessing
-- Non-goals:
-  - frontend UI/UX, visual polish, client-state design, or component ownership
-  - silent contract expansion for convenience
-  - clever refactors or framework magic that reduce clarity without clear task-approved value
-- Done criteria / verification expectations:
-  - the owned backend slice meets acceptance criteria and stays within backend ownership
-  - contracts remain compatible with the approved task scope, with no silent widening or breakage
-  - request-path, persistence, and async-runtime behavior remain explicit and reviewable, with no unapproved blocking sync I/O on hot/request-serving paths
-  - validation, failure handling, and data-flow changes are explicit and reviewable
-  - contract-adjacent docs/notes named in the task contract are updated or explicitly confirmed still correct
-  - required contract-significant code docs are present and current for the owned slice
-  - run the smallest meaningful backend verification for the slice and report it, such as a targeted test, typecheck, lint, migration check, contract check, or equivalent project-native verification
+Parent prompt content for this role should stay compact:
+
+- approved task packet / acceptance criteria
+- assigned backend file zones
+- scope and non-goals
+- relevant contract inputs named by the approved packet
+- verification expectations from the task contract
+- requested output format from the task contract plus loaded role material requirements
+
+Do not paste backend implementation rules, backend checklists, or backend best-practice walls into the parent/orchestrator prompt. Backend-specific rules live in `roles/backend/ROLE.md`, `roles/backend/RUBRIC.md`, `roles/backend/LEARNINGS.md`, and backend role references.
 
 ## Implementer role: `frontend` v1
 
-Load `../../roles/frontend/ROLE.md` and `../../roles/frontend/RUBRIC.md` first.
+Load `../../roles/frontend/ROLE.md` and `../../roles/frontend/RUBRIC.md` first. Then follow the loaded role files for `LEARNINGS.md`, UI references, `DESIGN.md`, or other frontend/design references they require for the assigned surface.
 
-- Purpose: own user-facing implementation quality end to end: UX, visual quality, client-side component/state structure, accessibility-facing behavior, and correct consumption of approved backend contracts. Visual quality is part of correctness, not optional polish.
-- Ownership / file-zone scope: frontend routes, pages, layouts, components, client state, styling, design-system usage, frontend data adapters, and tests/stories tied to those zones. Do not edit backend handlers, schemas, DB/migrations, server-side business logic, or invent/change API contracts without explicit approval and backend ownership.
-- Must-read / must-load references:
-  - follow the loaded frontend role files for any framework-specific references; do not hardcode role-internal frontend reference paths in this overlay
-  - for user-facing UI work, read repo `DESIGN.md` when it exists or is named by the task contract; follow the loaded role files for any design-memory or taste references they require
-  - if the task requires creating/changing design law, product basis, palette, typography, layout, density, motion law, or high-confidence screen direction, route to `create-design` before proceeding
-  - read the approved task contract, acceptance criteria, assigned file zones, and the existing frontend patterns in the owned area
-- Execution rules:
-  - stay inside assigned frontend ownership; consume existing or explicitly approved contracts, do not invent backend fields/endpoints or silently widen scope across the stack
-  - prefer clear component boundaries, predictable client state, and framework-native React/Next.js patterns over ad hoc helpers or incidental complexity
-  - treat UX quality, interaction clarity, responsive behavior, and visual fit with the product as implementation requirements
-  - before finishing, ensure required file headers and language-appropriate code docs for the owned slice are present and current; if state ownership, async lifecycle, side effects, accessibility-sensitive behavior, or contract assumptions changed in a non-obvious way, the code is incomplete until the docs reflect it
-  - do not add ornamental comments; document contract-bearing behavior only
-  - if the backend contract is missing, contradictory, or insufficient, stop and surface the blocker instead of guessing
-  - keep changes reviewable and scoped to the approved slice
-- Non-goals:
-  - backend design, schema changes, endpoint invention, server-side refactors, or cross-zone ownership grabs
-  - cosmetic-only polish outside the approved slice
-  - replacing established product patterns without a task-approved reason
-- Done criteria / verification expectations:
-  - the owned UI works against the approved contract, matches acceptance criteria, and does not cross into backend ownership
-  - visual quality is coherent and intentional for the touched surface; broken hierarchy, awkward layout, or weak interaction quality count as defects
-  - required contract-significant code docs are present and current for the owned slice
-  - run the smallest meaningful frontend verification for the slice and report it, such as a targeted build/typecheck/test/lint/story validation or equivalent project-native check
+Parent prompt content for this role should stay compact:
+
+- approved task packet / acceptance criteria
+- assigned frontend file zones
+- scope and non-goals
+- relevant API/client contract inputs named by the approved packet
+- verification expectations from the task contract
+- requested output format from the task contract plus loaded role material requirements
+
+Do not paste frontend implementation rules, frontend checklists, framework rules, design-taste rules, or best-practice walls into the parent/orchestrator prompt. Frontend-specific rules live in `roles/frontend/ROLE.md`, `roles/frontend/RUBRIC.md`, `roles/frontend/LEARNINGS.md`, and frontend role references.

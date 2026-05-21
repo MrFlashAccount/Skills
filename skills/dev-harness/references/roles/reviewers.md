@@ -1,6 +1,6 @@
 # Reviewer Roles
 
-Paths in this phase overlay are resolved relative to the `dev-harness` skill root (`skills/dev-harness/`), not relative to this reference file.
+Paths in this compact role/focus guidance are resolved relative to the `dev-harness` skill root (`skills/dev-harness/`), not relative to this reference file.
 
 Read only the sections for reviewers you actually selected for the current slice.
 

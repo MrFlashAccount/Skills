@@ -11,9 +11,9 @@ Follow all instructions in that material.
 
 If that material directs you to read additional role material, references, rubrics, learnings, or task-specific guidance, read them before the final answer.
 
-If any role material defines final-answer requirements, satisfy them exactly.
+If any loaded role material defines additional, final-answer, or output requirements, satisfy them exactly.
 
-If required material cannot be read, or final-answer requirements cannot be satisfied, return `BLOCKED` and state the missing requirement briefly.
+If required material cannot be read, or those additional, final-answer, or output requirements cannot be satisfied, return `BLOCKED` and state the missing requirement briefly.
 
 ## Delegated task
 
@@ -25,6 +25,8 @@ If required material cannot be read, or final-answer requirements cannot be sati
 
 ## Output
 
-Return the delegated task result in the requested format.
+Return the delegated task result in the requested format. If loaded role material defines additional, final-answer, or output requirements, satisfy them as part of that result.
+
+Template placeholders such as `<role_name>`, `<role_file_path>`, `<task>`, and `<scope / constraints / non-goals>` are compile-time/orchestrator-fill placeholders. A real spawned worker prompt must receive concrete approved values, not raw placeholders, except when the delegated task is intentionally generating a reusable template for review.
 
 Do not include unrelated logs, tool transcripts, hidden context, or reasoning.

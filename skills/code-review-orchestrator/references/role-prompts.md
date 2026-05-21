@@ -1,8 +1,8 @@
 # Role prompts
 
-Paths in this phase overlay are resolved relative to the `code-review-orchestrator` skill root (`skills/code-review-orchestrator/`), not relative to this reference file.
+Paths in this compact role/focus guidance are resolved relative to the `code-review-orchestrator` skill root (`skills/code-review-orchestrator/`), not relative to this reference file.
 
-Use these as per-role focus overlays when spawning reviewers. Parent prompts must combine the shared delegated role task template from [../../../shared/delegate/delegated-role-task-template.md](../../../shared/delegate/delegated-role-task-template.md) with the selected overlay below. These overlays may name only canonical role `ROLE.md` and `RUBRIC.md` files directly; any role-internal references or learnings must be discovered by following instructions inside the loaded role files.
+Use these as compact per-role focus blocks when spawning reviewers. Parent prompts must combine the shared delegated role task template from [../../../shared/delegate/delegated-role-task-template.md](../../../shared/delegate/delegated-role-task-template.md) with the selected role material path, the compact focus block below, and the concrete review task/scope/verification expectations. These blocks may name only canonical role `ROLE.md` and `RUBRIC.md` files directly; any role-internal references or learnings must be discovered by following instructions inside the loaded role files. Do not inline full reviewer role rulebooks into the parent prompt.
 
 When a canonical reviewer label and repo folder spelling differ, load by repo path, not by mechanically derived label path:
 - `frontend taste` -> `../../roles/frontend-taste`
@@ -18,7 +18,7 @@ When a canonical reviewer label and repo folder spelling differ, load by repo pa
 - The parent/orchestrator session owns delegation. You are the delegated reviewer worker/subagent for your assigned role; do not re-delegate the review or tell the parent to review it directly.
 - For non-trivial code work, judge the slice adversarially against the approved contract and return an explicit binary pass/fail verdict.
 - Return an explicit binary pass/fail verdict plus three buckets only: must-fix, should-fix, can-delay.
-- If loaded role material defines final-answer requirements, satisfy them. If required role material cannot be loaded or final-answer requirements cannot be satisfied, return `blocked` instead of a review verdict.
+- If loaded role material defines additional, final-answer, or output requirements, satisfy them. If required role material cannot be loaded or those requirements cannot be satisfied, return `blocked` instead of a review verdict.
 - If nothing is wrong, say that and stop.
 
 ## Architect

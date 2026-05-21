@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Check canonical final role evidence blocks for role material."""
+"""Check canonical final role evidence blocks for role material and parent prompt boundaries."""
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -10,16 +11,22 @@ ROLE_HEADING = "## Final role evidence"
 OLD_FIELD = "role_files_loaded"
 DELEGATED_ROLE_TEMPLATE = ROOT / "shared" / "delegate" / "delegated-role-task-template.md"
 DELEGATED_ROLE_TEMPLATE_REL = "shared/delegate/delegated-role-task-template.md"
-TEMPLATE_FORBIDDEN_TERMS = (
-    "loaded",
+PARENT_FORBIDDEN_TERMS = (
+    "ROLE_EVIDENCE_LOADED",
     "role_evidence",
-    "role_files_loaded",
-    "final role evidence",
-    "field names",
-    "evidence",
-    "envelope",
-    "yaml",
-    "json",
+    "role evidence",
+    "Final role evidence",
+    "For final role evidence",
+    "named evidence",
+    "contract or migration evidence",
+    "CONTRACT_OR_MIGRATION_EVIDENCE",
+    "evidence that still matters",
+    "## Backend implementer phase overlay",
+    "Backend implementer phase overlay",
+    OLD_FIELD,
+)
+PARENT_FORBIDDEN_PATTERNS = (
+    re.compile(r"ROLE_[A-Z0-9_]*EVIDENCE[A-Z0-9_]*"),
 )
 DELEGATION_DOCS = (
     "skills/code-review-orchestrator/SKILL.md",
@@ -60,6 +67,62 @@ def final_block(text: str) -> str | None:
     return block if block.endswith("\n") else block + "\n"
 
 
+def scan_parent_prompt_boundaries(errors: list[str]) -> None:
+    """Prevent parent/orchestrator docs from exposing role-evidence mechanics."""
+    scan_roots = [ROOT / "skills", ROOT / "shared" / "delegate"]
+    for base in scan_roots:
+        if not base.exists():
+            continue
+        for path in sorted(base.rglob("*.md")):
+            rel = path.relative_to(ROOT).as_posix()
+            text = path.read_text(encoding="utf-8")
+            lower = text.lower()
+            for term in PARENT_FORBIDDEN_TERMS:
+                haystack = text if term.isupper() or term == ROLE_HEADING else lower
+                needle = term if term.isupper() or term == ROLE_HEADING else term.lower()
+                if needle in haystack:
+                    errors.append(f"{rel}: parent/delegation docs must not mention {term!r}")
+            for pattern in PARENT_FORBIDDEN_PATTERNS:
+                match = pattern.search(text)
+                if match:
+                    errors.append(f"{rel}: parent/delegation docs must not expose evidence-specific output field {match.group(0)!r}")
+
+
+
+
+def scan_implementer_prompt_compactness(errors: list[str]) -> None:
+    rel = "skills/dev-harness/references/roles/implementers.md"
+    path = ROOT / rel
+    if not path.exists():
+        errors.append(f"{rel}: missing implementer role overlay")
+        return
+    lines = path.read_text(encoding="utf-8").splitlines()
+    headings = [(idx, line) for idx, line in enumerate(lines) if line.startswith("## Implementer role:")]
+    for role in ("backend", "frontend"):
+        matching = [(idx, line) for idx, line in headings if f"`{role}`" in line]
+        if len(matching) != 1:
+            errors.append(f"{rel}: expected exactly one compact {role} implementer section")
+            continue
+        start, _ = matching[0]
+        following = [idx for idx, _ in headings if idx > start]
+        end = following[0] if following else len(lines)
+        section = "\n".join(lines[start:end])
+        section_line_count = end - start
+        if section_line_count > 25:
+            errors.append(f"{rel}: {role} implementer section is too long for compact parent prompt guidance ({section_line_count} lines)")
+        if f"Do not paste {role}" not in section:
+            errors.append(f"{rel}: {role} implementer section must forbid inline role-specific rule walls")
+        forbidden_phrases = (
+            "Purpose: own server-side correctness",
+            "Purpose: own user-facing implementation quality",
+            "Execution rules:",
+            "Done criteria / verification expectations:",
+        )
+        for phrase in forbidden_phrases:
+            if phrase in section:
+                errors.append(f"{rel}: {role} implementer section contains inlined role-rule phrase {phrase!r}")
+
+
 def main() -> int:
     errors: list[str] = []
 
@@ -67,10 +130,15 @@ def main() -> int:
         errors.append(f"{DELEGATED_ROLE_TEMPLATE_REL}: missing shared delegated role task template")
     else:
         template_text = DELEGATED_ROLE_TEMPLATE.read_text(encoding="utf-8")
-        template_lower = template_text.lower()
-        for term in TEMPLATE_FORBIDDEN_TERMS:
-            if term in template_lower:
-                errors.append(f"{DELEGATED_ROLE_TEMPLATE_REL}: contains forbidden delegation-template term {term!r}")
+        if "<role_name>" not in template_text or "<task>" not in template_text:
+            errors.append(f"{DELEGATED_ROLE_TEMPLATE_REL}: missing compile-time placeholders")
+        if "concrete approved values" not in template_text:
+            errors.append(f"{DELEGATED_ROLE_TEMPLATE_REL}: missing placeholder fill policy")
+        if "additional, final-answer, or output requirements" not in template_text:
+            errors.append(f"{DELEGATED_ROLE_TEMPLATE_REL}: missing neutral role-material output requirement wording")
+
+    scan_parent_prompt_boundaries(errors)
+    scan_implementer_prompt_compactness(errors)
 
     for rel in DELEGATION_DOCS:
         path = ROOT / rel
@@ -96,21 +164,8 @@ def main() -> int:
         expected = canonical_block(rel)
         if actual != expected:
             errors.append(f"{rel}: final role evidence block does not match canonical template")
-
-    skills_dir = ROOT / "skills"
-    if skills_dir.exists():
-        for path in sorted(skills_dir.rglob("*.md")):
-            rel = path.relative_to(ROOT).as_posix()
-            text = path.read_text(encoding="utf-8")
-            if ROLE_HEADING in text:
-                errors.append(f"{rel}: role evidence block is not allowed under skills/")
-
-    for base in (ROOT / "skills", ROOT / "roles"):
-        if base.exists():
-            for path in sorted(base.rglob("*.md")):
-                rel = path.relative_to(ROOT).as_posix()
-                if OLD_FIELD in path.read_text(encoding="utf-8"):
-                    errors.append(f"{rel}: contains old {OLD_FIELD!r} field")
+        if OLD_FIELD in text:
+            errors.append(f"{rel}: contains old {OLD_FIELD!r} field")
 
     if errors:
         print("Role evidence check failed:")
@@ -118,7 +173,7 @@ def main() -> int:
             print(f"- {error}")
         return 1
 
-    print(f"Role evidence check passed: {len(role_files)} role files normalized.")
+    print(f"Role evidence check passed: {len(role_files)} role files normalized and parent docs clean.")
     return 0
 
 

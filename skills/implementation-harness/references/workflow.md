@@ -16,7 +16,7 @@ Choose implementers from the approved execution plan:
 2. Map file zones to `backend` and/or `frontend` exactly as approved.
 3. Stay in orchestrator mode: do not implement inside the parent session. Spawn delegated implementer worker/subagent owner(s) for the approved file zones even when direct manual execution in the parent session would be faster or more convenient.
    - if the required implementer worker/subagent path is unavailable, fails to start, or cannot be used, stop as `blocked` instead of implementing manually in the parent session
-   - role label alone is not enough: include the shared delegated role task template from `../../../shared/delegate/delegated-role-task-template.md` plus the selected phase overlay from `../../dev-harness/references/roles/implementers.md`
+   - role label alone is not enough: include the shared delegated role task template from `../../../shared/delegate/delegated-role-task-template.md`, the selected role material path, compact implementer focus from `../../dev-harness/references/roles/implementers.md`, and the concrete approved task packet/scope/verification expectations
 4. Implement only the approved slice and approved direction through those delegated implementer worker/subagent owner(s).
 5. Run the smallest meaningful verification.
 6. Package the development handoff for the separate review stage.
@@ -28,7 +28,7 @@ For non-trivial code work, make the loop explicit in execution notes and handoff
 
 - Verification is mandatory before handoff.
 - Implementer self-report is never sufficient to mark non-trivial code work done.
-- Required role material must be loaded before acceptance. If required material cannot be loaded or the role material's final-answer requirements cannot be satisfied, treat that owner output as `blocked` and do not hand the slice to review as complete.
+- Required role material must be loaded before acceptance. If required material cannot be loaded or loaded role material's additional, final-answer, or output requirements cannot be satisfied, treat that owner output as `blocked` and do not hand the slice to review as complete.
 - Parent-session convenience is never a valid reason to bypass delegated implementation when this harness applies.
 - Delegate failure or unavailability is not a license to bypass the harness; if required implementer delegation cannot run, stop as `blocked`.
 - Verification should check the changed code, the approved contract touchpoints, and any execution-time fact that could invalidate the handoff.

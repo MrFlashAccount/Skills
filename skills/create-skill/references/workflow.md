@@ -126,7 +126,7 @@ Implementation rules:
 
 After the first draft, run a structured review/fix loop.
 
-If a critic/reviewer pass is delegated to a worker/subagent, role label alone is not enough. The parent prompt must include the shared delegated role task template from [../../../shared/delegate/delegated-role-task-template.md](../../../shared/delegate/delegated-role-task-template.md), filled for the selected role and task, plus the selected role/phase overlay. Include [references/checklist.md](checklist.md) and relevant create-skill workflow/testing references in the task-specific guidance when required. Do not accept the critic/reviewer pass for a required gate when required material cannot be loaded or final-answer requirements cannot be satisfied.
+If a critic/reviewer pass is delegated to a worker/subagent, role label alone is not enough. The parent prompt must include the shared delegated role task template from [../../../shared/delegate/delegated-role-task-template.md](../../../shared/delegate/delegated-role-task-template.md), filled for the selected role and task, plus the selected role material path and compact role/focus block. Include [references/checklist.md](checklist.md) and relevant create-skill workflow/testing references in the task-specific guidance when required. Do not accept the critic/reviewer pass for a required gate when required material cannot be loaded or final-answer requirements cannot be satisfied.
 
 Default loop:
 1. draft or revise

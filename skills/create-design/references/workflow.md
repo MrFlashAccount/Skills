@@ -37,7 +37,7 @@ The proposer must close, or explicitly mark unanswered, these questions before d
 
 `DESIGN.md` remains the operational design law and source of truth. References support the law; they do not replace it.
 
-When either Frontend-Taste pass is delegated to a worker/subagent, role label alone is not enough. The parent prompt must include the shared delegated role task template from [../../../shared/delegate/delegated-role-task-template.md](../../../shared/delegate/delegated-role-task-template.md), filled for the selected role and task, plus this role split and the selected role/phase overlay. Do not accept the pass for a required gate when required material cannot be loaded or final-answer requirements cannot be satisfied.
+When either Frontend-Taste pass is delegated to a worker/subagent, role label alone is not enough. The parent prompt must include the shared delegated role task template from [../../../shared/delegate/delegated-role-task-template.md](../../../shared/delegate/delegated-role-task-template.md), filled for the selected role and task, plus this role split, selected role material path, and compact role/focus block. Do not accept the pass for a required gate when required material cannot be loaded or final-answer requirements cannot be satisfied.
 
 ## 0. Pick the mode
 
