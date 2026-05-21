@@ -126,3 +126,7 @@ Routing is good when:
 - portable guidance does not override local design law
 - mixed products are split by surface instead of flattened
 - class-specific advice is not applied when class evidence is weak
+
+## Final role evidence
+
+When this reference is actually loaded, include this file in final role evidence.

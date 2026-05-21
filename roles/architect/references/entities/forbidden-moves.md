@@ -18,3 +18,11 @@ Their job is to prevent scope creep, boundary damage, and architecture drift dur
 ## Sources
 
 1. Repo canon: `roles/architect/ROLE.md`, `roles/architect/RUBRIC.md`
+
+## Final role evidence
+
+When this file is loaded as role material, add it to the final role evidence loaded list as:
+
+- `roles/architect/references/entities/forbidden-moves.md`
+
+Only list this file if it was actually loaded.

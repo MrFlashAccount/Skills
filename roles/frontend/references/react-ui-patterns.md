@@ -207,3 +207,7 @@ Smells:
 - Custom widgets need the full keyboard contract for the pattern, not just `tabIndex`.
 - Avoid focus loss when conditionally rendering loading/error states; intentionally move focus only when it helps task progress.
 - Keep `aria-busy`, `role="status"`, `role="alert"`, `aria-invalid`, and `aria-describedby` tied to real state.
+
+## Final role evidence
+
+When this reference is actually loaded, include this file in final role evidence.

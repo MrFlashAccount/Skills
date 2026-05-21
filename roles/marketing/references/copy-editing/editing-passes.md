@@ -54,3 +54,11 @@ The edit is ready when:
 - the strongest remaining claims are supportable
 - the CTA feels earned
 - the revised copy is cleaner without becoming blander or less true
+
+## Final role evidence
+
+When this file is loaded as role material, add it to the final role evidence loaded list as:
+
+- `roles/marketing/references/copy-editing/editing-passes.md`
+
+Only list this file if it was actually loaded.

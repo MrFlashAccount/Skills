@@ -4,9 +4,15 @@ Paths in this phase overlay are resolved relative to the `dev-harness` skill roo
 
 Read only the sections for reviewers you actually selected for the current slice.
 
-`../../roles/*/ROLE.md` and `../../roles/*/RUBRIC.md` are the only canonical role files this overlay may require directly. The sections below are phase-specific review overlays only: output shape, review boundaries, escalation rules, and reviewer-only checks. Any role-internal references or learnings must be discovered by following instructions inside the loaded role files.
+`../../roles/*/ROLE.md` and `../../roles/*/RUBRIC.md` are the only canonical role files this overlay may require directly. The sections below are phase-specific review overlays only: output shape, review boundaries, escalation rules, and reviewer-only checks.
 
-Role label alone is never sufficient. Before spawning a reviewer worker/subagent, the parent must include the selected section below plus the selected role's canonical `ROLE.md` and `RUBRIC.md`. The worker must load those files before review, follow the loaded role files for any additional references or learnings, and return `role_files_loaded` listing `ROLE.md`, `RUBRIC.md`, and any additional files actually loaded because the role instructed it, or `blocked` if required role loading could not be completed. The parent must not accept required reviewer output when this evidence is absent or mismatched.
+Role label alone is never sufficient. Before spawning a reviewer worker/subagent, the parent must include the selected section below plus the delegated role instructions:
+
+- load selected role material;
+- follow all instructions in loaded role material;
+- if loaded role material tells you to load additional role material/references/rubrics/learnings, load them before final answer;
+- if loaded role material defines additional final-answer requirements, satisfy them exactly;
+- if required material cannot be loaded or final-answer requirements cannot be satisfied, return `BLOCKED`.
 
 Canonical reviewer roles:
 - `critic`

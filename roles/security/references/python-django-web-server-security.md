@@ -880,3 +880,7 @@ OWASP:
 [7]: https://docs.djangoproject.com/en/6.0/topics/db/sql/ "https://docs.djangoproject.com/en/6.0/topics/db/sql/"
 [8]: https://docs.djangoproject.com/en/6.0/ref/models/querysets/ "https://docs.djangoproject.com/en/6.0/ref/models/querysets/"
 [9]: https://www.djangoproject.com/download/ "Download Django | Django"
+
+## Final role evidence
+
+When this reference is actually loaded, include this file in final role evidence.

@@ -51,3 +51,7 @@ This is the canonical repository `readme` doctrine for the DevRel role.
 - avoids abstract "learn more" or vague next steps where a concrete action should exist
 - keeps caveats and deep internals lower unless immediately blocking
 - does not pretend to replace deep documentation
+
+## Final role evidence
+
+When this reference is actually loaded, include this file in final role evidence.

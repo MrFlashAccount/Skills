@@ -94,10 +94,11 @@ Use `sessions_spawn` to create one subagent per role, with the target repo as `c
 
 Each reviewer prompt must include:
 - the applicable section from [references/role-prompts.md](references/role-prompts.md), including the selected role/phase overlay prompt
-- an instruction to load only the canonical role `ROLE.md` and `RUBRIC.md` directly before judging the diff, then follow those loaded role files for any additional references or learnings
-- required final evidence field: `role_files_loaded`, listing `ROLE.md`, `RUBRIC.md`, and any additional files loaded because the role itself instructed it, or `blocked` if required role loading could not be completed
+- an instruction to load the selected role material before judging the diff
+- an instruction to follow all instructions in loaded role material, including loading additional role material, references, rubrics, learnings, or task guidance when the loaded role material requires it
+- an instruction to satisfy any final-answer requirements defined by the loaded role material, or return `blocked` if required material cannot be loaded or final-answer requirements cannot be satisfied
 
-Do not accept reviewer output for a required gate when `role_files_loaded` is absent, incomplete, or mismatched to the selected role. Mark that reviewer gate `blocked` instead.
+Do not accept reviewer output for a required gate when required role material cannot be loaded or the role material's final-answer requirements cannot be satisfied. Mark that reviewer gate `blocked` instead.
 
 If the delegated reviewer path is unavailable, fails to start, or cannot be used, stop as `blocked` instead of reviewing directly in the orchestrator session.
 
@@ -107,7 +108,7 @@ Suggested reviewer prompt shape:
 
 > Review this diff as the {role}. Approved contract: {contract-summary}. Focus on {focus}. Judge it adversarially against that contract. Return only: pass/fail, must-fix / should-fix / can-delay, evidence, and confidence. Call out file:line when possible. If nothing is wrong, say so briefly.
 
-Add the selected phase overlay from [references/role-prompts.md](references/role-prompts.md) before that instruction, and require `role_files_loaded` in the response.
+Add the selected phase overlay from [references/role-prompts.md](references/role-prompts.md) before that instruction, and require the reviewer to satisfy the loaded role material's final-answer requirements.
 
 For `architect`, bias the prompt toward the planning-fixed architecture contract, seam decisions, dependency correctness, file ownership/zone boundaries, source-layout expectations, request-path boundaries, balanced coupling, architecture-memory integrity, and whether the implementation introduces unnecessary coupling, unapproved flat/global responsibility placement, or the wrong abstraction layer.
 

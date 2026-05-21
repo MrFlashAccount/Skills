@@ -18,3 +18,11 @@ Prefer one decision per file. When the decision changes, supersede the old recor
 
 1. Michael Nygard, "Documenting Architecture Decisions" — https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions
 2. Repo canon: `roles/architect/ROLE.md`
+
+## Final role evidence
+
+When this file is loaded as role material, add it to the final role evidence loaded list as:
+
+- `roles/architect/references/formats/adr.md`
+
+Only list this file if it was actually loaded.

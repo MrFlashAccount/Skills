@@ -105,3 +105,7 @@ A reasonable frontend accessibility verification note includes:
 - automated scan such as axe when available, with manual follow-up for issues automation cannot prove
 
 Automated tools are useful but insufficient for keyboard logic, focus management, understandable names, and real task flow.
+
+## Final role evidence
+
+When this reference is actually loaded, include this file in final role evidence.

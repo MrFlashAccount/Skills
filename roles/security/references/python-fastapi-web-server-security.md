@@ -1034,3 +1034,7 @@ Selected supply-chain/advisory references (Starlette examples):
 [27]: https://fastapi.tiangolo.com/advanced/websockets/?utm_source=chatgpt.com "WebSockets - FastAPI"
 [28]: https://fastapi.tiangolo.com/reference/apirouter/?utm_source=chatgpt.com "APIRouter class - FastAPI"
 [29]: https://docs.pydantic.dev/latest/ "https://docs.pydantic.dev/latest/"
+
+## Final role evidence
+
+When this reference is actually loaded, include this file in final role evidence.

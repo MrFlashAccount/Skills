@@ -29,3 +29,11 @@ Build a short contract before drafting collateral.
 - Which claim would a skeptical buyer challenge first?
 - What does the champion need to forward internally after the call?
 - What depends on pricing, docs, or product proof that is not ready yet?
+
+## Final role evidence
+
+When this file is loaded as role material, add it to the final role evidence loaded list as:
+
+- `roles/marketing/references/sales-enablement/task-contract.md`
+
+Only list this file if it was actually loaded.

@@ -48,3 +48,11 @@ It means:
 - ask why it is there
 - ask what job it is doing
 - ask whether a simpler, more authored alternative would be stronger
+
+## Final role evidence
+
+When this file is loaded as role material, add it to the final role evidence loaded list as:
+
+- `roles/frontend-taste/learnings/bad-smells.md`
+
+Only list this file if it was actually loaded.

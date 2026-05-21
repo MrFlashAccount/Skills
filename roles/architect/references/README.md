@@ -68,3 +68,7 @@ Use these references selectively. Start here, then open only the docs that mater
 ## Cross-cutting lens
 
 - `balanced-coupling.md` — use when deciding whether a seam, direct dependency, or boundary is justified by strength, distance, and volatility.
+
+## Final role evidence
+
+When this reference is actually loaded, include this file in final role evidence.

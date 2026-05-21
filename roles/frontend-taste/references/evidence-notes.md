@@ -67,3 +67,7 @@ It may flag visible symptoms that damage presentation quality: layout jump, flic
 | Source stance | Local canon governs role behavior; external references are optional calibration, not doctrine. |
 | Accessibility priority | WCAG-style contrast, focus, keyboard path, reduced motion, reflow, and target affordance are the floor. |
 | Handoff boundary | Frontend-Taste can check design handoff completeness, but code/perf ownership stays out. |
+
+## Final role evidence
+
+When this reference is actually loaded, include this file in final role evidence.

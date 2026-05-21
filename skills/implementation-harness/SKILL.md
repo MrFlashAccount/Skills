@@ -38,8 +38,8 @@ Use only after approval. This skill executes against approved research and appro
 - If required implementer delegation is unavailable, fails to start, or cannot be used, stop as `blocked`; do not fall back to manual implementation in the parent/orchestrator session.
 - Treat the approved research packet plus approved execution plan as the implementation contract unless a concrete blocker, contradiction, or missing implementation-critical fact survived earlier stages.
 - Use only canonical implementer labels: `backend`, `frontend`.
-- A role label alone is not a role contract. Each implementer prompt must include the selected phase overlay from [../dev-harness/references/roles/implementers.md](../dev-harness/references/roles/implementers.md), require the worker to load the selected role's canonical `ROLE.md` and `RUBRIC.md` before editing, require the worker to follow those loaded role files for any additional references, and require `role_files_loaded` evidence in the worker result.
-- Do not accept implementer output for a required file zone if `role_files_loaded` is absent, incomplete, or mismatched; mark the stage `blocked` instead.
+- A role label alone is not a role contract. Each implementer prompt must include the selected phase overlay from [../dev-harness/references/roles/implementers.md](../dev-harness/references/roles/implementers.md) and the delegated role instructions from that overlay.
+- Do not accept implementer output for a required file zone if required role material cannot be loaded or the role material's final-answer requirements cannot be satisfied; mark the stage `blocked` instead.
 - One owner per file zone. If zones overlap, collapse to one implementer.
 - Verification is mandatory before handing the slice to post-implementation review.
 - If verification fails, fix in scope and re-validate before handing off.

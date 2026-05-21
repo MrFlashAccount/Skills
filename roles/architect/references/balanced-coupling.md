@@ -36,3 +36,7 @@ Use this lens to decide whether to:
 - directly coupling distant modules because wiring through a proper boundary feels slower
 - pushing volatility from one context into another through shared helpers or pass-through abstractions
 - creating architecture-memory debt by changing the boundary but leaving project architecture artifacts stale
+
+## Final role evidence
+
+When this reference is actually loaded, include this file in final role evidence.

@@ -66,3 +66,11 @@ Choose one of these instead of pretending certainty:
 - recommend customer-research work
 - recommend sales-call observation or lost-deal review
 - recommend a reversible rollout with explicit check metrics
+
+## Final role evidence
+
+When this file is loaded as role material, add it to the final role evidence loaded list as:
+
+- `roles/marketing/references/pricing/packaging-and-evidence.md`
+
+Only list this file if it was actually loaded.

@@ -745,3 +745,7 @@ DOM clobbering:
 [19]: https://developer.mozilla.org/en-US/docs/Web/API/Element/innerHTML "https://developer.mozilla.org/en-US/docs/Web/API/Element/innerHTML"
 [20]: https://developer.mozilla.org/en-US/docs/Web/API/Element/insertAdjacentHTML "https://developer.mozilla.org/en-US/docs/Web/API/Element/insertAdjacentHTML"
 [21]: https://www.w3.org/TR/sri-2/ "https://www.w3.org/TR/sri-2/"
+
+## Final role evidence
+
+When this reference is actually loaded, include this file in final role evidence.

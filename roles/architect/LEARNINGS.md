@@ -18,3 +18,7 @@ Keep entries concrete and reusable.
 - When planning fixes a target architecture, Architect must pressure source layout to reveal it (screaming architecture) and propose an architecture-evolution/refactor slice when evolving requirements no longer fit; Review Architect then enforces that contract and flags unapproved major responsibilities in flat/global modules instead of inventing a new layout during review.
 - Architecture proposals must be reviewable without becoming Planner output: enrich the existing 13 sections with entity delta, import-export/dependency direction, source-layout and doc deltas, binding `must_not_import` rules, PR slicing constraints, and architecture checks, but avoid exact signatures, pseudocode, patch recipes, and implementation entity maps.
 - Final Architect review after fix loops must re-check contract/docs drift: changed runtime/user-visible contracts, workflow states, schemas, artifacts, symbolic lifecycle values, and process contracts have to agree across implementation, tests/checks, and docs before the review can pass.
+
+## Final role evidence
+
+When this learning file is actually loaded, include this `LEARNINGS.md` in final role evidence.

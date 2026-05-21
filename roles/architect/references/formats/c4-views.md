@@ -19,3 +19,11 @@ Use only the levels that add signal for the decision; the model is hierarchical,
 
 1. Simon Brown, C4 model — https://c4model.com/
 2. Repo canon: `roles/architect/ROLE.md`
+
+## Final role evidence
+
+When this file is loaded as role material, add it to the final role evidence loaded list as:
+
+- `roles/architect/references/formats/c4-views.md`
+
+Only list this file if it was actually loaded.

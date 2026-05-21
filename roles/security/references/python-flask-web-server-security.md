@@ -703,3 +703,7 @@ Template safety references:
 
 HTTP semantics:
 - RFC 9110: HTTP Semantics (safe methods) — https://www.rfc-editor.org/rfc/rfc9110
+
+## Final role evidence
+
+When this reference is actually loaded, include this file in final role evidence.

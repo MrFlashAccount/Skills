@@ -42,3 +42,11 @@ Use for warm email sequences tied to product, customer, or campaign lifecycle mo
 - Coordinate with product, support, and sales touches.
 - Keep proof and claims grounded in current reality.
 - Preserve segmentation gaps and unknowns explicitly.
+
+## Final role evidence
+
+When this file is loaded as role material, add it to the final role evidence loaded list as:
+
+- `roles/marketing/references/lifecycle-email/README.md`
+
+Only list this file if it was actually loaded.

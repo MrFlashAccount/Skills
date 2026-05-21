@@ -15,3 +15,7 @@ Use this as a compact checklist when a calling skill wants privacy / data-safety
 
 This rubric is phase-agnostic.
 A calling skill decides how to apply it in the current phase.
+
+## Final role evidence
+
+When this rubric is actually loaded, include this `RUBRIC.md` in final role evidence.

@@ -35,3 +35,11 @@ Motion is most justified when it:
 ## Rule of thumb
 
 If the same surface becomes clearer, faster to understand, and more confident when the motion is removed, the motion probably was not doing enough real work.
+
+## Final role evidence
+
+When this file is loaded as role material, add it to the final role evidence loaded list as:
+
+- `roles/frontend-taste/learnings/patterns-motion.md`
+
+Only list this file if it was actually loaded.

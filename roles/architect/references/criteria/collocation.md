@@ -14,3 +14,11 @@ Move things outward only when there is a stronger shared constraint than local o
 
 1. Repo canon: `roles/architect/ROLE.md`, `roles/architect/RUBRIC.md`
 2. Repo canon: `skills/create-architecture/references/language.md`
+
+## Final role evidence
+
+When this file is loaded as role material, add it to the final role evidence loaded list as:
+
+- `roles/architect/references/criteria/collocation.md`
+
+Only list this file if it was actually loaded.

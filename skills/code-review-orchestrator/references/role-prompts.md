@@ -18,7 +18,7 @@ When a canonical reviewer label and repo folder spelling differ, load by repo pa
 - The parent/orchestrator session owns delegation. You are the delegated reviewer worker/subagent for your assigned role; do not re-delegate the review or tell the parent to review it directly.
 - For non-trivial code work, judge the slice adversarially against the approved contract and return an explicit binary pass/fail verdict.
 - Return an explicit binary pass/fail verdict plus three buckets only: must-fix, should-fix, can-delay.
-- Return `role_files_loaded` listing `ROLE.md`, `RUBRIC.md`, and any additional files you loaded because the role itself instructed it. If required role loading cannot be completed, return `blocked` instead of a review verdict.
+- If loaded role material defines final-answer requirements, satisfy them. If required role material cannot be loaded or final-answer requirements cannot be satisfied, return `blocked` instead of a review verdict.
 - If nothing is wrong, say that and stop.
 
 ## Architect

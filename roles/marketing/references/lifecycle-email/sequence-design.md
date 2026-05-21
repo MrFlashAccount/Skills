@@ -41,3 +41,11 @@ Stop and fix the flow if you see:
 - proof placement
 - CTA friction
 - branch logic after key actions or non-actions
+
+## Final role evidence
+
+When this file is loaded as role material, add it to the final role evidence loaded list as:
+
+- `roles/marketing/references/lifecycle-email/sequence-design.md`
+
+Only list this file if it was actually loaded.

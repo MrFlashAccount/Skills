@@ -14,3 +14,11 @@ Use this to right-size the architecture pass instead of treating every edit like
 ## Sources
 
 1. Repo canon: `roles/architect/ROLE.md`, `roles/architect/RUBRIC.md`
+
+## Final role evidence
+
+When this file is loaded as role material, add it to the final role evidence loaded list as:
+
+- `roles/architect/references/criteria/change-classification.md`
+
+Only list this file if it was actually loaded.

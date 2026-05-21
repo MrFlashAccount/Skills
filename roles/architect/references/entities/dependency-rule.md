@@ -32,3 +32,11 @@ Use explicit `must_not_import` rules when the important constraint is a binding 
 
 1. Robert C. Martin, "The Clean Architecture" — https://blog.cleancoder.com/uncle-bob/2011/11/22/Clean-Architecture.html
 2. Repo canon: `roles/architect/ROLE.md`, `roles/architect/RUBRIC.md`
+
+## Final role evidence
+
+When this file is loaded as role material, add it to the final role evidence loaded list as:
+
+- `roles/architect/references/entities/dependency-rule.md`
+
+Only list this file if it was actually loaded.

@@ -4,9 +4,15 @@ Paths in this phase overlay are resolved relative to the `dev-harness` skill roo
 
 Read only the sections for implementer roles you are about to launch.
 
-`../../roles/*/ROLE.md` and `../../roles/*/RUBRIC.md` are the only canonical role files this overlay may require directly. The sections below are phase-specific implementation overlays only: ownership boundaries, execution rules, verification expectations, and implementer-specific escalation behavior. Any role-internal references or learnings must be discovered by following instructions inside the loaded role files.
+`../../roles/*/ROLE.md` and `../../roles/*/RUBRIC.md` are the only canonical role files this overlay may require directly. The sections below are phase-specific implementation overlays only: ownership boundaries, execution rules, verification expectations, and implementer-specific escalation behavior.
 
-Role label alone is never sufficient. Before spawning an implementer worker/subagent, the parent must include the selected section below plus the selected role's canonical `ROLE.md` and `RUBRIC.md`. The worker must load those files before implementation, follow the loaded role files for any additional references or learnings, and return `role_files_loaded` listing `ROLE.md`, `RUBRIC.md`, and any additional files actually loaded because the role instructed it, or `blocked` if required role loading could not be completed. The parent must not accept required implementer output when this evidence is absent or mismatched.
+Role label alone is never sufficient. Before spawning an implementer worker/subagent, the parent must include the selected section below plus the delegated role instructions:
+
+- load selected role material;
+- follow all instructions in loaded role material;
+- if loaded role material tells you to load additional role material/references/rubrics/learnings, load them before final answer;
+- if loaded role material defines additional final-answer requirements, satisfy them exactly;
+- if required material cannot be loaded or final-answer requirements cannot be satisfied, return `BLOCKED`.
 
 ## Common implementer quality gates
 

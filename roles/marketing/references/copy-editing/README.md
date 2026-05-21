@@ -34,3 +34,11 @@ Use for existing market-facing copy.
 - Flag unsupported metrics, testimonials, customer language, and competitive assertions.
 - If a claim cannot be proved, soften it or mark the proof gap.
 - Keep edits traceable so changes and reasons stay visible.
+
+## Final role evidence
+
+When this file is loaded as role material, add it to the final role evidence loaded list as:
+
+- `roles/marketing/references/copy-editing/README.md`
+
+Only list this file if it was actually loaded.

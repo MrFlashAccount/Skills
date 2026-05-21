@@ -29,3 +29,11 @@ Use for documentation surfaces where comprehension, navigation, and reference lo
 - calm typography hierarchy
 - clear note/warning/code differentiation
 - layout choices that preserve long-form reading flow
+
+## Final role evidence
+
+When this file is loaded as role material, add it to the final role evidence loaded list as:
+
+- `roles/frontend-taste/learnings/docs-site.md`
+
+Only list this file if it was actually loaded.

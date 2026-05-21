@@ -32,3 +32,11 @@ Build a short contract before drafting the plan.
 - What promise would become embarrassing if the product underdelivers?
 - Which asset creates interest, and which asset helps the prospect succeed after the click?
 - What must be learned before scaling the launch wider?
+
+## Final role evidence
+
+When this file is loaded as role material, add it to the final role evidence loaded list as:
+
+- `roles/marketing/references/launch/task-contract.md`
+
+Only list this file if it was actually loaded.

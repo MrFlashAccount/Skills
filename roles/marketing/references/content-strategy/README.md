@@ -36,3 +36,11 @@ Use for market-facing content planning.
 - Tie claims and topic angles to evidence or a plan for proof collection.
 - Distinguish search capture from demand creation.
 - Prefer a small prioritized plan over a giant idea dump.
+
+## Final role evidence
+
+When this file is loaded as role material, add it to the final role evidence loaded list as:
+
+- `roles/marketing/references/content-strategy/README.md`
+
+Only list this file if it was actually loaded.

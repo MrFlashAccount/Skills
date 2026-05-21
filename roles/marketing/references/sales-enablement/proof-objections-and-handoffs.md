@@ -63,3 +63,11 @@ Capture:
 - what decision it blocks
 
 Use `research-critic` first if the repo needs a structured evidence-gap packet before broader research work.
+
+## Final role evidence
+
+When this file is loaded as role material, add it to the final role evidence loaded list as:
+
+- `roles/marketing/references/sales-enablement/proof-objections-and-handoffs.md`
+
+Only list this file if it was actually loaded.

@@ -46,3 +46,11 @@ Use for buyer-facing collateral, objection handling, and rep-usable messaging.
 - Keep persona differences explicit.
 - Do not invent ROI math, customer quotes, competitor claims, or implementation promises.
 - Lower claim strength when proof is weak.
+
+## Final role evidence
+
+When this file is loaded as role material, add it to the final role evidence loaded list as:
+
+- `roles/marketing/references/sales-enablement/README.md`
+
+Only list this file if it was actually loaded.

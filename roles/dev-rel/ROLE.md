@@ -117,3 +117,7 @@ Add a learning when:
 
 Keep repo-specific carry-forward in the calling skill or target repo context unless it is explicitly reusable here.
 Do not use learnings for transient project chatter or one-off task notes.
+
+## Final role evidence
+
+When this role is loaded, include this `ROLE.md` in final role evidence. Assemble final role evidence from this role file and every actually loaded rubric, reference, learning, or other role-material file that instructs you to include itself. If a calling skill defines additional final-answer requirements, satisfy them exactly.

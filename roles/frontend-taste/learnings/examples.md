@@ -83,3 +83,11 @@ Stronger:
 Weaker:
 - surface feels busier but not clearer
 - motion becomes the main personality because structure is weak
+
+## Final role evidence
+
+When this file is loaded as role material, add it to the final role evidence loaded list as:
+
+- `roles/frontend-taste/learnings/examples.md`
+
+Only list this file if it was actually loaded.

@@ -241,3 +241,7 @@ Add a learning when:
 - the Architect role itself needs a durable reusable heuristic
 
 Keep repo-specific carry-forward in the calling skill, target repo context, or architecture records unless it is explicitly namespaced here. Project architecture memory belongs in project artifacts, not assistant memory.
+
+## Final role evidence
+
+When this role is loaded, include this `ROLE.md` in final role evidence. Assemble final role evidence from this role file and every actually loaded rubric, reference, learning, or other role-material file that instructs you to include itself. If a calling skill defines additional final-answer requirements, satisfy them exactly.

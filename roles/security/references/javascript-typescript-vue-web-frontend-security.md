@@ -789,3 +789,7 @@ Browser/platform references:
 [12]: https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Attributes/rel/noopener "https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Attributes/rel/noopener"
 [13]: https://vuejs.org/guide/essentials/template-syntax "Template Syntax | Vue.js"
 [14]: https://vite.dev/config/server-options "https://vite.dev/config/server-options"
+
+## Final role evidence
+
+When this reference is actually loaded, include this file in final role evidence.

@@ -25,3 +25,11 @@ Capture:
 Do not paraphrase away useful wording.
 Do not treat anonymous internet claims as universal truth.
 Do not combine unlike roles into one segment just because they share a category.
+
+## Final role evidence
+
+When this file is loaded as role material, add it to the final role evidence loaded list as:
+
+- `roles/marketing/references/customer-research/source-guides.md`
+
+Only list this file if it was actually loaded.

@@ -44,3 +44,7 @@ Fail or bounce the work when:
 This rubric is phase-agnostic. A calling skill decides how to apply it in the current phase.
 
 When repo design memory exists, use it as local law and use role learnings as supporting taste canon. When design memory is missing, weak, or lacks a router, Frontend Taste may do lightweight taste review from `shared-core.md` only with undeclared routing and lower class-specific confidence; law/direction work routes to `create-design`. It does not author the base contract itself. This mirrors `create-architecture` vs Architect: workflow authors/repairs the contract; role operates inside the contract.
+
+## Final role evidence
+
+When this rubric is actually loaded, include this `RUBRIC.md` in final role evidence.

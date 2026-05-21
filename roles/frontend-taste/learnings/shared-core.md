@@ -57,3 +57,11 @@ Ask:
 - are density and spacing coherent for the product class?
 - is visual polish doing real work, or hiding weak structure?
 - do state treatments feel designed, or merely present?
+
+## Final role evidence
+
+When this file is loaded as role material, add it to the final role evidence loaded list as:
+
+- `roles/frontend-taste/learnings/shared-core.md`
+
+Only list this file if it was actually loaded.

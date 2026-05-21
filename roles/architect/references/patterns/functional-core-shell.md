@@ -19,3 +19,11 @@ The shell owns I/O, time, randomness, framework calls, and orchestration. The co
 
 1. Gary Bernhardt, "Boundaries" — https://www.destroyallsoftware.com/talks/boundaries
 2. Repo canon: `roles/architect/ROLE.md`, `roles/architect/RUBRIC.md`
+
+## Final role evidence
+
+When this file is loaded as role material, add it to the final role evidence loaded list as:
+
+- `roles/architect/references/patterns/functional-core-shell.md`
+
+Only list this file if it was actually loaded.

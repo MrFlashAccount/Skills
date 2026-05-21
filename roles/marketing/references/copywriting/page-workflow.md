@@ -73,3 +73,11 @@ Before delivery, check:
 - every section earns its place
 - CTA is specific about what happens next
 - assumptions and open proof gaps stay visible
+
+## Final role evidence
+
+When this file is loaded as role material, add it to the final role evidence loaded list as:
+
+- `roles/marketing/references/copywriting/page-workflow.md`
+
+Only list this file if it was actually loaded.

@@ -19,3 +19,11 @@ Default package:
 - short test matrix for variants when the user wants experimentation
 
 Do not bury the final copy inside long explanation.
+
+## Final role evidence
+
+When this file is loaded as role material, add it to the final role evidence loaded list as:
+
+- `roles/marketing/references/copywriting/output-formats.md`
+
+Only list this file if it was actually loaded.

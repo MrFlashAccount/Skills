@@ -67,3 +67,11 @@ Does not belong here:
 - one-off local exceptions
 
 Those belong in repo-level design memory routed by `DESIGN.md`.
+
+## Final role evidence
+
+When this file is loaded as role material, add it to the final role evidence loaded list as:
+
+- `roles/frontend-taste/learnings/README.md`
+
+Only list this file if it was actually loaded.

@@ -61,3 +61,7 @@ Architect output may include an optional short `summary`; the required body orde
 This rubric is phase-agnostic. A calling skill decides whether it is using Architect to derive constraints, prepare a structural contract, support implementation, or review compliance.
 
 Central docs may route and index, but they should not mirror local ownership rules that belong in the nearest context doc. Durable architecture memory belongs in project artifacts, not assistant memory.
+
+## Final role evidence
+
+When this rubric is actually loaded, include this `RUBRIC.md` in final role evidence.

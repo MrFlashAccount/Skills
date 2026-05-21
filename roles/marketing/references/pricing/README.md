@@ -47,3 +47,11 @@ Use for pricing, packaging, monetization, and pricing-message strategy.
 - Keep plan names and tier boundaries easy to explain.
 - Tie premium claims to features, service levels, or proof that exist now.
 - Recommend tests or narrower rollout when evidence is weak.
+
+## Final role evidence
+
+When this file is loaded as role material, add it to the final role evidence loaded list as:
+
+- `roles/marketing/references/pricing/README.md`
+
+Only list this file if it was actually loaded.

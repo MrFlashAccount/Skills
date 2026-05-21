@@ -107,3 +107,7 @@ Reduced motion is not "no state change." It means the same meaning must be avail
 ## Source inspiration
 
 This repo adapts selected interaction and motion craft ideas from Emil Kowalski's `emil-design-eng` skill while omitting its manifesto, framework snippets, review-table mandate, and universal custom-easing stance: https://www.ui-skills.com/skills/emilkowalski/emil-design-eng/
+
+## Final role evidence
+
+When this reference is actually loaded, include this file in final role evidence.

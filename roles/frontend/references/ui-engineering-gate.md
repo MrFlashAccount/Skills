@@ -105,3 +105,7 @@ Do not accept tests that merely mount a component when the claim is about behavi
 ## Source inspiration
 
 This repo adapts selected ideas from Addy Osmani's `frontend-ui-engineering` skill, especially component architecture, state placement, responsive smoke widths, accessibility, and verification gates, while preserving this repo's role boundary between Frontend and Frontend-Taste: https://github.com/addyosmani/agent-skills/blob/main/skills/frontend-ui-engineering/SKILL.md
+
+## Final role evidence
+
+When this reference is actually loaded, include this file in final role evidence.

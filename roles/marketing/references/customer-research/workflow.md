@@ -126,3 +126,11 @@ Every output should include:
 - unsupported-but-tempting claims to avoid
 - open questions
 - recommended downstream owner: positioning, copy, launch, or sales enablement
+
+## Final role evidence
+
+When this file is loaded as role material, add it to the final role evidence loaded list as:
+
+- `roles/marketing/references/customer-research/workflow.md`
+
+Only list this file if it was actually loaded.

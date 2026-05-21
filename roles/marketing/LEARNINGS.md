@@ -15,3 +15,7 @@ Keep entries concrete and reusable.
 ## Entries
 
 - Strong messaging starts with fit boundaries: name who the product is for, what alternative it replaces, and what proof the claim depends on before polishing copy.
+
+## Final role evidence
+
+When this learning file is actually loaded, include this `LEARNINGS.md` in final role evidence.

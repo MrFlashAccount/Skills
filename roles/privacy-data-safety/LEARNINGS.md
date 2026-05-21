@@ -15,3 +15,7 @@ Keep entries concrete and reusable.
 ## Entries
 
 - No entries yet.
+
+## Final role evidence
+
+When this learning file is actually loaded, include this `LEARNINGS.md` in final role evidence.

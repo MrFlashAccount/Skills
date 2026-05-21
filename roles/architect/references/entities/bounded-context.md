@@ -20,3 +20,11 @@ Use it when the same word would otherwise mean different things in different par
 
 1. Martin Fowler, "Bounded Context" — https://martinfowler.com/bliki/BoundedContext.html
 2. Repo canon: `roles/architect/ROLE.md`, `roles/architect/RUBRIC.md`
+
+## Final role evidence
+
+When this file is loaded as role material, add it to the final role evidence loaded list as:
+
+- `roles/architect/references/entities/bounded-context.md`
+
+Only list this file if it was actually loaded.
