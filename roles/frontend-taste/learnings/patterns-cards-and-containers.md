@@ -48,3 +48,11 @@ Reason:
 Exception threshold:
 - only when the content is genuinely uniform, comparison across all three items is the point, and a different structure would reduce clarity
 - even then, treat it as a justified exception, not the default move
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/frontend-taste/learnings/patterns-cards-and-containers.md`
+
+Only list this file if it was actually loaded.

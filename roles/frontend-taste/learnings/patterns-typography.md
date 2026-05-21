@@ -74,3 +74,11 @@ Bad signs:
 - decorative display choices that clash with the product class
 - expressive type that looks strong in a screenshot but weakens sustained reading
 - a typography system that feels either default-bland or insecurely over-styled
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/frontend-taste/learnings/patterns-typography.md`
+
+Only list this file if it was actually loaded.

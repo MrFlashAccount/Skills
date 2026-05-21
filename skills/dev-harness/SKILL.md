@@ -26,7 +26,7 @@ Read only the references needed for the current phase; do not load every role by
 - Before execution planning for non-trivial or ownership-unclear work, read [references/task-contract.md](references/task-contract.md).
 - If the slice may touch local files, personal docs, prompts/examples, logs, retained user data, or machine-specific paths, read [references/sensitive-surfaces.md](references/sensitive-surfaces.md) before proposal.
 - For architecture-sensitive work, or any slice where durable architecture artifacts might be required, read [references/roles/architect-planning.md](references/roles/architect-planning.md).
-- Before any delegated Architect, Planner, implementer, or reviewer worker is spawned, include the applicable phase overlay/load block from [references/roles/architect-planning.md](references/roles/architect-planning.md), [references/roles/implementers.md](references/roles/implementers.md), [references/roles/reviewers.md](references/roles/reviewers.md), or [references/task-contract.md](references/task-contract.md). A role label alone is not a role contract; the worker must directly load the selected role's `ROLE.md` and `RUBRIC.md`, then follow those loaded role files for any additional references.
+- Before any delegated Architect, Planner, implementer, or reviewer worker is spawned, build the prompt from the shared delegated role task template at [../../shared/delegate/delegated-role-task-template.md](../../shared/delegate/delegated-role-task-template.md). Fill it with the selected role material path, a compact role/focus block from [references/roles/architect-planning.md](references/roles/architect-planning.md), [references/roles/implementers.md](references/roles/implementers.md), [references/roles/reviewers.md](references/roles/reviewers.md), or [references/task-contract.md](references/task-contract.md), and the concrete approved task packet/scope/verification expectations. A role label alone is not a role contract.
 - After approval, hand off to `../implementation-harness/` with the approved task context, human-approved research packet, structural contract when present, and approved execution-plan packet.
 - If routing is ambiguous or you want a sanity check on expected worker/reviewer choice, read [references/examples.md](references/examples.md).
 - Read the knowledge base only when relevant:
@@ -103,7 +103,7 @@ Implementation entities are planner-level handoff objects. They are not Research
    - approval means explicit `APPROVED`, `LGTM`, or the same level of unmistakable go-ahead in the user's language
    - `ok`, `yeah`, `got it`, and similar weak acknowledgements are not approval
 8. After approval, build the handoff packet for `implementation-harness`.
-   - include approved task context, human-approved research packet, structural contract when present, approved execution plan, evidence that still matters to implementation, and user constraints
+   - include approved task context, human-approved research packet, structural contract when present, approved execution plan, approved supporting materials, and user constraints
    - spawn implementation through delegated worker/subagent via `implementation-harness`; do not implement in the orchestrator session unless the user explicitly requested direct in-session execution
    - if delegated execution is unavailable, fails to start, or cannot be used, stop as `blocked`
 9. `implementation-harness` owns post-approval development and smallest meaningful verification.
@@ -171,7 +171,7 @@ Before approval, execution plans must not include:
 - Plain user action verbs like `fix`, `do`, `сделай`, or `исправь` do not count as permission for direct parent-session implementation; only an explicit request for direct in-session execution overrides the orchestrator default.
 - Speed is not a reason to bypass worker/subagent execution. If the workflow applies, keep the orchestrator in orchestration mode.
 - If required delegated execution is unavailable, fails to start, or cannot be used, stop as `blocked` rather than implementing or reviewing manually in the parent session.
-- Delegated role/worker prompts must require `role_files_loaded` listing loaded `ROLE.md`, `RUBRIC.md`, and any additional files loaded because the role itself instructed it, or `blocked` if required role loading could not be completed. Do not accept delegated Architect, Planner, implementer, or reviewer output for a required gate when that evidence is absent or wrong.
+- Delegated role/worker prompts must use the shared delegated role task template from [../../shared/delegate/delegated-role-task-template.md](../../shared/delegate/delegated-role-task-template.md), the selected role material path, a compact role/focus block, and the concrete approved task packet/scope/verification expectations. Fill all template placeholders with concrete approved values before spawning a real worker. Do not inline backend/frontend/critic/architect role rulebooks into the parent prompt. Do not accept delegated Architect, Planner, implementer, or reviewer output for a required gate when required role material cannot be loaded or loaded role material's additional, final-answer, or output requirements cannot be satisfied.
 
 ## Knowledge base
 

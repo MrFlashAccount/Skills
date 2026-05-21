@@ -880,3 +880,11 @@ OWASP:
 [7]: https://docs.djangoproject.com/en/6.0/topics/db/sql/ "https://docs.djangoproject.com/en/6.0/topics/db/sql/"
 [8]: https://docs.djangoproject.com/en/6.0/ref/models/querysets/ "https://docs.djangoproject.com/en/6.0/ref/models/querysets/"
 [9]: https://www.djangoproject.com/download/ "Download Django | Django"
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/security/references/python-django-web-server-security.md`
+
+Only list this file if it was actually loaded.

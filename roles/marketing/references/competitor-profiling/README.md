@@ -41,3 +41,11 @@ Use for structured competitor dossiers and comparison-ready competitive inputs.
 - Be honest where the competitor is stronger.
 - Compare against the status quo too, not only named vendors.
 - Flag where your own product lacks proof or parity.
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/marketing/references/competitor-profiling/README.md`
+
+Only list this file if it was actually loaded.

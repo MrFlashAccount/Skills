@@ -32,3 +32,11 @@ Use for net-new market-facing copy or rewrites that materially change the messag
 - Keep one primary message and one primary action per surface unless branching is intentional.
 - Prefer customer-language clarity over slogan cleverness.
 - Never invent proof, testimonials, metrics, or competitive wins.
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/marketing/references/copywriting/README.md`
+
+Only list this file if it was actually loaded.

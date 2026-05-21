@@ -19,3 +19,11 @@ Load `../../shared/go-to-market-context/README.md` when broader product/audience
 When the artifact is a repository `readme`, apply `references/readme-checklist.md` for the concrete repository `readme` doctrine and final pass.
 This rubric is phase-agnostic.
 A calling skill decides how to apply it in the current phase.
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/dev-rel/RUBRIC.md`
+
+Only list this file if it was actually loaded.

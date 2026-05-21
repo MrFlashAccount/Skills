@@ -19,7 +19,7 @@ If the task is still vague, route discovery through grilling instead of guessing
 
 Do not collapse stages 1-6 straight into artifact writing.
 
-When Architect or Critic passes are delegated to workers/subagents, role label alone is not enough. The parent prompt must include the selected role/phase overlay and require Architect to load `../../roles/architect/ROLE.md` plus `../../roles/architect/RUBRIC.md`, or Critic to load `../../roles/critic/ROLE.md` plus `../../roles/critic/RUBRIC.md`, before judging, implementing, or reviewing. Each worker must then follow the loaded role files for any additional role references or learnings, load the relevant create-architecture references for the current stage, and return `role_files_loaded` listing `ROLE.md`, `RUBRIC.md`, and any additional files actually loaded, or `blocked` if required role loading could not be completed. Do not accept a required gate when role-load evidence is absent or wrong.
+When Architect or Critic passes are delegated to workers/subagents, role label alone is not enough. The parent prompt must include the shared delegated role task template from [../../../shared/delegate/delegated-role-task-template.md](../../../shared/delegate/delegated-role-task-template.md), filled for the selected role and task, plus the selected role material path and compact role/focus block. Do not accept a required gate when required material cannot be loaded or final-answer requirements cannot be satisfied.
 
 ## 1. Source-audit
 
@@ -97,37 +97,13 @@ It must not pretend the decision is already made.
 
 ## 5. Architect review
 
-Attack the proposal like a responsible principal architect.
-
-Check:
-- does the proposal solve the real problem or only redraw boxes?
-- is the change surface concrete enough, or does Architect need to ask architecture-relevant clarifying questions?
-- are seams, ownership, and dependency direction explicit?
-- for existing-codebase improvement, do the proposed modules increase depth, leverage, and locality rather than adding pass-through indirection?
-- is the option overfit to a fashion label?
-- are the required artifacts justified and scoped?
-- is the migration path credible?
-- does the proposal state the target architecture, what changes, what does not change, the entity delta, affected relationships, import-export/dependency direction, source-layout/doc deltas, PR slicing, and checks clearly enough for implementation?
+Run the proposal through the Architect role using `../../roles/architect/ROLE.md` and `../../roles/architect/RUBRIC.md`, plus the shared delegated role task template when delegated. Keep the parent prompt to the approved proposal, repo evidence, scope, required artifact map, and a thin create-architecture focus: validate that the proposal is structurally concrete enough to implement and that it matches the chosen option.
 
 If the proposal fails, fix it before critic pressure.
 
 ## 6. Critic pressure
 
-Try to break the proposal.
-
-Pressure-test:
-- hidden coupling
-- fake modularity
-- DDD theater
-- missing runtime/deployment implications
-- accidental framework lock-in
-- excessive documentation burden
-- under-specified context ownership
-- target architecture hidden behind flat/global source modules
-- shallow wrappers that fail the deletion test
-- new seams with only hypothetical adapters
-- PR slices that are too big or interdependent
-- missing entity delta, import-export map, binding `must_not_import` rules, source-layout/doc deltas, or checks
+Run a separate Critic pressure pass using `../../roles/critic/ROLE.md` and `../../roles/critic/RUBRIC.md`, plus the shared delegated role task template when delegated. Keep the parent prompt to the approved proposal, Architect findings, scope, and a thin create-architecture focus: find avoidable complexity, hidden fragility, over-broad migration shape, and unearned documentation burden before approval.
 
 If pressure reveals a real flaw, revise the proposal instead of rationalizing it.
 

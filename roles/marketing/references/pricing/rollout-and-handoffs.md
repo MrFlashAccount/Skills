@@ -66,3 +66,11 @@ Open customer-research work when you still need to answer:
 - why prospects stall at a pricing page or pricing conversation
 
 If a reusable packet is needed first, use `research-critic` to structure the evidence gaps and decisions blocked.
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/marketing/references/pricing/rollout-and-handoffs.md`
+
+Only list this file if it was actually loaded.

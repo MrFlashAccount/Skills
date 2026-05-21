@@ -41,3 +41,11 @@
 ## Research-gap memo
 Use when the evidence is too thin for strong positioning.
 State what is missing, why it matters, and the cheapest next evidence to collect.
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/marketing/references/customer-research/deliverables.md`
+
+Only list this file if it was actually loaded.

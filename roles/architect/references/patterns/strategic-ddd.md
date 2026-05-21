@@ -19,3 +19,11 @@ Its main outputs are bounded contexts, ubiquitous language, context relationship
 
 1. Eric Evans, *Domain-Driven Design: Tackling Complexity in the Heart of Software*
 2. Martin Fowler, "Bounded Context" — https://martinfowler.com/bliki/BoundedContext.html
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/architect/references/patterns/strategic-ddd.md`
+
+Only list this file if it was actually loaded.

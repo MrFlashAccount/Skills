@@ -57,3 +57,11 @@ Make sure the plan explains:
 - where it should ship
 - what proof or inputs are needed
 - what to do first
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/marketing/references/content-strategy/strategy-workflow.md`
+
+Only list this file if it was actually loaded.

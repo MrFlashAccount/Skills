@@ -88,16 +88,15 @@ Do not treat `staff engineer`, generic `designer`, `financial/risk`, or `reliabi
 - For non-trivial code work, at least one reviewer must return an explicit pass/fail verdict against the approved contract.
 
 ## How to run it
-Before any `sessions_spawn`, read [references/role-prompts.md](references/role-prompts.md) and include its selected phase overlay in the worker prompt. A reviewer label alone is never sufficient.
+Before any `sessions_spawn`, read [references/role-prompts.md](references/role-prompts.md) and [../../shared/delegate/delegated-role-task-template.md](../../shared/delegate/delegated-role-task-template.md). A reviewer label alone is never sufficient.
 
 Use `sessions_spawn` to create one subagent per role, with the target repo as `cwd` and a shared compact brief. Even for small diffs, keep the review gate as delegated reviewer work rather than replacing it with an in-orchestrator review.
 
 Each reviewer prompt must include:
-- the applicable section from [references/role-prompts.md](references/role-prompts.md), including the selected role/phase overlay prompt
-- an instruction to load only the canonical role `ROLE.md` and `RUBRIC.md` directly before judging the diff, then follow those loaded role files for any additional references or learnings
-- required final evidence field: `role_files_loaded`, listing `ROLE.md`, `RUBRIC.md`, and any additional files loaded because the role itself instructed it, or `blocked` if required role loading could not be completed
+- the shared delegated role task template from [../../shared/delegate/delegated-role-task-template.md](../../shared/delegate/delegated-role-task-template.md), filled with the selected reviewer role, role file, task, scope, and output format
+- the applicable compact focus section from [references/role-prompts.md](references/role-prompts.md) for the selected reviewer role
 
-Do not accept reviewer output for a required gate when `role_files_loaded` is absent, incomplete, or mismatched to the selected role. Mark that reviewer gate `blocked` instead.
+Do not accept reviewer output for a required gate when required role material cannot be loaded or loaded role material's additional, final-answer, or output requirements cannot be satisfied. Mark that reviewer gate `blocked` instead.
 
 If the delegated reviewer path is unavailable, fails to start, or cannot be used, stop as `blocked` instead of reviewing directly in the orchestrator session.
 
@@ -107,9 +106,9 @@ Suggested reviewer prompt shape:
 
 > Review this diff as the {role}. Approved contract: {contract-summary}. Focus on {focus}. Judge it adversarially against that contract. Return only: pass/fail, must-fix / should-fix / can-delay, evidence, and confidence. Call out file:line when possible. If nothing is wrong, say so briefly.
 
-Add the selected phase overlay from [references/role-prompts.md](references/role-prompts.md) before that instruction, and require `role_files_loaded` in the response.
+Build the full worker prompt with the shared delegated role task template from [../../shared/delegate/delegated-role-task-template.md](../../shared/delegate/delegated-role-task-template.md), then add the selected role material path, compact focus block from [references/role-prompts.md](references/role-prompts.md), approved contract/acceptance context, and the review instruction above.
 
-For `architect`, bias the prompt toward the planning-fixed architecture contract, seam decisions, dependency correctness, file ownership/zone boundaries, source-layout expectations, request-path boundaries, balanced coupling, architecture-memory integrity, and whether the implementation introduces unnecessary coupling, unapproved flat/global responsibility placement, or the wrong abstraction layer.
+For `architect`, use the compact Architect focus block from [references/role-prompts.md](references/role-prompts.md); do not inline architecture rule walls into the worker prompt.
 
 ## If context is missing
 Ask only for the missing target, repo path, branch, or PR.

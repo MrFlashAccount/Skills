@@ -1,6 +1,6 @@
 # Architect Planning Overlay
 
-Paths in this phase overlay are resolved relative to the `dev-harness` skill root (`skills/dev-harness/`), not relative to this reference file.
+Paths in this compact role/focus guidance are resolved relative to the `dev-harness` skill root (`skills/dev-harness/`), not relative to this reference file.
 
 Use this for the existing `dev-harness` planning-time architecture gate when scope is architecture-sensitive, and for tiny slices whenever durable architecture-artifact ownership might move. Full architecture process/package work routes to `create-architecture`; do not use this overlay as a substitute for that workflow.
 

@@ -52,3 +52,11 @@ Use for outbound email to people who did not ask to hear from you.
 - Prefer interest-based asks over premature meeting grabs.
 - Each follow-up must add a new angle, not a bump.
 - Never invent customer names, numbers, or certainty.
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/marketing/references/cold-email/README.md`
+
+Only list this file if it was actually loaded.

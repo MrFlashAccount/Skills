@@ -1142,3 +1142,11 @@ General web security references (recommended baseline):
 [10]: https://nextjs.org/blog/next-16?utm_source=chatgpt.com "Next.js 16"
 [11]: https://github.com/vercel/next.js/security/advisories/GHSA-9g9p-9gw9-jx7f?utm_source=chatgpt.com "Denial of Service in Image Optimizer · Advisory"
 [12]: https://nextjs.org/docs/pages/guides/authentication "Guides: Authentication | Next.js"
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/security/references/javascript-typescript-nextjs-web-server-security.md`
+
+Only list this file if it was actually loaded.

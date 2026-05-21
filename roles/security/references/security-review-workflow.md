@@ -92,3 +92,11 @@ Security does not silently implement fixes. For any finding that needs code chan
 - Treat missing infrastructure controls honestly: if a control may exist outside the repo, report it as not visible and ask to verify runtime/infra config.
 - Be careful with TLS-only recommendations in local/dev contexts. Lack of TLS is often out of application scope when a reverse proxy or platform owns TLS. Cookie `Secure` flags and HSTS need deployment-context awareness; HSTS can cause outages if applied casually.
 - Avoid public incremental IDs for externally exposed resources when guessing IDs leaks sensitive counts or enables enumeration; prefer random UUIDs or other unguessable IDs where the resource identity is a security boundary.
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/security/references/security-review-workflow.md`
+
+Only list this file if it was actually loaded.

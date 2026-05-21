@@ -19,3 +19,11 @@ Use this when the copy is older, published, or tied to changed product reality.
 - remove dead trends, old launches, and expired comparisons
 - add fresher proof if it exists
 - keep a visible list of unresolved proof gaps instead of faking certainty
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/marketing/references/copy-editing/refresh-policy.md`
+
+Only list this file if it was actually loaded.

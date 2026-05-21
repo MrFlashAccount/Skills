@@ -28,3 +28,11 @@ Apply the relevant subset when the artifact is channel-specific.
 Load `../../shared/go-to-market-context/README.md` when shared GTM/product messaging context is needed.
 This rubric is phase-agnostic.
 A calling skill decides how to apply it in the current phase.
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/marketing/RUBRIC.md`
+
+Only list this file if it was actually loaded.

@@ -16,3 +16,11 @@ Use plugin architecture when controlled extensibility is the point: the core own
 
 1. Martin Fowler, "Plugin" — https://martinfowler.com/eaaCatalog/plugin.html
 2. Repo canon: `roles/architect/ROLE.md`, `roles/architect/RUBRIC.md`
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/architect/references/patterns/plugin-architecture.md`
+
+Only list this file if it was actually loaded.

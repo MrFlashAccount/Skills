@@ -21,3 +21,11 @@ If the proposed dependency rule does not forbid a concrete bad arrow, it is prob
 
 1. Robert C. Martin, "The Clean Architecture" — https://blog.cleancoder.com/uncle-bob/2011/11/22/Clean-Architecture.html
 2. Repo canon: `roles/architect/ROLE.md`, `roles/architect/RUBRIC.md`
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/architect/references/patterns/clean-architecture.md`
+
+Only list this file if it was actually loaded.

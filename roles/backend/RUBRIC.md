@@ -24,3 +24,11 @@ Use this as a compact checklist when a calling skill wants backend implementatio
 
 This rubric is phase-agnostic.
 A calling skill decides whether it is using Backend as an implementer, reviewer, or earlier-phase backend judgment source.
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/backend/RUBRIC.md`
+
+Only list this file if it was actually loaded.

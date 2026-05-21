@@ -18,3 +18,11 @@ Typical tools are entities, value objects, aggregates, and domain services, used
 
 1. Eric Evans, *Domain-Driven Design: Tackling Complexity in the Heart of Software*
 2. Vaughn Vernon, *Implementing Domain-Driven Design*
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/architect/references/patterns/tactical-ddd.md`
+
+Only list this file if it was actually loaded.

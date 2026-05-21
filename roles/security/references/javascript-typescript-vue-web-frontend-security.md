@@ -789,3 +789,11 @@ Browser/platform references:
 [12]: https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Attributes/rel/noopener "https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Attributes/rel/noopener"
 [13]: https://vuejs.org/guide/essentials/template-syntax "Template Syntax | Vue.js"
 [14]: https://vite.dev/config/server-options "https://vite.dev/config/server-options"
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/security/references/javascript-typescript-vue-web-frontend-security.md`
+
+Only list this file if it was actually loaded.

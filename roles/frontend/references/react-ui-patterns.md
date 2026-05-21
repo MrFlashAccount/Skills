@@ -207,3 +207,11 @@ Smells:
 - Custom widgets need the full keyboard contract for the pattern, not just `tabIndex`.
 - Avoid focus loss when conditionally rendering loading/error states; intentionally move focus only when it helps task progress.
 - Keep `aria-busy`, `role="status"`, `role="alert"`, `aria-invalid`, and `aria-describedby` tied to real state.
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/frontend/references/react-ui-patterns.md`
+
+Only list this file if it was actually loaded.

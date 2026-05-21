@@ -32,3 +32,11 @@ Use for app-like analytical surfaces where scan speed and density matter.
 - dense utility stacks
 - selective cards around modules that genuinely need containment
 - state treatments that preserve layout structure while data changes
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/frontend-taste/learnings/dashboard.md`
+
+Only list this file if it was actually loaded.

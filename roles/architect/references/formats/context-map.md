@@ -19,3 +19,11 @@ Use `CONTEXT-MAP.md` or an equivalent named artifact when the architecture quest
 
 1. Eric Evans, *Domain-Driven Design: Tackling Complexity in the Heart of Software*
 2. Martin Fowler, "Bounded Context" — https://martinfowler.com/bliki/BoundedContext.html
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/architect/references/formats/context-map.md`
+
+Only list this file if it was actually loaded.

@@ -51,3 +51,11 @@ This is the canonical repository `readme` doctrine for the DevRel role.
 - avoids abstract "learn more" or vague next steps where a concrete action should exist
 - keeps caveats and deep internals lower unless immediately blocking
 - does not pretend to replace deep documentation
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/dev-rel/references/readme-checklist.md`
+
+Only list this file if it was actually loaded.

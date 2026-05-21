@@ -13,3 +13,11 @@ Before planning, lock:
 - open questions that block prioritization
 
 If evidence is thin, say so and reduce confidence instead of pretending the roadmap is validated.
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/marketing/references/content-strategy/task-contract.md`
+
+Only list this file if it was actually loaded.

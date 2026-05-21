@@ -19,3 +19,11 @@ Its job is to reduce translation drift between domain discussion and implementat
 
 1. Martin Fowler, "Ubiquitous Language" — https://martinfowler.com/bliki/UbiquitousLanguage.html
 2. Repo canon: `roles/architect/ROLE.md`, `roles/architect/RUBRIC.md`
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/architect/references/entities/ubiquitous-language.md`
+
+Only list this file if it was actually loaded.

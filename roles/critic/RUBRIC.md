@@ -25,3 +25,11 @@ Use this as a compact checklist when a calling skill wants challenge pressure. `
 
 This rubric is phase-agnostic.
 A calling skill decides whether it is using the Critic for research readiness, approval pressure, or frozen-scope review pressure.
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/critic/RUBRIC.md`
+
+Only list this file if it was actually loaded.

@@ -62,3 +62,11 @@ Ask:
 - Will interested users know what to do next?
 - Is there a plan for objections, support load, and launch-day questions?
 - Which unknowns should stay open and be learned in beta instead of hidden in GA copy?
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/marketing/references/launch/launch-architecture.md`
+
+Only list this file if it was actually loaded.

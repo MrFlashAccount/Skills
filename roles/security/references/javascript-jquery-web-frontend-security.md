@@ -676,3 +676,11 @@ Browser/platform references (SRI, CSP, Trusted Types, and dangerous URL schemes)
 [27]: https://www.w3.org/TR/sri-2/?utm_source=chatgpt.com "Subresource Integrity"
 [28]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP?utm_source=chatgpt.com "Content Security Policy (CSP) - HTTP - MDN Web Docs"
 [29]: https://developer.mozilla.org/en-US/docs/Web/API/Trusted_Types_API?utm_source=chatgpt.com "Trusted Types API - MDN Web Docs"
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/security/references/javascript-jquery-web-frontend-security.md`
+
+Only list this file if it was actually loaded.

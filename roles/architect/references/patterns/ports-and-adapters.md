@@ -32,3 +32,11 @@ One adapter is a hypothetical seam. Two adapters make the seam real.
 
 1. Alistair Cockburn, "Hexagonal architecture" — https://alistair.cockburn.us/hexagonal-architecture
 2. Repo canon: `roles/architect/ROLE.md`, `roles/architect/RUBRIC.md`, `skills/create-architecture/references/language.md`
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/architect/references/patterns/ports-and-adapters.md`
+
+Only list this file if it was actually loaded.

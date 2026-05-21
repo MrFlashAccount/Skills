@@ -63,3 +63,11 @@ If a proof point is missing, choose one:
 - weaken the claim
 - swap in product truth instead of outcome rhetoric
 - mark the proof as needed before this asset goes live
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/marketing/references/sales-enablement/asset-frameworks.md`
+
+Only list this file if it was actually loaded.

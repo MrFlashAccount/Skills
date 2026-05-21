@@ -117,3 +117,11 @@ A good proposal:
 ## Source inspiration
 
 This repo adapts selected product-domain and signature-gate ideas from dammyjay93's `interface-design` skill while preserving the repo boundary that Frontend-Taste proposes inside existing design law and does not replace `DESIGN.md` or import memory/system flow: https://www.ui-skills.com/skills/dammyjay93/interface-design/
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/frontend-taste/references/visual-proposal-contract.md`
+
+Only list this file if it was actually loaded.

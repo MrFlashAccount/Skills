@@ -1034,3 +1034,11 @@ Selected supply-chain/advisory references (Starlette examples):
 [27]: https://fastapi.tiangolo.com/advanced/websockets/?utm_source=chatgpt.com "WebSockets - FastAPI"
 [28]: https://fastapi.tiangolo.com/reference/apirouter/?utm_source=chatgpt.com "APIRouter class - FastAPI"
 [29]: https://docs.pydantic.dev/latest/ "https://docs.pydantic.dev/latest/"
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/security/references/python-fastapi-web-server-security.md`
+
+Only list this file if it was actually loaded.

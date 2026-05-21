@@ -26,3 +26,11 @@ Why:
 Exception rule:
 - only allow when the target repo's design memory explicitly calls for it
 - do not introduce it from taste preference alone
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/frontend-taste/learnings/anti-patterns.md`
+
+Only list this file if it was actually loaded.

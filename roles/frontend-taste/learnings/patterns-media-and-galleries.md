@@ -116,3 +116,11 @@ Bad signs:
 - over-cropped assets that lose the thing the user needed to see
 - carousels hiding simple content that should have been visible immediately
 - image-heavy sections with no stronger narrative or structural payoff
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/frontend-taste/learnings/patterns-media-and-galleries.md`
+
+Only list this file if it was actually loaded.

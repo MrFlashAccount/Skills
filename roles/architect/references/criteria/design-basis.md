@@ -11,3 +11,11 @@ If those are ambiguous, architecture should stop and ask instead of designing on
 ## Sources
 
 1. Repo canon: `roles/architect/ROLE.md`, `roles/architect/RUBRIC.md`
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/architect/references/criteria/design-basis.md`
+
+Only list this file if it was actually loaded.

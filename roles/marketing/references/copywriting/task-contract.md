@@ -14,3 +14,11 @@ Lock these before drafting:
 - open questions that still limit claim strength
 
 If anything above is missing, recover it from source material or shared GTM context before asking. Ask only for the blocker that materially changes the copy.
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/marketing/references/copywriting/task-contract.md`
+
+Only list this file if it was actually loaded.

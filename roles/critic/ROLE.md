@@ -136,3 +136,11 @@ Add a learning when:
 
 Keep repo-specific carry-forward in the calling skill or target repo context unless it is explicitly reusable here.
 Do not use learnings for transient project chatter or one-off task notes.
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/critic/ROLE.md`
+
+Only list this file if it was actually loaded.

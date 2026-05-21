@@ -24,3 +24,11 @@ Optional additions when useful:
 - 30/60/90-day editorial sequence
 - launch-content matrix
 - repurposing map across channels
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/marketing/references/content-strategy/output-formats.md`
+
+Only list this file if it was actually loaded.

@@ -24,3 +24,11 @@ Start with the lightest shape that still protects the real risks.
 
 1. Repo canon: `roles/architect/ROLE.md`, `roles/architect/RUBRIC.md`
 2. Repo canon: `skills/create-architecture/references/option-catalog.md`
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/architect/references/criteria/architecture-weight.md`
+
+Only list this file if it was actually loaded.

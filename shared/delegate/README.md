@@ -11,6 +11,7 @@ Do not use it as a user-facing mode toggle. The old active `delegate` skill has 
 
 - [`delegation-contract.md`](delegation-contract.md): reusable principles and worker communication contract.
 - [`templates.md`](templates.md): snippets for including the contract in other skills or worker prompts.
+- [`delegated-role-task-template.md`](delegated-role-task-template.md): shared prompt template for delegated workers that must load role material.
 
 ## Referencing From Skills
 

@@ -46,3 +46,11 @@ When the user wants experimentation, vary one thing at a time:
 - proof choice
 - CTA friction
 - sequence length or delay
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/marketing/references/cold-email/outbound-patterns.md`
+
+Only list this file if it was actually loaded.

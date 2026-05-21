@@ -29,3 +29,11 @@ Build a compact contract before changing pricing or packaging.
 - Which tier boundary will confuse or anger a good-fit customer?
 - What evidence is real, and what is assumption dressed up as insight?
 - If this price changed tomorrow, what would sales, support, and docs need to explain differently?
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/marketing/references/pricing/task-contract.md`
+
+Only list this file if it was actually loaded.

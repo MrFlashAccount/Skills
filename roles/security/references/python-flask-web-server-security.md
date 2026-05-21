@@ -703,3 +703,11 @@ Template safety references:
 
 HTTP semantics:
 - RFC 9110: HTTP Semantics (safe methods) — https://www.rfc-editor.org/rfc/rfc9110
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/security/references/python-flask-web-server-security.md`
+
+Only list this file if it was actually loaded.

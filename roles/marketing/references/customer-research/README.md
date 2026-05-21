@@ -42,3 +42,11 @@ Use for evidence gathering and synthesis that supports marketing decisions.
 - Weight recent evidence above stale evidence.
 - Separate frequency from intensity and label confidence.
 - Keep product reality separate from customer wishes.
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/marketing/references/customer-research/README.md`
+
+Only list this file if it was actually loaded.

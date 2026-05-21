@@ -57,3 +57,11 @@ This is an engineering baseline. It does not replace `ui-engineering-gate.md`, a
 ## Source inspiration
 
 This repo adapts selected compact UI PR red flags from ibelick's `baseline-ui` skill while omitting Tailwind-only/package-specific mandates and any universal "never animate" rule: https://www.ui-skills.com/skills/ibelick/baseline-ui/
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/frontend/references/ui-baseline-red-flags.md`
+
+Only list this file if it was actually loaded.

@@ -226,6 +226,26 @@ The calling skill should define:
 - what source evidence is binding
 - what output rendering is required
 
+## Architecture artifact implementation adapter
+
+When a calling workflow explicitly assigns Architect as the owner for approved architecture artifact implementation, Architect owns artifact edits only, not backend/frontend code implementation.
+
+Use this adapter only after the structural contract and artifact decision are approved. Full architecture package creation still belongs to the calling architecture workflow, not an ad-hoc implementer prompt.
+
+Artifact implementation boundaries:
+
+- Own durable architecture artifacts named by the approved contract: `ARCHITECTURE.md`, meaningful source-zone `CONTEXT.md`, ADRs, migration docs, and architecture artifact indexes/manifests.
+- Do not edit backend/frontend application code, tests, scripts, fixtures, or unrelated docs under this adapter.
+- Read the approved structural contract, `project_baseline`, architecture artifact manifest, artifact decision, and existing artifacts named by the manifest before editing or creating replacements.
+- For UI/frontend surfaces, check whether `DESIGN.md` exists or is explicitly deferred/out of scope; do not create design-memory artifacts unless that work is separately approved through the design workflow.
+- Keep artifacts operational: ownership, placement rules, allowed modules, forbidden dependencies, dependency direction, and artifact routing over generic best practices.
+- Create source-focused `CONTEXT.md` only for meaningful source ownership zones with real placement/dependency rules; do not add context docs for tests, scripts, fixtures, or tooling by default.
+- Keep `ARCHITECTURE.md` as a selected product architecture contract and router, not a dumping ground for options or implementation recipes.
+- If `.proposals/` is explicitly requested, keep it in `.proposals/<feature-slug>/{research.md,architecture.md,implementation.md}`, ensure it is gitignored, and do not treat it as final product documentation.
+- Root `plan.md`, `architecture-proposal.md`, `implementation-proposal.md`, or other implementation proposal leftovers must be removed or explicitly approved before publish/PR hygiene passes.
+- Avoid code, pseudocode, patch plans, command recipes, and unapproved scaffold work inside architecture artifacts.
+- Verification must prove required artifacts named by the approved contract were created or updated, deferred artifacts were explicitly marked as deferred, artifact ownership stayed distinct from backend/frontend code owners and architect reviewer, proposal leftovers satisfy approved hygiene rules, and at least `git diff --check` ran when no stronger docs/repo check exists.
+
 ## Default learning load
 
 When a calling skill loads this role for implementation, review, planning, or research judgment, it must also read `LEARNINGS.md` if present and apply any relevant durable learnings before making role judgments.
@@ -241,3 +261,11 @@ Add a learning when:
 - the Architect role itself needs a durable reusable heuristic
 
 Keep repo-specific carry-forward in the calling skill, target repo context, or architecture records unless it is explicitly namespaced here. Project architecture memory belongs in project artifacts, not assistant memory.
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/architect/ROLE.md`
+
+Only list this file if it was actually loaded.

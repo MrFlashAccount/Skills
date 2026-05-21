@@ -32,3 +32,11 @@ Use this as a compact checklist when a calling skill wants frontend implementati
 
 This rubric is phase-agnostic.
 A calling skill decides whether it is using Frontend as an implementer, reviewer, or earlier-phase frontend judgment source.
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/frontend/RUBRIC.md`
+
+Only list this file if it was actually loaded.

@@ -10,3 +10,11 @@ Capture these before editing:
 - desired deliverable: cleaned copy only, annotated edits, or keep/change table
 
 Ask only for the minimum blocker. If the copy is live or old, explicitly decide whether this is a refresh or a rewrite.
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/marketing/references/copy-editing/task-contract.md`
+
+Only list this file if it was actually loaded.

@@ -15,3 +15,11 @@ Keep entries concrete and reusable.
 ## Entries
 
 - For repository `readme` work, keep concrete doctrine in `references/readme-checklist.md`; use learnings only for compact reusable heuristics or corrections.
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/dev-rel/LEARNINGS.md`
+
+Only list this file if it was actually loaded.

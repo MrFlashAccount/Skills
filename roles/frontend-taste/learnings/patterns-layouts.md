@@ -68,3 +68,11 @@ Why it works:
 
 Failure mode:
 - utility density turns into clutter because hierarchy is weak
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/frontend-taste/learnings/patterns-layouts.md`
+
+Only list this file if it was actually loaded.

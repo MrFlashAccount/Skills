@@ -988,3 +988,11 @@ Sanitizer reference:
 [21]: https://docs.npmjs.com/cli/v10/commands/npm-ci "npm-ci | npm Docs"
 [22]: https://cheatsheetseries.owasp.org/cheatsheets/NPM_Security_Cheat_Sheet.html "NPM Security - OWASP Cheat Sheet Series"
 [23]: https://react.dev/blog/2024/12/05/react-19 "React v19 – React"
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/security/references/javascript-typescript-react-web-frontend-security.md`
+
+Only list this file if it was actually loaded.

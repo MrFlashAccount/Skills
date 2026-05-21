@@ -22,8 +22,8 @@ Not every task needs the full weight, but the stage boundaries should stay intac
 
 Use `../../roles/frontend-taste/ROLE.md` and `../../roles/frontend-taste/RUBRIC.md` directly, then follow the loaded role files for any additional design-memory or learning references. Apply the role in two distinct passes:
 
-- `Frontend-Taste proposer/design architect`: closes the base design context, chooses the product-tied direction, and drafts or edits `DESIGN.md`.
-- `Frontend-Taste attacker/critic`: attacks the proposal before the design-memory implementation is considered done.
+- `Frontend-Taste proposer/design architect`: closes the workflow-specific design-memory context, chooses the product-tied direction, and drafts or edits `DESIGN.md` using the loaded Frontend-Taste role material.
+- `Frontend-Taste attacker/critic`: attacks the proposed design-memory artifact against the approved context and loaded Frontend-Taste role material before implementation is considered done.
 
 The proposer must close, or explicitly mark unanswered, these questions before drafting:
 
@@ -37,7 +37,7 @@ The proposer must close, or explicitly mark unanswered, these questions before d
 
 `DESIGN.md` remains the operational design law and source of truth. References support the law; they do not replace it.
 
-When either Frontend-Taste pass is delegated to a worker/subagent, role label alone is not enough. The parent prompt must include this role split plus the selected role/phase overlay and require direct loading of only `../../roles/frontend-taste/ROLE.md` and `../../roles/frontend-taste/RUBRIC.md`; the worker must follow the loaded role files for any additional design-memory or learning references and load the applicable create-design references for the current stage. The worker must return `role_files_loaded` listing `ROLE.md`, `RUBRIC.md`, and any additional files actually loaded, or `blocked` if required role loading could not be completed. Do not accept the pass for a required gate when that evidence is absent or wrong.
+When either Frontend-Taste pass is delegated to a worker/subagent, role label alone is not enough. The parent prompt must include the shared delegated role task template from [../../../shared/delegate/delegated-role-task-template.md](../../../shared/delegate/delegated-role-task-template.md), filled for the selected role and task, plus the selected role material path, this workflow's proposer-or-attacker assignment, and the concrete design-memory scope. Do not paste Frontend-Taste doctrine into the parent prompt; taste doctrine stays in `../../roles/frontend-taste/ROLE.md`, `../../roles/frontend-taste/RUBRIC.md`, and role-internal references loaded by the worker. Do not accept the pass for a required gate when required material cannot be loaded or final-answer requirements cannot be satisfied.
 
 ## 0. Pick the mode
 
@@ -270,19 +270,13 @@ Run a third review/fix round when:
 - rules are still vague or contradictory
 - downstream usage is still unclear
 
-Critic focus:
-- product and audience clarity
-- requirements, constraints, and unanswered questions
-- `DESIGN.md` priority as source of truth
-- direction coherence across product, audience, trust, density, tone, key action, brand, screenshots, and refs
-- reference synthesis quality: extracted principles, rejected mismatches, no copying
-- generic/slop risks and fashionable aesthetic-label thinking
-- missing critical states
-- contradictions between palette, type, layout, spacing, motion, density, and tone
-- artifact contract coherence
-- operational value vs decorative prose
-- do/don't clarity
-- downstream usability
+Attacker workflow focus:
+- product/audience/constraint fit and unresolved-context honesty
+- `DESIGN.md` source-of-truth priority and artifact boundary coherence
+- approved direction/ref synthesis fidelity without copying or vibe-fill
+- operational value for downstream readers
+
+All visual-quality and taste criteria come from the loaded Frontend-Taste role material, not from an inlined parent prompt rule wall.
 
 ## 6. Post-implementation review
 

@@ -47,3 +47,11 @@ Use for launch planning and launch messaging orchestration.
 - Separate announcement story from education/onboarding work.
 - Use channels as a system, not isolated spikes.
 - Every strong claim needs proof, an example, or an explicit caveat.
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/marketing/references/launch/README.md`
+
+Only list this file if it was actually loaded.

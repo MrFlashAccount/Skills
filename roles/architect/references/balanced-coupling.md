@@ -36,3 +36,11 @@ Use this lens to decide whether to:
 - directly coupling distant modules because wiring through a proper boundary feels slower
 - pushing volatility from one context into another through shared helpers or pass-through abstractions
 - creating architecture-memory debt by changing the boundary but leaving project architecture artifacts stale
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/architect/references/balanced-coupling.md`
+
+Only list this file if it was actually loaded.

@@ -78,3 +78,11 @@ Bad signs:
 - oversized pills, glow, blur, or motion used to fake polish
 - menus that hide simple structure behind unnecessary reveal mechanics
 - navigation that looks premium in isolation but makes the page harder to parse
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/frontend-taste/learnings/patterns-navigation.md`
+
+Only list this file if it was actually loaded.

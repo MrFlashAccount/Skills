@@ -42,3 +42,11 @@ The Researcher packet includes:
 ## Notes
 
 This rubric is phase-agnostic. A calling skill decides whether Researcher is preparing architecture handoff, execution planning, approval, review, or another readiness handoff.
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/researcher/RUBRIC.md`
+
+Only list this file if it was actually loaded.

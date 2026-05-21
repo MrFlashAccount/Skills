@@ -133,3 +133,11 @@ Before calling a surface visually good, answer:
 - Which accessibility floor checks matter for this surface?
 - Which state or edge case would most likely break the polish?
 - Which generic/cliche pattern was avoided or intentionally justified by `DESIGN.md`?
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/frontend-taste/references/quality-criteria.md`
+
+Only list this file if it was actually loaded.

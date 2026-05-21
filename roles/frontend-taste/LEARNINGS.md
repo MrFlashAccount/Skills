@@ -64,3 +64,11 @@ Pressure / examples:
 - v4 direction/reference repair: vague/new/high-impact UI must route through product-tied Frontend-Taste proposals inside existing design law; Reference Scout extracts principles from references; anti-slop, honest placeholder, restrained motion, density, and cliche checks are first-class local review pressure.
 - v5 process-vs-role boundary: mirror `create-architecture` vs Architect. `create-design` is the workflow/process that authors or repairs design-memory artifacts, especially `DESIGN.md`; Frontend Taste is the role that operates inside existing design law for concrete screens/states/components. It may attack or criticize `DESIGN.md` and say `create-design` is needed, but must not silently rewrite or invent design law. With no design router, lightweight taste review may stop at `shared-core.md` with undeclared routing and lower class-specific confidence; creating/changing design law or high-confidence direction routes to `create-design`. For new taste-sensitive screens it reads `DESIGN.md`, runs Reference Scout, offers 3-4 screen-level proposals, may critique before choice, and waits for Sergey to choose/combine/reject before detail/spec/implementation work.
 - v6 evidence/boundary repair: internal process canon, WCAG-style accessibility floor, and optional design-system/reference-bank material are separate layers; Frontend Taste owns visible design symptoms, not CLS/INP/Core Web Vitals or performance diagnosis.
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/frontend-taste/LEARNINGS.md`
+
+Only list this file if it was actually loaded.
