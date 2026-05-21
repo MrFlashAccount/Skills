@@ -49,7 +49,26 @@ Use this file during architect review, critic pressure, and the final post-imple
 - Are sequencing constraints and high-risk moves named?
 - Did the package avoid freezing a fantasy end-state with no path from here to there?
 
-### 7. Failure-mode pressure
+### 7. Proof map and ownership
+- When architecture-sensitive triggers are present, does `domain_source_proof_map` cover concept classification, owner context/module, allowed and forbidden paths/layers, runtime/source entrypoints, invariants/lifecycle or non-domain reasons, schema/durable fields owners, compatibility decisions, negative checks, and reviewer gates?
+- Did Planner/Implementer preserve Architect-owned classification and ownership rules instead of translating them away?
+- Do workflow states, gates, artifacts, approved packets, review verdicts, schemas, and durable records align with the same owner map across source, docs, and tests/checks?
+
+### 8. Naming honesty
+- Are projections/read models kept out of `entities` unless they truly meet entity criteria?
+- Are snapshot/record wrappers named as records/projections/DTOs instead of entities?
+- Are descriptors/debug metadata and adapter/provider details kept out of canonical core-domain language unless the proof map justifies them?
+
+### 9. Fake modules and deletion proof
+- Does each module/source zone own behavior, contract, policy, or runtime responsibility?
+- Is runtime usage shown, and does the deletion test say what breaks if the path is removed?
+- Fail folder theater: a folder that exists for one port, one wrapper, or no owned behavior needs a temporary migration exception or deletion.
+
+### 10. Compatibility deletion
+- Are deprecated re-exports, wrappers, aliases, and legacy import paths deleted now or captured with owner, expiry/removal condition, and imports to update?
+- Do negative checks prove forbidden compatibility imports/paths are absent when deletion was required?
+
+### 11. Failure-mode pressure
 - Was any artifact written too early?
 - Did the package collapse into as-is documentation?
 - Was DDD reduced to buzzwords?
@@ -73,9 +92,12 @@ Use this file during architect review, critic pressure, and the final post-imple
 - pass-through module extraction presented as architecture improvement
 - PR slicing too vague to guide implementation
 - missing entity delta, import-export/dependency map, binding no-go imports, source-layout/doc deltas, or checks needed to review the proposal
+- green tests used as a substitute for path-level proof, negative checks, compatibility deletion, fake-module pressure, naming honesty, or schema/domain ownership alignment
 
 ## Final gate
 
 Do not call the result clean if it still reads like architecture theater.
 
 Do not call the result clean until source, tests/checks, docs/architecture artifacts, local context docs, state-machine/workflow records, schemas, and artifact maps agree on every changed contract-bearing surface.
+
+For triggered architecture-sensitive work, final review must also state whether proof map, negative checks, compatibility surfaces, fake modules, naming honesty, and schema/domain alignment passed.

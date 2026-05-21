@@ -44,3 +44,5 @@ Input assumptions:
 - Transport layer may have come from GitHub, linear, docs, or chat; this skill stays transport-agnostic.
 
 If approval status is unclear, the execution-plan packet is missing, file ownership is still ambiguous, or an implementation-critical fact is still missing, stop and return `blocked`.
+
+If Architect ran for architecture-sensitive work, block implementation when the handoff lacks required Architect-owned fields: `domain_source_proof_map`, `source_layout_owner_map`, `runtime_path_map`, `schema_domain_ownership_map`, `compatibility_surface_plan`, `deletion_migration_plan`, `forbidden_placements_imports`, `verification_surfaces`, or `reviewer_gates`. Do not infer or recreate missing Architect decisions inside implementation.

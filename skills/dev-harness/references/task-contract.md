@@ -41,6 +41,18 @@ Execution planning must be concrete enough for implementation shape, ownership, 
 - Contract touchpoints:
 - Docs to update:
 - Architecture notes: structural contract reference, project baseline, artifact manifest, seam decisions, file-zone rationale, request-path boundaries, dependency decisions
+- architecture_decision: selected structural direction when Architect ran
+- domain_source_proof_map: `none` / required + concept classifications, owners, allowed/forbidden paths, entrypoints, invariants/lifecycle or non-domain reasons, schema/durable owners, compatibility decisions, negative checks, reviewer gates
+- source_layout_owner_map: owning contexts/modules and allowed source zones
+- runtime_path_map: request/runtime/entrypoint paths affected by the slice
+- schema_domain_ownership_map: schemas, records, durable fields, workflow states, gates, artifacts, packets, verdicts, and their owners
+- compatibility_surface_plan: deprecated exports, wrappers, aliases, legacy imports + decision (`delete_now`, `keep_temporarily`, `public_exception`), owner, expiry/removal condition, imports to update, negative check
+- deletion_migration_plan: fake-module/deletion proof, file/module removals, migration exceptions, and what breaks if a retained module is deleted
+- forbidden_placements_imports: binding no-go paths, layers, imports, and naming placements
+- expected_file_moves: source/docs/test moves expected or explicitly not expected
+- verification_surfaces: positive and negative checks proving structure, deletion, imports, docs/schema alignment, and compatibility decisions
+- reviewer_gates: required Architect/Critic/reviewer checks, including proof-map and negative-check verdict fields
+- known_exceptions_with_expiry: approved temporary exceptions, owner, expiry/removal condition, and follow-up surface
 
 ## Implementation entities
 
@@ -96,8 +108,8 @@ Architecture artifact work may be assigned to `architect` as an artifact impleme
 Terminology:
 
 - Researcher owns `domain_vocabulary` and known facts/evidence.
-- Architect owns `structural_entities`, relationships, dependency rules, and final structural contract.
-- Execution planning owns `implementation_entities` and worker handoff.
+- Architect owns `structural_entities`, relationships, dependency rules, final structural contract, classification/ownership rules, proof maps, compatibility surface decisions, and forbidden placements/imports.
+- Execution planning owns `implementation_entities` and worker handoff. Planner may add implementation entities needed to execute the slice, but must not drop or weaken Architect-owned classification, ownership, source-layout, schema/domain, compatibility, deletion, or reviewer-gate rules.
 
 ## Planner dual-pass
 
@@ -128,7 +140,7 @@ This is the same planner role/class in an attack pass, not a separate role.
 - If the slice stores or reuses user-provided data, the contract must say whether storage is one-shot or persistent, and whether explicit user consent is required.
 - If the slice touches backend request-path, persistence, or async runtime behavior, the contract must say whether blocking sync I/O exists on the request path, which contract/request-shape surfaces can drift, and which docs/architecture notes must stay in sync.
 - For non-trivial code changes, the contract must explicitly name which changed files require file-level headers, which exported/public surfaces require language-appropriate code docs, and which invariants, side effects, lifecycle details, or contract assumptions must stay documented in code.
-- If an Architect pass ran, its structural contract, file-zone and seam conclusions, dependency rules, project baseline, artifact manifest, and artifact decision must be captured in `Architecture notes` rather than left implicit in chat.
+- If an Architect pass ran, its structural contract, file-zone and seam conclusions, dependency rules, project baseline, artifact manifest, artifact decision, proof map, owner maps, compatibility surface plan, deletion/migration plan, forbidden placements/imports, verification surfaces, reviewer gates, and known exceptions with expiry must be captured in the contract rather than left implicit in chat.
 - If `Contract/docs drift surfaces` is non-empty, final review must include Architect unless an explicit approved exception assigns that contract class to another reviewer. The final gate must state whether the drift check is required or not required and name the expected docs/tests/source-contract artifacts.
 - Full architecture process/package work must route through `create-architecture`; DevHarness's Architect gate is only a planning-time structural contract for an implementation slice.
 - If `.proposals/` exists in scope, the contract must prove it was explicitly requested, is gitignored, follows `.proposals/<feature-slug>/{research.md,architecture.md,implementation.md}`, and will not be treated as final product documentation.

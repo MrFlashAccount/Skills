@@ -24,7 +24,7 @@ Use Architect during planning when the main risk is structural, not merely factu
 
 ## Required output
 
-Architect output may start with an optional short `summary`. The required body order is:
+Architect output may start with an optional short `summary`. For ordinary architecture-sensitive work, the required body order is:
 
 1. `constraints`
 2. `forbidden_moves`
@@ -39,7 +39,24 @@ Architect output may start with an optional short `summary`. The required body o
 11. `structural_risks`
 12. `final_structural_contract`
 
+When the slice touches architecture-artifact ownership, source layout, runtime paths, schemas/domains, compatibility behavior, migration/deletion, or reviewer proof handoff, Architect must also include the triggered proof/handoff fields below, placed before `structural_risks`:
+
+- `domain_source_proof_map`
+- `source_layout_owner_map`
+- `runtime_path_map`
+- `schema_domain_ownership_map`
+- `compatibility_surface_plan`
+- `deletion_migration_plan`
+- `forbidden_placements_imports`
+- `verification_surfaces`
+- `reviewer_gates`
+- `known_exceptions_with_expiry`
+
+These fields are trigger-based, not ceremony. For tiny/local tasks without the relevant architecture-sensitive surface, omit the field or mark it `not_applicable` / `n/a_with_reason`; do not force full proof maps where no structural handoff exists.
+
 For new project, new repo, new plugin, and architecture-sensitive work, `project_baseline` records existing docs, current and target source ownership zones, and relevant missing/deferred artifacts. `architecture_artifact_manifest` names the durable artifacts in play: `ARCHITECTURE.md`, meaningful source-zone `CONTEXT.md`, ADR/migration docs as needed, and `DESIGN.md` status when UI/frontend surface is material. Source-focused `CONTEXT.md` defaults only to meaningful source ownership zones, not tests/scripts/fixtures/tooling by default.
+
+`domain_source_proof_map`, `source_layout_owner_map`, `runtime_path_map`, and `schema_domain_ownership_map` connect domain concepts, ownership zones, runtime entry/path assumptions, and schema authority to durable architecture/source locations. `compatibility_surface_plan`, `deletion_migration_plan`, and `forbidden_placements_imports` state structural constraints for safe change, backward compatibility, removals/migrations, and prohibited fake/flat/global placements. `verification_surfaces`, `reviewer_gates`, and `known_exceptions_with_expiry` define reviewable proof surfaces, role-specific gates, and bounded exceptions for downstream implementation/review.
 
 `constraints` and `final_structural_contract` must name the target architecture for the slice, including any architecture evolution/refactor that must happen before feature implementation.
 
@@ -56,7 +73,7 @@ When an artifact is required, Architect owns the create/update decision before i
 For architecture-sensitive work:
 
 1. `Architect A propose`: drafts the constraints-first structural contract.
-2. `Architect B attack`: challenges constraints, forbidden moves, invariants, boundaries and ownership, structural entities, relationships, dependency rules, project baseline, architecture artifact manifest, required artifacts, structural risks, and final structural contract.
+2. `Architect B attack`: challenges constraints, forbidden moves, invariants, boundaries and ownership, structural entities, relationships, dependency rules, project baseline, architecture artifact manifest, required artifacts, any triggered proof/handoff fields, structural risks, and final structural contract. The attack must specifically check that triggered proof/handoff fields are present, scoped, evidence-oriented, and not replaced by implementation recipes; missing fields are acceptable only with `not_applicable` / `n/a_with_reason` tied to the slice trigger.
 3. Allow one bounded revise/re-review loop when the attack finds fixable gaps, unless the caller explicitly approves another.
 
 This is the same Architect role/class in an attack pass, not a separate Critic role/entity.
@@ -74,10 +91,13 @@ Return only planning-safe material:
 - dependency rules
 - project baseline and architecture artifact manifest when required
 - required architecture artifacts and artifact decision
+- triggered Architect-owned structural/proof constraints: domain/source proof, source-layout ownership, runtime paths, schema/domain ownership, compatibility surface, deletion/migration constraints, forbidden placements/imports, verification surfaces, reviewer gates, and known exceptions with expiry
 - structural risks
 - final structural contract
 
-If review pressure matters, capture it inside `structural_risks` or `final_structural_contract`, not as extra top-level slots. Assumptions that materially constrain the slice belong in `constraints` or `structural_risks`.
+The proof/handoff fields are planning-safe only when they state structural ownership, evidence surfaces, constraints, or review gates. They must not become implementation recipes, patch plans, command lists, or Planner-owned entity maps.
+
+If review pressure matters, capture it inside `verification_surfaces`, `reviewer_gates`, `structural_risks`, or `final_structural_contract`, not as ad-hoc top-level slots. Assumptions that materially constrain the slice belong in `constraints`, the triggered proof/handoff fields, or `structural_risks`.
 
 Do not return:
 
@@ -90,7 +110,7 @@ Do not return:
 - migration commands or bodies
 - command sequences for implementation
 - patch-like diffs
-- implementation entity maps owned by Planner
+- implementation entity maps owned by Planner; Architect-owned proof/handoff maps must remain structural and evidence-focused
 - broad redesign outside approved scope
 - full architecture package workflow that belongs in `create-architecture`
 

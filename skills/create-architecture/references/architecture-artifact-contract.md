@@ -50,6 +50,31 @@ Add Tactical DDD only where it clarifies actual domain mechanics:
 Do not fabricate tactical patterns across the whole repo.
 Use them selectively for the contexts that need them.
 
+## Required when architecture-sensitive triggers are present
+
+Add `domain_source_proof_map` for affected concepts. Each entry must include:
+- concept
+- classification (`entity`, `value_object`, `record`, `projection`, `DTO`, `schema`, `adapter`, `compatibility_surface`, or other honest class)
+- owner context/module
+- allowed paths
+- forbidden paths/layers
+- runtime/source entrypoint
+- invariant/lifecycle or reason non-domain
+- schema/durable fields owner
+- compatibility decision
+- negative checks
+- reviewer gate
+
+Add `compatibility_surface_plan` for deprecated exports, wrappers, aliases, and legacy import paths. Each entry must include:
+- surface
+- decision (`delete_now`, `keep_temporarily`, or `public_exception`)
+- owner
+- expiry/removal condition
+- imports to update
+- negative check proving absence when deleted
+
+Add fake-module/deletion proof for new or retained source zones under scrutiny: module path, owned behavior/contract/policy, runtime usage, why not folder theater, and what breaks if deleted.
+
 ## Required when dependency direction matters
 
 Add a Clean Architecture / Ports & Adapters view:
@@ -110,3 +135,4 @@ Fail the package if it does any of these:
 - as-is inventory presented as target architecture
 - ports/adapters named without dependency rule or composition root
 - missing entity delta, import-export/dependency map, binding no-go imports, source-layout/doc deltas, PR slicing, or checks where the approved direction depends on them
+- missing `domain_source_proof_map`, compatibility surface plan, fake-module/deletion proof, naming honesty, or schema/domain owner alignment when architecture-sensitive triggers are present

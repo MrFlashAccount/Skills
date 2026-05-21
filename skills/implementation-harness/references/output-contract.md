@@ -41,7 +41,7 @@ Field intent:
 - `pr_url`: published PR URL when transport already supplied one; otherwise empty.
 - `change_summary`: concise user-visible changes.
 - `verification_results`: commands/checks run, results, notable gaps, and whether each delegated implementer satisfied loaded role material's additional, final-answer, or output requirements, or the `blocked` state if required role material could not be used.
-- `review_handoff`: compact handoff for the separate review stage, including intended reviewer coverage and any review-sensitive hotspots.
+- `review_handoff`: compact handoff for the separate review stage, including intended reviewer coverage and any review-sensitive hotspots. For architecture-sensitive work, include resolved proof obligations, deviations from the architecture contract, unresolved compatibility surfaces, and negative checks run.
 - `blockers`: unresolved blockers that prevent safe progress. Keep this limited to concrete execution blockers, contradictions, or missing implementation-critical facts that survived earlier stages.
 - `warnings`: non-blocking risks, follow-ups, or caveats.
 - `next_action`: one explicit next step for the caller.
@@ -52,6 +52,10 @@ Field intent:
 - `reviewer_plan`: concise reviewer roster and scope from the approved execution plan
 - `hotspots`: ordered list of files/areas that deserve close review attention
 - `contract_gaps`: empty list when none; otherwise any remaining caveats the review stage should explicitly judge
+- `resolved_proof_obligations`: architecture proof-map obligations satisfied, or empty when not applicable
+- `architecture_contract_deviations`: deviations from Architect contract with approval/status, or empty when none
+- `unresolved_compatibility_surfaces`: remaining wrappers/deprecated exports/aliases/legacy imports, or empty when none
+- `negative_checks_run`: negative checks for forbidden imports/paths, deletion proof, compatibility absence, naming honesty, and schema/domain alignment, or empty when not applicable
 
 Packet rules:
 

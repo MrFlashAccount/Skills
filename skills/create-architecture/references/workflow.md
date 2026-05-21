@@ -75,6 +75,16 @@ For each candidate, state:
 Reject obviously bad fits explicitly.
 Do not leave the user with an unbounded menu.
 
+## Architecture-sensitive proof sequence
+
+Use this extra 2-3 pass sequence only when triggered by source layout/module ownership; entities/records/schemas; ports/adapters/integrations; workflow state, gates, artifacts, approved packets, or review verdicts; compatibility wrappers/deprecated exports; or architecture docs/context maps.
+
+1. `domain/source proof`: classify affected concepts, owners, allowed/forbidden paths, entrypoints, invariants/lifecycle or non-domain reasons, schema/durable owners, compatibility decisions, negative checks, and reviewer gates.
+2. `source/runtime/schema alignment`: compare source paths, runtime request/use paths, schemas/records/durable fields, docs, and tests/checks for the same ownership story.
+3. `adversarial pressure`: attack fake modules, naming honesty, compatibility surfaces, deletion proof, and green-test false confidence. Skip this pass for tiny local fixes where no trigger is present.
+
+Do not turn this into a full DDD inventory; the proof sequence is trigger-based and path-level.
+
 ## 4. Proposal artifact
 
 Produce an approval-ready package before canonical docs exist.
@@ -90,6 +100,7 @@ Minimum contents:
 - source-layout and doc deltas, including what does not change
 - migration / PR slicing sketch with reviewable increments
 - checks that can prove the structural rules hold
+- when architecture-sensitive triggers are present: `domain_source_proof_map`, source/runtime/schema alignment evidence, compatibility surface plan, fake-module/deletion proof, naming-honesty risks, and negative checks
 - open questions that materially affect the architecture decision
 
 This proposal artifact may include lightweight sketches.
@@ -152,6 +163,7 @@ Review the implemented result against the approved proposal.
 
 Check:
 - did the package reflect the approved option faithfully, including target source-layout pressure?
+- did every triggered proof obligation survive handoff and implementation without dropped ownership/classification rules?
 - are C4, DDD, dependency rule, and context docs present where required?
 - did any artifact regress into as-is documentation only?
 - are ownership and forbidden dependencies explicit?
@@ -161,5 +173,6 @@ Check:
 - are architecture contracts, workflow states, artifact kinds, schemas, symbolic values, and source-layout contracts reflected consistently in docs and local `CONTEXT.md` records?
 - do tests/checks exercise the same changed contract that source and docs describe?
 - does any disagreement remain among source, tests/checks, and docs even if the code works locally?
+- are deprecated wrappers/re-exports deleted or explicitly justified with expiry, and do negative checks prove absent forbidden imports/paths?
 
 Do not call the result done until both the architect lens and critic lens are clean enough.
