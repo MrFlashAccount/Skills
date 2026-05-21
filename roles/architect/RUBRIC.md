@@ -64,4 +64,8 @@ Central docs may route and index, but they should not mirror local ownership rul
 
 ## Final role evidence
 
-When this rubric is actually loaded, include this `RUBRIC.md` in final role evidence.
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/architect/RUBRIC.md`
+
+Only list this file if it was actually loaded.

@@ -24,7 +24,7 @@ If the proposed dependency rule does not forbid a concrete bad arrow, it is prob
 
 ## Final role evidence
 
-When this file is loaded as role material, add it to the final role evidence loaded list as:
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
 
 - `roles/architect/references/patterns/clean-architecture.md`
 

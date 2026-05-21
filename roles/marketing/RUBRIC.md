@@ -31,4 +31,8 @@ A calling skill decides how to apply it in the current phase.
 
 ## Final role evidence
 
-When this rubric is actually loaded, include this `RUBRIC.md` in final role evidence.
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/marketing/RUBRIC.md`
+
+Only list this file if it was actually loaded.

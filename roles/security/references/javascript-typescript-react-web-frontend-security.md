@@ -991,4 +991,8 @@ Sanitizer reference:
 
 ## Final role evidence
 
-When this reference is actually loaded, include this file in final role evidence.
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/security/references/javascript-typescript-react-web-frontend-security.md`
+
+Only list this file if it was actually loaded.

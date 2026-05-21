@@ -244,4 +244,8 @@ Keep repo-specific carry-forward in the calling skill, target repo context, or a
 
 ## Final role evidence
 
-When this role is loaded, include this `ROLE.md` in final role evidence. Assemble final role evidence from this role file and every actually loaded rubric, reference, learning, or other role-material file that instructs you to include itself. If a calling skill defines additional final-answer requirements, satisfy them exactly.
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/architect/ROLE.md`
+
+Only list this file if it was actually loaded.

@@ -39,4 +39,8 @@ Use this lens to decide whether to:
 
 ## Final role evidence
 
-When this reference is actually loaded, include this file in final role evidence.
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/architect/references/balanced-coupling.md`
+
+Only list this file if it was actually loaded.

@@ -21,7 +21,7 @@ Prefer one decision per file. When the decision changes, supersede the old recor
 
 ## Final role evidence
 
-When this file is loaded as role material, add it to the final role evidence loaded list as:
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
 
 - `roles/architect/references/formats/adr.md`
 

@@ -69,7 +69,7 @@ If a reusable packet is needed first, use `research-critic` to structure the evi
 
 ## Final role evidence
 
-When this file is loaded as role material, add it to the final role evidence loaded list as:
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
 
 - `roles/marketing/references/pricing/rollout-and-handoffs.md`
 

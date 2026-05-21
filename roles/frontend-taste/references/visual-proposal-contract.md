@@ -120,4 +120,8 @@ This repo adapts selected product-domain and signature-gate ideas from dammyjay9
 
 ## Final role evidence
 
-When this reference is actually loaded, include this file in final role evidence.
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/frontend-taste/references/visual-proposal-contract.md`
+
+Only list this file if it was actually loaded.

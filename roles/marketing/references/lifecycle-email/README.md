@@ -45,7 +45,7 @@ Use for warm email sequences tied to product, customer, or campaign lifecycle mo
 
 ## Final role evidence
 
-When this file is loaded as role material, add it to the final role evidence loaded list as:
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
 
 - `roles/marketing/references/lifecycle-email/README.md`
 

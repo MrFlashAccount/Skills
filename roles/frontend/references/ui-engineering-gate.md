@@ -108,4 +108,8 @@ This repo adapts selected ideas from Addy Osmani's `frontend-ui-engineering` ski
 
 ## Final role evidence
 
-When this reference is actually loaded, include this file in final role evidence.
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/frontend/references/ui-engineering-gate.md`
+
+Only list this file if it was actually loaded.

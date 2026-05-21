@@ -210,4 +210,8 @@ Smells:
 
 ## Final role evidence
 
-When this reference is actually loaded, include this file in final role evidence.
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/frontend/references/react-ui-patterns.md`
+
+Only list this file if it was actually loaded.

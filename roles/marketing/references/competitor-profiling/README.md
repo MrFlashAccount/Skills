@@ -44,7 +44,7 @@ Use for structured competitor dossiers and comparison-ready competitive inputs.
 
 ## Final role evidence
 
-When this file is loaded as role material, add it to the final role evidence loaded list as:
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
 
 - `roles/marketing/references/competitor-profiling/README.md`
 
