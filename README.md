@@ -250,6 +250,11 @@ Shared packages are reference material for skill authors and workflow skills. Th
   - Use when: a role or skill needs shared product/audience/messaging context before doing positioning, launch framing, campaign work, or developer-facing framing.
   - Do not use when: the task only needs a standalone workflow or artifact-specific execution with no shared context dependency.
 
+- `shared/templates`
+  - What it is: reusable artifact templates for gated research, architecture, and implementation planning.
+  - Use when: a workflow needs a concise, approval-gated packet/proposal/plan shape before implementation handoff.
+  - Do not use when: the task is already approved for direct implementation or only needs a short ad hoc note.
+
 ## Role index
 
 Roles are reusable references, not executable skills.
