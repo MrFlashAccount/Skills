@@ -24,8 +24,6 @@ Required input:
   - design-test status/scope when relevant
   - sensitive-surface handling when relevant
   - request-path / contract touchpoints when relevant
-  - implementer handoff packet when the shared template is used
-  - role invocation packet for each implementer when the shared template is used
 
 Optional input:
 

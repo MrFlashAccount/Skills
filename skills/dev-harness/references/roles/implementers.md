@@ -6,14 +6,14 @@ Read only the sections for implementer roles you are about to launch.
 
 `../../roles/*/ROLE.md` and `../../roles/*/RUBRIC.md` are the only canonical role files this overlay may require directly. The sections below are routing/load guidance and compact prompt-shape guidance, not duplicated role rulebooks.
 
-Role label alone is never sufficient. Before spawning an implementer worker/subagent, the parent must include the role invocation material from [../../../../shared/templates/role-invocation-template.md](../../../../shared/templates/role-invocation-template.md), filled with the shared delegated role task template from [../../../../shared/delegate/delegated-role-task-template.md](../../../../shared/delegate/delegated-role-task-template.md), selected role material path, concrete handoff packet, and selected compact section below.
+Role label alone is never sufficient. Before spawning an implementer worker/subagent, the parent must include the shared delegated role task template from [../../../../shared/delegate/delegated-role-task-template.md](../../../../shared/delegate/delegated-role-task-template.md), filled for the selected role, plus the selected compact section below.
 
 ## Common implementer prompt contract
 
 Apply this to every code implementer prompt:
 
 - Keep the parent/orchestrator prompt neutral and compact.
-- Include only: the filled role invocation, selected role name/path, approved task packet or handoff packet, assigned file zones, scope/non-goals, verification expectations, and requested output.
+- Include only: the shared delegated role task template, selected role name/path, approved task packet, assigned file zones, scope/non-goals, verification expectations, and requested output.
 - Do not inline backend-specific, frontend-specific, framework-specific, or stack-specific implementation rules into the parent prompt. Those rules belong in the loaded role material and any role-internal references it tells the worker to read.
 - If a worker needs more role detail, the worker must get it by loading the selected `ROLE.md`, `RUBRIC.md`, `LEARNINGS.md` when required, and role-referenced files.
 - Treat this file as routing/load guidance, not as a duplicated implementation rulebook.
