@@ -64,8 +64,11 @@ After this plan is approved, hand off to implementation-harness with:
 - Approved research packet
 - Approved architecture proposal
 - This implementation plan
+- A filled [`implementer-handoff-template.md`](implementer-handoff-template.md) for each implementer owner
 - Any explicit approvals, constraints, and non-goals
 - Required reviewer roles and DoD
+
+After implementation, hand off to reviewers with a filled [`reviewer-handoff-template.md`](reviewer-handoff-template.md). If review fails, send only the failed rows back with [`reviewer-to-implementer-handoff-template.md`](reviewer-to-implementer-handoff-template.md).
 
 Do not start implementation-harness before approval.
 
