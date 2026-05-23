@@ -1,8 +1,6 @@
 # <Project/Issue> Reviewer Handoff — <Slice>
 
-Use this when implemented work is being handed to reviewer workers. The reviewer must judge the implementation against the approved source contract, not only against green tests or general code quality.
-
-This handoff is not a role prompt by itself. The orchestrator must pass a filled [`role-invocation-template.md`](role-invocation-template.md) with this packet so the worker receives the canonical delegated role call from [`../delegate/delegated-role-task-template.md`](../delegate/delegated-role-task-template.md) plus the selected reviewer role material path.
+Use this as the format/context packet passed to a reviewer. The reviewer must judge the implementation against the approved source contract, not only against green tests or general code quality.
 
 ## Status
 
@@ -12,22 +10,12 @@ This handoff is not a role prompt by itself. The orchestrator must pass a filled
 - Repo / branch:
 - Issue / PR:
 - Base comparison:
-- Approved research packet:
-- Approved architecture proposal:
-- Approved implementation plan:
-- Implementer handoff/result packet:
+- Source task/proposal/plan:
+- Implementer result packet:
 
-## Role invocation to pass
+## Loaded / source-of-truth context
 
-Fill and inject [`role-invocation-template.md`](role-invocation-template.md) for each reviewer.
-
-- Delegated reviewer role:
-- Primary role material path:
-- Additional role/rubric/reference paths required by that role:
-- Source handoff packet: this reviewer handoff
-- Output contract: required reviewer output below
-
-Do not copy reviewer role instructions into this handoff. Pass the role invocation and let the worker load the selected role material.
+<Insert or link the exact context the reviewer must treat as binding: task statement, proposal/plan slice, implementation evidence, constraints, accepted non-goals, and prior findings.>
 
 ## Reviewer assignment
 
@@ -38,6 +26,14 @@ Do not copy reviewer role instructions into this handoff. Pass the role invocati
 ## Review objective
 
 <One short paragraph: what this reviewer must prove or reject.>
+
+## Implementation evidence to inspect
+
+- Changed files/diff:
+- Tests/checks run:
+- Manual verification:
+- Docs updates:
+- Known gaps or accepted tradeoffs:
 
 ## Contract trace to review
 
@@ -53,6 +49,14 @@ Rules:
 - If the implementation intentionally satisfies a requirement through a different representation, verify the approved mapping is present and tested/documented.
 - Do not convert contract failures into “should fix” unless the source row explicitly allows delay.
 
+## Review checklist
+
+- [ ] Source contract rows are all mapped to evidence.
+- [ ] Implementation evidence matches changed files and reported checks.
+- [ ] Tests/checks cover the contract-bearing behavior or explicitly justify gaps.
+- [ ] Documentation matches implemented behavior where docs are contract-bearing.
+- [ ] No unrelated scope or forbidden files changed.
+
 ## Required reviewer output
 
 Return:
@@ -67,5 +71,3 @@ Return:
 - semantic substitutions: approved | unapproved | none
 - evidence checked
 - confidence
-
-If verdict is FAIL, include a reviewer-to-implementer fix handoff table that can be pasted into `reviewer-to-implementer-handoff-template.md`.

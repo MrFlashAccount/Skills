@@ -4,7 +4,7 @@
 
 - Owner:
 - Date:
-- State: Draft | Ready for architecture review | Approved | Rejected
+- State: Draft | Ready for review | Approved | Rejected
 - Decision needed:
 
 ## Executive summary
@@ -69,13 +69,8 @@
 
 <Recommend one option or state why the packet is not ready. Include the minimum evidence needed to move forward.>
 
-## Next gate
-
-Architecture proposal may start only after this research packet is reviewed and approved.
-
 ## Template rules
 
 - Stay at analytical research level: business goal, problem, scope, non-goals, options, risks, and open questions.
 - Do not include file-level implementation details, class/method plans, imports, diffs, or command sequences.
 - Do not write an architecture or implementation proposal here.
-- Approval gate is required before architecture work starts.

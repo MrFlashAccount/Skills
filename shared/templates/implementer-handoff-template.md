@@ -1,8 +1,6 @@
 # <Project/Issue> Implementer Handoff — <Slice>
 
-Use this when an approved implementation plan is being handed to an implementer worker. Fill it from the approved research packet, architecture proposal, implementation plan, and any reviewer/fix notes. Do not use this as a new planning surface.
-
-This handoff is not a role prompt by itself. The orchestrator must pass a filled [`role-invocation-template.md`](role-invocation-template.md) with this packet so the worker receives the canonical delegated role call from [`../delegate/delegated-role-task-template.md`](../delegate/delegated-role-task-template.md) plus the selected role material path.
+Use this as the format/context packet passed to an implementer for one approved implementation slice. Fill it from the source-of-truth task, proposal/plan, review notes, and any explicit constraints. Do not use this as a new planning surface.
 
 ## Status
 
@@ -11,21 +9,11 @@ This handoff is not a role prompt by itself. The orchestrator must pass a filled
 - State: Ready for implementation | In progress | Blocked | Implemented
 - Repo / branch:
 - Issue / PR:
-- Based on approved research packet:
-- Based on approved architecture proposal:
-- Based on approved implementation plan:
+- Based on source task/proposal/plan:
 
-## Role invocation to pass
+## Loaded / source-of-truth context
 
-Fill and inject [`role-invocation-template.md`](role-invocation-template.md) for this implementer.
-
-- Delegated role name: backend | frontend | architect-artifact
-- Primary role material path:
-- Additional role/rubric/reference paths required by that role:
-- Source handoff packet: this implementer handoff
-- Output contract: implementer output required below
-
-Do not copy backend/frontend/architect role instructions into this handoff. Pass the role invocation and let the worker load the selected role material.
+<Insert or link the exact context the implementer must treat as binding: task statement, proposal/plan slice, prior review findings, constraints, approvals, and non-goals.>
 
 ## Implementer assignment
 
@@ -36,6 +24,12 @@ Do not copy backend/frontend/architect role instructions into this handoff. Pass
 ## Implementation objective
 
 <One short paragraph: what this implementer must make true in this slice.>
+
+## Todo checklist
+
+- [ ] <Concrete task tied to a requirement/source row.>
+- [ ] <Concrete task tied to a required test/check/doc update.>
+- [ ] <Concrete cleanup or compatibility task, if required.>
 
 ## Source contract checklist
 
