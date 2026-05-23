@@ -2,6 +2,8 @@
 
 Use this when an approved implementation plan is being handed to an implementer worker. Fill it from the approved research packet, architecture proposal, implementation plan, and any reviewer/fix notes. Do not use this as a new planning surface.
 
+This handoff is not a role prompt by itself. The orchestrator must pass a filled [`role-invocation-template.md`](role-invocation-template.md) with this packet so the worker receives the canonical delegated role call from [`../delegate/delegated-role-task-template.md`](../delegate/delegated-role-task-template.md) plus the selected role material path.
+
 ## Status
 
 - Owner:
@@ -13,10 +15,20 @@ Use this when an approved implementation plan is being handed to an implementer 
 - Based on approved architecture proposal:
 - Based on approved implementation plan:
 
+## Role invocation to pass
+
+Fill and inject [`role-invocation-template.md`](role-invocation-template.md) for this implementer.
+
+- Delegated role name: backend | frontend | architect-artifact
+- Primary role material path:
+- Additional role/rubric/reference paths required by that role:
+- Source handoff packet: this implementer handoff
+- Output contract: implementer output required below
+
+Do not copy backend/frontend/architect role instructions into this handoff. Pass the role invocation and let the worker load the selected role material.
+
 ## Implementer assignment
 
-- Implementer role: backend | frontend | architect-artifact
-- Role material to load:
 - Assigned file zones:
 - Explicit non-goals:
 - Do not edit outside:

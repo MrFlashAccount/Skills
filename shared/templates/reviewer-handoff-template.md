@@ -2,6 +2,8 @@
 
 Use this when implemented work is being handed to reviewer workers. The reviewer must judge the implementation against the approved source contract, not only against green tests or general code quality.
 
+This handoff is not a role prompt by itself. The orchestrator must pass a filled [`role-invocation-template.md`](role-invocation-template.md) with this packet so the worker receives the canonical delegated role call from [`../delegate/delegated-role-task-template.md`](../delegate/delegated-role-task-template.md) plus the selected reviewer role material path.
+
 ## Status
 
 - Owner:
@@ -15,10 +17,20 @@ Use this when implemented work is being handed to reviewer workers. The reviewer
 - Approved implementation plan:
 - Implementer handoff/result packet:
 
+## Role invocation to pass
+
+Fill and inject [`role-invocation-template.md`](role-invocation-template.md) for each reviewer.
+
+- Delegated reviewer role:
+- Primary role material path:
+- Additional role/rubric/reference paths required by that role:
+- Source handoff packet: this reviewer handoff
+- Output contract: required reviewer output below
+
+Do not copy reviewer role instructions into this handoff. Pass the role invocation and let the worker load the selected role material.
+
 ## Reviewer assignment
 
-- Reviewer role:
-- Role material to load:
 - Review focus:
 - Files/zones to inspect:
 - Non-goals / known accepted debt:

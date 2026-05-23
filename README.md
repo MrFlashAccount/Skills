@@ -251,8 +251,8 @@ Shared packages are reference material for skill authors and workflow skills. Th
   - Do not use when: the task only needs a standalone workflow or artifact-specific execution with no shared context dependency.
 
 - `shared/templates`
-  - What it is: reusable artifact templates for gated research, architecture, and implementation planning.
-  - Use when: a workflow needs a concise, approval-gated packet/proposal/plan shape before implementation handoff.
+  - What it is: reusable artifact templates for gated research, architecture, implementation planning, handoff packets, and explicit role-invocation wiring.
+  - Use when: a workflow needs a concise, approval-gated packet/proposal/plan shape, or when an orchestrator must pass a role invocation plus concrete handoff packet into implementation/review workers.
   - Do not use when: the task is already approved for direct implementation or only needs a short ad hoc note.
 
 ## Role index
