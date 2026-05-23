@@ -16,7 +16,7 @@ Choose implementers from the approved execution plan:
 2. Map file zones to `backend` and/or `frontend` exactly as approved.
 3. Stay in orchestrator mode: do not implement inside the parent session. Spawn delegated implementer worker/subagent owner(s) for the approved file zones even when direct manual execution in the parent session would be faster or more convenient.
    - if the required implementer worker/subagent path is unavailable, fails to start, or cannot be used, stop as `blocked` instead of implementing manually in the parent session
-   - role label alone is not enough: include the shared delegated role task template from `../../../shared/delegate/delegated-role-task-template.md`, the selected role material path, compact implementer focus from `../../dev-harness/references/roles/implementers.md`, and the concrete approved task packet/scope/verification expectations
+   - role label alone is not enough: include the role invocation material from `../../../shared/templates/role-invocation-template.md`, filled with the shared delegated role task template from `../../../shared/delegate/delegated-role-task-template.md`, the selected role material path, compact implementer focus from `../../dev-harness/references/roles/implementers.md`, and the concrete approved task packet/scope/verification expectations
 4. Implement only the approved slice and approved direction through those delegated implementer worker/subagent owner(s).
 5. Run the smallest meaningful verification.
 6. Package the development handoff for the separate review stage.

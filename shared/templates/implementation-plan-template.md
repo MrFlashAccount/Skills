@@ -65,10 +65,11 @@ After this plan is approved, hand off to implementation-harness with:
 - Approved architecture proposal
 - This implementation plan
 - A filled [`implementer-handoff-template.md`](implementer-handoff-template.md) for each implementer owner
+- A filled [`role-invocation-template.md`](role-invocation-template.md) for each spawned implementer, pointing to the canonical delegated role task template and the selected role material path
 - Any explicit approvals, constraints, and non-goals
 - Required reviewer roles and DoD
 
-After implementation, hand off to reviewers with a filled [`reviewer-handoff-template.md`](reviewer-handoff-template.md). If review fails, send only the failed rows back with [`reviewer-to-implementer-handoff-template.md`](reviewer-to-implementer-handoff-template.md).
+After implementation, hand off to reviewers with a filled [`reviewer-handoff-template.md`](reviewer-handoff-template.md) plus a filled [`role-invocation-template.md`](role-invocation-template.md) for each reviewer. If review fails, send only the failed rows back with [`reviewer-to-implementer-handoff-template.md`](reviewer-to-implementer-handoff-template.md) plus the fix implementer's role invocation.
 
 Do not start implementation-harness before approval.
 
