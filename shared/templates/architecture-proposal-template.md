@@ -4,8 +4,8 @@
 
 - Owner:
 - Date:
-- State: Draft | Ready for approval | Approved | Rejected
-- Based on approved research packet:
+- State: Draft | Ready for review | Approved | Rejected
+- Based on research/context:
 
 ## Architecture decision
 
@@ -58,20 +58,7 @@
 - <Architecture or ownership move explicitly out of scope.>
 - <Shortcut that would violate placement/dependency rules.>
 
-## Architecture checks before implementation proposal
-
-- Research packet is approved and cited.
-- Entity placement is explicit.
-- Dependency direction is explicit and enforceable.
-- Runtime relationships are named without drifting into code-level tasks.
-- Documentation impact is identified.
-- Forbidden moves are clear enough for reviewers to reject scope creep.
-
-## Approval gate
-
-Implementation planning may start only after this architecture proposal is reviewed and approved.
-
-## Template rules
+## Architect rules
 
 - Be concise, concrete, and opinionated.
 - Say where entities belong: core, integration, plugin, dependency, or another explicit owner.

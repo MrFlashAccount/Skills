@@ -5,16 +5,16 @@
 - Owner:
 - Date:
 - State: Draft | Ready for implementation approval | Approved | In progress | Done
-- Based on approved research packet:
-- Based on approved architecture proposal:
+- Based on research/context:
+- Based on architecture proposal:
 
 ## Goal
 
-<The concrete implementation outcome. Keep it tied to the approved research and architecture.>
+<The concrete implementation outcome. Keep it tied to the approved context and architecture.>
 
 ## Work breakdown
 
-| Workstream | Owner role | Files-zones | Add/change | Done when |
+| Workstream | Owner role | Files/zones | Add/change | Done when |
 | --- | --- | --- | --- | --- |
 | A | <role> | <exact files, folders, modules, or zones> | <new/change/remove at planning level> | <observable completion signal> |
 | B | <role> | <exact files, folders, modules, or zones> | <new/change/remove at planning level> | <observable completion signal> |
@@ -57,41 +57,19 @@
 | QA/reliability reviewer | Failure modes, regression risk, verification completeness | <test output/manual scenario> |
 | Docs/process reviewer | User-facing or process documentation accuracy | <changed docs/README/reference> |
 
-## Handoff to implementation-harness
-
-After this plan is approved, hand off to implementation-harness with:
-
-- Approved research packet
-- Approved architecture proposal
-- This implementation plan
-- A filled [`implementer-handoff-template.md`](implementer-handoff-template.md) for each implementer owner
-- A filled [`role-invocation-template.md`](role-invocation-template.md) for each spawned implementer, pointing to the canonical delegated role task template and the selected role material path
-- Any explicit approvals, constraints, and non-goals
-- Required reviewer roles and DoD
-
-After implementation, hand off to reviewers with a filled [`reviewer-handoff-template.md`](reviewer-handoff-template.md) plus a filled [`role-invocation-template.md`](role-invocation-template.md) for each reviewer. If review fails, send only the failed rows back with [`reviewer-to-implementer-handoff-template.md`](reviewer-to-implementer-handoff-template.md) plus the fix implementer's role invocation.
-
-Do not start implementation-harness before approval.
-
 ## Rollback plan
 
 - <Smallest safe revert path.>
 - <Data/config compatibility note, if applicable.>
 - <How to detect rollback is needed.>
 
-## Appendix A: approved architecture proposal
+## Appendix: <source artifact name>
 
-<Paste the full approved architecture proposal here. Do not summarize.>
-
-## Appendix B: approved research packet
-
-<Paste the full approved research packet here. Do not summarize.>
+<Paste or link source-of-truth context needed by implementers/reviewers. Add more appendix sections as needed.>
 
 ## Template rules
 
 - Be concrete and file-level: name file zones, classes, entities, functions, methods, configs, and docs at planning level.
 - Use ABCD workstreams when helpful; keep roles/owners explicit.
-- Include DoD, reviewer roles, rollback, and implementation-harness handoff.
-- Include approved research and architecture below as full references.
-- Do not include code, diffs, or command sequences.
-- Do not start implementation-harness before this plan is approved.
+- Include DoD, reviewer roles, rollback, and any source appendices needed to make the plan self-contained.
+- Do not include code, diffs, command sequences, or process handoff instructions.
