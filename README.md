@@ -201,9 +201,9 @@ If a skill needs reusable instructions that are not a runnable skill:
   - Do not use when: the task still needs discovery or approval shaping.
 
 - `skills/loop`
-  - What it is: ECC autonomous loop pattern catalog for Claude Code, from sequential `claude -p` pipelines to RFC-driven multi-agent DAG orchestration.
-  - Use when: selecting or designing an autonomous development loop, CI/PR loop, parallel generation loop, or quality-gated agent workflow.
-  - Do not use when: the task only needs a one-shot answer or when autonomous execution would bypass required approval, safety, or external-action gates.
+  - What it is: generic agent-agnostic loop router for bounded repeated task cycles with state baton, one-cycle executors, progress reporting, and explicit stop rules.
+  - Use when: a task should run through repeated independent cycles, such as bug hunts, docs cleanup passes, PR comment handling, or quality-gated review/fix loops.
+  - Do not use when: the task only needs a one-shot answer, continuation criteria are missing, or another cycle would bypass required approval, safety, or external-action gates.
 
 - `skills/code-review-orchestrator`
   - What it is: one entrypoint for multi-role code review with merged findings.
