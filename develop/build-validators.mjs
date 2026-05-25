@@ -13,7 +13,7 @@ const schemas = [
   ['validate-baton.mjs', 'develop/schemas/baton.json'],
   ['validate-workflow.mjs', 'develop/schemas/workflow.json'],
   ['validate-worker-output.mjs', 'develop/schemas/worker-output.json'],
-  ['validate-handoff-response.mjs', 'develop/schemas/handoff-response.json'],
+  ['validate-workflow-interpreter-response.mjs', 'develop/schemas/workflow-interpreter-response.json'],
 ];
 
 const loadedSchemas = Object.fromEntries(

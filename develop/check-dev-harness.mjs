@@ -9,7 +9,7 @@ const root = process.cwd();
 const tempDir = mkdtempSync(path.join(tmpdir(), 'dev-harness-check-'));
 const workflowPath = path.join(root, 'develop/dev-harness.workflow.json');
 const baseWorkflowDoc = JSON.parse(readFileSync(workflowPath, 'utf8'));
-const emptyState = Object.freeze({ artifacts: [], results: [], history: [], attempts: {} });
+const emptyState = Object.freeze({ artifacts: [], results: [] });
 let scenarioCount = 0;
 
 function clone(value) {
@@ -75,7 +75,7 @@ function runInspect(label, batonDoc, expectSuccess = true, workflowDoc = baseWor
   const batonPath = writeJson(`${prefix}-baton.json`, batonDoc);
   const wfPath = workflowDoc === baseWorkflowDoc ? workflowPath : writeJson(`${prefix}-workflow.json`, workflowDoc);
   const before = readFileSync(batonPath, 'utf8');
-  const result = runNode(['develop/dev-harness-step.mjs', 'inspect', wfPath, batonPath]);
+  const result = runNode(['develop/workflow-interpreter.mjs', 'inspect', wfPath, batonPath]);
   const response = expectResult(label, result, expectSuccess);
   assert.equal(readFileSync(batonPath, 'utf8'), before, `check '${label}' mutated baton file during inspect`);
   return response;
@@ -87,7 +87,7 @@ function runApply(label, batonDoc, workerOutput, expectSuccess = true, workflowD
   const outputPath = writeJson(`${prefix}-output.json`, workerOutput);
   const wfPath = workflowDoc === baseWorkflowDoc ? workflowPath : writeJson(`${prefix}-workflow.json`, workflowDoc);
   const before = readFileSync(batonPath, 'utf8');
-  const result = runNode(['develop/dev-harness-step.mjs', 'apply', wfPath, batonPath, outputPath]);
+  const result = runNode(['develop/workflow-interpreter.mjs', 'apply', wfPath, batonPath, outputPath]);
   const response = expectResult(label, result, expectSuccess);
   assert.equal(readFileSync(batonPath, 'utf8'), before, `check '${label}' mutated baton file during apply`);
   return response;
@@ -121,7 +121,15 @@ try {
   });
 
   scenario('schema: missing required baton state field rejected', () => {
-    runInspect('schema-missing-state-field', baton({ state: { artifacts: [], results: [], history: [] } }), false);
+    runInspect('schema-missing-state-field', baton({ state: { artifacts: [] } }), false);
+  });
+
+  scenario('schema: baton state history rejected', () => {
+    runInspect('schema-history-state-rejected', baton({ state: { ...clone(emptyState), history: [] } }), false);
+  });
+
+  scenario('schema: baton state attempts rejected', () => {
+    runInspect('schema-attempts-state-rejected', baton({ state: { ...clone(emptyState), attempts: {} } }), false);
   });
 
   scenario('inspect: initial cursor resolves to run-worker directive', () => {
@@ -129,6 +137,8 @@ try {
     const response = runInspect('inspect-initial-run-worker', initial);
     assert.equal(response.directive.id, 'research');
     assert.equal(response.directive.action, 'run_worker');
+    assert.equal(response.directive.vertex.kind, 'subagent');
+    assert.equal(response.directive.vertex.template, 'dev_harness.research');
     assert.deepEqual(response.baton, initial);
   });
 
@@ -139,6 +149,7 @@ try {
     );
     assert.equal(response.directive.id, 'approve_research');
     assert.equal(response.directive.action, 'wait_for_approval');
+    assert.deepEqual(response.directive.vertex.takesArtifacts, ['research']);
   });
 
   scenario('inspect: terminal done cursor resolves to stop_done directive', () => {
@@ -197,19 +208,8 @@ try {
     assert.ok(response.baton.state.artifacts.some((item) => item.type === 'context'));
   });
 
-  scenario('apply: history event appended on successful apply', () => {
-    const response = runApply('apply-history-appended', baton(), output());
-    const event = response.baton.state.history.at(-1);
-    assert.equal(event.event, 'handoff_applied');
-    assert.equal(event.cursor, 'research');
-    assert.equal(event.target, 'approve_research');
-    assert.equal(event.handoff, 'ready_for_approval');
-    assert.equal(event.status, 'running');
-    assert.match(event.at, /^\d{4}-\d{2}-\d{2}T/);
-  });
-
-  scenario('apply negative: wrong handoff label rejected', () => {
-    runApply('apply-wrong-handoff-label', baton(), output({ outcome: 'approved' }), false);
+  scenario('apply negative: wrong outcome label rejected', () => {
+    runApply('apply-wrong-outcome-label', baton(), output({ outcome: 'approved' }), false);
   });
 
   scenario('apply negative: missing required produced artifact rejected', () => {

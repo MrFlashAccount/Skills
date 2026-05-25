@@ -3,10 +3,10 @@ import { readFileSync } from 'node:fs';
 import validateBatonSchema from './dist/validate-baton.mjs';
 import validateWorkflowSchema from './dist/validate-workflow.mjs';
 import validateWorkerOutputSchema from './dist/validate-worker-output.mjs';
-import validateHandoffResponseSchema from './dist/validate-handoff-response.mjs';
+import validateWorkflowInterpreterResponseSchema from './dist/validate-workflow-interpreter-response.mjs';
 
 function fail(message) {
-  console.error(`dev-harness-step: ${message}`);
+  console.error(`workflow-interpreter: ${message}`);
   process.exit(1);
 }
 
@@ -79,18 +79,7 @@ function appendResults(existingResults = [], newResults = []) {
   return [...existingResults, ...newResults];
 }
 
-function buildHistoryEvent({ cursorId, targetStepId, handoffLabel, status }) {
-  return {
-    event: 'handoff_applied',
-    cursor: cursorId,
-    target: targetStepId,
-    handoff: handoffLabel,
-    status,
-    at: new Date().toISOString(),
-  };
-}
-
-function extractHandoffLabel(output, step, cursorId) {
+function extractOutcomeLabel(output, step, cursorId) {
   requireObject(output, 'worker output');
   const stepKind = step.kind ?? 'subagent';
 
@@ -118,11 +107,8 @@ function actionForStep(step) {
 function buildDirective(stepId, step) {
   return {
     id: stepId,
-    kind: step.kind ?? null,
-    template: step.template ?? null,
-    takesArtifacts: step.takesArtifacts ?? [],
-    producesArtifacts: step.producesArtifacts ?? [],
     action: actionForStep(step),
+    vertex: structuredClone(step),
   };
 }
 
@@ -140,18 +126,18 @@ function loadWorkflowAndBaton(workflowPath, batonPath) {
   return { workflow, baton, cursorStep };
 }
 
-function emitHandoffResponse(response) {
-  assertSchema(validateHandoffResponseSchema, response, 'handoff response');
+function emitWorkflowInterpreterResponse(response) {
+  assertSchema(validateWorkflowInterpreterResponseSchema, response, 'workflow interpreter response');
   console.log(JSON.stringify(response, null, 2));
 }
 
 function directiveMode(workflowPath, batonPath) {
   const { baton, cursorStep } = loadWorkflowAndBaton(workflowPath, batonPath);
   validateTakesPrerequisites(cursorStep, baton, baton.cursor);
-  emitHandoffResponse({ baton, directive: buildDirective(baton.cursor, cursorStep) });
+  emitWorkflowInterpreterResponse({ baton, directive: buildDirective(baton.cursor, cursorStep) });
 }
 
-function handoffMode(workflowPath, batonPath, outputPath) {
+function applyMode(workflowPath, batonPath, outputPath) {
   const { workflow, baton, cursorStep } = loadWorkflowAndBaton(workflowPath, batonPath);
   const workerOutput = readJson(outputPath, 'worker output');
 
@@ -159,31 +145,26 @@ function handoffMode(workflowPath, batonPath, outputPath) {
   requireObject(cursorStep.outcomes, `workflow.steps.${baton.cursor}.outcomes`);
 
   validateTakesPrerequisites(cursorStep, baton, baton.cursor);
-  const handoffLabel = extractHandoffLabel(workerOutput, cursorStep, baton.cursor);
-  const targetStepId = cursorStep.outcomes[handoffLabel];
-  if (!targetStepId) fail(`handoff '${handoffLabel}' is not allowed from baton cursor '${baton.cursor}'`);
+  const outcomeLabel = extractOutcomeLabel(workerOutput, cursorStep, baton.cursor);
+  const targetStepId = cursorStep.outcomes[outcomeLabel];
+  if (!targetStepId) fail(`outcome '${outcomeLabel}' is not allowed from baton cursor '${baton.cursor}'`);
 
   const targetStep = workflow.steps[targetStepId];
-  if (!targetStep) fail(`handoff target not found in workflow: ${targetStepId}`);
+  if (!targetStep) fail(`outcome target not found in workflow: ${targetStepId}`);
 
   validateProducedArtifacts(cursorStep, workerOutput, baton.cursor);
 
   const updatedBaton = structuredClone(baton);
-  const sourceCursorId = baton.cursor;
   updatedBaton.cursor = targetStepId;
   updatedBaton.status = targetStepId === workflow.done ? 'done' : targetStepId === workflow.blocked ? 'blocked' : 'running';
   updatedBaton.state = {
     ...updatedBaton.state,
     artifacts: mergeArtifacts(updatedBaton.state?.artifacts ?? [], workerOutput.artifacts ?? []),
     results: appendResults(updatedBaton.state?.results ?? [], workerOutput.results ?? []),
-    history: [
-      ...(updatedBaton.state?.history ?? []),
-      buildHistoryEvent({ cursorId: sourceCursorId, targetStepId, handoffLabel, status: updatedBaton.status }),
-    ],
   };
   if (workerOutput.blocker) updatedBaton.blocker = workerOutput.blocker;
 
-  emitHandoffResponse({ baton: updatedBaton, directive: buildDirective(targetStepId, targetStep) });
+  emitWorkflowInterpreterResponse({ baton: updatedBaton, directive: buildDirective(targetStepId, targetStep) });
 }
 
 const args = process.argv.slice(2);
@@ -192,19 +173,19 @@ const mode = args[0];
 if (mode === 'inspect' || mode === 'directive') {
   const [, workflowPath, batonPath] = args;
   if (!workflowPath || !batonPath || args.length !== 3) {
-    fail('usage: node develop/dev-harness-step.mjs inspect <workflow.json> <baton.json>');
+    fail('usage: node develop/workflow-interpreter.mjs inspect <workflow.json> <baton.json>');
   }
   directiveMode(workflowPath, batonPath);
-} else if (mode === 'apply' || mode === 'handoff') {
+} else if (mode === 'apply') {
   const [, workflowPath, batonPath, outputPath] = args;
   if (!workflowPath || !batonPath || !outputPath || args.length !== 4) {
-    fail('usage: node develop/dev-harness-step.mjs apply <workflow.json> <baton.json> <worker-output.json>');
+    fail('usage: node develop/workflow-interpreter.mjs apply <workflow.json> <baton.json> <worker-output.json>');
   }
-  handoffMode(workflowPath, batonPath, outputPath);
+  applyMode(workflowPath, batonPath, outputPath);
 } else {
   const [workflowPath, batonPath, outputPath] = args;
   if (!workflowPath || !batonPath || !outputPath || args.length !== 3) {
-    fail('usage: node develop/dev-harness-step.mjs inspect <workflow.json> <baton.json> | apply <workflow.json> <baton.json> <worker-output.json>');
+    fail('usage: node develop/workflow-interpreter.mjs inspect <workflow.json> <baton.json> | apply <workflow.json> <baton.json> <worker-output.json>');
   }
-  handoffMode(workflowPath, batonPath, outputPath);
+  applyMode(workflowPath, batonPath, outputPath);
 }

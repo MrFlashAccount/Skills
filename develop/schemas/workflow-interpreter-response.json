@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openclaw.local/dev-harness/schemas/workflow-interpreter-response",
+  "title": "DevHarness Workflow Interpreter Response",
+  "type": "object",
+  "required": ["baton", "directive"],
+  "properties": {
+    "baton": { "$ref": "https://openclaw.local/dev-harness/schemas/baton" },
+    "directive": {
+      "type": "object",
+      "required": ["id", "action", "vertex"],
+      "properties": {
+        "id": { "type": "string" },
+        "action": {
+          "enum": ["run_worker", "wait_for_approval", "stop_done", "stop_blocked"]
+        },
+        "vertex": { "$ref": "https://openclaw.local/dev-harness/schemas/workflow#/$defs/step" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
