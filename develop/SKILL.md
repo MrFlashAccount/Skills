@@ -5,57 +5,55 @@ description: Use for coding requests that should run the DevHarness baton workfl
 
 # Dev Harness
 
-Run the DevHarness orchestrator loop. The orchestrator only does:
-
-`prompt -> subagent -> output -> apply -> persist -> repeat`
-
-Do not decide workflow transitions yourself. Follow the current directive returned by the scripts.
+Run the DevHarness loop. Do not decide workflow transitions yourself. Follow the current directive returned by the scripts.
 
 ## Available scripts
 
-Run commands from this skill directory so script paths stay relative to the skill root.
+Run commands from this skill directory.
 
-- `scripts/start-run.mjs` — start or resume a caller-provided run directory and return the current `{ baton, directive }`.
-- `scripts/workflow-interpreter.mjs apply ...` — apply one worker/approval output to the live baton and return the next response.
+- `scripts/start-run.mjs` — call script and use the returned `{ baton, directive }`.
+- `scripts/workflow-interpreter.mjs apply ...` — apply one worker/approval output to the live baton.
 - `scripts/persist-run-state.mjs` — persist a successful apply response/output/decision and return the next `{ baton, directive }`.
 
 ## Run state
 
 Require a concrete caller-provided run directory. Do not invent or derive a run id.
 
-On start/resume, call:
+Call script:
 
 ```bash
-node scripts/start-run.mjs --run-dir <run-dir>
+scripts/start-run.mjs --run-dir <run-dir>
 ```
 
-Use the returned `{ baton, directive }` as the live in-memory loop state. Scripts own run-state file reads/writes; do not edit baton by hand, duplicate its schema, or describe folder internals in worker prompts.
+Use the returned `{ baton, directive }` as the live loop state. Scripts own run-state file reads/writes; do not edit baton by hand.
 
 ## Main loop
 
-Repeat until stopped:
+Strictly follow these steps.
 
 1. If `directive.action` is `stop_done` or `stop_blocked`, exit the loop and report the returned summary/blocker.
-2. If `directive.action` is `run_worker`:
+2. Else if `directive.action` is `run_worker`:
    - Build one bounded prompt from the directive.
    - Launch exactly one bounded subagent/executor.
    - Require strict JSON output for that directive only.
+   - Store the result as `output.json`.
    - Do not perform the worker step yourself.
-3. If `directive.action` is `wait_for_approval`, stop and wait for explicit approval JSON before continuing.
-4. Call the workflow interpreter `apply` with the live baton and the worker/approval output:
+3. Else if `directive.action` is `wait_for_approval`, stop and wait for explicit approval JSON, then store it as `output.json`.
+4. Else stop as blocked for unknown `directive.action`.
+5. Call workflow interpreter:
 
    ```bash
-   node scripts/workflow-interpreter.mjs apply dev-harness.workflow.json <baton-json> <output-json>
+   scripts/workflow-interpreter.mjs apply dev-harness.workflow.json baton.json output.json
    ```
 
-5. If `apply` fails, keep the live and persisted baton unchanged. Retry the same directive/current step, or stop blocked if retry cannot proceed safely.
-6. If `apply` succeeds, call the persist script with the returned response, the worker/approval output, and a short decision:
+   `baton.json` is the current live baton state serialized for the call. `output.json` is the result from the previous worker/approval step.
+6. If `apply` fails, stop as blocked. Do not rerun the worker/approval step.
+7. If `apply` succeeds, store the workflow interpreter response as `apply-response.json`, then call persist-state:
 
    ```bash
-   node scripts/persist-run-state.mjs --run-dir <run-dir> --response <apply-response-json> --output <output-json> --decision "<short decision>"
+   scripts/persist-run-state.mjs --run-dir <run-dir> --response apply-response.json --output output.json --decision "<decision>"
    ```
 
-7. If persistence fails, stop as blocked. Do not continue with ambiguous run state.
-8. If persistence succeeds, replace the live `{ baton, directive }` with the values returned by the persist script and go back to step 1.
-
-Keep the loop compact and mechanical: prompt, subagent, output, script, persist, repeat.
+   `decision` is the decision label/value from this loop step.
+8. If persist-state fails, stop as blocked.
+9. If persist-state succeeds, replace the live `{ baton, directive }` with the returned/current values and return to Main loop step 1.
