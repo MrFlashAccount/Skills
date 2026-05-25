@@ -6,7 +6,7 @@
   "required": ["cursor", "state"],
   "properties": {
     "cursor": { "type": "string" },
-    "status": { "type": "string" },
+    "status": { "enum": ["running", "done", "blocked"] },
     "state": {
       "type": "object",
       "required": ["artifacts"],
@@ -14,12 +14,22 @@
         "artifacts": {
           "type": "array",
           "items": { "$ref": "#/$defs/artifact" }
-        }
+        },
+        "results": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/result" }
+        },
+        "history": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/historyEvent" }
+        },
+        "attempts": { "$ref": "#/$defs/attempts" }
       },
       "additionalProperties": true
     },
     "lastHandoff": { "type": "string" },
-    "blocker": { "type": "object" }
+    "blocker": { "type": "object" },
+    "error": { "type": "object" }
   },
   "additionalProperties": true,
   "$defs": {
@@ -33,6 +43,48 @@
         "summary": { "type": "string" }
       },
       "additionalProperties": true
+    },
+    "result": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "cursor": { "type": "string" },
+        "outcome": { "type": "string" },
+        "summary": { "type": "string" },
+        "ref": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "historyEvent": {
+      "type": "object",
+      "required": ["event", "cursor", "target", "handoff", "at"],
+      "properties": {
+        "event": { "type": "string" },
+        "cursor": { "type": "string" },
+        "target": { "type": "string" },
+        "handoff": { "type": "string" },
+        "status": { "enum": ["running", "done", "blocked"] },
+        "at": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "attempts": {
+      "type": "object",
+      "propertyNames": { "type": "string" },
+      "additionalProperties": {
+        "oneOf": [
+          { "type": "integer", "minimum": 0 },
+          {
+            "type": "object",
+            "properties": {
+              "count": { "type": "integer", "minimum": 0 },
+              "lastError": { "type": "string" },
+              "lastAt": { "type": "string" }
+            },
+            "additionalProperties": true
+          }
+        ]
+      }
     }
   }
 }

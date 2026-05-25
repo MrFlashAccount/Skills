@@ -75,6 +75,21 @@ function mergeArtifacts(existingArtifacts, newArtifacts = []) {
   return merged;
 }
 
+function appendResults(existingResults = [], newResults = []) {
+  return [...existingResults, ...newResults];
+}
+
+function buildHistoryEvent({ cursorId, targetStepId, handoffLabel, status }) {
+  return {
+    event: 'handoff_applied',
+    cursor: cursorId,
+    target: targetStepId,
+    handoff: handoffLabel,
+    status,
+    at: new Date().toISOString(),
+  };
+}
+
 function extractHandoffLabel(output, step, cursorId) {
   requireObject(output, 'worker output');
   const stepKind = step.kind ?? 'subagent';
@@ -154,12 +169,18 @@ function handoffMode(workflowPath, batonPath, outputPath) {
   validateProducedArtifacts(cursorStep, workerOutput, baton.cursor);
 
   const updatedBaton = structuredClone(baton);
+  const sourceCursorId = baton.cursor;
   updatedBaton.cursor = targetStepId;
   updatedBaton.status = targetStepId === workflow.done ? 'done' : targetStepId === workflow.blocked ? 'blocked' : 'running';
   updatedBaton.lastHandoff = handoffLabel;
   updatedBaton.state = {
     ...updatedBaton.state,
     artifacts: mergeArtifacts(updatedBaton.state?.artifacts ?? [], workerOutput.artifacts ?? []),
+    results: appendResults(updatedBaton.state?.results ?? [], workerOutput.results ?? []),
+    history: [
+      ...(updatedBaton.state?.history ?? []),
+      buildHistoryEvent({ cursorId: sourceCursorId, targetStepId, handoffLabel, status: updatedBaton.status }),
+    ],
   };
   if (workerOutput.blocker) updatedBaton.blocker = workerOutput.blocker;
 
