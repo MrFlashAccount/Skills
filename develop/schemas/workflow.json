@@ -28,23 +28,45 @@
   "additionalProperties": false,
   "$defs": {
     "step": {
+      "description": "Canonical target workflow step shape.",
+      "type": "object",
+      "required": ["name", "kind"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["worker", "approval", "done"] },
+        "input": { "$ref": "#/$defs/input" },
+        "output": { "$ref": "#/$defs/output" }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": { "kind": { "const": "worker" } },
+            "required": ["kind"]
+          },
+          "then": true,
+          "else": { "not": { "required": ["output"] } }
+        }
+      ]
+    },
+    "input": {
       "type": "object",
       "properties": {
-        "kind": { "enum": ["subagent", "user_approval", "terminal"] },
-        "template": { "type": "string" },
-        "takesArtifacts": {
+        "template": { "type": "string", "minLength": 1 },
+        "prompt": { "type": "string" },
+        "state": {
           "type": "array",
-          "items": { "type": "string" }
-        },
-        "producesArtifacts": {
-          "type": "array",
-          "items": { "type": "string" }
-        },
-        "outcomes": {
-          "type": "object",
-          "minProperties": 1,
-          "additionalProperties": { "type": "string" }
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
         }
+      },
+      "additionalProperties": false
+    },
+    "output": {
+      "type": "object",
+      "required": ["schema"],
+      "properties": {
+        "schema": { "type": "string", "minLength": 1 }
       },
       "additionalProperties": false
     }
