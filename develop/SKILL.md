@@ -27,21 +27,9 @@ Orchestrate the workflow loop against the persisted baton.
 8. If worker output or the handoff script fails, keep the old baton unchanged and retry the same baton/current cursor.
 9. Loop until `directive.action` is `stop_done` or `stop_blocked`, or until the script returns a blocker.
 
-Baton shape is strict:
+Baton is persisted machine state owned by the handoff script and schema.
 
-```json
-{
-  "cursor": "<workflow cursor>",
-  "status": "running|done|blocked",
-  "state": {
-    "artifacts": [],
-    "results": [],
-    "history": [],
-    "attempts": {}
-  },
-  "blocker": {},
-  "error": {}
-}
-```
-
-`blocker` and `error` are optional and only for blocked or failed handoffs. Use exactly this top-level shape; no extra top-level fields. The handoff helper returns the executable directive for the current `cursor`.
+- Treat baton JSON as opaque; do not edit it by hand.
+- Persist only the baton returned by the handoff script after a successful call.
+- On failure, keep the previous persisted baton and retry the same baton.
+- Use the handoff helper's returned directive as the executable instruction for the current cursor.
