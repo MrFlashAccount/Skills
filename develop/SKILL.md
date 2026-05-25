@@ -11,49 +11,45 @@ Run the DevHarness loop. Do not decide workflow transitions yourself. Follow the
 
 Run commands from this skill directory.
 
-- `scripts/start-run.mjs` — call script and use the returned `{ baton, directive }`.
-- `scripts/workflow-interpreter.mjs apply ...` — apply one worker/approval output to the live baton.
-- `scripts/persist-run-state.mjs` — persist a successful apply response/output/decision and return the next `{ baton, directive }`.
+- `scripts/start-run.mjs` — start or resume a caller-provided run directory and return the live baton/directive.
+- `scripts/workflow-interpreter.mjs apply ...` — apply one worker/approval output to the current live baton.
+- `scripts/persist-run-state.mjs` — persist a successful apply response/output/decision.
 
-## Run state
+## Variables
 
-Require a concrete caller-provided run directory. Do not invent or derive a run id.
-
-Call script:
-
-```bash
-scripts/start-run.mjs --run-dir <run-dir>
-```
-
-Use the returned `{ baton, directive }` as the live loop state. Scripts own run-state file reads/writes; do not edit baton by hand.
+- `<run-dir>`: existing/current run state directory chosen by the caller/orchestrator.
+- `<baton.json>`: JSON file containing the current live baton from `start-run` or the last `workflow-interpreter` response; inside the loop, use the current live baton, do not invent it.
+- `<output.json>`: strict JSON output from the worker subagent or human approval step for the current directive.
+- `<apply-response.json>`: JSON response from `scripts/workflow-interpreter.mjs apply`; contains the returned baton/directive.
+- `<decision>`: compact decision label for this loop application, if persist requires it.
 
 ## Main loop
 
 Strictly follow these steps.
 
-1. If `directive.action` is `stop_done` or `stop_blocked`, exit the loop and report the returned summary/blocker.
-2. Else if `directive.action` is `run_worker`:
-   - Build one bounded prompt from the directive.
-   - Launch exactly one bounded subagent/executor.
-   - Require strict JSON output for that directive only.
-   - Store the result as `output.json`.
-   - Do not perform the worker step yourself.
-3. Else if `directive.action` is `wait_for_approval`, stop and wait for explicit approval JSON, then store it as `output.json`.
-4. Else stop as blocked for unknown `directive.action`.
-5. Call workflow interpreter:
+1. Call start script with `<run-dir>`; store the returned live `{ baton, directive }` and current baton file as `<baton.json>`:
 
    ```bash
-   scripts/workflow-interpreter.mjs apply dev-harness.workflow.json baton.json output.json
+   scripts/start-run.mjs --run-dir <run-dir>
    ```
 
-   `baton.json` is the current live baton state serialized for the call. `output.json` is the result from the previous worker/approval step.
-6. If `apply` fails, stop as blocked. Do not rerun the worker/approval step.
-7. If `apply` succeeds, store the workflow interpreter response as `apply-response.json`, then call persist-state:
+2. Evaluate `directive.action`:
+   - if `stop_done` or `stop_blocked`: exit the loop and report the returned summary/blocker.
+   - if `run_worker`: build one bounded prompt from the directive, launch exactly one bounded subagent/executor, require strict JSON output for that directive only, and write the result to `<output.json>`.
+   - if `wait_for_approval`: stop and wait for explicit approval JSON, then use it as `<output.json>`.
+   - else: exit as blocked for unknown `directive.action`.
+3. Call workflow interpreter apply with `<baton.json>` and `<output.json>`; write stdout to `<apply-response.json>`:
 
    ```bash
-   scripts/persist-run-state.mjs --run-dir <run-dir> --response apply-response.json --output output.json --decision "<decision>"
+   scripts/workflow-interpreter.mjs apply dev-harness.workflow.json <baton.json> <output.json> > <apply-response.json>
    ```
 
-   `decision` is the decision label/value from this loop step.
-8. If persist-state fails, stop as blocked.
-9. If persist-state succeeds, replace the live `{ baton, directive }` with the returned/current values and return to Main loop step 1.
+   If apply fails, exit as blocked; do not rerun the worker/approval step automatically.
+4. Call persist script with `<run-dir>`, `<apply-response.json>`, `<output.json>`, and `<decision>`:
+
+   ```bash
+   scripts/persist-run-state.mjs --run-dir <run-dir> --response <apply-response.json> --output <output.json> --decision "<decision>"
+   ```
+
+   If persist fails, exit as blocked.
+5. Replace the live `{ baton, directive }` with the values from `<apply-response.json>` and return to step 2.
