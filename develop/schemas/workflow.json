@@ -32,6 +32,7 @@
       "oneOf": [
         { "$ref": "#/$defs/workerStep" },
         { "$ref": "#/$defs/approvalStep" },
+        { "$ref": "#/$defs/blockedStep" },
         { "$ref": "#/$defs/doneStep" }
       ]
     },
@@ -68,6 +69,16 @@
       },
       "additionalProperties": false
     },
+    "blockedStep": {
+      "type": "object",
+      "required": ["name", "kind"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "kind": { "const": "blocked" },
+        "input": { "$ref": "#/$defs/input" }
+      },
+      "additionalProperties": false
+    },
     "input": {
       "type": "object",
       "properties": {
@@ -96,7 +107,7 @@
       "additionalProperties": false
     },
     "next": {
-      "description": "Next step target, or a light map from an output field value to a step target.",
+      "description": "Next step target, or a light map from an output field value to a step target. Map entries may use an edge policy object for bounded loop retries; runtime must persist per-edge/target attempt counters in baton/run state.",
       "oneOf": [
         { "type": "string", "minLength": 1 },
         {
@@ -107,12 +118,29 @@
             "map": {
               "type": "object",
               "minProperties": 1,
-              "additionalProperties": { "type": "string", "minLength": 1 }
+              "additionalProperties": { "$ref": "#/$defs/nextTarget" }
             }
           },
           "additionalProperties": false
         }
       ]
+    },
+    "nextTarget": {
+      "description": "Simple step target string, or an edge-specific bounded retry policy. onLimit is scoped to this map entry only.",
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        { "$ref": "#/$defs/nextTargetPolicy" }
+      ]
+    },
+    "nextTargetPolicy": {
+      "type": "object",
+      "required": ["target", "maxAttempts", "onLimit"],
+      "properties": {
+        "target": { "type": "string", "minLength": 1 },
+        "maxAttempts": { "type": "integer", "minimum": 1 },
+        "onLimit": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
     },
     "output": {
       "type": "object",

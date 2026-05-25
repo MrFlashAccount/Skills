@@ -48,7 +48,11 @@
           "by": "outcome",
           "map": {
             "approved": "approve_research",
-            "needs_revision": "research",
+            "needs_revision": {
+              "target": "research",
+              "maxAttempts": 3,
+              "onLimit": "blocked"
+            },
             "blocked": "blocked"
           }
         }
@@ -115,7 +119,11 @@
           "by": "outcome",
           "map": {
             "approved": "approve_architecture",
-            "needs_revision": "architecture",
+            "needs_revision": {
+              "target": "architecture",
+              "maxAttempts": 3,
+              "onLimit": "blocked"
+            },
             "blocked": "blocked"
           }
         }
@@ -181,7 +189,11 @@
           "by": "outcome",
           "map": {
             "approved": "approve_plan",
-            "needs_revision": "implementation_plan",
+            "needs_revision": {
+              "target": "implementation_plan",
+              "maxAttempts": 3,
+              "onLimit": "blocked"
+            },
             "blocked": "blocked"
           }
         }
@@ -200,7 +212,11 @@
           "by": "approval",
           "map": {
             "approved": "implementation_handoff",
-            "rejected": "implementation_plan",
+            "rejected": {
+              "target": "implementation_plan",
+              "maxAttempts": 3,
+              "onLimit": "blocked"
+            },
             "blocked": "blocked"
           }
         }
@@ -247,7 +263,11 @@
           "by": "outcome",
           "map": {
             "passed": "done",
-            "needs_changes": "implementation_handoff",
+            "needs_changes": {
+              "target": "implementation_handoff",
+              "maxAttempts": 3,
+              "onLimit": "blocked"
+            },
             "blocked": "blocked"
           }
         }
@@ -265,7 +285,7 @@
       },
       "blocked": {
         "name": "Blocked",
-        "kind": "done",
+        "kind": "blocked",
         "input": {
           "state": [
             "artifacts",
