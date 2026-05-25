@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openclaw.local/dev-harness/worker-output.schema.json",
+  "title": "DevHarness Worker Or Approval Output",
+  "type": "object",
+  "minProperties": 1,
+  "properties": {
+    "outcome": { "type": "string" },
+    "approval": { "type": "string" },
+    "artifacts": { "type": "object" },
+    "approvals": { "type": "object" },
+    "blocker": { "type": "object" }
+  },
+  "additionalProperties": false,
+  "anyOf": [
+    { "required": ["outcome"] },
+    { "required": ["approval"] }
+  ]
+}

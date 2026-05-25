@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openclaw.local/dev-harness/baton.schema.json",
+  "title": "DevHarness Baton",
+  "type": "object",
+  "required": ["currentStep", "status", "artifacts", "approvals"],
+  "properties": {
+    "currentStep": { "type": "string" },
+    "status": { "type": "string" },
+    "artifacts": { "type": "object" },
+    "approvals": { "type": "object" },
+    "lastOutcome": { "type": "string" },
+    "blocker": { "type": "object" }
+  },
+  "additionalProperties": true
+}

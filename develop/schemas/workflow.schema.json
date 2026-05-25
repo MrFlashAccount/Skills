@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openclaw.local/dev-harness/workflow.schema.json",
+  "title": "DevHarness Workflow Document",
+  "type": "object",
+  "required": ["workflow"],
+  "properties": {
+    "workflow": {
+      "type": "object",
+      "required": ["name", "version", "start", "done", "blocked", "steps"],
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "integer", "minimum": 1 },
+        "start": { "type": "string" },
+        "done": { "type": "string" },
+        "blocked": { "type": "string" },
+        "steps": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "$ref": "#/$defs/step" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "prompt_generation": { "type": "object" },
+    "transition_helper": { "type": "object" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "step": {
+      "type": "object",
+      "properties": {
+        "kind": { "enum": ["subagent", "user_approval", "terminal"] },
+        "template": { "type": "string" },
+        "takes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "produces": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "outcomes": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

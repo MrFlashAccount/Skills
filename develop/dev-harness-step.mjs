@@ -1,105 +1,35 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs';
+import validateBatonSchema from './dist/validate-baton.mjs';
+import validateWorkflowSchema from './dist/validate-workflow.mjs';
+import validateWorkerOutputSchema from './dist/validate-worker-output.mjs';
+import validateTransitionResponseSchema from './dist/validate-transition-response.mjs';
 
 function fail(message) {
   console.error(`dev-harness-step: ${message}`);
   process.exit(1);
 }
 
-function parseScalar(value) {
-  if (value === '') return '';
-  if (value === 'null') return null;
-  if (value === 'true') return true;
-  if (value === 'false') return false;
-  if (/^-?\d+(\.\d+)?$/.test(value)) return Number(value);
-  return value.replace(/^['"]|['"]$/g, '');
+function formatSchemaErrors(errors = []) {
+  return errors
+    .map((error) => `${error.instancePath || '/'} ${error.message}`.trim())
+    .join('; ');
 }
 
-function stripComment(line) {
-  let quote = null;
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i];
-    if ((char === '"' || char === "'") && line[i - 1] !== '\\') quote = quote === char ? null : quote ?? char;
-    if (char === '#' && !quote) return line.slice(0, i);
-  }
-  return line;
+function assertSchema(validate, value, name) {
+  if (!validate(value)) fail(`${name} failed schema validation: ${formatSchemaErrors(validate.errors)}`);
 }
 
-function parseInlineMap(value) {
-  const inner = value.slice(1, -1).trim();
-  if (!inner) return {};
-  return Object.fromEntries(inner.split(',').map((part) => {
-    const [key, ...rest] = part.split(':');
-    if (!key || rest.length === 0) fail(`cannot parse inline map entry: ${part}`);
-    return [key.trim(), parseScalar(rest.join(':').trim())];
-  }));
-}
-
-function parseYamlSubset(text) {
-  const root = {};
-  const stack = [{ indent: -1, value: root }];
-  const lines = text.split(/\r?\n/);
-
-  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
-    const rawLine = lines[lineIndex];
-    const line = stripComment(rawLine).replace(/\s+$/, '');
-    if (!line.trim()) continue;
-    const indent = line.match(/^ */)[0].length;
-    const trimmed = line.trim();
-
-    while (stack.at(-1).indent >= indent) stack.pop();
-    const parent = stack.at(-1).value;
-
-    if (trimmed.startsWith('- ')) {
-      if (!Array.isArray(parent)) fail(`list item has non-list parent: ${trimmed}`);
-      const item = trimmed.slice(2).trim();
-      parent.push(item.startsWith('{') && item.endsWith('}') ? parseInlineMap(item) : parseScalar(item));
-      continue;
-    }
-
-    const match = trimmed.match(/^([^:]+):(.*)$/);
-    if (!match) fail(`cannot parse line: ${trimmed}`);
-    const key = match[1].trim();
-    const rest = match[2].trim();
-
-    if (Array.isArray(parent)) fail(`map entry has list parent: ${trimmed}`);
-
-    if (rest === '') {
-      const nextLine = lines.slice(lineIndex + 1).find((candidate) => stripComment(candidate).trim());
-      const child = nextLine && nextLine.match(/^ */)[0].length > indent && stripComment(nextLine).trim().startsWith('- ') ? [] : {};
-      parent[key] = child;
-      stack.push({ indent, value: child });
-    } else if (rest.startsWith('{') && rest.endsWith('}')) {
-      parent[key] = parseInlineMap(rest);
-    } else {
-      parent[key] = parseScalar(rest);
-    }
-  }
-  return root;
-}
-
-function readData(path) {
-  const text = readFileSync(path, 'utf8');
+function readJson(path, name) {
   try {
-    return JSON.parse(text);
-  } catch {
-    return parseYamlSubset(text);
+    return JSON.parse(readFileSync(path, 'utf8'));
+  } catch (error) {
+    fail(`cannot read ${name} as JSON from ${path}: ${error.message}`);
   }
 }
 
 function requireObject(value, name) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) fail(`${name} must be an object`);
-}
-
-function validateBaton(baton) {
-  requireObject(baton, 'baton');
-  for (const field of ['currentStep', 'status', 'artifacts', 'approvals']) {
-    if (!(field in baton)) fail(`baton missing required field: ${field}`);
-  }
-  if (typeof baton.currentStep !== 'string' || !baton.currentStep) fail('baton.currentStep must be a non-empty string');
-  if (typeof baton.status !== 'string' || !baton.status) fail('baton.status must be a non-empty string');
-  requireObject(baton.artifacts, 'baton.artifacts');
-  requireObject(baton.approvals, 'baton.approvals');
 }
 
 function readPath(value, path) {
@@ -172,18 +102,18 @@ function nextAction(step) {
 
 const [workflowPath, batonPath, outputPath] = process.argv.slice(2);
 if (!workflowPath || !batonPath || !outputPath) {
-  fail('usage: node develop/dev-harness-step.mjs <workflow.yaml|json> <baton.yaml|json> <worker-output.yaml|json>');
+  fail('usage: node develop/dev-harness-step.mjs <workflow.json> <baton.json> <worker-output.json>');
 }
 
-const workflowDoc = readData(workflowPath);
-const baton = readData(batonPath);
-const workerOutput = readData(outputPath);
+const workflowDoc = readJson(workflowPath, 'workflow');
+const baton = readJson(batonPath, 'baton');
+const workerOutput = readJson(outputPath, 'worker output');
 
-validateBaton(baton);
-const workflow = workflowDoc.workflow ?? workflowDoc;
-requireObject(workflow, 'workflow');
-requireObject(workflow.steps, 'workflow.steps');
+assertSchema(validateWorkflowSchema, workflowDoc, 'workflow');
+assertSchema(validateBatonSchema, baton, 'baton');
+assertSchema(validateWorkerOutputSchema, workerOutput, 'worker output');
 
+const workflow = workflowDoc.workflow;
 const currentStep = workflow.steps[baton.currentStep];
 if (!currentStep) fail(`current step not found in workflow: ${baton.currentStep}`);
 requireObject(currentStep.outcomes, `workflow.steps.${baton.currentStep}.outcomes`);
@@ -215,4 +145,7 @@ const nextStep = {
   action: nextAction(targetStep),
 };
 
-console.log(JSON.stringify({ baton: updatedBaton, nextStep }, null, 2));
+const transitionResponse = { baton: updatedBaton, nextStep };
+assertSchema(validateTransitionResponseSchema, transitionResponse, 'transition response');
+
+console.log(JSON.stringify(transitionResponse, null, 2));

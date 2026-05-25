@@ -1,0 +1,12 @@
+{
+  "name": "skills-dev-harness-prototype",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:dev-harness": "node develop/build-validators.mjs",
+    "check:dev-harness": "node --check develop/dev-harness-step.mjs && node --check develop/build-validators.mjs && node --check develop/dist/validate-baton.mjs && node --check develop/dist/validate-workflow.mjs && node --check develop/dist/validate-worker-output.mjs && node --check develop/dist/validate-transition-response.mjs"
+  },
+  "devDependencies": {
+    "ajv": "^8.17.1"
+  }
+}
