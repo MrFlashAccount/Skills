@@ -147,10 +147,10 @@
       "workflow_graph",
       "baton",
       "global_node",
-      "allowed_handoffs"
+      "allowed_outcomes"
     ]
   },
-  "handoff_helper": {
+  "workflow_interpreter": {
     "modes": {
       "inspect": {
         "input": [
@@ -179,8 +179,8 @@
           "workflow_shape",
           "baton_shape",
           "output_shape_for_cursor",
-          "handoff_outcome_exists_in_workflow",
-          "handoff_allowed_from_cursor",
+          "outcome_exists_in_workflow",
+          "outcome_allowed_from_cursor",
           "required_output_artifacts_present"
         ],
         "output": [

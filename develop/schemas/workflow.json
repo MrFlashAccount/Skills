@@ -23,7 +23,7 @@
       "additionalProperties": true
     },
     "prompt_generation": { "type": "object" },
-    "handoff_helper": { "type": "object" }
+    "workflow_interpreter": { "type": "object" }
   },
   "additionalProperties": false,
   "$defs": {
