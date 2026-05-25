@@ -5,73 +5,57 @@ description: Use for coding requests that should run the DevHarness baton workfl
 
 # Dev Harness
 
-Orchestrate one script-directed workflow loop against persisted run state. DevHarness is a closed loop: keep a compact baton between iterations, but do not decide the next action by protocol. Before each iteration, call the runtime start/resume script or workflow interpreter and follow the returned directive.
+Run the DevHarness orchestrator loop. The orchestrator only does:
+
+`prompt -> subagent -> output -> apply -> persist -> repeat`
+
+Do not decide workflow transitions yourself. Follow the current directive returned by the scripts.
 
 ## Available scripts
 
-- `scripts/start-run.mjs` — start or resume a run directory. It creates the run directory when missing, initializes `baton.json` and `history.md` when missing, inspects the current baton, writes one JSON status/response to stdout, writes diagnostics/errors to stderr, and exits non-zero on failure.
-- `scripts/workflow-interpreter.mjs` — non-interactive runtime script. It reads workflow/baton/output JSON files, writes one JSON response to stdout, writes diagnostics/errors to stderr, and exits non-zero on failure.
-- `scripts/persist-run-state.mjs` — persist returned run state after a successful interpreter apply.
-
 Run commands from this skill directory so script paths stay relative to the skill root.
 
-## Start or resume
+- `scripts/start-run.mjs` — start or resume a caller-provided run directory and return the current `{ baton, directive }`.
+- `scripts/workflow-interpreter.mjs apply ...` — apply one worker/approval output to the live baton and return the next response.
+- `scripts/persist-run-state.mjs` — persist a successful apply response/output/decision and return the next `{ baton, directive }`.
+
+## Run state
 
 Require a concrete caller-provided run directory. Do not invent or derive a run id.
+
+On start/resume, call:
 
 ```bash
 node scripts/start-run.mjs --run-dir <run-dir>
 ```
 
-The command returns JSON containing the persisted `baton.json`, `history.md`, whether the run was initialized or resumed, and the current workflow interpreter `response.directive`. Restarting with the same `--run-dir` resumes from the existing persisted baton instead of overwriting it.
+Use the returned `{ baton, directive }` as the live in-memory loop state. Scripts own run-state file reads/writes; do not edit baton by hand, duplicate its schema, or describe folder internals in worker prompts.
 
-## Run state
+## Main loop
 
-Use one per-run state directory supplied by the caller, for example `.dev-harness-runs/<run-id>/` in the current workspace or another caller-provided scratch location. Keep all run-local files there:
+Repeat until stopped:
 
-- `baton.json` — the current persisted baton, owned by the workflow interpreter and schema.
-- `history.md` — compact iteration notes: directive, worker/approval output path, verification, decision; debug/history belongs here, not in baton.
-- `outputs/` — worker outputs, approval JSON, blockers, summaries, and other artifacts that are too large to keep inline.
-
-On resume, run `scripts/start-run.mjs --run-dir <run-dir>` and use the returned directive. Inspect current artifacts/state when needed; do not trust stale notes blindly.
-
-## Workflow
-
-1. Start or resume the run:
-
-   ```bash
-   node scripts/start-run.mjs --run-dir <run-dir>
-   ```
-
-2. Follow only the returned `response.directive`; do not infer step transitions yourself.
-3. If `directive.action == "run_worker"`, launch exactly one bounded subagent/executor for that directive. Give it only the task/directive context needed for the current cursor, not the workflow graph or transition authority. It must return strict worker output JSON/artifacts for that cursor. The orchestrator must write that output under `<run-dir>/outputs/` and must not perform the worker step itself. If delegated execution is unavailable, stop as blocked.
-4. If `directive.action == "wait_for_approval"`, stop and wait for explicit human approval before writing approval JSON under `<run-dir>/outputs/`.
-5. After worker output or approval output exists, call the workflow interpreter with that output:
+1. If `directive.action` is `stop_done` or `stop_blocked`, exit the loop and report the returned summary/blocker.
+2. If `directive.action` is `run_worker`:
+   - Build one bounded prompt from the directive.
+   - Launch exactly one bounded subagent/executor.
+   - Require strict JSON output for that directive only.
+   - Do not perform the worker step yourself.
+3. If `directive.action` is `wait_for_approval`, stop and wait for explicit approval JSON before continuing.
+4. Call the workflow interpreter `apply` with the live baton and the worker/approval output:
 
    ```bash
-   node scripts/workflow-interpreter.mjs apply dev-harness.workflow.json <run-dir>/baton.json <run-dir>/outputs/<output>.json
+   node scripts/workflow-interpreter.mjs apply dev-harness.workflow.json <baton-json> <output-json>
    ```
 
-6. If the workflow interpreter `apply` succeeds, persist the returned state before continuing. This persistence is mandatory before the next iteration:
+5. If `apply` fails, keep the live and persisted baton unchanged. Retry the same directive/current step, or stop blocked if retry cannot proceed safely.
+6. If `apply` succeeds, call the persist script with the returned response, the worker/approval output, and a short decision:
 
    ```bash
-   node scripts/persist-run-state.mjs --run-dir <run-dir> --response <run-dir>/outputs/<apply-response>.json --output <run-dir>/outputs/<output>.json --decision "<short decision>"
+   node scripts/persist-run-state.mjs --run-dir <run-dir> --response <apply-response-json> --output <output-json> --decision "<short decision>"
    ```
 
-   If worker output, interpreter `apply`, or persistence fails, keep the old baton unchanged, append failure/blocker detail to history when useful, and retry the same baton/current cursor unless an approval or safety boundary requires stopping. If persistence fails, stop as blocked; do not continue with ambiguous run state.
-7. After successful persistence, call the workflow interpreter again against the same run dir before doing anything else:
+7. If persistence fails, stop as blocked. Do not continue with ambiguous run state.
+8. If persistence succeeds, replace the live `{ baton, directive }` with the values returned by the persist script and go back to step 1.
 
-   ```bash
-   node scripts/workflow-interpreter.mjs inspect dev-harness.workflow.json <run-dir>/baton.json
-   ```
-
-8. Continue this live in-memory baton loop until `directive.action` is `stop_done` or `stop_blocked`, or until the workflow interpreter returns a blocker. Store the final summary/blocker output in the run directory.
-
-## Baton rules
-
-- Treat baton JSON as opaque; do not edit it by hand and do not re-create its schema in prompts.
-- Persist only the baton returned by the workflow interpreter after a successful `apply`.
-- On failure, keep the previous persisted baton and retry the same baton.
-- Store worker/approval outputs in the run directory when needed; keep the baton compact.
-- Use the workflow interpreter's returned directive as the executable instruction for the current cursor.
-- Do not read, load, summarize, or iterate the workflow JSON as agent context; it is a script asset, not an agent prompt input.
+Keep the loop compact and mechanical: prompt, subagent, output, script, persist, repeat.
