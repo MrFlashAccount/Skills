@@ -2,6 +2,7 @@
 import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseArgs } from 'node:util';
 import Ajv2020 from 'ajv/dist/2020.js';
 import standaloneCode from 'ajv/dist/standalone/index.js';
 
@@ -12,23 +13,42 @@ function usage(message) {
   process.exit(message ? 1 : 0);
 }
 
-function parseArgs(argv) {
-  const args = {};
+function normalizeStringOptionValues(argv) {
+  const normalized = [];
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
-    if (arg === '--help' || arg === '-h') usage();
-    if (arg !== '--schemas' && arg !== '--out') usage(`unknown argument: ${arg}`);
-    const value = argv[i + 1];
-    if (!value || value.startsWith('--')) usage(`missing value for ${arg}`);
-    args[arg.slice(2)] = value;
-    i += 1;
+    if ((arg === '--schemas' || arg === '--out') && argv[i + 1] && !argv[i + 1].startsWith('--')) {
+      normalized.push(`${arg}=${argv[i + 1]}`);
+      i += 1;
+    } else {
+      normalized.push(arg);
+    }
   }
-  if (!args.schemas) usage('missing required argument: --schemas <dir>');
-  if (!args.out) usage('missing required argument: --out <dir>');
-  return args;
+  return normalized;
 }
 
-const args = parseArgs(process.argv.slice(2));
+function parseCliArgs(argv) {
+  let values;
+  try {
+    ({ values } = parseArgs({
+      args: normalizeStringOptionValues(argv),
+      options: {
+        schemas: { type: 'string' },
+        out: { type: 'string' },
+        help: { type: 'boolean', short: 'h' },
+      },
+    }));
+  } catch (error) {
+    usage(error.message);
+  }
+
+  if (values.help) usage();
+  if (!values.schemas) usage('missing required argument: --schemas <dir>');
+  if (!values.out) usage('missing required argument: --out <dir>');
+  return values;
+}
+
+const args = parseCliArgs(process.argv.slice(2));
 const schemasDir = path.resolve(process.cwd(), args.schemas);
 const outDir = path.resolve(process.cwd(), args.out);
 
