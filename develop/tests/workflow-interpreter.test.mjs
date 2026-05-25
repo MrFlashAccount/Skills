@@ -4,9 +4,10 @@ import test, { after } from 'node:test';
 import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
-const root = process.cwd();
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'dev-harness-check-'));
 const workflowPath = path.join(root, 'develop/dev-harness.workflow.json');
 const baseWorkflowDoc = JSON.parse(readFileSync(workflowPath, 'utf8'));
