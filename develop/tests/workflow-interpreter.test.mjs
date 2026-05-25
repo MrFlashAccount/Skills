@@ -137,6 +137,19 @@ test('inspect: initial cursor resolves to run-worker directive', () => {
   assert.deepEqual(response.baton, initial);
 });
 
+test('inspect: positional paths may begin with dash', () => {
+  writeFileSync(path.join(tempDir, '--workflow.json'), `${JSON.stringify(baseWorkflowDoc, null, 2)}\n`);
+  writeFileSync(path.join(tempDir, '--baton.json'), `${JSON.stringify(baton(), null, 2)}\n`);
+
+  const result = spawnSync(
+    process.execPath,
+    [path.join(root, 'develop/scripts/workflow-interpreter.mjs'), 'inspect', '--workflow.json', '--baton.json'],
+    { cwd: tempDir, encoding: 'utf8' },
+  );
+  const response = expectCliResult('inspect-dash-prefixed-paths', result, true);
+  assert.equal(response.directive.id, 'research');
+});
+
 test('inspect: approval cursor resolves to wait-for-approval directive', () => {
   const response = runInspect(
     'inspect-approval-wait',

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs';
+import { parseArgs } from 'node:util';
 import validateBatonSchema from '../dist/validators/baton.mjs';
 import validateWorkflowSchema from '../dist/validators/workflow.mjs';
 import validateWorkerOutputSchema from '../dist/validators/worker-output.mjs';
@@ -167,25 +168,31 @@ function applyMode(workflowPath, batonPath, outputPath) {
   emitWorkflowInterpreterResponse({ baton: updatedBaton, directive: buildDirective(targetStepId, targetStep) });
 }
 
-const args = process.argv.slice(2);
-const mode = args[0];
+function parseCliArgs(argv) {
+  try {
+    return parseArgs({ args: ['--', ...argv], allowPositionals: true }).positionals;
+  } catch (error) {
+    fail(error.message);
+  }
+}
+
+const args = parseCliArgs(process.argv.slice(2));
+const [mode, workflowPath, batonPath, outputPath] = args;
 
 if (mode === 'inspect' || mode === 'directive') {
-  const [, workflowPath, batonPath] = args;
-  if (!workflowPath || !batonPath || args.length !== 3) {
+  if (!workflowPath || !batonPath || outputPath || args.length !== 3) {
     fail('usage: node scripts/workflow-interpreter.mjs inspect <workflow.json> <baton.json>');
   }
   directiveMode(workflowPath, batonPath);
 } else if (mode === 'apply') {
-  const [, workflowPath, batonPath, outputPath] = args;
   if (!workflowPath || !batonPath || !outputPath || args.length !== 4) {
     fail('usage: node scripts/workflow-interpreter.mjs apply <workflow.json> <baton.json> <worker-output.json>');
   }
   applyMode(workflowPath, batonPath, outputPath);
 } else {
-  const [workflowPath, batonPath, outputPath] = args;
-  if (!workflowPath || !batonPath || !outputPath || args.length !== 3) {
+  const [legacyWorkflowPath, legacyBatonPath, legacyOutputPath] = args;
+  if (!legacyWorkflowPath || !legacyBatonPath || !legacyOutputPath || args.length !== 3) {
     fail('usage: node scripts/workflow-interpreter.mjs inspect <workflow.json> <baton.json> | apply <workflow.json> <baton.json> <worker-output.json>');
   }
-  applyMode(workflowPath, batonPath, outputPath);
+  applyMode(legacyWorkflowPath, legacyBatonPath, legacyOutputPath);
 }
