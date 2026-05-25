@@ -7,129 +7,272 @@
     "blocked": "blocked",
     "steps": {
       "research": {
-        "kind": "subagent",
-        "template": "dev_harness.research",
-        "outcomes": {
-          "ready_for_approval": "approve_research",
-          "blocked": "blocked"
+        "name": "Research",
+        "kind": "worker",
+        "input": {
+          "template": "templates/dev-harness/research.md",
+          "role": "researcher",
+          "state": [
+            "artifacts",
+            "results"
+          ],
+          "prompt": "Read task context, classify the slice, gather relevant local/project evidence, identify constraints, risks, open questions, and whether architecture-sensitive scope exists. Produce a compact research packet for critic review."
         },
-        "producesArtifacts": [
-          "research"
-        ]
+        "output": {
+          "schema": "schemas/dev-harness/research-output.json"
+        },
+        "next": {
+          "by": "outcome",
+          "map": {
+            "ready_for_critic": "research_critic",
+            "blocked": "blocked"
+          }
+        }
+      },
+      "research_critic": {
+        "name": "Research critic",
+        "kind": "worker",
+        "input": {
+          "template": "templates/dev-harness/research-critic.md",
+          "role": "reviewer",
+          "state": [
+            "artifacts",
+            "results"
+          ],
+          "prompt": "Attack the research packet for missing evidence, unsafe assumptions, scope drift, sensitive surfaces, and unclear approval questions. Allow one bounded revision loop when gaps are fixable."
+        },
+        "output": {
+          "schema": "schemas/dev-harness/research-critic-output.json"
+        },
+        "next": {
+          "by": "outcome",
+          "map": {
+            "approved": "approve_research",
+            "needs_revision": "research",
+            "blocked": "blocked"
+          }
+        }
       },
       "approve_research": {
-        "kind": "user_approval",
-        "outcomes": {
-          "approved": "architecture",
-          "rejected": "research",
-          "blocked": "blocked"
+        "name": "Approve research",
+        "kind": "approval",
+        "input": {
+          "state": [
+            "artifacts",
+            "results"
+          ],
+          "prompt": "Show the cleaned research review packet to the user. Continue only after explicit approval."
         },
-        "takesArtifacts": [
-          "research"
-        ],
-        "producesArtifacts": [
-          "research_approval"
-        ]
+        "next": {
+          "by": "approval",
+          "map": {
+            "approved": "architecture",
+            "rejected": "research",
+            "blocked": "blocked"
+          }
+        }
       },
       "architecture": {
-        "kind": "subagent",
-        "template": "dev_harness.architecture",
-        "outcomes": {
-          "ready_for_approval": "approve_architecture",
-          "blocked": "blocked"
+        "name": "Architecture gate",
+        "kind": "worker",
+        "input": {
+          "template": "templates/dev-harness/architecture.md",
+          "role": "architect",
+          "state": [
+            "artifacts",
+            "results"
+          ],
+          "prompt": "Decide whether the approved research requires an architecture-sensitive structural contract or durable architecture artifact work. For architecture-sensitive work, produce the minimal structural contract; otherwise record an explicit no-architecture-artifact decision."
         },
-        "takesArtifacts": [
-          "research"
-        ],
-        "producesArtifacts": [
-          "architecture"
-        ]
+        "output": {
+          "schema": "schemas/dev-harness/architecture-output.json"
+        },
+        "next": {
+          "by": "outcome",
+          "map": {
+            "ready_for_review": "architect_review",
+            "skip_review": "approve_architecture",
+            "blocked": "blocked"
+          }
+        }
+      },
+      "architect_review": {
+        "name": "Architect review",
+        "kind": "worker",
+        "input": {
+          "template": "templates/dev-harness/architect-review.md",
+          "role": "architect",
+          "state": [
+            "artifacts",
+            "results"
+          ],
+          "prompt": "Attack the architecture decision or structural contract for ownership seams, dependency direction, contract surfaces, and durable artifact pressure. Allow one bounded revise/re-review loop when fixable."
+        },
+        "output": {
+          "schema": "schemas/dev-harness/architect-review-output.json"
+        },
+        "next": {
+          "by": "outcome",
+          "map": {
+            "approved": "approve_architecture",
+            "needs_revision": "architecture",
+            "blocked": "blocked"
+          }
+        }
       },
       "approve_architecture": {
-        "kind": "user_approval",
-        "outcomes": {
-          "approved": "implementation_plan",
-          "rejected": "architecture",
-          "blocked": "blocked"
+        "name": "Approve architecture",
+        "kind": "approval",
+        "input": {
+          "state": [
+            "artifacts",
+            "results"
+          ],
+          "prompt": "Show the architecture decision or structural contract to the user. Continue only after explicit approval when the slice is non-trivial or architecture-sensitive."
         },
-        "takesArtifacts": [
-          "architecture"
-        ],
-        "producesArtifacts": [
-          "architecture_approval"
-        ]
+        "next": {
+          "by": "approval",
+          "map": {
+            "approved": "implementation_plan",
+            "rejected": "architecture",
+            "blocked": "blocked"
+          }
+        }
       },
       "implementation_plan": {
-        "kind": "subagent",
-        "template": "dev_harness.implementation_plan",
-        "outcomes": {
-          "ready_for_approval": "approve_plan",
-          "blocked": "blocked"
+        "name": "Implementation plan",
+        "kind": "worker",
+        "input": {
+          "template": "templates/dev-harness/implementation-plan.md",
+          "role": "architect",
+          "state": [
+            "artifacts",
+            "results"
+          ],
+          "prompt": "Translate approved research and any structural contract into an execution contract: file zones, implementer owners, entities, verification surfaces, rollback surfaces, docs/contract touchpoints, risks, assumptions, and handoff inputs."
         },
-        "takesArtifacts": [
-          "research",
-          "architecture"
-        ],
-        "producesArtifacts": [
-          "implementationPlan"
-        ]
+        "output": {
+          "schema": "schemas/dev-harness/implementation-plan-output.json"
+        },
+        "next": {
+          "by": "outcome",
+          "map": {
+            "ready_for_review": "plan_review",
+            "blocked": "blocked"
+          }
+        }
+      },
+      "plan_review": {
+        "name": "Plan review",
+        "kind": "worker",
+        "input": {
+          "template": "templates/dev-harness/plan-review.md",
+          "role": "reviewer",
+          "state": [
+            "artifacts",
+            "results"
+          ],
+          "prompt": "Challenge the execution plan for entity coverage, one-owner-per-file-zone, project baseline, architecture artifact manifest, verification and rollback surfaces, sensitive surfaces, request-path/contract touchpoints, and max-detail leaks."
+        },
+        "output": {
+          "schema": "schemas/dev-harness/plan-review-output.json"
+        },
+        "next": {
+          "by": "outcome",
+          "map": {
+            "approved": "approve_plan",
+            "needs_revision": "implementation_plan",
+            "blocked": "blocked"
+          }
+        }
       },
       "approve_plan": {
-        "kind": "user_approval",
-        "outcomes": {
-          "approved": "implementation",
-          "rejected": "implementation_plan",
-          "blocked": "blocked"
+        "name": "Approve implementation plan",
+        "kind": "approval",
+        "input": {
+          "state": [
+            "artifacts",
+            "results"
+          ],
+          "prompt": "Show one cleaned execution plan to the user. Stop until explicit implementation approval."
         },
-        "takesArtifacts": [
-          "implementationPlan"
-        ],
-        "producesArtifacts": [
-          "implementationPlan_approval"
-        ]
+        "next": {
+          "by": "approval",
+          "map": {
+            "approved": "implementation_handoff",
+            "rejected": "implementation_plan",
+            "blocked": "blocked"
+          }
+        }
       },
-      "implementation": {
-        "kind": "subagent",
-        "template": "dev_harness.implementation",
-        "outcomes": {
-          "ready_for_review": "review",
-          "blocked": "blocked"
+      "implementation_handoff": {
+        "name": "Implementation handoff",
+        "kind": "worker",
+        "input": {
+          "template": "templates/dev-harness/implementation-handoff.md",
+          "role": "backend",
+          "state": [
+            "artifacts",
+            "results"
+          ],
+          "prompt": "Build the handoff packet for implementation-harness from approved task context, approved research, structural contract when present, approved execution plan, supporting materials, and user constraints. Route concrete coding through delegated implementer roles rather than the orchestrator."
         },
-        "takesArtifacts": [
-          "research",
-          "architecture",
-          "implementationPlan"
-        ],
-        "producesArtifacts": [
-          "implementation"
-        ]
+        "output": {
+          "schema": "schemas/dev-harness/implementation-handoff-output.json"
+        },
+        "next": {
+          "by": "outcome",
+          "map": {
+            "ready_for_review": "review",
+            "blocked": "blocked"
+          }
+        }
       },
       "review": {
-        "kind": "subagent",
-        "template": "dev_harness.review",
-        "outcomes": {
-          "passed": "done",
-          "needs_changes": "implementation",
-          "blocked": "blocked"
+        "name": "Post-implementation review",
+        "kind": "worker",
+        "input": {
+          "template": "templates/dev-harness/review.md",
+          "role": "reviewer",
+          "state": [
+            "artifacts",
+            "results"
+          ],
+          "prompt": "Run the explicit post-implementation review gate, including verification evidence, contract/docs drift, sensitive-surface handling, and scope-growth or redesign pressure. Return for implementation fixes when needed."
         },
-        "takesArtifacts": [
-          "implementation"
-        ],
-        "producesArtifacts": [
-          "review"
-        ]
+        "output": {
+          "schema": "schemas/dev-harness/review-output.json"
+        },
+        "next": {
+          "by": "outcome",
+          "map": {
+            "passed": "done",
+            "needs_changes": "implementation_handoff",
+            "blocked": "blocked"
+          }
+        }
       },
       "done": {
-        "kind": "terminal",
-        "producesArtifacts": [
-          "final_summary"
-        ]
+        "name": "Done",
+        "kind": "done",
+        "input": {
+          "state": [
+            "artifacts",
+            "results"
+          ],
+          "prompt": "Workflow completed; return final summary and durable follow-up notes when applicable."
+        }
       },
       "blocked": {
-        "kind": "terminal",
-        "producesArtifacts": [
-          "blocker_summary"
-        ]
+        "name": "Blocked",
+        "kind": "done",
+        "input": {
+          "state": [
+            "artifacts",
+            "results"
+          ],
+          "prompt": "Workflow blocked; return the blocker, evidence, risk, and exact next decision or missing input."
+        }
       }
     }
   },
