@@ -55,7 +55,8 @@ function runDirective(label, baton, expectSuccess) {
 }
 
 try {
-  const initialBaton = { cursor: 'research', status: 'running', state: { artifacts: [] } };
+  const emptyState = { artifacts: [], results: [], history: [], attempts: {} };
+  const initialBaton = { cursor: 'research', status: 'running', state: structuredClone(emptyState) };
   const directiveResponse = runDirective('directive-research', initialBaton, true);
   if (directiveResponse.directive.id !== 'research' || directiveResponse.directive.action !== 'run_worker') {
     process.stderr.write(`check 'directive-research' returned wrong directive\n`);
@@ -92,7 +93,7 @@ try {
 
   const approvalResponse = runHelper(
     'approval',
-    { cursor: 'approve_research', status: 'running', state: { artifacts: [{ type: 'research', summary: 'minimal research packet' }] } },
+    { cursor: 'approve_research', status: 'running', state: { ...structuredClone(emptyState), artifacts: [{ type: 'research', summary: 'minimal research packet' }] } },
     { approval: 'approved', artifacts: [{ type: 'research_approval', summary: 'approved' }] },
     true,
   );
@@ -101,9 +102,21 @@ try {
     process.exit(1);
   }
 
+  runDirective(
+    'extra-top-level-field',
+    { cursor: 'research', status: 'running', state: structuredClone(emptyState), next: 'approve_research' },
+    false,
+  );
+
+  runDirective(
+    'extra-state-field',
+    { cursor: 'research', status: 'running', state: { ...structuredClone(emptyState), currentStep: 'research' } },
+    false,
+  );
+
   runHelper(
     'missing-artifact',
-    { cursor: 'research', status: 'running', state: { artifacts: [] } },
+    { cursor: 'research', status: 'running', state: structuredClone(emptyState) },
     { outcome: 'ready_for_approval', artifacts: [] },
     false,
   );

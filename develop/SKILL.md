@@ -27,14 +27,21 @@ Orchestrate the workflow loop against the persisted baton.
 8. If worker output or the handoff script fails, keep the old baton unchanged and retry the same baton/current cursor.
 9. Loop until `directive.action` is `stop_done` or `stop_blocked`, or until the script returns a blocker.
 
-Baton shape:
+Baton shape is strict:
 
-- `cursor`: current workflow step id and only workflow pointer.
-- `status`: `running | done | blocked` when present.
-- `blocker` / `error`: optional terminal or diagnostic details when a step blocks or fails.
-- `state.artifacts`: durable produced records that later steps can depend on, including approval evidence when needed.
-- `state.results`: optional step outputs or summaries useful to operators but not prerequisites.
-- `state.history`: handoff/audit events.
-- `state.attempts`: optional retry counters keyed by cursor or handoff id.
+```json
+{
+  "cursor": "<workflow cursor>",
+  "status": "running|done|blocked",
+  "state": {
+    "artifacts": [],
+    "results": [],
+    "history": [],
+    "attempts": {}
+  },
+  "blocker": {},
+  "error": {}
+}
+```
 
-Do not put `next`, `prev`, `currentStep`, executable directives, prompt text, or top-level approval state in the baton. The handoff helper returns the directive for the current `cursor`; `cursor` remains the workflow pointer.
+`blocker` and `error` are optional and only for blocked or failed handoffs. Use exactly this top-level shape; no extra top-level fields. The handoff helper returns the executable directive for the current `cursor`.
