@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openclaw.local/dev-harness/transition-response.schema.json",
+  "title": "DevHarness Transition Response",
+  "type": "object",
+  "required": ["baton", "nextStep"],
+  "properties": {
+    "baton": { "$ref": "https://openclaw.local/dev-harness/baton.schema.json" },
+    "nextStep": {
+      "type": "object",
+      "required": ["id", "kind", "template", "takes", "produces", "action"],
+      "properties": {
+        "id": { "type": "string" },
+        "kind": { "type": ["string", "null"] },
+        "template": { "type": ["string", "null"] },
+        "takes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "produces": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "action": {
+          "enum": ["generate_worker_prompt", "wait_for_approval", "stop", "stop_done", "stop_blocked"]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,72 +1,19 @@
-# DevHarness prototype
+# Dev Harness
 
-Minimal loop-orchestrator prototype for a staged DevHarness workflow.
+Orchestrate the workflow loop against the persisted baton.
 
-The top-level skill is only a loop around the transition helper. It owns orchestration mechanics, not transition decisions.
+1. Load `develop/dev-harness.workflow.json` and the current baton.
+2. Read `nextStep.action` from the baton.
+3. If `nextStep.action == "generate_worker_prompt"`, generate one bounded worker prompt from the current next step, run the worker, and capture its strict JSON output.
+4. If `nextStep.action == "wait_for_approval"`, stop and wait for explicit human approval before producing approval JSON.
+5. After worker output or approval output exists, call the transition helper:
 
-Files:
+   ```bash
+   node develop/dev-harness-step.mjs <workflow.json> <baton.json> <worker-or-approval-output.json>
+   ```
 
-- `dev-harness.workflow.yaml` — workflow steps, required outputs, and allowed transitions
-- `dev-harness.baton.schema.yaml` — minimum baton shape
-- `dev-harness-step.mjs` — executable transition authority
-- `fixtures/` — tiny runnable example inputs and negative cases
+6. If the helper succeeds, persist the returned `baton` by writing it to a temporary file and atomically replacing the old baton, then continue from the returned `nextStep`.
+7. If the helper fails, keep the old baton unchanged and stop as a blocker.
+8. Stop when the baton status is `done` or `blocked`, or when `nextStep.action == "stop"`.
 
-## Top-level operating model
-
-The skill repeatedly loads the current baton and workflow, then follows the current `nextStep` descriptor:
-
-- `generate_worker_prompt` — generate the worker/subagent prompt from the step descriptor and workflow prompt metadata, run the worker, then pass its output to `dev-harness-step.mjs`
-- `wait_for_approval` — stop the loop and wait for human approval/rejection; after approval output exists, pass it to `dev-harness-step.mjs` and continue
-- `stop`, `stop_done`, or `stop_blocked` — stop without calling the script again
-
-After each worker or approval output, call the transition helper with workflow, old baton, and that output. The helper is the authority for allowed transitions, required `takes`/`produces` fields, baton updates, terminal status, and the next `nextStep` descriptor.
-
-Persist the returned baton externally only after the helper exits successfully. The helper is a pure transition validator: it reads workflow, old baton, and worker/approval output, then prints `{ baton, nextStep }` JSON to stdout; it does not own baton storage or write the baton file. The orchestrator should persist by writing the returned baton to a temp file and atomically renaming/replacing the old baton. If the helper exits non-zero, keep the old baton unchanged and stop as a blocker. The next loop iteration loads the persisted baton. Repeat until `nextStep.action` is a stop action or the returned baton status is `done`/`blocked`.
-
-Approval gates are deliberate pauses: do not generate another worker prompt or advance the baton while waiting for human approval.
-
-Run a worker/subagent transition:
-
-```bash
-node develop/dev-harness-step.mjs \
-  develop/dev-harness.workflow.yaml \
-  develop/fixtures/baton.yaml \
-  develop/fixtures/worker-output.yaml
-```
-
-Run an approval transition:
-
-```bash
-node develop/dev-harness-step.mjs \
-  develop/dev-harness.workflow.yaml \
-  develop/fixtures/approval-baton.yaml \
-  develop/fixtures/approval-output.yaml
-```
-
-The script reads workflow, baton, and worker/approval output as JSON or a small YAML subset. On success it prints `{ baton, nextStep }` JSON to stdout for the orchestrator to persist and loop on. On invalid baton shape, missing step, missing produced field, mixed `outcome`/`approval`, unknown transition, or invalid transition target, it prints an error to stderr and exits non-zero without writing files.
-
-Current script-level enforcement:
-
-- supported `takes` paths on the current step (`artifacts.*`, `approvals.*`) must exist in the current baton before transition
-- every `produces` path on the current worker/subagent step must exist in the current worker output itself; stale fields already present in the baton do not satisfy `produces`
-- produced paths are limited to `artifacts.*` and `approvals.*`
-- `user_approval` steps accept `approval`, reject `outcome`, and must write required records under `approvals` in the approval output
-- non-approval worker/subagent steps accept `outcome` and reject `approval`
-- transition labels are looked up in the current step's `outcomes` map only
-
-Supported YAML subset/format:
-
-- indentation-based maps with scalar keys, including nested `workflow.steps.<step_id>` maps
-- lists of scalars for fields such as `takes`, `produces`, and prompt input lists
-- scalar values: strings, booleans, null, and numbers
-- inline maps like `{ key: value }`
-- comments beginning with `#` outside quotes
-- branched transitions as scalar maps under `outcomes`, e.g. `approved: implementation`
-- direct scalar fields already used by the workflow, e.g. `kind`, `template`, `start`, `done`, `blocked`
-- prompt/template scalar fields already present in the workflow, e.g. `template: dev_harness.research`
-
-Transition limitation: the helper currently supports only `outcomes` maps. It does not support a separate direct-transition field such as `next: step_id`; a one-way transition must still be represented as a single-entry `outcomes` map.
-
-Not supported by the current parser: quoted multiline strings, anchors, complex YAML types, list items containing nested maps, or multiple YAML documents.
-
-Scope is intentionally small: no runner framework, no embedded agent spawning, no LLM answer validation, no external integrations.
+Schema validation is owned by the helper.

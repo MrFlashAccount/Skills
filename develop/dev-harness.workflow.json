@@ -1,0 +1,184 @@
+{
+  "workflow": {
+    "name": "dev-harness",
+    "version": 1,
+    "start": "research",
+    "done": "done",
+    "blocked": "blocked",
+    "steps": {
+      "research": {
+        "kind": "subagent",
+        "template": "dev_harness.research",
+        "takes": [
+          "task",
+          "repo",
+          "branch"
+        ],
+        "produces": [
+          "artifacts.research"
+        ],
+        "outcomes": {
+          "ready_for_approval": "approve_research",
+          "blocked": "blocked"
+        }
+      },
+      "approve_research": {
+        "kind": "user_approval",
+        "takes": [
+          "artifacts.research"
+        ],
+        "produces": [
+          "approvals.research"
+        ],
+        "outcomes": {
+          "approved": "architecture",
+          "rejected": "research",
+          "blocked": "blocked"
+        }
+      },
+      "architecture": {
+        "kind": "subagent",
+        "template": "dev_harness.architecture",
+        "takes": [
+          "task",
+          "artifacts.research"
+        ],
+        "produces": [
+          "artifacts.architecture"
+        ],
+        "outcomes": {
+          "ready_for_approval": "approve_architecture",
+          "blocked": "blocked"
+        }
+      },
+      "approve_architecture": {
+        "kind": "user_approval",
+        "takes": [
+          "artifacts.architecture"
+        ],
+        "produces": [
+          "approvals.architecture"
+        ],
+        "outcomes": {
+          "approved": "implementation_plan",
+          "rejected": "architecture",
+          "blocked": "blocked"
+        }
+      },
+      "implementation_plan": {
+        "kind": "subagent",
+        "template": "dev_harness.implementation_plan",
+        "takes": [
+          "task",
+          "artifacts.research",
+          "artifacts.architecture"
+        ],
+        "produces": [
+          "artifacts.implementationPlan"
+        ],
+        "outcomes": {
+          "ready_for_approval": "approve_plan",
+          "blocked": "blocked"
+        }
+      },
+      "approve_plan": {
+        "kind": "user_approval",
+        "takes": [
+          "artifacts.implementationPlan"
+        ],
+        "produces": [
+          "approvals.implementationPlan"
+        ],
+        "outcomes": {
+          "approved": "implementation",
+          "rejected": "implementation_plan",
+          "blocked": "blocked"
+        }
+      },
+      "implementation": {
+        "kind": "subagent",
+        "template": "dev_harness.implementation",
+        "takes": [
+          "task",
+          "artifacts.research",
+          "artifacts.architecture",
+          "artifacts.implementationPlan"
+        ],
+        "produces": [
+          "artifacts.implementation"
+        ],
+        "outcomes": {
+          "ready_for_review": "review",
+          "blocked": "blocked"
+        }
+      },
+      "review": {
+        "kind": "subagent",
+        "template": "dev_harness.review",
+        "takes": [
+          "task",
+          "artifacts.implementation"
+        ],
+        "produces": [
+          "artifacts.review"
+        ],
+        "outcomes": {
+          "passed": "done",
+          "needs_changes": "implementation",
+          "blocked": "blocked"
+        }
+      },
+      "done": {
+        "kind": "terminal",
+        "produces": [
+          "final_summary"
+        ]
+      },
+      "blocked": {
+        "kind": "terminal",
+        "takes": [
+          "blocker"
+        ],
+        "produces": [
+          "blocker_summary"
+        ]
+      }
+    }
+  },
+  "prompt_generation": {
+    "template_id": "dev_harness.worker_prompt",
+    "inputs": [
+      "task",
+      "step_id",
+      "step_instructions",
+      "approved_artifacts",
+      "constraints",
+      "expected_output_format"
+    ],
+    "exclusions": [
+      "workflow_graph",
+      "baton",
+      "current_global_node",
+      "allowed_transitions"
+    ]
+  },
+  "transition_helper": {
+    "input": [
+      "workflow",
+      "baton",
+      "worker_or_approval_output"
+    ],
+    "validates": [
+      "baton_shape",
+      "output_shape_for_current_step",
+      "outcome_exists_in_workflow",
+      "transition_allowed_from_current_step",
+      "required_artifacts_or_approvals_present"
+    ],
+    "output": [
+      "updated_baton",
+      "next_step",
+      "action"
+    ]
+  }
+}
