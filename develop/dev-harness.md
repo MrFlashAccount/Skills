@@ -1,36 +1,88 @@
 # DevHarness Workflow
 
-DevHarness is a compact coordination workflow that turns validated research into approved architecture, an implementation plan, delegated implementation, review, and completion while keeping user approval as the boundary between planning and action.
+Minimal inline workflow spec for DevHarness. The orchestrator owns state and passes a baton from one step to the next. Workers receive only the baton plus that step's prompt template; user approval steps pause until explicit approval.
 
-## Fixed Stages
+```yaml
+workflow:
+  name: dev-harness
+  version: 0.1
 
-1. Research
-2. User approval
-3. Architecture A/B
-4. User approval
-5. Implementation plan
-6. User approval
-7. Implementation via implementation-harness
-8. Code review loop via code-review-orchestrator
-9. Done
+state:
+  current_step: research
+  baton: {}
+  approvals: {}
+  artifacts: {}
+  history: []
 
-## Stage Contract
+baton:
+  task: "original user task"
+  constraints: []
+  current_artifact: null
+  previous_artifact: null
+  next_prompt_inputs: {}
 
-| Stage | Meaning | Output |
-|---|---|---|
-| Research | Establish the task facts, constraints, and open risks. | Research packet |
-| User approval | User accepts the research packet before structural planning starts. | Approval to continue |
-| Architecture A/B | Produce and challenge the structural approach. | Architecture decision |
-| User approval | User accepts the architecture decision before execution planning starts. | Approval to continue |
-| Implementation plan | Convert the approved direction into a concrete implementation handoff. | Implementation plan |
-| User approval | User accepts the implementation plan before code work starts. | Approval to implement |
-| Implementation via implementation-harness | Delegate code changes to the implementation harness. | Verified implementation |
-| Code review loop via code-review-orchestrator | Review, fix, and re-review until accepted. | Accepted change set |
-| Done | Close the workflow after implementation and review pass. | Final result summary |
+rules:
+  - Orchestrator keeps state and advances current_step.
+  - Workers receive only baton plus the step prompt_template.
+  - User approval steps stop until explicit approval.
+  - Each step writes its artifact into baton.current_artifact and state.artifacts.
+  - No implementation starts before user_approval_plan.
 
-## Hard Rules
+steps:
+  research:
+    type: subagent
+    takes: [baton.task, baton.constraints]
+    produces: research_packet
+    prompt_template: |
+      Research the task using the baton only. Return a compact packet with facts, constraints, risks, open questions, and recommendation.
 
-- Each stage produces the artifact consumed by the next stage.
-- DevHarness does not implement code.
-- Approval gates stop the workflow until the user explicitly approves continuation.
-- Stateful execution is added later.
+  user_approval_research:
+    type: user_approval
+    waits_for: explicit approval of research_packet
+    on_approval: move research_packet into baton.previous_artifact; continue to architecture_ab
+
+  architecture_ab:
+    type: subagent
+    takes: [baton.task, baton.constraints, baton.previous_artifact]
+    produces: architecture_packet
+    prompt_template: |
+      Propose and challenge the minimal architecture for the task. Return the selected approach, rejected alternative, risks, and constraints for planning.
+
+  user_approval_architecture:
+    type: user_approval
+    waits_for: explicit approval of architecture_packet
+    on_approval: move architecture_packet into baton.previous_artifact; continue to implementation_plan
+
+  implementation_plan:
+    type: subagent
+    takes: [baton.task, baton.constraints, baton.previous_artifact]
+    produces: implementation_plan
+    prompt_template: |
+      Convert the approved research and architecture into a concise implementation handoff. Include scope, files/zones, verification, risks, and rollback.
+
+  user_approval_plan:
+    type: user_approval
+    waits_for: explicit approval of implementation_plan
+    on_approval: move implementation_plan into baton.previous_artifact; continue to implementation
+
+  implementation:
+    type: subagent
+    via: implementation-harness
+    takes: [baton.task, baton.constraints, baton.previous_artifact]
+    produces: implementation_artifact
+    prompt_template: |
+      Implement only the approved plan. Return changed files, verification run, result, and any follow-up needed.
+
+  code_review_loop:
+    type: subagent
+    via: code-review-orchestrator
+    takes: [baton.task, baton.constraints, baton.previous_artifact]
+    produces: reviewed_artifact
+    prompt_template: |
+      Review the implementation against the approved plan. Run the fix/re-review loop if needed and return final verdict, evidence, and remaining risk.
+
+  done:
+    type: terminal
+    takes: [baton.current_artifact, state.artifacts, state.history]
+    produces: final_summary
+```
