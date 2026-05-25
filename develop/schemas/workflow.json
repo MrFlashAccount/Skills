@@ -29,25 +29,44 @@
   "$defs": {
     "step": {
       "description": "Canonical target workflow step shape.",
+      "oneOf": [
+        { "$ref": "#/$defs/workerStep" },
+        { "$ref": "#/$defs/approvalStep" },
+        { "$ref": "#/$defs/doneStep" }
+      ]
+    },
+    "workerStep": {
+      "type": "object",
+      "required": ["name", "kind", "output"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "kind": { "const": "worker" },
+        "input": { "$ref": "#/$defs/workerInput" },
+        "output": { "$ref": "#/$defs/output" },
+        "next": { "$ref": "#/$defs/next" }
+      },
+      "additionalProperties": false
+    },
+    "approvalStep": {
       "type": "object",
       "required": ["name", "kind"],
       "properties": {
         "name": { "type": "string", "minLength": 1 },
-        "kind": { "enum": ["worker", "approval", "done"] },
+        "kind": { "const": "approval" },
         "input": { "$ref": "#/$defs/input" },
-        "output": { "$ref": "#/$defs/output" }
+        "next": { "$ref": "#/$defs/next" }
       },
-      "additionalProperties": false,
-      "allOf": [
-        {
-          "if": {
-            "properties": { "kind": { "const": "worker" } },
-            "required": ["kind"]
-          },
-          "then": true,
-          "else": { "not": { "required": ["output"] } }
-        }
-      ]
+      "additionalProperties": false
+    },
+    "doneStep": {
+      "type": "object",
+      "required": ["name", "kind"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "kind": { "const": "done" },
+        "input": { "$ref": "#/$defs/input" }
+      },
+      "additionalProperties": false
     },
     "input": {
       "type": "object",
@@ -61,6 +80,39 @@
         }
       },
       "additionalProperties": false
+    },
+    "workerInput": {
+      "type": "object",
+      "properties": {
+        "template": { "type": "string", "minLength": 1 },
+        "prompt": { "type": "string" },
+        "state": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "role": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "next": {
+      "description": "Next step target, or a light map from an output field value to a step target.",
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        {
+          "type": "object",
+          "required": ["by", "map"],
+          "properties": {
+            "by": { "type": "string", "minLength": 1 },
+            "map": {
+              "type": "object",
+              "minProperties": 1,
+              "additionalProperties": { "type": "string", "minLength": 1 }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
     },
     "output": {
       "type": "object",
