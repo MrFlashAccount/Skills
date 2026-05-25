@@ -1,88 +1,95 @@
 # DevHarness Workflow
 
-Minimal inline workflow spec for DevHarness. The orchestrator owns state and passes a baton from one step to the next. Workers receive only the baton plus that step's prompt template; user approval steps pause until explicit approval.
+DevHarness is a fixed baton handoff workflow: each stage receives the approved context it needs, returns one compact artifact, and the orchestrator advances only after required user approvals.
+
+## Fixed workflow
+
+1. Research clarifies facts, constraints, risks, and open questions.
+2. Sergey approves the research packet.
+3. Architecture proposes the minimal approach and rejected alternative.
+4. Sergey approves the architecture packet.
+5. Implementation planning turns the approved context into a handoff.
+6. Sergey approves the implementation plan.
+7. Implementation makes only the approved changes.
+8. Review checks the result against the approved plan and returns the final verdict.
+
+## Rules
+
+- The orchestrator is the only owner of step advancement and baton updates.
+- Subagents receive only the baton fields named by their step plus the prompt template.
+- User approval steps pause until explicit approval, then pass the approved artifact forward.
+- Implementation starts only after the implementation plan is approved.
+- Keep artifacts compact enough to hand off without re-reading the full conversation.
 
 ```yaml
-workflow:
-  name: dev-harness
-  version: 0.1
-
-state:
-  current_step: research
-  baton: {}
-  approvals: {}
-  artifacts: {}
-  history: []
-
 baton:
   task: "original user task"
   constraints: []
+  approved_artifact: null
   current_artifact: null
-  previous_artifact: null
-  next_prompt_inputs: {}
-
-rules:
-  - Orchestrator keeps state and advances current_step.
-  - Workers receive only baton plus the step prompt_template.
-  - User approval steps stop until explicit approval.
-  - Each step writes its artifact into baton.current_artifact and state.artifacts.
-  - No implementation starts before user_approval_plan.
 
 steps:
   research:
     type: subagent
     takes: [baton.task, baton.constraints]
+    prompt_template: "Return facts, constraints, risks, open questions, and recommendation."
     produces: research_packet
-    prompt_template: |
-      Research the task using the baton only. Return a compact packet with facts, constraints, risks, open questions, and recommendation.
+    next: user_approval_research
 
   user_approval_research:
     type: user_approval
-    waits_for: explicit approval of research_packet
-    on_approval: move research_packet into baton.previous_artifact; continue to architecture_ab
+    takes: [research_packet]
+    waits_for: explicit user approval
+    on_approval: set baton.approved_artifact to research_packet
+    produces: approved_research_packet
+    next: architecture_ab
 
   architecture_ab:
     type: subagent
-    takes: [baton.task, baton.constraints, baton.previous_artifact]
+    takes: [baton.task, baton.constraints, baton.approved_artifact]
+    prompt_template: "Return selected approach, rejected alternative, risks, and planning constraints."
     produces: architecture_packet
-    prompt_template: |
-      Propose and challenge the minimal architecture for the task. Return the selected approach, rejected alternative, risks, and constraints for planning.
+    next: user_approval_architecture
 
   user_approval_architecture:
     type: user_approval
-    waits_for: explicit approval of architecture_packet
-    on_approval: move architecture_packet into baton.previous_artifact; continue to implementation_plan
+    takes: [architecture_packet]
+    waits_for: explicit user approval
+    on_approval: set baton.approved_artifact to architecture_packet
+    produces: approved_architecture_packet
+    next: implementation_plan
 
   implementation_plan:
     type: subagent
-    takes: [baton.task, baton.constraints, baton.previous_artifact]
+    takes: [baton.task, baton.constraints, baton.approved_artifact]
+    prompt_template: "Return scope, files or zones, verification, risks, and rollback."
     produces: implementation_plan
-    prompt_template: |
-      Convert the approved research and architecture into a concise implementation handoff. Include scope, files/zones, verification, risks, and rollback.
+    next: user_approval_plan
 
   user_approval_plan:
     type: user_approval
-    waits_for: explicit approval of implementation_plan
-    on_approval: move implementation_plan into baton.previous_artifact; continue to implementation
+    takes: [implementation_plan]
+    waits_for: explicit user approval
+    on_approval: set baton.approved_artifact to implementation_plan
+    produces: approved_implementation_plan
+    next: implementation
 
   implementation:
     type: subagent
-    via: implementation-harness
-    takes: [baton.task, baton.constraints, baton.previous_artifact]
+    takes: [baton.task, baton.constraints, baton.approved_artifact]
+    prompt_template: "Implement only the approved plan and return changed files, verification, result, and follow-up."
     produces: implementation_artifact
-    prompt_template: |
-      Implement only the approved plan. Return changed files, verification run, result, and any follow-up needed.
+    next: code_review_loop
 
   code_review_loop:
     type: subagent
-    via: code-review-orchestrator
-    takes: [baton.task, baton.constraints, baton.previous_artifact]
+    takes: [baton.task, baton.constraints, baton.approved_artifact, implementation_artifact]
+    prompt_template: "Review against the approved plan and return verdict, evidence, and remaining risk."
     produces: reviewed_artifact
-    prompt_template: |
-      Review the implementation against the approved plan. Run the fix/re-review loop if needed and return final verdict, evidence, and remaining risk.
+    next: done
 
   done:
-    type: terminal
-    takes: [baton.current_artifact, state.artifacts, state.history]
+    type: done
+    takes: [reviewed_artifact]
     produces: final_summary
 ```
