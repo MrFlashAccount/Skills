@@ -102,10 +102,64 @@ function validateBaton(baton) {
   requireObject(baton.approvals, 'baton.approvals');
 }
 
-function extractOutcome(output) {
+function readPath(value, path) {
+  return path.split('.').reduce((current, segment) => {
+    if (!current || typeof current !== 'object' || Array.isArray(current)) return undefined;
+    return current[segment];
+  }, value);
+}
+
+function hasPath(value, path) {
+  return readPath(value, path) !== undefined;
+}
+
+function isSupportedContractPath(path) {
+  return path.startsWith('artifacts.') || path.startsWith('approvals.');
+}
+
+function validateTakesPrerequisites(step, baton, stepId) {
+  const takes = step.takes ?? [];
+  if (!Array.isArray(takes)) fail(`workflow.steps.${stepId}.takes must be a list when present`);
+
+  for (const takenPath of takes) {
+    if (typeof takenPath !== 'string' || !takenPath) fail(`workflow.steps.${stepId}.takes entries must be non-empty strings`);
+    if (isSupportedContractPath(takenPath) && !hasPath(baton, takenPath)) {
+      fail(`baton missing required taken field: ${takenPath}`);
+    }
+  }
+}
+
+function validateProducedFields(step, value, stepId, sourceName = 'worker output') {
+  const produces = step.produces ?? [];
+  if (!Array.isArray(produces)) fail(`workflow.steps.${stepId}.produces must be a list when present`);
+
+  for (const producedPath of produces) {
+    if (typeof producedPath !== 'string' || !producedPath) fail(`workflow.steps.${stepId}.produces entries must be non-empty strings`);
+    if (!isSupportedContractPath(producedPath)) {
+      fail(`workflow.steps.${stepId}.produces unsupported path: ${producedPath}`);
+    }
+    if (!hasPath(value, producedPath)) fail(`${sourceName} missing required produced field: ${producedPath}`);
+  }
+}
+
+function extractTransitionLabel(output, step, stepId) {
   requireObject(output, 'worker output');
-  const outcome = output.outcome ?? output.approval;
-  if (typeof outcome !== 'string' || !outcome) fail('worker output must include string outcome');
+  const stepKind = step.kind ?? 'subagent';
+
+  if (stepKind === 'user_approval') {
+    if ('outcome' in output) fail(`approval step '${stepId}' must use approval, not outcome`);
+    if (!('approval' in output)) fail(`approval step '${stepId}' must include string approval`);
+    if (!hasPath(output, 'approvals')) fail(`approval step '${stepId}' must include approvals object`);
+    requireObject(output.approvals, 'worker output.approvals');
+    const approval = output.approval;
+    if (typeof approval !== 'string' || !approval) fail(`approval step '${stepId}' must include string approval`);
+    return approval;
+  }
+
+  if ('approval' in output) fail(`step '${stepId}' must use outcome, not approval`);
+  if (!('outcome' in output)) fail(`step '${stepId}' must include string outcome`);
+  const outcome = output.outcome;
+  if (typeof outcome !== 'string' || !outcome) fail(`step '${stepId}' must include string outcome`);
   return outcome;
 }
 
@@ -134,9 +188,10 @@ const currentStep = workflow.steps[baton.currentStep];
 if (!currentStep) fail(`current step not found in workflow: ${baton.currentStep}`);
 requireObject(currentStep.outcomes, `workflow.steps.${baton.currentStep}.outcomes`);
 
-const outcome = extractOutcome(workerOutput);
-const targetStepId = currentStep.outcomes[outcome];
-if (!targetStepId) fail(`outcome '${outcome}' is not allowed from step '${baton.currentStep}'`);
+validateTakesPrerequisites(currentStep, baton, baton.currentStep);
+const transitionLabel = extractTransitionLabel(workerOutput, currentStep, baton.currentStep);
+const targetStepId = currentStep.outcomes[transitionLabel];
+if (!targetStepId) fail(`transition '${transitionLabel}' is not allowed from step '${baton.currentStep}'`);
 
 const targetStep = workflow.steps[targetStepId];
 if (!targetStep) fail(`transition target not found in workflow: ${targetStepId}`);
@@ -144,10 +199,12 @@ if (!targetStep) fail(`transition target not found in workflow: ${targetStepId}`
 const updatedBaton = structuredClone(baton);
 updatedBaton.currentStep = targetStepId;
 updatedBaton.status = targetStepId === workflow.done ? 'done' : targetStepId === workflow.blocked ? 'blocked' : 'running';
-updatedBaton.lastOutcome = outcome;
+updatedBaton.lastOutcome = transitionLabel;
 if (workerOutput.artifacts) updatedBaton.artifacts = { ...updatedBaton.artifacts, ...workerOutput.artifacts };
 if (workerOutput.approvals) updatedBaton.approvals = { ...updatedBaton.approvals, ...workerOutput.approvals };
 if (workerOutput.blocker) updatedBaton.blocker = workerOutput.blocker;
+
+validateProducedFields(currentStep, workerOutput, baton.currentStep);
 
 const nextStep = {
   id: targetStepId,
