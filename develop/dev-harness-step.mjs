@@ -32,120 +32,159 @@ function requireObject(value, name) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) fail(`${name} must be an object`);
 }
 
-function readPath(value, path) {
-  return path.split('.').reduce((current, segment) => {
-    if (!current || typeof current !== 'object' || Array.isArray(current)) return undefined;
-    return current[segment];
-  }, value);
+function artifactType(artifact) {
+  return artifact?.type ?? artifact?.id;
 }
 
-function hasPath(value, path) {
-  return readPath(value, path) !== undefined;
+function hasArtifactType(artifacts, type) {
+  return artifacts.some((artifact) => artifactType(artifact) === type);
 }
 
-function isSupportedContractPath(path) {
-  return path.startsWith('artifacts.') || path.startsWith('approvals.');
-}
+function validateTakesPrerequisites(step, baton, cursorId) {
+  const takesArtifacts = step.takesArtifacts ?? [];
+  if (!Array.isArray(takesArtifacts)) fail(`workflow.steps.${cursorId}.takesArtifacts must be a list when present`);
+  const artifacts = baton.state?.artifacts ?? [];
+  if (!Array.isArray(artifacts)) fail('baton.state.artifacts must be an array');
 
-function validateTakesPrerequisites(step, baton, stepId) {
-  const takes = step.takes ?? [];
-  if (!Array.isArray(takes)) fail(`workflow.steps.${stepId}.takes must be a list when present`);
-
-  for (const takenPath of takes) {
-    if (typeof takenPath !== 'string' || !takenPath) fail(`workflow.steps.${stepId}.takes entries must be non-empty strings`);
-    if (isSupportedContractPath(takenPath) && !hasPath(baton, takenPath)) {
-      fail(`baton missing required taken field: ${takenPath}`);
+  for (const requiredType of takesArtifacts) {
+    if (typeof requiredType !== 'string' || !requiredType) fail(`workflow.steps.${cursorId}.takesArtifacts entries must be non-empty strings`);
+    if (!hasArtifactType(artifacts, requiredType)) {
+      fail(`baton missing required artifact type for cursor '${cursorId}': ${requiredType}`);
     }
   }
 }
 
-function validateProducedFields(step, value, stepId, sourceName = 'worker output') {
-  const produces = step.produces ?? [];
-  if (!Array.isArray(produces)) fail(`workflow.steps.${stepId}.produces must be a list when present`);
+function validateProducedArtifacts(step, output, cursorId, sourceName = 'worker output') {
+  const producesArtifacts = step.producesArtifacts ?? [];
+  if (!Array.isArray(producesArtifacts)) fail(`workflow.steps.${cursorId}.producesArtifacts must be a list when present`);
+  const outputArtifacts = output.artifacts ?? [];
 
-  for (const producedPath of produces) {
-    if (typeof producedPath !== 'string' || !producedPath) fail(`workflow.steps.${stepId}.produces entries must be non-empty strings`);
-    if (!isSupportedContractPath(producedPath)) {
-      fail(`workflow.steps.${stepId}.produces unsupported path: ${producedPath}`);
-    }
-    if (!hasPath(value, producedPath)) fail(`${sourceName} missing required produced field: ${producedPath}`);
+  for (const producedType of producesArtifacts) {
+    if (typeof producedType !== 'string' || !producedType) fail(`workflow.steps.${cursorId}.producesArtifacts entries must be non-empty strings`);
+    if (!hasArtifactType(outputArtifacts, producedType)) fail(`${sourceName} missing required artifact type for cursor '${cursorId}': ${producedType}`);
   }
 }
 
-function extractHandoffLabel(output, step, stepId) {
+function mergeArtifacts(existingArtifacts, newArtifacts = []) {
+  const merged = [...existingArtifacts];
+  for (const artifact of newArtifacts) {
+    const index = artifact.id ? merged.findIndex((existing) => existing.id === artifact.id) : -1;
+    if (index >= 0) merged[index] = artifact;
+    else merged.push(artifact);
+  }
+  return merged;
+}
+
+function extractHandoffLabel(output, step, cursorId) {
   requireObject(output, 'worker output');
   const stepKind = step.kind ?? 'subagent';
 
   if (stepKind === 'user_approval') {
-    if ('outcome' in output) fail(`approval step '${stepId}' must use approval, not outcome`);
-    if (!('approval' in output)) fail(`approval step '${stepId}' must include string approval`);
-    if (!hasPath(output, 'approvals')) fail(`approval step '${stepId}' must include approvals object`);
-    requireObject(output.approvals, 'worker output.approvals');
+    if ('outcome' in output) fail(`approval cursor '${cursorId}' must use approval, not outcome`);
+    if (!('approval' in output)) fail(`approval cursor '${cursorId}' must include string approval`);
     const approval = output.approval;
-    if (typeof approval !== 'string' || !approval) fail(`approval step '${stepId}' must include string approval`);
+    if (typeof approval !== 'string' || !approval) fail(`approval cursor '${cursorId}' must include string approval`);
     return approval;
   }
 
-  if ('approval' in output) fail(`step '${stepId}' must use outcome, not approval`);
-  if (!('outcome' in output)) fail(`step '${stepId}' must include string outcome`);
+  if ('approval' in output) fail(`cursor '${cursorId}' must use outcome, not approval`);
+  if (!('outcome' in output)) fail(`cursor '${cursorId}' must include string outcome`);
   const outcome = output.outcome;
   if (typeof outcome !== 'string' || !outcome) fail(`step '${stepId}' must include string outcome`);
   return outcome;
 }
 
-function nextAction(step) {
-  if (!step) return 'stop';
-  if (step.kind === 'terminal') return step.produces?.includes('final_summary') ? 'stop_done' : 'stop_blocked';
+function actionForStep(step) {
+  if (step.kind === 'terminal') return step.producesArtifacts?.includes('final_summary') ? 'stop_done' : 'stop_blocked';
   if (step.kind === 'user_approval') return 'wait_for_approval';
-  return 'generate_worker_prompt';
+  return 'run_worker';
 }
 
-const [workflowPath, batonPath, outputPath] = process.argv.slice(2);
-if (!workflowPath || !batonPath || !outputPath) {
-  fail('usage: node develop/dev-harness-step.mjs <workflow.json> <baton.json> <worker-output.json>');
+function buildDirective(stepId, step) {
+  return {
+    id: stepId,
+    kind: step.kind ?? null,
+    template: step.template ?? null,
+    takesArtifacts: step.takesArtifacts ?? [],
+    producesArtifacts: step.producesArtifacts ?? [],
+    action: actionForStep(step),
+  };
 }
 
-const workflowDoc = readJson(workflowPath, 'workflow');
-const baton = readJson(batonPath, 'baton');
-const workerOutput = readJson(outputPath, 'worker output');
+function loadWorkflowAndBaton(workflowPath, batonPath) {
+  const workflowDoc = readJson(workflowPath, 'workflow');
+  const baton = readJson(batonPath, 'baton');
 
-assertSchema(validateWorkflowSchema, workflowDoc, 'workflow');
-assertSchema(validateBatonSchema, baton, 'baton');
-assertSchema(validateWorkerOutputSchema, workerOutput, 'worker output');
+  assertSchema(validateWorkflowSchema, workflowDoc, 'workflow');
+  assertSchema(validateBatonSchema, baton, 'baton');
 
-const workflow = workflowDoc.workflow;
-const currentStep = workflow.steps[baton.currentStep];
-if (!currentStep) fail(`current step not found in workflow: ${baton.currentStep}`);
-requireObject(currentStep.outcomes, `workflow.steps.${baton.currentStep}.outcomes`);
+  const workflow = workflowDoc.workflow;
+  const cursorStep = workflow.steps[baton.cursor];
+  if (!cursorStep) fail(`baton cursor not found in workflow: ${baton.cursor}`);
 
-validateTakesPrerequisites(currentStep, baton, baton.currentStep);
-const handoffLabel = extractHandoffLabel(workerOutput, currentStep, baton.currentStep);
-const targetStepId = currentStep.outcomes[handoffLabel];
-if (!targetStepId) fail(`handoff '${handoffLabel}' is not allowed from step '${baton.currentStep}'`);
+  return { workflow, baton, cursorStep };
+}
 
-const targetStep = workflow.steps[targetStepId];
-if (!targetStep) fail(`handoff target not found in workflow: ${targetStepId}`);
+function emitHandoffResponse(response) {
+  assertSchema(validateHandoffResponseSchema, response, 'handoff response');
+  console.log(JSON.stringify(response, null, 2));
+}
 
-const updatedBaton = structuredClone(baton);
-updatedBaton.currentStep = targetStepId;
-updatedBaton.status = targetStepId === workflow.done ? 'done' : targetStepId === workflow.blocked ? 'blocked' : 'running';
-updatedBaton.lastOutcome = handoffLabel;
-if (workerOutput.artifacts) updatedBaton.artifacts = { ...updatedBaton.artifacts, ...workerOutput.artifacts };
-if (workerOutput.approvals) updatedBaton.approvals = { ...updatedBaton.approvals, ...workerOutput.approvals };
-if (workerOutput.blocker) updatedBaton.blocker = workerOutput.blocker;
+function directiveMode(workflowPath, batonPath) {
+  const { baton, cursorStep } = loadWorkflowAndBaton(workflowPath, batonPath);
+  validateTakesPrerequisites(cursorStep, baton, baton.cursor);
+  emitHandoffResponse({ baton, directive: buildDirective(baton.cursor, cursorStep) });
+}
 
-validateProducedFields(currentStep, workerOutput, baton.currentStep);
+function handoffMode(workflowPath, batonPath, outputPath) {
+  const { workflow, baton, cursorStep } = loadWorkflowAndBaton(workflowPath, batonPath);
+  const workerOutput = readJson(outputPath, 'worker output');
 
-const nextStep = {
-  id: targetStepId,
-  kind: targetStep.kind ?? null,
-  template: targetStep.template ?? null,
-  takes: targetStep.takes ?? [],
-  produces: targetStep.produces ?? [],
-  action: nextAction(targetStep),
-};
+  assertSchema(validateWorkerOutputSchema, workerOutput, 'worker output');
+  requireObject(cursorStep.outcomes, `workflow.steps.${baton.cursor}.outcomes`);
 
-const handoffResponse = { baton: updatedBaton, nextStep };
-assertSchema(validateHandoffResponseSchema, handoffResponse, 'handoff response');
+  validateTakesPrerequisites(cursorStep, baton, baton.cursor);
+  const handoffLabel = extractHandoffLabel(workerOutput, cursorStep, baton.cursor);
+  const targetStepId = cursorStep.outcomes[handoffLabel];
+  if (!targetStepId) fail(`handoff '${handoffLabel}' is not allowed from baton cursor '${baton.cursor}'`);
 
-console.log(JSON.stringify(handoffResponse, null, 2));
+  const targetStep = workflow.steps[targetStepId];
+  if (!targetStep) fail(`handoff target not found in workflow: ${targetStepId}`);
+
+  validateProducedArtifacts(cursorStep, workerOutput, baton.cursor);
+
+  const updatedBaton = structuredClone(baton);
+  updatedBaton.cursor = targetStepId;
+  updatedBaton.status = targetStepId === workflow.done ? 'done' : targetStepId === workflow.blocked ? 'blocked' : 'running';
+  updatedBaton.lastHandoff = handoffLabel;
+  updatedBaton.state = {
+    ...updatedBaton.state,
+    artifacts: mergeArtifacts(updatedBaton.state?.artifacts ?? [], workerOutput.artifacts ?? []),
+  };
+  if (workerOutput.blocker) updatedBaton.blocker = workerOutput.blocker;
+
+  emitHandoffResponse({ baton: updatedBaton, directive: buildDirective(targetStepId, targetStep) });
+}
+
+const args = process.argv.slice(2);
+const mode = args[0];
+
+if (mode === 'inspect' || mode === 'directive') {
+  const [, workflowPath, batonPath] = args;
+  if (!workflowPath || !batonPath || args.length !== 3) {
+    fail('usage: node develop/dev-harness-step.mjs inspect <workflow.json> <baton.json>');
+  }
+  directiveMode(workflowPath, batonPath);
+} else if (mode === 'apply' || mode === 'handoff') {
+  const [, workflowPath, batonPath, outputPath] = args;
+  if (!workflowPath || !batonPath || !outputPath || args.length !== 4) {
+    fail('usage: node develop/dev-harness-step.mjs apply <workflow.json> <baton.json> <worker-output.json>');
+  }
+  handoffMode(workflowPath, batonPath, outputPath);
+} else {
+  const [workflowPath, batonPath, outputPath] = args;
+  if (!workflowPath || !batonPath || !outputPath || args.length !== 3) {
+    fail('usage: node develop/dev-harness-step.mjs inspect <workflow.json> <baton.json> | apply <workflow.json> <baton.json> <worker-output.json>');
+  }
+  handoffMode(workflowPath, batonPath, outputPath);
+}

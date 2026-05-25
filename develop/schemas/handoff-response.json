@@ -3,26 +3,26 @@
   "$id": "https://openclaw.local/dev-harness/schemas/handoff-response",
   "title": "DevHarness Handoff Response",
   "type": "object",
-  "required": ["baton", "nextStep"],
+  "required": ["baton", "directive"],
   "properties": {
     "baton": { "$ref": "https://openclaw.local/dev-harness/schemas/baton" },
-    "nextStep": {
+    "directive": {
       "type": "object",
-      "required": ["id", "kind", "template", "takes", "produces", "action"],
+      "required": ["id", "kind", "template", "takesArtifacts", "producesArtifacts", "action"],
       "properties": {
         "id": { "type": "string" },
         "kind": { "type": ["string", "null"] },
         "template": { "type": ["string", "null"] },
-        "takes": {
+        "takesArtifacts": {
           "type": "array",
           "items": { "type": "string" }
         },
-        "produces": {
+        "producesArtifacts": {
           "type": "array",
           "items": { "type": "string" }
         },
         "action": {
-          "enum": ["generate_worker_prompt", "wait_for_approval", "stop", "stop_done", "stop_blocked"]
+          "enum": ["run_worker", "wait_for_approval", "stop_done", "stop_blocked"]
         }
       },
       "additionalProperties": false

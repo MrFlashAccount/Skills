@@ -13,15 +13,7 @@ function writeJson(fileName, value) {
   return filePath;
 }
 
-function runHelper(label, baton, output, expectSuccess) {
-  const batonPath = writeJson(`${label}-baton.json`, baton);
-  const outputPath = writeJson(`${label}-output.json`, output);
-  const result = spawnSync(
-    process.execPath,
-    ['develop/dev-harness-step.mjs', 'develop/dev-harness.workflow.json', batonPath, outputPath],
-    { cwd: root, encoding: 'utf8' },
-  );
-
+function assertResult(label, result, expectSuccess) {
   const succeeded = result.status === 0;
   if (succeeded !== expectSuccess) {
     process.stderr.write(`check '${label}' expected ${expectSuccess ? 'success' : 'failure'} but got ${result.status}\n`);
@@ -30,34 +22,68 @@ function runHelper(label, baton, output, expectSuccess) {
     process.exit(1);
   }
 
-  if (expectSuccess) {
-    const response = JSON.parse(result.stdout);
-    if (!response.baton || !response.nextStep) {
-      process.stderr.write(`check '${label}' returned malformed handoff response\n`);
-      process.exit(1);
-    }
+  if (!expectSuccess) return null;
+  const response = JSON.parse(result.stdout);
+  if (!response.baton || !response.directive) {
+    process.stderr.write(`check '${label}' returned malformed handoff response\n`);
+    process.exit(1);
   }
+  return response;
+}
+
+function runHelper(label, baton, output, expectSuccess) {
+  const batonPath = writeJson(`${label}-baton.json`, baton);
+  const outputPath = writeJson(`${label}-output.json`, output);
+  const result = spawnSync(
+    process.execPath,
+    ['develop/dev-harness-step.mjs', 'apply', 'develop/dev-harness.workflow.json', batonPath, outputPath],
+    { cwd: root, encoding: 'utf8' },
+  );
+
+  return assertResult(label, result, expectSuccess);
+}
+
+function runDirective(label, baton, expectSuccess) {
+  const batonPath = writeJson(`${label}-baton.json`, baton);
+  const result = spawnSync(
+    process.execPath,
+    ['develop/dev-harness-step.mjs', 'inspect', 'develop/dev-harness.workflow.json', batonPath],
+    { cwd: root, encoding: 'utf8' },
+  );
+
+  return assertResult(label, result, expectSuccess);
 }
 
 try {
+  const initialBaton = { cursor: 'research', status: 'running', state: { artifacts: [] } };
+  const directiveResponse = runDirective('directive-research', initialBaton, true);
+  if (directiveResponse.directive.id !== 'research' || directiveResponse.directive.action !== 'run_worker') {
+    process.stderr.write(`check 'directive-research' returned wrong directive\n`);
+    process.exit(1);
+  }
+  if (JSON.stringify(directiveResponse.baton) !== JSON.stringify(initialBaton)) {
+    process.stderr.write(`check 'directive-research' mutated baton\n`);
+    process.exit(1);
+  }
+
   runHelper(
     'research-ready',
-    { currentStep: 'research', status: 'running', artifacts: {}, approvals: {} },
-    { outcome: 'ready_for_approval', artifacts: { research: 'minimal research packet' } },
+    initialBaton,
+    { outcome: 'ready_for_approval', artifacts: [{ type: 'research', summary: 'minimal research packet' }] },
     true,
   );
 
   runHelper(
     'approval',
-    { currentStep: 'approve_research', status: 'running', artifacts: { research: 'minimal research packet' }, approvals: {} },
-    { approval: 'approved', approvals: { research: 'approved' } },
+    { cursor: 'approve_research', status: 'running', state: { artifacts: [{ type: 'research', summary: 'minimal research packet' }] } },
+    { approval: 'approved', artifacts: [{ type: 'research_approval', summary: 'approved' }] },
     true,
   );
 
   runHelper(
     'missing-artifact',
-    { currentStep: 'research', status: 'running', artifacts: {}, approvals: {} },
-    { outcome: 'ready_for_approval', artifacts: {} },
+    { cursor: 'research', status: 'running', state: { artifacts: [] } },
+    { outcome: 'ready_for_approval', artifacts: [] },
     false,
   );
 } finally {

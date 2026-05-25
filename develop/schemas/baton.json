@@ -3,14 +3,36 @@
   "$id": "https://openclaw.local/dev-harness/schemas/baton",
   "title": "DevHarness Baton",
   "type": "object",
-  "required": ["currentStep", "status", "artifacts", "approvals"],
+  "required": ["cursor", "state"],
   "properties": {
-    "currentStep": { "type": "string" },
+    "cursor": { "type": "string" },
     "status": { "type": "string" },
-    "artifacts": { "type": "object" },
-    "approvals": { "type": "object" },
-    "lastOutcome": { "type": "string" },
+    "state": {
+      "type": "object",
+      "required": ["artifacts"],
+      "properties": {
+        "artifacts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifact" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "lastHandoff": { "type": "string" },
     "blocker": { "type": "object" }
   },
-  "additionalProperties": true
+  "additionalProperties": true,
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "type": "string" },
+        "id": { "type": "string" },
+        "ref": { "type": "string" },
+        "summary": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  }
 }
