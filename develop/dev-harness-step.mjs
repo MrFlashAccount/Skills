@@ -172,7 +172,6 @@ function handoffMode(workflowPath, batonPath, outputPath) {
   const sourceCursorId = baton.cursor;
   updatedBaton.cursor = targetStepId;
   updatedBaton.status = targetStepId === workflow.done ? 'done' : targetStepId === workflow.blocked ? 'blocked' : 'running';
-  updatedBaton.lastHandoff = handoffLabel;
   updatedBaton.state = {
     ...updatedBaton.state,
     artifacts: mergeArtifacts(updatedBaton.state?.artifacts ?? [], workerOutput.artifacts ?? []),

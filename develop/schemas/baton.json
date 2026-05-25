@@ -3,13 +3,13 @@
   "$id": "https://openclaw.local/dev-harness/schemas/baton",
   "title": "DevHarness Baton",
   "type": "object",
-  "required": ["cursor", "state"],
+  "required": ["cursor", "status", "state"],
   "properties": {
     "cursor": { "type": "string" },
     "status": { "enum": ["running", "done", "blocked"] },
     "state": {
       "type": "object",
-      "required": ["artifacts"],
+      "required": ["artifacts", "results", "history", "attempts"],
       "properties": {
         "artifacts": {
           "type": "array",
@@ -25,13 +25,12 @@
         },
         "attempts": { "$ref": "#/$defs/attempts" }
       },
-      "additionalProperties": true
+      "additionalProperties": false
     },
-    "lastHandoff": { "type": "string" },
     "blocker": { "type": "object" },
     "error": { "type": "object" }
   },
-  "additionalProperties": true,
+  "additionalProperties": false,
   "$defs": {
     "artifact": {
       "type": "object",
