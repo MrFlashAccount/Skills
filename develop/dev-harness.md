@@ -1,6 +1,22 @@
 # DevHarness Workflow
 
-DevHarness is a fixed baton handoff workflow: each stage receives the approved context it needs, returns one compact artifact, and the orchestrator advances only after required user approvals.
+DevHarness is a draft workflow model for staged work with explicit approvals. The worker never sees the workflow graph, baton, current node, or allowed transitions. It receives only a generated prompt assembled by the orchestrator and returns `worker_output` for the current step.
+
+No runner code exists yet; this document records the intended boundary.
+
+## Model
+
+- The orchestrator owns workflow state, prompt assembly, and calls to the transition helper.
+- A worker prompt is generated from:
+  - shared template / role template
+  - step prompt
+  - injected artifacts
+  - constraints
+  - expected output format
+- The workflow graph is a finite state machine: steps, allowed outcomes, and the next step for each outcome.
+- The baton is only state and recovery data: current step, artifacts, approvals, status or blocker, and history.
+- The transition helper receives `workflow`, `baton`, and `worker_output`; it validates the result and returns `transition_result`.
+- Workers return only their requested artifact/status. They do not choose `next`, update `currentStep`, or advance any global node.
 
 ## Fixed workflow
 
@@ -13,119 +29,164 @@ DevHarness is a fixed baton handoff workflow: each stage receives the approved c
 7. Implementation makes only the approved changes.
 8. Review checks the result against the approved plan and returns the final verdict.
 
-## Rules
+## Prompt boundary
 
-- The orchestrator is the only owner of `currentStep`, step advancement, and baton updates.
-- Subagents receive only the baton fields named by their step plus the prompt template.
-- Subagents return one artifact and stop; they do not advance the workflow.
-- User approval steps freeze the workflow until explicit approval, then pass the approved artifact forward.
-- Implementation starts only after the implementation plan is approved; never implement from stale or implicit approval.
-- Keep artifacts compact enough to hand off without re-reading the full conversation.
+Workers are isolated from orchestration state. For each worker step, the orchestrator generates a prompt that contains only the material needed for that step:
 
-## State Baton
+```yaml
+worker_prompt:
+  shared_template: "common worker contract"
+  role_template: "research | architecture | planning | implementation | review"
+  step_prompt: "step-specific task"
+  injected_artifacts: []
+  constraints: []
+  expected_output_format: "schema or compact checklist for this step"
+```
 
-The baton is a compact state snapshot for handoff and recovery. It preserves the next safe place to continue, but it is not an autonomous loop or permission to keep running without approval.
+The prompt may include approved artifacts as plain context, but not the baton object, workflow graph, allowed transitions, or current global node.
+
+## Workflow graph
+
+```yaml
+workflow:
+  id: dev-harness
+  initial_step: research
+  steps:
+    research:
+      kind: worker
+      prompt_template: research
+      output_schema: research_packet
+      outcomes:
+        complete: user_approval_research
+        blocked: blocked
+
+    user_approval_research:
+      kind: approval
+      input: research_packet
+      outcomes:
+        approved: architecture
+        changes_requested: research
+        blocked: blocked
+
+    architecture:
+      kind: worker
+      prompt_template: architecture
+      output_schema: architecture_packet
+      outcomes:
+        complete: user_approval_architecture
+        blocked: blocked
+
+    user_approval_architecture:
+      kind: approval
+      input: architecture_packet
+      outcomes:
+        approved: implementation_plan
+        changes_requested: architecture
+        blocked: blocked
+
+    implementation_plan:
+      kind: worker
+      prompt_template: implementation_plan
+      output_schema: implementation_plan
+      outcomes:
+        complete: user_approval_plan
+        blocked: blocked
+
+    user_approval_plan:
+      kind: approval
+      input: implementation_plan
+      outcomes:
+        approved: implementation
+        changes_requested: implementation_plan
+        blocked: blocked
+
+    implementation:
+      kind: worker
+      prompt_template: implementation
+      output_schema: implementation_artifact
+      outcomes:
+        complete: review
+        blocked: blocked
+
+    review:
+      kind: worker
+      prompt_template: review
+      output_schema: review_artifact
+      outcomes:
+        approved: done
+        changes_requested: implementation
+        blocked: blocked
+
+    blocked:
+      kind: terminal
+
+    done:
+      kind: terminal
+```
+
+## Baton schema
+
+The baton is a compact snapshot for recovery and audit. It is not sent to workers.
 
 ```yaml
 baton:
-  workflowId: "dev-harness-<id>"
+  workflow_id: dev-harness
+  current_step: research
   task: "original user task"
   repo: null
   branch: null
-  currentStep: research
   constraints: []
-  approvedArtifacts:
-    research: null
-    architecture: null
-    implementationPlan: null
-  currentArtifact:
-    step: null
-    summary: null
-    path: null
-  lastResult:
-    status: null
-    summary: null
-    evidence: []
-    verification: []
   artifacts:
+    research_packet: null
+    architecture_packet: null
+    implementation_plan: null
+    implementation_artifact: null
+    review_artifact: null
     files: []
     commits: []
     prs: []
     notes: []
+  approvals:
+    research: null
+    architecture: null
+    implementation_plan: null
+  status: in_progress
   blocker: null
-  retryContext: null
-  approvalBoundaries: []
-
-steps:
-  research:
-    type: subagent
-    takes: [baton.task, baton.constraints]
-    prompt_template: "Return facts, constraints, risks, open questions, and recommendation."
-    produces: research_packet
-    next: user_approval_research
-
-  user_approval_research:
-    type: user_approval
-    takes: [research_packet]
-    waits_for: explicit user approval
-    on_approval: set baton.approvedArtifacts.research to research_packet
-    produces: approved_research_packet
-    next: architecture_ab
-
-  architecture_ab:
-    type: subagent
-    takes: [baton.task, baton.constraints, baton.approvedArtifacts.research]
-    prompt_template: "Return selected approach, rejected alternative, risks, and planning constraints."
-    produces: architecture_packet
-    next: user_approval_architecture
-
-  user_approval_architecture:
-    type: user_approval
-    takes: [architecture_packet]
-    waits_for: explicit user approval
-    on_approval: set baton.approvedArtifacts.architecture to architecture_packet
-    produces: approved_architecture_packet
-    next: implementation_plan
-
-  implementation_plan:
-    type: subagent
-    takes: [baton.task, baton.constraints, baton.approvedArtifacts.architecture]
-    prompt_template: "Return scope, files or zones, verification, risks, and rollback."
-    produces: implementation_plan
-    next: user_approval_plan
-
-  user_approval_plan:
-    type: user_approval
-    takes: [implementation_plan]
-    waits_for: explicit user approval
-    on_approval: set baton.approvedArtifacts.implementationPlan to implementation_plan
-    produces: approved_implementation_plan
-    next: implementation
-
-  implementation:
-    type: subagent
-    takes: [baton.task, baton.constraints, baton.approvedArtifacts.implementationPlan]
-    prompt_template: "Implement only the approved plan and return changed files, verification, result, and follow-up."
-    produces: implementation_artifact
-    next: code_review_loop
-
-  code_review_loop:
-    type: subagent
-    takes: [baton.task, baton.constraints, baton.approvedArtifacts.implementationPlan, implementation_artifact]
-    prompt_template: "Review against the approved plan and return verdict, evidence, and remaining risk."
-    produces: reviewed_artifact
-    next: done
-
-  done:
-    type: done
-    takes: [reviewed_artifact]
-    produces: final_summary
+  history:
+    - step: research
+      outcome: null
+      summary: null
+      evidence: []
 ```
 
-## Recovery
+## Transition helper contract
 
-- Read the last baton before resuming.
-- Verify repo, branch, and referenced artifacts before trusting it.
+```yaml
+transition_helper_input:
+  workflow: "finite state machine definition"
+  baton: "current baton matching baton schema"
+  worker_output: "output returned by worker or approval step"
+
+transition_helper_validates:
+  - baton matches baton schema
+  - worker_output matches output schema for baton.current_step
+  - extracted outcome exists in workflow graph
+  - transition from baton.current_step by extracted outcome is allowed
+
+transition_result:
+  baton: "updated baton in the same schema"
+  next_step:
+    id: null
+    kind: null
+    template: null
+    inputs: []
+    action: "generate_worker_prompt | wait_for_approval | stop_done | stop_blocked"
+```
+
+## Recovery rules
+
+- Resume from the baton, not from a worker's opinion about what should happen next.
+- Verify repo, branch, approvals, and referenced artifacts before trusting the baton.
 - Approval gates cannot be inferred; wait for explicit approval.
-- Resume only from the next safe step, or stop with `blocker`.
-- Keep the baton compact enough to paste into the next worker prompt.
+- If validation fails, keep the baton unchanged and stop with `blocker`.
+- Keep artifacts compact enough to inject into the next generated prompt.
