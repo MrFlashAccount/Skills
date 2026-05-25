@@ -9,7 +9,9 @@ Files:
 - `dev-harness.workflow.yaml` — workflow steps, required outputs, and allowed transitions
 - `dev-harness.baton.schema.yaml` — minimum baton shape
 - `dev-harness-step.mjs` — executable transition authority
+- `dev-harness-replay.mjs` — tiny non-interactive replay harness for the demo workflow
 - `fixtures/` — tiny runnable example inputs and negative cases
+- `demo/` — five-step simple file workflow proof with reproducible happy/negative replay commands
 
 ## Top-level operating model
 
@@ -42,6 +44,20 @@ node develop/dev-harness-step.mjs \
   develop/fixtures/approval-baton.yaml \
   develop/fixtures/approval-output.yaml
 ```
+
+Run the non-interactive end-to-end demo replay:
+
+```bash
+node develop/dev-harness-replay.mjs
+```
+
+Run its compact negative check:
+
+```bash
+node develop/dev-harness-replay.mjs --negative missing-produced-artifact
+```
+
+The replay demo creates a temp workspace, writes and verifies real files, records transition trace output, and stops at terminal `done`; see `demo/simple-file-workflow-report.md`.
 
 The script reads workflow, baton, and worker/approval output as JSON or a small YAML subset. On success it prints `{ baton, nextStep }` JSON to stdout for the orchestrator to persist and loop on. On invalid baton shape, missing step, missing produced field, mixed `outcome`/`approval`, unknown transition, or invalid transition target, it prints an error to stderr and exits non-zero without writing files.
 
