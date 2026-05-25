@@ -1,24 +1,55 @@
 # DevHarness Workflow
 
-DevHarness is a draft workflow model for staged work with explicit approvals. The worker never sees the workflow graph, baton, current node, or allowed transitions. It receives only a generated prompt assembled by the orchestrator and returns `worker_output` for the current step.
+DevHarness is a workflow contract for staged work with explicit approvals.
 
-No runner code exists yet; this document records the intended boundary.
+Workers are isolated from orchestration state. A worker receives only a generated prompt assembled by the orchestrator and returns the requested artifact/status for that step. The worker never sees the workflow graph, baton, current node, or allowed transitions, and does not choose `next`, update `currentStep`, or advance any global node.
 
-## Model
+## Orchestrator contract
 
-- The orchestrator owns workflow state, prompt assembly, and calls to the transition helper.
-- A worker prompt is generated from:
-  - shared template / role template
-  - step prompt
-  - injected artifacts
-  - constraints
-  - expected output format
-- The workflow graph is a finite state machine: steps, allowed outcomes, and the next step for each outcome.
-- The baton is only state and recovery data: current step, artifacts, approvals, status or blocker, and history.
-- The transition helper receives `workflow`, `baton`, and `worker_output`; it validates the result and returns `transition_result`.
-- Workers return only their requested artifact/status. They do not choose `next`, update `currentStep`, or advance any global node.
+- Owns the workflow graph, baton, prompt assembly, approvals, and transition calls.
+- Generates each worker prompt from the shared contract, role/step instructions, approved context, constraints, and expected output format.
+- May inject approved artifacts as plain context, but not the baton object, workflow graph, allowed transitions, or current global node.
+- Calls the transition helper after each worker or approval result.
 
-## Fixed workflow
+## Worker contract
+
+- Receives only the generated prompt for the assigned step.
+- Produces only the requested artifact/status in the requested format.
+- Reports blockers instead of inventing transitions.
+- Does not decide the next step, current step, global status, or approvals.
+
+## Transition helper contract
+
+Input:
+
+```yaml
+transition_helper_input:
+  workflow: "finite state machine definition"
+  baton: "current baton"
+  worker_output: "worker or approval result"
+```
+
+Validates:
+
+- `baton` matches the expected workflow state shape.
+- `worker_output` matches the output shape for the current step.
+- The extracted outcome exists in `workflow`.
+- The transition from the baton current step by that outcome is allowed.
+
+Returns:
+
+```yaml
+transition_result:
+  baton: "updated baton"
+  next_step:
+    id: null
+    kind: null
+    template: null
+    inputs: []
+    action: "generate_worker_prompt | wait_for_approval | stop_done | stop_blocked"
+```
+
+## Default flow
 
 1. Research clarifies facts, constraints, risks, and open questions.
 2. Sergey approves the research packet.
@@ -28,160 +59,6 @@ No runner code exists yet; this document records the intended boundary.
 6. Sergey approves the implementation plan.
 7. Implementation makes only the approved changes.
 8. Review checks the result against the approved plan and returns the final verdict.
-
-## Prompt boundary
-
-Workers are isolated from orchestration state. For each worker step, the orchestrator generates a prompt that contains only the material needed for that step:
-
-```yaml
-worker_prompt:
-  shared_template: "common worker contract"
-  role_template: "research | architecture | planning | implementation | review"
-  step_prompt: "step-specific task"
-  injected_artifacts: []
-  constraints: []
-  expected_output_format: "schema or compact checklist for this step"
-```
-
-The prompt may include approved artifacts as plain context, but not the baton object, workflow graph, allowed transitions, or current global node.
-
-## Workflow graph
-
-```yaml
-workflow:
-  id: dev-harness
-  initial_step: research
-  steps:
-    research:
-      kind: worker
-      prompt_template: research
-      output_schema: research_packet
-      outcomes:
-        complete: user_approval_research
-        blocked: blocked
-
-    user_approval_research:
-      kind: approval
-      input: research_packet
-      outcomes:
-        approved: architecture
-        changes_requested: research
-        blocked: blocked
-
-    architecture:
-      kind: worker
-      prompt_template: architecture
-      output_schema: architecture_packet
-      outcomes:
-        complete: user_approval_architecture
-        blocked: blocked
-
-    user_approval_architecture:
-      kind: approval
-      input: architecture_packet
-      outcomes:
-        approved: implementation_plan
-        changes_requested: architecture
-        blocked: blocked
-
-    implementation_plan:
-      kind: worker
-      prompt_template: implementation_plan
-      output_schema: implementation_plan
-      outcomes:
-        complete: user_approval_plan
-        blocked: blocked
-
-    user_approval_plan:
-      kind: approval
-      input: implementation_plan
-      outcomes:
-        approved: implementation
-        changes_requested: implementation_plan
-        blocked: blocked
-
-    implementation:
-      kind: worker
-      prompt_template: implementation
-      output_schema: implementation_artifact
-      outcomes:
-        complete: review
-        blocked: blocked
-
-    review:
-      kind: worker
-      prompt_template: review
-      output_schema: review_artifact
-      outcomes:
-        approved: done
-        changes_requested: implementation
-        blocked: blocked
-
-    blocked:
-      kind: terminal
-
-    done:
-      kind: terminal
-```
-
-## Baton schema
-
-The baton is a compact snapshot for recovery and audit. It is not sent to workers.
-
-```yaml
-baton:
-  workflow_id: dev-harness
-  current_step: research
-  task: "original user task"
-  repo: null
-  branch: null
-  constraints: []
-  artifacts:
-    research_packet: null
-    architecture_packet: null
-    implementation_plan: null
-    implementation_artifact: null
-    review_artifact: null
-    files: []
-    commits: []
-    prs: []
-    notes: []
-  approvals:
-    research: null
-    architecture: null
-    implementation_plan: null
-  status: in_progress
-  blocker: null
-  history:
-    - step: research
-      outcome: null
-      summary: null
-      evidence: []
-```
-
-## Transition helper contract
-
-```yaml
-transition_helper_input:
-  workflow: "finite state machine definition"
-  baton: "current baton matching baton schema"
-  worker_output: "output returned by worker or approval step"
-
-transition_helper_validates:
-  - baton matches baton schema
-  - worker_output matches output schema for baton.current_step
-  - extracted outcome exists in workflow graph
-  - transition from baton.current_step by extracted outcome is allowed
-
-transition_result:
-  baton: "updated baton in the same schema"
-  next_step:
-    id: null
-    kind: null
-    template: null
-    inputs: []
-    action: "generate_worker_prompt | wait_for_approval | stop_done | stop_blocked"
-```
 
 ## Recovery rules
 
