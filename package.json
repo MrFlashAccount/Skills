@@ -3,8 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build:dev-harness": "node develop/build-validators.mjs",
-    "check:dev-harness": "npm run build:dev-harness && node --check develop/scripts/workflow-interpreter.mjs && node --check develop/build-validators.mjs && node --check develop/tests/workflow-interpreter.test.mjs && node --check develop/dist/validators/baton.mjs && node --check develop/dist/validators/workflow.mjs && node --check develop/dist/validators/worker-output.mjs && node --check develop/dist/validators/workflow-interpreter-response.mjs && node --test develop/tests/*.test.mjs"
+    "validate": "make -C develop validate"
   },
   "devDependencies": {
     "ajv": "^8.17.1"
