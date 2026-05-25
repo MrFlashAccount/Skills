@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import validateBatonSchema from './dist/validate-baton.mjs';
 import validateWorkflowSchema from './dist/validate-workflow.mjs';
 import validateWorkerOutputSchema from './dist/validate-worker-output.mjs';
-import validateTransitionResponseSchema from './dist/validate-transition-response.mjs';
+import validateHandoffResponseSchema from './dist/validate-handoff-response.mjs';
 
 function fail(message) {
   console.error(`dev-harness-step: ${message}`);
@@ -72,7 +72,7 @@ function validateProducedFields(step, value, stepId, sourceName = 'worker output
   }
 }
 
-function extractTransitionLabel(output, step, stepId) {
+function extractHandoffLabel(output, step, stepId) {
   requireObject(output, 'worker output');
   const stepKind = step.kind ?? 'subagent';
 
@@ -119,17 +119,17 @@ if (!currentStep) fail(`current step not found in workflow: ${baton.currentStep}
 requireObject(currentStep.outcomes, `workflow.steps.${baton.currentStep}.outcomes`);
 
 validateTakesPrerequisites(currentStep, baton, baton.currentStep);
-const transitionLabel = extractTransitionLabel(workerOutput, currentStep, baton.currentStep);
-const targetStepId = currentStep.outcomes[transitionLabel];
-if (!targetStepId) fail(`transition '${transitionLabel}' is not allowed from step '${baton.currentStep}'`);
+const handoffLabel = extractHandoffLabel(workerOutput, currentStep, baton.currentStep);
+const targetStepId = currentStep.outcomes[handoffLabel];
+if (!targetStepId) fail(`handoff '${handoffLabel}' is not allowed from step '${baton.currentStep}'`);
 
 const targetStep = workflow.steps[targetStepId];
-if (!targetStep) fail(`transition target not found in workflow: ${targetStepId}`);
+if (!targetStep) fail(`handoff target not found in workflow: ${targetStepId}`);
 
 const updatedBaton = structuredClone(baton);
 updatedBaton.currentStep = targetStepId;
 updatedBaton.status = targetStepId === workflow.done ? 'done' : targetStepId === workflow.blocked ? 'blocked' : 'running';
-updatedBaton.lastOutcome = transitionLabel;
+updatedBaton.lastOutcome = handoffLabel;
 if (workerOutput.artifacts) updatedBaton.artifacts = { ...updatedBaton.artifacts, ...workerOutput.artifacts };
 if (workerOutput.approvals) updatedBaton.approvals = { ...updatedBaton.approvals, ...workerOutput.approvals };
 if (workerOutput.blocker) updatedBaton.blocker = workerOutput.blocker;
@@ -145,7 +145,7 @@ const nextStep = {
   action: nextAction(targetStep),
 };
 
-const transitionResponse = { baton: updatedBaton, nextStep };
-assertSchema(validateTransitionResponseSchema, transitionResponse, 'transition response');
+const handoffResponse = { baton: updatedBaton, nextStep };
+assertSchema(validateHandoffResponseSchema, handoffResponse, 'handoff response');
 
-console.log(JSON.stringify(transitionResponse, null, 2));
+console.log(JSON.stringify(handoffResponse, null, 2));

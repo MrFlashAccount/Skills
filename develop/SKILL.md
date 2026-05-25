@@ -1,3 +1,8 @@
+---
+name: develop-dev-harness
+description: Use for coding requests that should run the DevHarness baton workflow through bounded worker prompts, approval waits, and the develop/dev-harness handoff helper.
+---
+
 # Dev Harness
 
 Orchestrate the workflow loop against the persisted baton.
@@ -6,7 +11,7 @@ Orchestrate the workflow loop against the persisted baton.
 2. Read `nextStep.action` from the baton.
 3. If `nextStep.action == "generate_worker_prompt"`, generate one bounded worker prompt from the current next step, run the worker, and capture its strict JSON output.
 4. If `nextStep.action == "wait_for_approval"`, stop and wait for explicit human approval before producing approval JSON.
-5. After worker output or approval output exists, call the transition helper:
+5. After worker output or approval output exists, call the handoff helper:
 
    ```bash
    node develop/dev-harness-step.mjs <workflow.json> <baton.json> <worker-or-approval-output.json>

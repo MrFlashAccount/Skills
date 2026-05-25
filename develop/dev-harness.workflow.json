@@ -159,10 +159,10 @@
       "workflow_graph",
       "baton",
       "current_global_node",
-      "allowed_transitions"
+      "allowed_handoffs"
     ]
   },
-  "transition_helper": {
+  "handoff_helper": {
     "input": [
       "workflow",
       "baton",
@@ -171,8 +171,8 @@
     "validates": [
       "baton_shape",
       "output_shape_for_current_step",
-      "outcome_exists_in_workflow",
-      "transition_allowed_from_current_step",
+      "handoff_outcome_exists_in_workflow",
+      "handoff_allowed_from_current_step",
       "required_artifacts_or_approvals_present"
     ],
     "output": [

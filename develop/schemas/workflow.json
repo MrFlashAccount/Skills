@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openclaw.local/dev-harness/workflow.schema.json",
+  "$id": "https://openclaw.local/dev-harness/schemas/workflow",
   "title": "DevHarness Workflow Document",
   "type": "object",
   "required": ["workflow"],
@@ -23,7 +23,7 @@
       "additionalProperties": true
     },
     "prompt_generation": { "type": "object" },
-    "transition_helper": { "type": "object" }
+    "handoff_helper": { "type": "object" }
   },
   "additionalProperties": false,
   "$defs": {

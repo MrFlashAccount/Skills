@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openclaw.local/dev-harness/baton.schema.json",
+  "$id": "https://openclaw.local/dev-harness/schemas/baton",
   "title": "DevHarness Baton",
   "type": "object",
   "required": ["currentStep", "status", "artifacts", "approvals"],

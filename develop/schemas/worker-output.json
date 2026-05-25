@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openclaw.local/dev-harness/worker-output.schema.json",
+  "$id": "https://openclaw.local/dev-harness/schemas/worker-output",
   "title": "DevHarness Worker Or Approval Output",
   "type": "object",
   "minProperties": 1,

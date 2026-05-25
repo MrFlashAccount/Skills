@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openclaw.local/dev-harness/transition-response.schema.json",
-  "title": "DevHarness Transition Response",
+  "$id": "https://openclaw.local/dev-harness/schemas/handoff-response",
+  "title": "DevHarness Handoff Response",
   "type": "object",
   "required": ["baton", "nextStep"],
   "properties": {
-    "baton": { "$ref": "https://openclaw.local/dev-harness/baton.schema.json" },
+    "baton": { "$ref": "https://openclaw.local/dev-harness/schemas/baton" },
     "nextStep": {
       "type": "object",
       "required": ["id", "kind", "template", "takes", "produces", "action"],
