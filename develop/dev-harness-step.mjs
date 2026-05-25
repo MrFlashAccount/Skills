@@ -105,7 +105,7 @@ function extractHandoffLabel(output, step, cursorId) {
   if ('approval' in output) fail(`cursor '${cursorId}' must use outcome, not approval`);
   if (!('outcome' in output)) fail(`cursor '${cursorId}' must include string outcome`);
   const outcome = output.outcome;
-  if (typeof outcome !== 'string' || !outcome) fail(`step '${stepId}' must include string outcome`);
+  if (typeof outcome !== 'string' || !outcome) fail(`cursor '${cursorId}' must include string outcome`);
   return outcome;
 }
 
