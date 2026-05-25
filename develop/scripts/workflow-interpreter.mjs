@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs';
-import validateBatonSchema from './dist/validate-baton.mjs';
-import validateWorkflowSchema from './dist/validate-workflow.mjs';
-import validateWorkerOutputSchema from './dist/validate-worker-output.mjs';
-import validateWorkflowInterpreterResponseSchema from './dist/validate-workflow-interpreter-response.mjs';
+import validateBatonSchema from '../dist/validators/baton.mjs';
+import validateWorkflowSchema from '../dist/validators/workflow.mjs';
+import validateWorkerOutputSchema from '../dist/validators/worker-output.mjs';
+import validateWorkflowInterpreterResponseSchema from '../dist/validators/workflow-interpreter-response.mjs';
 
 function fail(message) {
   console.error(`workflow-interpreter: ${message}`);
@@ -173,19 +173,19 @@ const mode = args[0];
 if (mode === 'inspect' || mode === 'directive') {
   const [, workflowPath, batonPath] = args;
   if (!workflowPath || !batonPath || args.length !== 3) {
-    fail('usage: node develop/workflow-interpreter.mjs inspect <workflow.json> <baton.json>');
+    fail('usage: node scripts/workflow-interpreter.mjs inspect <workflow.json> <baton.json>');
   }
   directiveMode(workflowPath, batonPath);
 } else if (mode === 'apply') {
   const [, workflowPath, batonPath, outputPath] = args;
   if (!workflowPath || !batonPath || !outputPath || args.length !== 4) {
-    fail('usage: node develop/workflow-interpreter.mjs apply <workflow.json> <baton.json> <worker-output.json>');
+    fail('usage: node scripts/workflow-interpreter.mjs apply <workflow.json> <baton.json> <worker-output.json>');
   }
   applyMode(workflowPath, batonPath, outputPath);
 } else {
   const [workflowPath, batonPath, outputPath] = args;
   if (!workflowPath || !batonPath || !outputPath || args.length !== 3) {
-    fail('usage: node develop/workflow-interpreter.mjs inspect <workflow.json> <baton.json> | apply <workflow.json> <baton.json> <worker-output.json>');
+    fail('usage: node scripts/workflow-interpreter.mjs inspect <workflow.json> <baton.json> | apply <workflow.json> <baton.json> <worker-output.json>');
   }
   applyMode(workflowPath, batonPath, outputPath);
 }
