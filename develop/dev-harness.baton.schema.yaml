@@ -1,0 +1,13 @@
+type: object
+required:
+  - currentStep
+  - status
+  - artifacts
+  - approvals
+fields:
+  currentStep: string
+  status: string
+  artifacts: object
+  approvals: object
+  lastOutcome: string_optional
+  blocker: object_optional
