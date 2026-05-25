@@ -27,7 +27,7 @@ On resume, read the latest persisted `baton.json`, last ledger entry, and releva
    ```
 
 3. Follow only the returned `directive`; do not infer step transitions yourself.
-4. If `directive.action == "run_worker"`, run one bounded worker for that directive, write its strict JSON output under `<run-dir>/outputs/`, and record the path in the ledger.
+4. If `directive.action == "run_worker"`, launch exactly one bounded subagent/executor for that directive. Give it only the task/directive context needed for the current cursor, not the workflow graph or handoff authority. It must return strict worker output JSON/artifacts for that cursor. The orchestrator must write that output under `<run-dir>/outputs/`, record the path in the ledger, and must not perform the worker step itself. If delegated execution is unavailable, stop as blocked.
 5. If `directive.action == "wait_for_approval"`, stop and wait for explicit human approval before writing approval JSON under `<run-dir>/outputs/`.
 6. After worker output or approval output exists, call the helper with that output:
 
