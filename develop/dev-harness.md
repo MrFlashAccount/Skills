@@ -9,9 +9,7 @@ Files:
 - `dev-harness.workflow.yaml` — workflow steps, required outputs, and allowed transitions
 - `dev-harness.baton.schema.yaml` — minimum baton shape
 - `dev-harness-step.mjs` — executable transition authority
-- `dev-harness-replay.mjs` — tiny non-interactive replay harness for the demo workflow
 - `fixtures/` — tiny runnable example inputs and negative cases
-- `demo/` — five-step simple file workflow proof with reproducible happy/negative replay commands
 
 ## Top-level operating model
 
@@ -23,7 +21,7 @@ The skill repeatedly loads the current baton and workflow, then follows the curr
 
 After each worker or approval output, call the transition helper with workflow, old baton, and that output. The helper is the authority for allowed transitions, required `takes`/`produces` fields, baton updates, terminal status, and the next `nextStep` descriptor.
 
-Persist the returned baton externally only after the helper exits successfully. If the helper exits non-zero, keep the old baton unchanged and stop as a blocker. Repeat until `nextStep.action` is a stop action or the returned baton status is `done`/`blocked`.
+Persist the returned baton externally only after the helper exits successfully. The helper is a pure transition validator: it reads workflow, old baton, and worker/approval output, then prints `{ baton, nextStep }` JSON to stdout; it does not own baton storage or write the baton file. The orchestrator should persist by writing the returned baton to a temp file and atomically renaming/replacing the old baton. If the helper exits non-zero, keep the old baton unchanged and stop as a blocker. The next loop iteration loads the persisted baton. Repeat until `nextStep.action` is a stop action or the returned baton status is `done`/`blocked`.
 
 Approval gates are deliberate pauses: do not generate another worker prompt or advance the baton while waiting for human approval.
 
@@ -44,20 +42,6 @@ node develop/dev-harness-step.mjs \
   develop/fixtures/approval-baton.yaml \
   develop/fixtures/approval-output.yaml
 ```
-
-Run the non-interactive end-to-end demo replay:
-
-```bash
-node develop/dev-harness-replay.mjs
-```
-
-Run its compact negative check:
-
-```bash
-node develop/dev-harness-replay.mjs --negative missing-produced-artifact
-```
-
-The replay demo creates a temp workspace, writes and verifies real files, records transition trace output, and stops at terminal `done`; see `demo/simple-file-workflow-report.md`.
 
 The script reads workflow, baton, and worker/approval output as JSON or a small YAML subset. On success it prints `{ baton, nextStep }` JSON to stdout for the orchestrator to persist and loop on. On invalid baton shape, missing step, missing produced field, mixed `outcome`/`approval`, unknown transition, or invalid transition target, it prints an error to stderr and exits non-zero without writing files.
 
