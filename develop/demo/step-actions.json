@@ -1,0 +1,33 @@
+{
+  "prepare_workspace": {
+    "action": "prepare_workspace",
+    "outcome": "workspace_ready",
+    "artifact": "workspaceManifest",
+    "relativePath": "workspace-manifest.json"
+  },
+  "write_seed_file": {
+    "action": "write_file",
+    "outcome": "seed_written",
+    "artifact": "seedFile",
+    "relativePath": "files/seed.txt",
+    "content": "seed: DevHarness replay demo\n"
+  },
+  "append_summary": {
+    "action": "append_summary",
+    "outcome": "summary_appended",
+    "artifact": "summaryFile",
+    "relativePath": "files/summary.md"
+  },
+  "verify_files": {
+    "action": "verify_files",
+    "outcome": "verified",
+    "artifact": "verification",
+    "relativePath": "verification.json"
+  },
+  "finalize": {
+    "action": "finalize",
+    "outcome": "done",
+    "artifact": "finalReport",
+    "relativePath": "final-report.md"
+  }
+}
