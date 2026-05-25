@@ -1,18 +1,19 @@
 #!/usr/bin/env node
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import Ajv2020 from 'ajv/dist/2020.js';
 import standaloneCode from 'ajv/dist/standalone/index.js';
 
 const root = process.cwd();
 const outDir = path.join(root, 'develop/dist');
+rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
 
 const schemas = [
-  ['validate-baton.mjs', 'develop/dev-harness.baton.schema.json'],
-  ['validate-workflow.mjs', 'develop/schemas/workflow.schema.json'],
-  ['validate-worker-output.mjs', 'develop/schemas/worker-output.schema.json'],
-  ['validate-transition-response.mjs', 'develop/schemas/transition-response.schema.json'],
+  ['validate-baton.mjs', 'develop/schemas/baton.json'],
+  ['validate-workflow.mjs', 'develop/schemas/workflow.json'],
+  ['validate-worker-output.mjs', 'develop/schemas/worker-output.json'],
+  ['validate-handoff-response.mjs', 'develop/schemas/handoff-response.json'],
 ];
 
 const loadedSchemas = Object.fromEntries(
