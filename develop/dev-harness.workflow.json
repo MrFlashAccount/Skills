@@ -9,137 +9,125 @@
       "research": {
         "kind": "subagent",
         "template": "dev_harness.research",
-        "takes": [
-          "task",
-          "repo",
-          "branch"
-        ],
-        "produces": [
-          "artifacts.research"
-        ],
         "outcomes": {
           "ready_for_approval": "approve_research",
           "blocked": "blocked"
-        }
+        },
+        "producesArtifacts": [
+          "research"
+        ]
       },
       "approve_research": {
         "kind": "user_approval",
-        "takes": [
-          "artifacts.research"
-        ],
-        "produces": [
-          "approvals.research"
-        ],
         "outcomes": {
           "approved": "architecture",
           "rejected": "research",
           "blocked": "blocked"
-        }
+        },
+        "takesArtifacts": [
+          "research"
+        ],
+        "producesArtifacts": [
+          "research_approval"
+        ]
       },
       "architecture": {
         "kind": "subagent",
         "template": "dev_harness.architecture",
-        "takes": [
-          "task",
-          "artifacts.research"
-        ],
-        "produces": [
-          "artifacts.architecture"
-        ],
         "outcomes": {
           "ready_for_approval": "approve_architecture",
           "blocked": "blocked"
-        }
+        },
+        "takesArtifacts": [
+          "research"
+        ],
+        "producesArtifacts": [
+          "architecture"
+        ]
       },
       "approve_architecture": {
         "kind": "user_approval",
-        "takes": [
-          "artifacts.architecture"
-        ],
-        "produces": [
-          "approvals.architecture"
-        ],
         "outcomes": {
           "approved": "implementation_plan",
           "rejected": "architecture",
           "blocked": "blocked"
-        }
+        },
+        "takesArtifacts": [
+          "architecture"
+        ],
+        "producesArtifacts": [
+          "architecture_approval"
+        ]
       },
       "implementation_plan": {
         "kind": "subagent",
         "template": "dev_harness.implementation_plan",
-        "takes": [
-          "task",
-          "artifacts.research",
-          "artifacts.architecture"
-        ],
-        "produces": [
-          "artifacts.implementationPlan"
-        ],
         "outcomes": {
           "ready_for_approval": "approve_plan",
           "blocked": "blocked"
-        }
+        },
+        "takesArtifacts": [
+          "research",
+          "architecture"
+        ],
+        "producesArtifacts": [
+          "implementationPlan"
+        ]
       },
       "approve_plan": {
         "kind": "user_approval",
-        "takes": [
-          "artifacts.implementationPlan"
-        ],
-        "produces": [
-          "approvals.implementationPlan"
-        ],
         "outcomes": {
           "approved": "implementation",
           "rejected": "implementation_plan",
           "blocked": "blocked"
-        }
+        },
+        "takesArtifacts": [
+          "implementationPlan"
+        ],
+        "producesArtifacts": [
+          "implementationPlan_approval"
+        ]
       },
       "implementation": {
         "kind": "subagent",
         "template": "dev_harness.implementation",
-        "takes": [
-          "task",
-          "artifacts.research",
-          "artifacts.architecture",
-          "artifacts.implementationPlan"
-        ],
-        "produces": [
-          "artifacts.implementation"
-        ],
         "outcomes": {
           "ready_for_review": "review",
           "blocked": "blocked"
-        }
+        },
+        "takesArtifacts": [
+          "research",
+          "architecture",
+          "implementationPlan"
+        ],
+        "producesArtifacts": [
+          "implementation"
+        ]
       },
       "review": {
         "kind": "subagent",
         "template": "dev_harness.review",
-        "takes": [
-          "task",
-          "artifacts.implementation"
-        ],
-        "produces": [
-          "artifacts.review"
-        ],
         "outcomes": {
           "passed": "done",
           "needs_changes": "implementation",
           "blocked": "blocked"
-        }
+        },
+        "takesArtifacts": [
+          "implementation"
+        ],
+        "producesArtifacts": [
+          "review"
+        ]
       },
       "done": {
         "kind": "terminal",
-        "produces": [
+        "producesArtifacts": [
           "final_summary"
         ]
       },
       "blocked": {
         "kind": "terminal",
-        "takes": [
-          "blocker"
-        ],
-        "produces": [
+        "producesArtifacts": [
           "blocker_summary"
         ]
       }
@@ -149,8 +137,8 @@
     "template_id": "dev_harness.worker_prompt",
     "inputs": [
       "task",
-      "step_id",
-      "step_instructions",
+      "cursor",
+      "cursor_instructions",
       "approved_artifacts",
       "constraints",
       "expected_output_format"
@@ -158,27 +146,48 @@
     "exclusions": [
       "workflow_graph",
       "baton",
-      "current_global_node",
+      "global_node",
       "allowed_handoffs"
     ]
   },
   "handoff_helper": {
-    "input": [
-      "workflow",
-      "baton",
-      "worker_or_approval_output"
-    ],
-    "validates": [
-      "baton_shape",
-      "output_shape_for_current_step",
-      "handoff_outcome_exists_in_workflow",
-      "handoff_allowed_from_current_step",
-      "required_artifacts_or_approvals_present"
-    ],
-    "output": [
-      "updated_baton",
-      "next_step",
-      "action"
-    ]
+    "modes": {
+      "inspect": {
+        "input": [
+          "workflow",
+          "baton"
+        ],
+        "validates": [
+          "workflow_shape",
+          "baton_shape",
+          "cursor_exists",
+          "required_artifacts_present_for_cursor"
+        ],
+        "output": [
+          "baton",
+          "directive"
+        ],
+        "mutates_baton": false
+      },
+      "apply": {
+        "input": [
+          "workflow",
+          "baton",
+          "worker_or_approval_output"
+        ],
+        "validates": [
+          "workflow_shape",
+          "baton_shape",
+          "output_shape_for_cursor",
+          "handoff_outcome_exists_in_workflow",
+          "handoff_allowed_from_cursor",
+          "required_output_artifacts_present"
+        ],
+        "output": [
+          "baton",
+          "directive"
+        ]
+      }
+    }
   }
 }
