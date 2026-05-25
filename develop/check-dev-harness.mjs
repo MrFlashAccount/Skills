@@ -66,19 +66,40 @@ try {
     process.exit(1);
   }
 
-  runHelper(
+  const researchReadyResponse = runHelper(
     'research-ready',
     initialBaton,
-    { outcome: 'ready_for_approval', artifacts: [{ type: 'research', summary: 'minimal research packet' }] },
+    {
+      outcome: 'ready_for_approval',
+      artifacts: [{ type: 'research', summary: 'minimal research packet' }],
+      results: [{ type: 'research_summary', summary: 'non-durable operator note' }],
+    },
     true,
   );
+  if (researchReadyResponse.baton.cursor !== 'approve_research') {
+    process.stderr.write(`check 'research-ready' did not advance cursor\n`);
+    process.exit(1);
+  }
+  if (researchReadyResponse.baton.state.results?.[0]?.type !== 'research_summary') {
+    process.stderr.write(`check 'research-ready' did not append state.results\n`);
+    process.exit(1);
+  }
+  const historyEvent = researchReadyResponse.baton.state.history?.[0];
+  if (historyEvent?.event !== 'handoff_applied' || historyEvent.cursor !== 'research' || historyEvent.target !== 'approve_research') {
+    process.stderr.write(`check 'research-ready' did not append expected state.history event\n`);
+    process.exit(1);
+  }
 
-  runHelper(
+  const approvalResponse = runHelper(
     'approval',
     { cursor: 'approve_research', status: 'running', state: { artifacts: [{ type: 'research', summary: 'minimal research packet' }] } },
     { approval: 'approved', artifacts: [{ type: 'research_approval', summary: 'approved' }] },
     true,
   );
+  if ('approval' in approvalResponse.baton) {
+    process.stderr.write(`check 'approval' stored top-level approval state\n`);
+    process.exit(1);
+  }
 
   runHelper(
     'missing-artifact',

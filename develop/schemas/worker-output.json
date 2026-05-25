@@ -11,6 +11,10 @@
       "type": "array",
       "items": { "$ref": "https://openclaw.local/dev-harness/schemas/baton#/$defs/artifact" }
     },
+    "results": {
+      "type": "array",
+      "items": { "$ref": "https://openclaw.local/dev-harness/schemas/baton#/$defs/result" }
+    },
     "blocker": { "type": "object" }
   },
   "additionalProperties": false,
