@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
+import test, { after } from 'node:test';
 import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -10,7 +11,6 @@ const tempDir = mkdtempSync(path.join(tmpdir(), 'dev-harness-check-'));
 const workflowPath = path.join(root, 'develop/dev-harness.workflow.json');
 const baseWorkflowDoc = JSON.parse(readFileSync(workflowPath, 'utf8'));
 const emptyState = Object.freeze({ artifacts: [], results: [] });
-let scenarioCount = 0;
 
 function clone(value) {
   return structuredClone(value);
@@ -75,7 +75,7 @@ function runInspect(label, batonDoc, expectSuccess = true, workflowDoc = baseWor
   const batonPath = writeJson(`${prefix}-baton.json`, batonDoc);
   const wfPath = workflowDoc === baseWorkflowDoc ? workflowPath : writeJson(`${prefix}-workflow.json`, workflowDoc);
   const before = readFileSync(batonPath, 'utf8');
-  const result = runNode(['develop/workflow-interpreter.mjs', 'inspect', wfPath, batonPath]);
+  const result = runNode(['develop/scripts/workflow-interpreter.mjs', 'inspect', wfPath, batonPath]);
   const response = expectResult(label, result, expectSuccess);
   assert.equal(readFileSync(batonPath, 'utf8'), before, `check '${label}' mutated baton file during inspect`);
   return response;
@@ -87,23 +87,20 @@ function runApply(label, batonDoc, workerOutput, expectSuccess = true, workflowD
   const outputPath = writeJson(`${prefix}-output.json`, workerOutput);
   const wfPath = workflowDoc === baseWorkflowDoc ? workflowPath : writeJson(`${prefix}-workflow.json`, workflowDoc);
   const before = readFileSync(batonPath, 'utf8');
-  const result = runNode(['develop/workflow-interpreter.mjs', 'apply', wfPath, batonPath, outputPath]);
+  const result = runNode(['develop/scripts/workflow-interpreter.mjs', 'apply', wfPath, batonPath, outputPath]);
   const response = expectResult(label, result, expectSuccess);
   assert.equal(readFileSync(batonPath, 'utf8'), before, `check '${label}' mutated baton file during apply`);
   return response;
 }
 
 function scenario(label, fn) {
-  scenarioCount += 1;
-  try {
-    fn();
-  } catch (error) {
-    process.stderr.write(`check '${label}' failed\n`);
-    throw error;
-  }
+  test(label, fn);
 }
 
-try {
+after(() => {
+  rmSync(tempDir, { recursive: true, force: true });
+});
+
   scenario('schema: malformed workflow shape rejected', () => {
     runInspect('schema-malformed-workflow', baton(), false, { workflow: { name: 'bad' } });
   });
@@ -284,8 +281,3 @@ try {
     assert.equal(response.baton.status, 'done');
     assert.equal(response.directive.action, 'stop_done');
   });
-
-  console.log(`dev-harness static checks passed (${scenarioCount} scenarios)`);
-} finally {
-  rmSync(tempDir, { recursive: true, force: true });
-}

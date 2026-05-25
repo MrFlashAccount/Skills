@@ -7,6 +7,12 @@ description: Use for coding requests that should run the DevHarness baton workfl
 
 Orchestrate one script-directed workflow loop against persisted run state. DevHarness is loop-like: keep a compact baton between iterations, but do not decide the next action by protocol. Before each iteration, call the workflow interpreter and follow the returned directive.
 
+## Available scripts
+
+- `scripts/workflow-interpreter.mjs` — non-interactive runtime script. It reads workflow/baton/output JSON files, writes one JSON response to stdout, writes diagnostics/errors to stderr, and exits non-zero on failure.
+
+Run commands from this skill directory so script paths stay relative to the skill root.
+
 ## Run state
 
 Create or reuse one per-run state directory before starting, for example `.dev-harness-runs/<run-id>/` in the current workspace or another caller-provided scratch location. Keep all run-local files there:
@@ -20,10 +26,10 @@ On resume, read the latest persisted `baton.json`, last ledger entry, and releva
 ## Workflow
 
 1. Read the persisted baton from the run directory. Do not read, load, summarize, or iterate the workflow JSON; it is a script asset, not agent context.
-2. Before entering the loop, and before every next iteration after resume or successful apply, call the workflow interpreter from the repo root:
+2. Before entering the loop, and before every next iteration after resume or successful apply, call the workflow interpreter:
 
    ```bash
-   node develop/workflow-interpreter.mjs inspect develop/dev-harness.workflow.json <run-dir>/baton.json
+   node scripts/workflow-interpreter.mjs inspect dev-harness.workflow.json <run-dir>/baton.json
    ```
 
 3. Follow only the returned `directive`; do not infer step transitions yourself.
@@ -32,7 +38,7 @@ On resume, read the latest persisted `baton.json`, last ledger entry, and releva
 6. After worker output or approval output exists, call the workflow interpreter with that output:
 
    ```bash
-   node develop/workflow-interpreter.mjs apply develop/dev-harness.workflow.json <run-dir>/baton.json <run-dir>/outputs/<output>.json
+   node scripts/workflow-interpreter.mjs apply dev-harness.workflow.json <run-dir>/baton.json <run-dir>/outputs/<output>.json
    ```
 
 7. If the workflow interpreter succeeds, persist the returned `baton` by writing it to a temporary file and atomically replacing `<run-dir>/baton.json`; then ledger the result and continue from the returned `directive`.
