@@ -3,6 +3,7 @@ import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import { build } from 'esbuild';
 import Ajv2020 from 'ajv/dist/2020.js';
 import standaloneCode from 'ajv/dist/standalone/index.js';
 
@@ -68,15 +69,60 @@ function collectSchemas(dir, baseDir = dir) {
 
 const schemas = collectSchemas(schemasDir).sort((a, b) => a.fileName.localeCompare(b.fileName));
 
-function normalizeStandaloneEsm(moduleCode) {
-  return moduleCode
-    .replace(/import (func\d+)Module from "ajv\/dist\/runtime\/ucs2length\.js";\n/g, '')
-    .replace(/const (func\d+) = \1Module\.default;/g, (_match, name) => {
-      return `const ${name} = (value) => Array.from(value).length;`;
-    })
-    .replace(/const (func\d+) = require\("ajv\/dist\/runtime\/ucs2length"\)\.default;/g, (_match, name) => {
-      return `const ${name} = (value) => Array.from(value).length;`;
+const ajvRuntimePathPattern = /^ajv\/dist\/runtime\/(?<helper>[A-Za-z0-9_-]+)(?:\.js)?$/;
+
+const bundleAjvRuntimePlugin = {
+  name: 'bundle-ajv-runtime',
+  setup(buildContext) {
+    buildContext.onResolve({ filter: ajvRuntimePathPattern }, (args) => {
+      const helper = args.path.match(ajvRuntimePathPattern)?.groups?.helper;
+      return { path: helper, namespace: 'ajv-runtime' };
     });
+
+    buildContext.onLoad({ filter: /.*/, namespace: 'ajv-runtime' }, (args) => {
+      if (args.path !== 'ucs2length') throw new Error(`unsupported AJV runtime helper: ${args.path}`);
+      return {
+        loader: 'js',
+        contents: `export default function unicodeLength(str) {
+  let length = str.length;
+  let result = 0;
+  let pos = 0;
+  let value;
+  while (pos < length) {
+    result += 1;
+    value = str.charCodeAt(pos++);
+    if (value >= 0xd800 && value <= 0xdbff && pos < length) {
+      value = str.charCodeAt(pos);
+      if ((value & 0xfc00) === 0xdc00) pos += 1;
+    }
+  }
+  return result;
+}`,
+      };
+    });
+  },
+};
+
+async function bundleStandaloneEsm(moduleCode, fileName) {
+  const result = await build({
+    stdin: {
+      contents: moduleCode,
+      loader: 'js',
+      resolveDir: process.cwd(),
+      sourcefile: fileName,
+    },
+    bundle: true,
+    write: false,
+    format: 'esm',
+    platform: 'node',
+    target: 'node20',
+    legalComments: 'none',
+    minify: true,
+    plugins: [bundleAjvRuntimePlugin],
+    logLevel: 'silent',
+  });
+
+  return result.outputFiles[0].text;
 }
 
 if (schemas.length === 0) usage(`no JSON schemas found in ${schemasDir}`);
@@ -88,10 +134,11 @@ for (const { fileName, schema } of schemas) {
   const ajv = new Ajv2020({ code: { esm: true, source: true }, allErrors: true });
   for (const loaded of schemas) ajv.addSchema(loaded.schema);
   const validate = ajv.getSchema(schema.$id) ?? ajv.compile(schema);
-  const moduleCode = normalizeStandaloneEsm(standaloneCode(ajv, validate));
+  const rawModuleCode = standaloneCode(ajv, validate);
+  const bundledModuleCode = await bundleStandaloneEsm(rawModuleCode, fileName);
   const outputPath = path.join(outDir, fileName);
   mkdirSync(path.dirname(outputPath), { recursive: true });
-  writeFileSync(outputPath, `${moduleCode}\n`);
+  writeFileSync(outputPath, bundledModuleCode.endsWith('\n') ? bundledModuleCode : `${bundledModuleCode}\n`);
 }
 
 console.log(`generated ${schemas.length} standalone validators in ${path.relative(process.cwd(), outDir) || '.'}`);
