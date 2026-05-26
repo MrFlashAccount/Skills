@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
@@ -9,6 +9,14 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-schema-check-'));
 const devHarnessWorkflowPath = path.join(root, 'develop/dev-harness.workflow.json');
+
+function outputContract(name = 'worker') {
+  const templates = {
+    worker: 'shared/templates/implementation-plan-template.md',
+    research: 'shared/templates/research-packet-template.md',
+  };
+  return { schema: 'schemas/worker-output.json', template: templates[name] ?? 'shared/templates/review-verdict-template.md', format: 'markdown' };
+}
 
 const schemaWorkflowDoc = {
   workflow: {
@@ -22,7 +30,7 @@ const schemaWorkflowDoc = {
         name: 'Worker step',
         kind: 'worker',
         input: { template: 'worker.md', role: 'backend', state: ['artifacts'], prompt: 'Run worker.' },
-        output: { schema: 'worker-output.json' },
+        output: outputContract(),
         next: { by: 'outcome', map: { ready: 'approval_step', retry: { target: 'worker_step', maxAttempts: 2, onLimit: 'blocked' }, blocked: 'blocked' } },
       },
       approval_step: {
@@ -35,7 +43,7 @@ const schemaWorkflowDoc = {
         name: 'Direct next worker',
         kind: 'worker',
         input: { template: 'direct.md', state: ['results'] },
-        output: { schema: 'worker-output.json' },
+        output: outputContract(),
         next: 'done',
       },
       done: { name: 'Done', kind: 'done', input: { prompt: 'Finished.' } },
@@ -56,7 +64,7 @@ const e2eWorkflowDoc = {
         name: 'Worker step',
         kind: 'worker',
         input: { template: 'worker.md', role: 'backend', state: ['artifacts'], prompt: 'Run worker.' },
-        output: { schema: 'worker-output.json' },
+        output: outputContract(),
         next: {
           by: 'outcome',
           map: {
@@ -76,14 +84,14 @@ const e2eWorkflowDoc = {
         name: 'Implementation worker',
         kind: 'worker',
         input: { template: 'implementation.md', state: ['artifacts', 'results'] },
-        output: { schema: 'worker-output.json' },
+        output: outputContract(),
         next: 'review_worker',
       },
       review_worker: {
         name: 'Review worker',
         kind: 'worker',
         input: { template: 'review.md', state: ['artifacts', 'results'] },
-        output: { schema: 'worker-output.json' },
+        output: outputContract(),
         next: { by: 'outcome', map: { ready: 'done', blocked: 'blocked' } },
       },
       done: { name: 'Done', kind: 'done', input: { prompt: 'Finished.' } },
@@ -199,10 +207,80 @@ test('schema workflow fixture: DevHarness JSON is accepted without DevHarness-sp
   assert.equal(response.directive.action, 'run_worker');
   assert.equal(response.directive.vertex.kind, 'worker');
   assert.deepEqual(response.directive.vertex.input.state, ['artifacts', 'results']);
+  assert.equal(response.directive.vertex.output.schema, 'schemas/worker-output.json');
+  assert.equal(response.directive.vertex.output.template, 'shared/templates/research-packet-template.md');
+  assert.equal(response.directive.vertex.output.format, 'markdown');
 });
 
 
 
+test('schema workflow fixture: DevHarness worker outputs use generic schema plus shared output templates', () => {
+  const workflowDoc = JSON.parse(readFileSync(devHarnessWorkflowPath, 'utf8'));
+  for (const [stepId, step] of Object.entries(workflowDoc.workflow.steps)) {
+    if (step.kind !== 'worker') continue;
+
+    assert.equal(step.output.schema, 'schemas/worker-output.json', `${stepId} should use the generic worker output schema`);
+    assert.match(step.output.template, /^shared\/templates\//, `${stepId} should use the shared templates layout`);
+    assert.ok(existsSync(path.join(root, step.output.template)), `${stepId} output template should exist`);
+    assert.equal(step.output.format, 'markdown', `${stepId} should declare markdown output format`);
+  }
+});
+
+
+
+test('schema validation: workflow accepts output template refs on worker contracts', () => {
+  const workflowDoc = structuredClone(schemaWorkflowDoc);
+  workflowDoc.workflow.steps.worker_step.output = outputContract('research');
+
+  const response = runInspect('output-template-ref-valid', baton(), true, workflowDoc);
+
+  assert.deepEqual(response.directive.vertex.output, {
+    schema: 'schemas/worker-output.json',
+    template: 'shared/templates/research-packet-template.md',
+    format: 'markdown',
+  });
+});
+
+test('schema validation: malformed output template contract shapes are rejected', () => {
+  const cases = [
+    ['missing-format', { schema: 'schemas/worker-output.json', template: 'shared/templates/research-packet-template.md' }],
+    ['invalid-format', { schema: 'schemas/worker-output.json', template: 'shared/templates/research-packet-template.md', format: 'json' }],
+    ['blank-template', { schema: 'schemas/worker-output.json', template: '', format: 'markdown' }],
+    ['extra-output-field', { schema: 'schemas/worker-output.json', template: 'shared/templates/research-packet-template.md', format: 'markdown', sections: ['Verdict'] }],
+  ];
+
+  for (const [label, outputShape] of cases) {
+    const workflowDoc = structuredClone(schemaWorkflowDoc);
+    workflowDoc.workflow.steps.worker_step.output = outputShape;
+
+    const result = runInspect(`output-template-contract-${label}`, baton(), false, workflowDoc);
+
+    assert.match(result.stderr, /workflow failed schema validation/);
+  }
+});
+
+test('runtime: output template semantics are ignored while worker envelope is validated', () => {
+  const workflowDoc = structuredClone(schemaWorkflowDoc);
+  workflowDoc.workflow.steps.worker_step.output = {
+    schema: 'schemas/worker-output.json',
+    template: 'shared/templates/research-packet-template.md',
+    format: 'markdown',
+  };
+
+  const response = runApply('output-template-semantics-ignored', baton(), {
+    outcome: 'ready',
+    results: [{ type: 'markdown', summary: 'No required markdown headings are validated here.' }],
+  }, true, workflowDoc);
+
+  assert.equal(response.baton.cursor, 'approval_step');
+  assert.equal(response.baton.state.results.at(-1).summary, 'No required markdown headings are validated here.');
+
+  const badEnvelope = runApply('output-template-still-validates-envelope', baton(), {
+    outcome: 'ready',
+    freeformMarkdown: '## Verdict\nready',
+  }, false, workflowDoc);
+  assert.match(badEnvelope.stderr, /worker output failed schema validation/);
+});
 
 test('schema validation: top-level wrapper fields are rejected by the workflow schema', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
@@ -310,14 +388,14 @@ test('e2e: non-retry transition cycles stop at the deterministic scripted loop g
       name: 'Worker A',
       kind: 'worker',
       input: { template: 'worker-a.md' },
-      output: { schema: 'worker-output.json' },
+      output: outputContract(),
       next: { by: 'outcome', map: { go: 'worker_b' } },
     },
     worker_b: {
       name: 'Worker B',
       kind: 'worker',
       input: { template: 'worker-b.md' },
-      output: { schema: 'worker-output.json' },
+      output: outputContract(),
       next: { by: 'outcome', map: { back: 'worker_a' } },
     },
     done: { name: 'Done', kind: 'done', input: { prompt: 'Finished.' } },
@@ -825,10 +903,27 @@ test('schema validation: worker steps require declared output schema declaration
   assert.match(runInspect('worker-step-missing-output-schema', baton(), false, missingOutputSchema).stderr, /workflow failed schema validation/);
 });
 
-test('schema validation: worker output schema declaration must stay minimal and non-empty', () => {
+test('schema validation: worker output schema declaration stays generic with required markdown template contract', () => {
   const emptySchemaName = structuredClone(schemaWorkflowDoc);
   emptySchemaName.workflow.steps.worker_step.output.schema = '';
   assert.match(runInspect('worker-step-empty-output-schema', baton(), false, emptySchemaName).stderr, /workflow failed schema validation/);
+
+  const withOutputTemplate = structuredClone(schemaWorkflowDoc);
+  withOutputTemplate.workflow.steps.worker_step.output.template = 'shared/templates/implementation-plan-template.md';
+  const response = runInspect('worker-step-output-template', baton(), true, withOutputTemplate);
+  assert.equal(response.directive.vertex.output.template, 'shared/templates/implementation-plan-template.md');
+
+  const emptyTemplateName = structuredClone(schemaWorkflowDoc);
+  emptyTemplateName.workflow.steps.worker_step.output.template = '';
+  assert.match(runInspect('worker-step-empty-output-template', baton(), false, emptyTemplateName).stderr, /workflow failed schema validation/);
+
+  const missingFormat = structuredClone(schemaWorkflowDoc);
+  delete missingFormat.workflow.steps.worker_step.output.format;
+  assert.match(runInspect('worker-step-missing-output-format', baton(), false, missingFormat).stderr, /workflow failed schema validation/);
+
+  const invalidFormat = structuredClone(schemaWorkflowDoc);
+  invalidFormat.workflow.steps.worker_step.output.format = 'json';
+  assert.match(runInspect('worker-step-invalid-output-format', baton(), false, invalidFormat).stderr, /workflow failed schema validation/);
 
   const wrapperOwnedDetails = structuredClone(schemaWorkflowDoc);
   wrapperOwnedDetails.workflow.steps.worker_step.output.prompt = 'wrapper-owned-output-prompt.md';
