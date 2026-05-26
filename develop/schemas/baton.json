@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openclaw.local/workflow/schemas/baton",
+  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton",
   "title": "Workflow Baton",
   "type": "object",
   "required": ["cursor", "status", "state"],
