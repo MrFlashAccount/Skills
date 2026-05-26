@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openclaw.local/workflow/schemas/workflow-interpreter-response",
+  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/workflow-interpreter-response",
   "title": "Workflow Interpreter Response",
   "type": "object",
   "required": ["baton", "directive"],
   "properties": {
-    "baton": { "$ref": "https://openclaw.local/workflow/schemas/baton" },
+    "baton": { "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton" },
     "directive": {
       "type": "object",
       "required": ["id", "action", "vertex"],
@@ -14,7 +14,7 @@
         "action": {
           "enum": ["run_worker", "wait_for_approval", "stop_done", "stop_blocked"]
         },
-        "vertex": { "$ref": "https://openclaw.local/workflow/schemas/workflow#/$defs/step" }
+        "vertex": { "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/workflow#/$defs/step" }
       },
       "additionalProperties": false
     }

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openclaw.local/workflow/schemas/worker-output",
+  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/worker-output",
   "title": "Workflow Worker Or Approval Output",
   "type": "object",
   "minProperties": 1,
@@ -9,11 +9,11 @@
     "approval": { "type": "string" },
     "artifacts": {
       "type": "array",
-      "items": { "$ref": "https://openclaw.local/workflow/schemas/baton#/$defs/artifact" }
+      "items": { "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact" }
     },
     "results": {
       "type": "array",
-      "items": { "$ref": "https://openclaw.local/workflow/schemas/baton#/$defs/result" }
+      "items": { "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/result" }
     },
     "blocker": { "type": "object" }
   },

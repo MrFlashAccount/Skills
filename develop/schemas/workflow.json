@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openclaw.local/workflow/schemas/workflow",
+  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/workflow",
   "title": "Workflow Document",
   "type": "object",
   "required": ["workflow"],
