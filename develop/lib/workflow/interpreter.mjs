@@ -15,6 +15,7 @@ export function loadWorkflowAndBaton(workflowPath, batonPath) {
 
   const workflow = workflowDoc.workflow;
   assertWorkflowRootTargets(workflow);
+  assertWorkflowTransitionTargets(workflow);
 
   const cursorStep = workflow.steps[baton.cursor];
   invariant(cursorStep, `baton cursor not found in workflow: ${baton.cursor}`);
@@ -39,6 +40,36 @@ function assertWorkflowRootTargets(workflow) {
   const blockedStep = workflow.steps[workflow.blocked];
   invariant(blockedStep, `workflow blocked target not found: ${workflow.blocked}`);
   invariant(blockedStep.kind === 'blocked', `workflow blocked target '${workflow.blocked}' must be a blocked step`);
+}
+
+function assertWorkflowTransitionTargets(workflow) {
+  for (const [stepId, step] of Object.entries(workflow.steps)) {
+    if (!Object.hasOwn(step, 'next')) continue;
+
+    const next = step.next;
+    if (typeof next === 'string') {
+      assertTransitionTarget(workflow, stepId, 'next', next);
+      continue;
+    }
+
+    for (const [value, target] of Object.entries(next.map)) {
+      const path = `next.map.${value}`;
+      if (typeof target === 'string') {
+        assertTransitionTarget(workflow, stepId, path, target);
+        continue;
+      }
+
+      assertTransitionTarget(workflow, stepId, `${path}.target`, target.target);
+      assertTransitionTarget(workflow, stepId, `${path}.onLimit`, target.onLimit);
+    }
+  }
+}
+
+function assertTransitionTarget(workflow, stepId, fieldPath, targetStepId) {
+  invariant(
+    Object.hasOwn(workflow.steps, targetStepId),
+    `workflow step '${stepId}' transition '${fieldPath}' target not found: ${targetStepId}`,
+  );
 }
 
 function responseFor(baton, stepId, step) {

@@ -680,11 +680,11 @@ test('apply: direct string next still merges output state before resolving termi
   ]);
 });
 
-test('runtime: dangling direct string next targets fail when the resolver uses them', () => {
+test('static validation: dangling direct string next targets fail before execution', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
   workflowDoc.workflow.steps.direct_next_worker.next = 'missing_done';
-  const result = runApply('dangling-direct-next-target', baton({ cursor: 'direct_next_worker' }), output(), false, workflowDoc);
-  assert.match(result.stderr, /transition target not found in workflow: missing_done/);
+  const result = runInspect('dangling-direct-next-target', baton(), false, workflowDoc);
+  assert.match(result.stderr, /workflow step 'direct_next_worker' transition 'next' target not found: missing_done/);
 });
 
 test('apply: retry policy persists attempt counters until maxAttempts then uses onLimit', () => {
@@ -838,29 +838,27 @@ test('apply: retry attempt counters are scoped by transition value and target', 
   });
 });
 
-test('runtime: dangling workflow targets fail when the resolver uses them', () => {
+test('static validation: dangling mapped transition targets fail even when unselected', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc.workflow.steps.worker_step.next.map.ready = 'missing_target';
-  const result = runApply('dangling-target', baton(), output(), false, workflowDoc);
-  assert.match(result.stderr, /transition target not found in workflow: missing_target/);
+  workflowDoc.workflow.steps.worker_step.next.map.blocked = 'missing_blocked_branch';
+  const result = runApply('dangling-unselected-map-target', baton(), output({ outcome: 'ready' }), false, workflowDoc);
+  assert.match(result.stderr, /workflow step 'worker_step' transition 'next\.map\.blocked' target not found: missing_blocked_branch/);
 });
 
-test('runtime: dangling retry limit targets fail when the resolver uses them', () => {
+test('static validation: dangling retry limit targets fail even before the limit path is selected', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
   workflowDoc.workflow.steps.worker_step.next.map.retry.onLimit = 'missing_blocked';
-  const first = runApply('dangling-retry-limit-first', baton(), output({ outcome: 'retry' }), true, workflowDoc);
-  const second = runApply('dangling-retry-limit-second', first.baton, output({ outcome: 'retry' }), true, workflowDoc);
-  const limited = runApply('dangling-retry-limit', second.baton, output({ outcome: 'retry' }), false, workflowDoc);
-  assert.match(limited.stderr, /transition target not found in workflow: missing_blocked/);
+  const result = runApply('dangling-retry-limit', baton(), output({ outcome: 'ready' }), false, workflowDoc);
+  assert.match(result.stderr, /workflow step 'worker_step' transition 'next\.map\.retry\.onLimit' target not found: missing_blocked/);
 });
 
-test('runtime: dangling retry policy targets fail when the retry branch is selected', () => {
+test('static validation: dangling retry policy targets fail even when the retry branch is unselected', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
   workflowDoc.workflow.steps.worker_step.next.map.retry.target = 'missing_retry_target';
 
-  const result = runApply('dangling-retry-policy-target', baton(), output({ outcome: 'retry' }), false, workflowDoc);
+  const result = runApply('dangling-retry-policy-target', baton(), output({ outcome: 'ready' }), false, workflowDoc);
 
-  assert.match(result.stderr, /transition target not found in workflow: missing_retry_target/);
+  assert.match(result.stderr, /workflow step 'worker_step' transition 'next\.map\.retry\.target' target not found: missing_retry_target/);
 });
 
 test('schema validation: unsupported obsolete vocabulary is rejected by the workflow schema', () => {
