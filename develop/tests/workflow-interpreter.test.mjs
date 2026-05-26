@@ -302,6 +302,43 @@ test('e2e: scripted blocked branch reaches stop_blocked with blocker carried on 
   assert.deepEqual(final.history.map((entry) => entry.cursor), ['worker_step', 'blocked']);
 });
 
+test('e2e: non-retry transition cycles stop at the deterministic scripted loop guard', () => {
+  const workflowDoc = structuredClone(schemaWorkflowDoc);
+  workflowDoc.workflow.start = 'worker_a';
+  workflowDoc.workflow.steps = {
+    worker_a: {
+      name: 'Worker A',
+      kind: 'worker',
+      input: { template: 'worker-a.md' },
+      output: { schema: 'worker-output.json' },
+      next: { by: 'outcome', map: { go: 'worker_b' } },
+    },
+    worker_b: {
+      name: 'Worker B',
+      kind: 'worker',
+      input: { template: 'worker-b.md' },
+      output: { schema: 'worker-output.json' },
+      next: { by: 'outcome', map: { back: 'worker_a' } },
+    },
+    done: { name: 'Done', kind: 'done', input: { prompt: 'Finished.' } },
+    blocked: { name: 'Blocked', kind: 'blocked', input: { prompt: 'Blocked.' } },
+  };
+
+  assert.throws(
+    () => scriptedApplyLoop(
+      'e2e-non-retry-cycle-guard',
+      workflowDoc,
+      baton({ cursor: 'worker_a' }),
+      {
+        worker_a: [output({ outcome: 'go' }), output({ outcome: 'go' })],
+        worker_b: [output({ outcome: 'back' }), output({ outcome: 'back' })],
+      },
+      { maxSteps: 4 },
+    ),
+    /scripted workflow did not reach a terminal action within 4 steps/,
+  );
+});
+
 test('inspect: worker kind resolves to run_worker and preserves input data', () => {
   const response = runInspect('inspect-worker', baton());
   assert.equal(response.directive.id, 'worker_step');
@@ -321,6 +358,27 @@ test('inspect: done and blocked kinds resolve to stop directives', () => {
   const blocked = runInspect('inspect-blocked', baton({ cursor: 'blocked', status: 'blocked' }));
   assert.equal(done.directive.action, 'stop_done');
   assert.equal(blocked.directive.action, 'stop_blocked');
+});
+
+test('inspect: approval and terminal directives expose only canonical response fields', () => {
+  const approval = runInspect('inspect-approval-directive-shape', baton({ cursor: 'approval_step' }));
+  const done = runInspect('inspect-done-directive-shape', baton({ cursor: 'done', status: 'done' }));
+  const blocked = runInspect('inspect-blocked-directive-shape', baton({ cursor: 'blocked', status: 'blocked' }));
+
+  for (const response of [approval, done, blocked]) {
+    assert.deepEqual(Object.keys(response), ['baton', 'directive']);
+    assert.deepEqual(Object.keys(response.directive), ['id', 'action', 'vertex']);
+  }
+
+  assert.deepEqual(approval.directive, {
+    id: 'approval_step',
+    action: 'wait_for_approval',
+    vertex: schemaWorkflowDoc.workflow.steps.approval_step,
+  });
+  assert.deepEqual(done.directive, { id: 'done', action: 'stop_done', vertex: schemaWorkflowDoc.workflow.steps.done });
+  assert.deepEqual(blocked.directive, { id: 'blocked', action: 'stop_blocked', vertex: schemaWorkflowDoc.workflow.steps.blocked });
+  assert.equal(Object.hasOwn(done.directive.vertex, 'next'), false);
+  assert.equal(Object.hasOwn(blocked.directive.vertex, 'next'), false);
 });
 
 test('runtime: terminal cursors reject apply instead of advancing again', () => {
@@ -854,6 +912,16 @@ test('schema validation: terminal steps reject outgoing transitions', () => {
     runInspect('terminal-blocked-with-next', baton({ cursor: 'blocked', status: 'blocked' }), false, blockedWithNext).stderr,
     /workflow failed schema validation/,
   );
+});
+
+test('schema validation: step input rejects wrapper-owned nested fields', () => {
+  const workerInputExtension = structuredClone(schemaWorkflowDoc);
+  workerInputExtension.workflow.steps.worker_step.input.operatorHints = { prompt: 'wrapper-owned-worker-prompt.md' };
+  assert.match(runInspect('worker-input-wrapper-field', baton(), false, workerInputExtension).stderr, /workflow failed schema validation/);
+
+  const terminalInputExtension = structuredClone(schemaWorkflowDoc);
+  terminalInputExtension.workflow.steps.done.input.operatorHints = { prompt: 'wrapper-owned-done-prompt.md' };
+  assert.match(runInspect('terminal-input-wrapper-field', baton({ cursor: 'done', status: 'done' }), false, terminalInputExtension).stderr, /workflow failed schema validation/);
 });
 
 test('schema validation: input state selectors must be unique non-empty strings', () => {
