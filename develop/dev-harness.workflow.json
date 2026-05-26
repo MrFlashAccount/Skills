@@ -19,7 +19,9 @@
           "prompt": "Read task context, classify the slice, gather relevant local/project evidence, identify constraints, risks, open questions, and whether architecture-sensitive scope exists. Produce a compact research packet for critic review."
         },
         "output": {
-          "schema": "schemas/dev-harness/research-output.json"
+          "schema": "schemas/worker-output.json",
+          "template": "shared/templates/research-packet-template.md",
+          "format": "markdown"
         },
         "next": {
           "by": "outcome",
@@ -42,7 +44,9 @@
           "prompt": "Attack the research packet for missing evidence, unsafe assumptions, scope drift, sensitive surfaces, and unclear approval questions. Allow one bounded revision loop when gaps are fixable."
         },
         "output": {
-          "schema": "schemas/dev-harness/research-critic-output.json"
+          "schema": "schemas/worker-output.json",
+          "template": "shared/templates/review-verdict-template.md",
+          "format": "markdown"
         },
         "next": {
           "by": "outcome",
@@ -89,7 +93,9 @@
           "prompt": "Decide whether the approved research requires an architecture-sensitive structural contract or durable architecture artifact work. For architecture-sensitive work, produce the minimal structural contract; otherwise record an explicit no-architecture-artifact decision."
         },
         "output": {
-          "schema": "schemas/dev-harness/architecture-output.json"
+          "schema": "schemas/worker-output.json",
+          "template": "shared/templates/architecture-proposal-template.md",
+          "format": "markdown"
         },
         "next": {
           "by": "outcome",
@@ -113,7 +119,9 @@
           "prompt": "Attack the architecture decision or structural contract for ownership seams, dependency direction, contract surfaces, and durable artifact pressure. Allow one bounded revise/re-review loop when fixable."
         },
         "output": {
-          "schema": "schemas/dev-harness/architect-review-output.json"
+          "schema": "schemas/worker-output.json",
+          "template": "shared/templates/review-verdict-template.md",
+          "format": "markdown"
         },
         "next": {
           "by": "outcome",
@@ -160,7 +168,9 @@
           "prompt": "Translate approved research and any structural contract into an execution contract: file zones, implementer owners, entities, verification surfaces, rollback surfaces, docs/contract touchpoints, risks, assumptions, and handoff inputs."
         },
         "output": {
-          "schema": "schemas/dev-harness/implementation-plan-output.json"
+          "schema": "schemas/worker-output.json",
+          "template": "shared/templates/implementation-plan-template.md",
+          "format": "markdown"
         },
         "next": {
           "by": "outcome",
@@ -183,7 +193,9 @@
           "prompt": "Challenge the execution plan for entity coverage, one-owner-per-file-zone, project baseline, architecture artifact manifest, verification and rollback surfaces, sensitive surfaces, request-path/contract touchpoints, and max-detail leaks."
         },
         "output": {
-          "schema": "schemas/dev-harness/plan-review-output.json"
+          "schema": "schemas/worker-output.json",
+          "template": "shared/templates/review-verdict-template.md",
+          "format": "markdown"
         },
         "next": {
           "by": "outcome",
@@ -234,7 +246,9 @@
           "prompt": "Build the handoff packet for implementation-harness from approved task context, approved research, structural contract when present, approved execution plan, supporting materials, and user constraints. Route concrete coding through delegated implementer roles rather than the orchestrator."
         },
         "output": {
-          "schema": "schemas/dev-harness/implementation-handoff-output.json"
+          "schema": "schemas/worker-output.json",
+          "template": "shared/templates/implementer-handoff-template.md",
+          "format": "markdown"
         },
         "next": {
           "by": "outcome",
@@ -257,7 +271,9 @@
           "prompt": "Run the explicit post-implementation review gate, including verification evidence, contract/docs drift, sensitive-surface handling, and scope-growth or redesign pressure. Return for implementation fixes when needed."
         },
         "output": {
-          "schema": "schemas/dev-harness/review-output.json"
+          "schema": "schemas/worker-output.json",
+          "template": "shared/templates/review-verdict-template.md",
+          "format": "markdown"
         },
         "next": {
           "by": "outcome",

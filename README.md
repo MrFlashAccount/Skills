@@ -256,8 +256,8 @@ Shared packages are reference material for skill authors and workflow skills. Th
   - Do not use when: the task only needs a standalone workflow or artifact-specific execution with no shared context dependency.
 
 - `shared/templates`
-  - What it is: reusable artifact-format templates for research packets, architecture proposals, implementation plans, implementation handoffs, review handoffs, and fix-pass handoffs.
-  - Use when: a workflow needs a concise packet/proposal/plan/review shape with clear source context, evidence, checklist, and verdict fields.
+  - What it is: reusable artifact-format/output templates for research packets, architecture proposals, implementation plans, implementation handoffs, review handoffs, review verdicts, and fix-pass handoffs.
+  - Use when: a workflow needs a concise packet/proposal/plan/review answer shape with clear source context, evidence, checklist, verdict, and transition fields.
   - Do not use when: the task is already approved for direct implementation or only needs a short ad hoc note.
 
 ## Role index
