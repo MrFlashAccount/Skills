@@ -5,9 +5,12 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { projectState } from '../lib/workflow/projection.mjs';
+import { renderWorkflowPrompt } from '../lib/workflow/prompt-renderer.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-schema-check-'));
+writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
 const devHarnessWorkflowPath = path.join(root, 'develop/dev-harness.workflow.json');
 
 function outputContract(name = 'worker') {
@@ -1178,7 +1181,7 @@ test('cli: three-position apply without explicit mode is rejected', () => {
   assert.equal(result.status, 1);
   assert.match(
     result.stderr,
-    /workflow-interpreter: usage: node scripts\/workflow-interpreter\.mjs inspect <workflow\.json> <baton\.json> \| apply <workflow\.json> <baton\.json> <worker-output\.json>/,
+    /workflow-interpreter: usage: node scripts\/workflow-interpreter\.mjs inspect <workflow\.json> <baton\.json> \| render <workflow\.json> <baton\.json> \| apply <workflow\.json> <baton\.json> <worker-output\.json>/,
   );
   assert.equal(readFileSync(batonPath, 'utf8'), before, 'rejected apply mutated baton file');
 });
@@ -1195,7 +1198,7 @@ test('cli: schema validation rejects wrong arity with mode-specific usage', () =
   assert.match(apply.stderr, /workflow-interpreter: usage: node scripts\/workflow-interpreter\.mjs apply <workflow\.json> <baton\.json> <worker-output\.json>/);
 
   assert.equal(missingMode.status, 1);
-  assert.match(missingMode.stderr, /workflow-interpreter: usage: node scripts\/workflow-interpreter\.mjs inspect <workflow\.json> <baton\.json> \| apply <workflow\.json> <baton\.json> <worker-output\.json>/);
+  assert.match(missingMode.stderr, /workflow-interpreter: usage: node scripts\/workflow-interpreter\.mjs inspect <workflow\.json> <baton\.json> \| render <workflow\.json> <baton\.json> \| apply <workflow\.json> <baton\.json> <worker-output\.json>/);
 });
 
 test('cli: unknown explicit mode with apply arity is rejected by argument schema', () => {
@@ -1204,6 +1207,178 @@ test('cli: unknown explicit mode with apply arity is rejected by argument schema
   assert.equal(result.status, 1);
   assert.match(
     result.stderr,
-    /workflow-interpreter: usage: node scripts\/workflow-interpreter\.mjs inspect <workflow\.json> <baton\.json> \| apply <workflow\.json> <baton\.json> <worker-output\.json>/,
+    /workflow-interpreter: usage: node scripts\/workflow-interpreter\.mjs inspect <workflow\.json> <baton\.json> \| render <workflow\.json> <baton\.json> \| apply <workflow\.json> <baton\.json> <worker-output\.json>/,
   );
+});
+
+test('state projection: projects explicit top-level keys in selector order', () => {
+  const projected = projectState({ stepId: 'worker_step', batonState: { zed: 1, alpha: { ok: true }, beta: [2] }, selectors: ['alpha', 'zed'] });
+
+  assert.deepEqual(Object.keys(projected.value), ['alpha', 'zed']);
+  assert.deepEqual(projected.value, { alpha: { ok: true }, zed: 1 });
+  assert.deepEqual(projected.projectedKeys, ['alpha', 'zed']);
+});
+
+test('state projection: absent selectors project empty object', () => {
+  const projected = projectState({ stepId: 'worker_step', batonState: { artifacts: ['hidden'] } });
+
+  assert.deepEqual(projected.value, {});
+  assert.deepEqual(projected.projectedKeys, []);
+});
+
+test('state projection: missing key fails hard with step selector and available keys', () => {
+  assert.throws(
+    () => projectState({ stepId: 'research', batonState: { artifacts: [], results: [] }, selectors: ['artifact'] }),
+    /step 'research' selected missing baton state key 'artifact'; available keys: artifacts, results/,
+  );
+});
+
+test('state projection: nested selectors are rejected', () => {
+  assert.throws(
+    () => projectState({ stepId: 'research', batonState: { artifacts: [] }, selectors: ['artifacts.0'] }),
+    /unsupported state selector 'artifacts\.0'.*top-level baton state keys only/,
+  );
+});
+
+function renderFixture(overrides = {}) {
+  const workflowPath = writeJson(`${safeName(overrides.label ?? 'render')}-workflow.json`, overrides.workflowDoc ?? schemaWorkflowDoc);
+  return renderWorkflowPrompt({
+    workflowPath,
+    workflow: overrides.workflow ?? schemaWorkflowDoc.workflow,
+    baton: overrides.batonDoc ?? baton(),
+    stepId: overrides.stepId ?? 'approval_step',
+    step: overrides.step ?? schemaWorkflowDoc.workflow.steps.approval_step,
+    repositoryRoot: overrides.repositoryRoot ?? tempDir,
+  });
+}
+
+test('prompt renderer: default prompt includes task projected state and deterministic newline formatting', () => {
+  const step = { name: 'Approval step', kind: 'approval', input: { state: ['artifacts'], prompt: 'Approve.' }, next: 'done' };
+  const compiled = renderFixture({ label: 'render-default', step, batonDoc: baton({ cursor: 'approval_step', state: { artifacts: [{ id: 'a' }], results: [] } }) });
+
+  assert.equal(compiled.stepId, 'approval_step');
+  assert.equal(compiled.action, 'wait_for_approval');
+  assert.match(compiled.prompt, /^# Approval step\n/);
+  assert.match(compiled.prompt, /## Task\n\nApprove\./);
+  assert.match(compiled.prompt, /## Projected baton state\n\n```json\n\{\n  "artifacts": \[/);
+  assert.equal(compiled.prompt.endsWith('\n'), true);
+});
+
+test('prompt renderer: replaces allowed placeholders', () => {
+  const templatePath = path.join(tempDir, 'worker-template.md');
+  writeFileSync(templatePath, 'Step {{step.id}} / {{step.name}} / {{step.kind}}\nRole {{input.role}}\nTask {{input.prompt}}\nState {{state}}\nOutput {{output.template}}\n');
+  writeFileSync(path.join(tempDir, 'output.md'), '## Worker output\nReturn markdown.\n');
+  const step = {
+    name: 'Worker step',
+    kind: 'worker',
+    input: { template: 'worker-template.md', role: 'backend', state: ['results'], prompt: 'Build it.' },
+    output: { template: 'output.md' },
+    next: 'done',
+  };
+
+  const compiled = renderFixture({ label: 'render-placeholders', stepId: 'worker_step', step, batonDoc: baton({ state: { artifacts: [], results: [{ summary: 'ready' }] } }) });
+
+  assert.match(compiled.prompt, /Step worker_step \/ Worker step \/ worker/);
+  assert.match(compiled.prompt, /Role backend/);
+  assert.match(compiled.prompt, /Task Build it\./);
+  assert.match(compiled.prompt, /"results": \[/);
+  assert.match(compiled.prompt, /## Worker output\nReturn markdown\./);
+});
+
+test('prompt renderer: appends task state and output sections when template omits placeholders', () => {
+  writeFileSync(path.join(tempDir, 'minimal-template.md'), '# {{step.name}}\n');
+  writeFileSync(path.join(tempDir, 'minimal-output.md'), '## Required return\nUse this contract.\n');
+  const step = {
+    name: 'Worker step',
+    kind: 'worker',
+    input: { template: 'minimal-template.md', role: 'backend', state: ['artifacts'], prompt: 'Do the task.' },
+    output: { template: 'minimal-output.md' },
+    next: 'done',
+  };
+
+  const compiled = renderFixture({ label: 'render-append', stepId: 'worker_step', step });
+
+  assert.match(compiled.prompt, /## Task\n\nDo the task\./);
+  assert.match(compiled.prompt, /## Projected baton state\n\n```json/);
+  assert.match(compiled.prompt, /## Output contract\n\n## Required return\nUse this contract\./);
+});
+
+test('prompt renderer: unresolved placeholders fail', () => {
+  writeFileSync(path.join(tempDir, 'bad-placeholder.md'), 'Unknown {{workflow.name}}\n');
+  const step = {
+    name: 'Worker step',
+    kind: 'worker',
+    input: { template: 'bad-placeholder.md', state: [] },
+    output: { template: 'output.md' },
+    next: 'done',
+  };
+
+  assert.throws(() => renderFixture({ label: 'render-unresolved', stepId: 'worker_step', step }), /unresolved placeholder {{workflow.name}}/);
+});
+
+test('prompt renderer: output template content is included as markdown, not interpreted as schema', () => {
+  writeFileSync(path.join(tempDir, 'schema-looking-output.md'), '{ "type": "object", "required": ["notValidated"] }\n');
+  const step = {
+    name: 'Worker step',
+    kind: 'worker',
+    input: { state: [], prompt: 'Return output.' },
+    output: { template: 'schema-looking-output.md' },
+    next: 'done',
+  };
+
+  const compiled = renderFixture({ label: 'render-output-markdown', stepId: 'worker_step', step });
+
+  assert.match(compiled.prompt, /## Output contract\n\n\{ "type": "object", "required": \["notValidated"\] \}/);
+});
+
+test('prompt renderer: path resolver rejects escape and missing templates', () => {
+  const escapedTemplatePath = path.resolve(tempDir, '../outside.md');
+  writeFileSync(escapedTemplatePath, 'outside repo\n');
+  try {
+    const escapedStep = {
+      name: 'Worker step',
+      kind: 'worker',
+      input: { template: '../outside.md', state: [] },
+      output: { template: 'output.md' },
+      next: 'done',
+    };
+    const missingStep = {
+      name: 'Worker step',
+      kind: 'worker',
+      input: { template: 'missing-template.md', state: [] },
+      output: { template: 'output.md' },
+      next: 'done',
+    };
+
+    assert.throws(() => renderFixture({ label: 'render-escape', stepId: 'worker_step', step: escapedStep }), /input template escapes repository root/);
+    assert.throws(() => renderFixture({ label: 'render-missing', stepId: 'worker_step', step: missingStep }), /missing input template 'missing-template\.md'/);
+  } finally {
+    rmSync(escapedTemplatePath, { force: true });
+  }
+});
+
+test('CLI render: DevHarness fixture returns compiledPrompt and does not mutate baton', () => {
+  const batonPath = writeJson('dev-harness-render-baton.json', { cursor: 'research', status: 'running', state: structuredClone(emptyState) });
+  const before = readFileSync(batonPath, 'utf8');
+
+  const result = runNode(['develop/scripts/workflow-interpreter.mjs', 'render', devHarnessWorkflowPath, batonPath]);
+  const response = expectCliResult('dev-harness-render', result, true);
+
+  assert.equal(readFileSync(batonPath, 'utf8'), before, 'render mutated baton file');
+  assert.equal(response.directive.id, 'research');
+  assert.equal(response.compiledPrompt.stepId, 'research');
+  assert.equal(response.compiledPrompt.action, 'run_worker');
+  assert.equal(response.compiledPrompt.metadata.inputTemplate, 'templates/dev-harness/research.md');
+  assert.equal(response.compiledPrompt.metadata.outputTemplate, '../../shared/templates/research-packet-template.md');
+  assert.deepEqual(response.compiledPrompt.metadata.projectedStateKeys, ['artifacts', 'results']);
+  assert.match(response.compiledPrompt.prompt, /Produce a compact research packet/);
+  assert.match(response.compiledPrompt.prompt, /Research Packet/);
+});
+
+test('inspect/apply response shape remains unchanged without compiledPrompt', () => {
+  const inspectResponse = runInspect('inspect-no-render-prompt', baton(), true);
+  assert.equal(Object.hasOwn(inspectResponse, 'compiledPrompt'), false);
+
+  const applyResponse = runApply('apply-no-render-prompt', baton(), output(), true);
+  assert.equal(Object.hasOwn(applyResponse, 'compiledPrompt'), false);
 });

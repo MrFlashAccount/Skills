@@ -2,7 +2,7 @@
 import { parseArgs } from 'node:util';
 import { validateWorkflowInterpreterCliArgs } from '../lib/workflow/cli-args-validation.mjs';
 import { WorkflowInterpreterError } from '../lib/workflow/errors.mjs';
-import { applyWorkflowOutput, inspectWorkflow } from '../lib/workflow/interpreter.mjs';
+import { applyWorkflowOutput, inspectWorkflow, renderWorkflow } from '../lib/workflow/interpreter.mjs';
 
 function fail(message) {
   console.error(`workflow-interpreter: ${message}`);
@@ -24,8 +24,9 @@ function emit(response) {
 function usageForArgs(args) {
   const [mode] = args;
   if (mode === 'inspect' || mode === 'directive') return 'usage: node scripts/workflow-interpreter.mjs inspect <workflow.json> <baton.json>';
+  if (mode === 'render') return 'usage: node scripts/workflow-interpreter.mjs render <workflow.json> <baton.json>';
   if (mode === 'apply') return 'usage: node scripts/workflow-interpreter.mjs apply <workflow.json> <baton.json> <worker-output.json>';
-  return 'usage: node scripts/workflow-interpreter.mjs inspect <workflow.json> <baton.json> | apply <workflow.json> <baton.json> <worker-output.json>';
+  return 'usage: node scripts/workflow-interpreter.mjs inspect <workflow.json> <baton.json> | render <workflow.json> <baton.json> | apply <workflow.json> <baton.json> <worker-output.json>';
 }
 
 function assertCliArgs(args) {
@@ -40,6 +41,8 @@ try {
 
   if (mode === 'inspect' || mode === 'directive') {
     emit(inspectWorkflow(workflowPath, batonPath));
+  } else if (mode === 'render') {
+    emit(renderWorkflow(workflowPath, batonPath));
   } else if (mode === 'apply') {
     emit(applyWorkflowOutput(workflowPath, batonPath, outputPath));
   }
