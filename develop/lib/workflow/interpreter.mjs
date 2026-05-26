@@ -1,7 +1,6 @@
 import { buildDirective } from './directive.mjs';
 import { invariant } from './errors.mjs';
-import { rejectLegacyWorkflowVocabulary } from './legacy-vocabulary.mjs';
-import { validateWorkflowModel, statusForStep } from './model.mjs';
+import { statusForStep } from './model.mjs';
 import { readJson } from './json-io.mjs';
 import { assertBatonSchema, assertResponseSchema, assertWorkflowSchema, assertWorkerOutputSchema } from './schema-validation.mjs';
 import { applyOutputToBatonState } from './state.mjs';
@@ -11,12 +10,10 @@ export function loadWorkflowAndBaton(workflowPath, batonPath) {
   const workflowDoc = readJson(workflowPath, 'workflow');
   const baton = readJson(batonPath, 'baton');
 
-  rejectLegacyWorkflowVocabulary(workflowDoc);
   assertWorkflowSchema(workflowDoc);
   assertBatonSchema(baton);
 
   const workflow = workflowDoc.workflow;
-  validateWorkflowModel(workflow);
 
   const cursorStep = workflow.steps[baton.cursor];
   invariant(cursorStep, `baton cursor not found in workflow: ${baton.cursor}`);

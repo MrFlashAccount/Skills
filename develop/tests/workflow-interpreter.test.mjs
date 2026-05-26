@@ -44,6 +44,54 @@ const schemaWorkflowDoc = {
   },
 };
 
+const e2eWorkflowDoc = {
+  workflow: {
+    name: 'deterministic-e2e-spec',
+    version: 1,
+    start: 'worker_step',
+    done: 'done',
+    blocked: 'blocked',
+    steps: {
+      worker_step: {
+        name: 'Worker step',
+        kind: 'worker',
+        input: { template: 'worker.md', role: 'backend', state: ['artifacts'], prompt: 'Run worker.' },
+        output: { schema: 'worker-output.json' },
+        next: {
+          by: 'outcome',
+          map: {
+            ready: 'approval_step',
+            retry: { target: 'worker_step', maxAttempts: 2, onLimit: 'blocked' },
+            blocked: 'blocked',
+          },
+        },
+      },
+      approval_step: {
+        name: 'Approval step',
+        kind: 'approval',
+        input: { state: ['artifacts'], prompt: 'Approve.' },
+        next: { by: 'approval', map: { approved: 'implementation_worker', rejected: 'worker_step', blocked: 'blocked' } },
+      },
+      implementation_worker: {
+        name: 'Implementation worker',
+        kind: 'worker',
+        input: { template: 'implementation.md', state: ['artifacts', 'results'] },
+        output: { schema: 'worker-output.json' },
+        next: 'review_worker',
+      },
+      review_worker: {
+        name: 'Review worker',
+        kind: 'worker',
+        input: { template: 'review.md', state: ['artifacts', 'results'] },
+        output: { schema: 'worker-output.json' },
+        next: { by: 'outcome', map: { ready: 'done', blocked: 'blocked' } },
+      },
+      done: { name: 'Done', kind: 'done', input: { prompt: 'Finished.' } },
+      blocked: { name: 'Blocked', kind: 'blocked', input: { prompt: 'Blocked.' } },
+    },
+  },
+};
+
 const emptyState = { artifacts: [], results: [] };
 
 function safeName(label) {
@@ -114,6 +162,28 @@ function runApply(label, batonDoc, workerOutput, expectSuccess = true, workflowD
   return response;
 }
 
+function scriptedApplyLoop(label, workflowDoc, initialBaton, scriptedOutputs, { maxSteps = 12 } = {}) {
+  const history = [];
+  let currentBaton = structuredClone(initialBaton);
+  let currentDirective = runInspect(`${label}-inspect-0`, currentBaton, true, workflowDoc).directive;
+
+  for (let index = 0; index < maxSteps; index += 1) {
+    history.push({ cursor: currentBaton.cursor, action: currentDirective.action });
+    if (currentDirective.action === 'stop_done' || currentDirective.action === 'stop_blocked') {
+      return { baton: currentBaton, directive: currentDirective, history };
+    }
+
+    const queue = scriptedOutputs[currentBaton.cursor];
+    assert.ok(Array.isArray(queue) && queue.length > 0, `no scripted output for ${currentBaton.cursor}`);
+    const workerOutput = queue.shift();
+    const response = runApply(`${label}-apply-${index}-${currentBaton.cursor}`, currentBaton, workerOutput, true, workflowDoc);
+    currentBaton = response.baton;
+    currentDirective = response.directive;
+  }
+
+  assert.fail(`scripted workflow did not reach a terminal action within ${maxSteps} steps`);
+}
+
 after(() => {
   rmSync(tempDir, { recursive: true, force: true });
 });
@@ -129,6 +199,72 @@ test('schema workflow fixture: DevHarness JSON is accepted without DevHarness-sp
   assert.equal(response.directive.action, 'run_worker');
   assert.equal(response.directive.vertex.kind, 'worker');
   assert.deepEqual(response.directive.vertex.input.state, ['artifacts', 'results']);
+});
+
+test('e2e: scripted wrapper runs worker to approval to worker/review to done', () => {
+  const final = scriptedApplyLoop('e2e-happy-path', e2eWorkflowDoc, baton(), {
+    worker_step: [output({ outcome: 'ready', artifacts: [{ id: 'worker-packet', type: 'packet', summary: 'ready for approval' }] })],
+    approval_step: [{ approval: 'approved', results: [{ type: 'approval', summary: 'approved' }] }],
+    implementation_worker: [output({ outcome: 'implemented', results: [{ type: 'implementation', summary: 'implemented' }] })],
+    review_worker: [output({ outcome: 'ready', results: [{ type: 'review', summary: 'reviewed' }] })],
+  });
+
+  assert.equal(final.directive.action, 'stop_done');
+  assert.equal(final.baton.cursor, 'done');
+  assert.deepEqual(final.history.map((entry) => entry.cursor), [
+    'worker_step',
+    'approval_step',
+    'implementation_worker',
+    'review_worker',
+    'done',
+  ]);
+  assert.deepEqual(final.history.map((entry) => entry.action), [
+    'run_worker',
+    'wait_for_approval',
+    'run_worker',
+    'run_worker',
+    'stop_done',
+  ]);
+  assert.equal(final.baton.state.artifacts.find((artifact) => artifact.id === 'worker-packet').summary, 'ready for approval');
+  assert.equal(final.baton.state.results.at(-1).type, 'review');
+});
+
+test('e2e: approval rejection loops back to worker before successful done', () => {
+  const final = scriptedApplyLoop('e2e-rejection-rework', e2eWorkflowDoc, baton(), {
+    worker_step: [
+      output({ outcome: 'ready', artifacts: [{ id: 'draft', type: 'packet', summary: 'draft' }] }),
+      output({ outcome: 'ready', artifacts: [{ id: 'draft', type: 'packet', summary: 'reworked' }] }),
+    ],
+    approval_step: [
+      { approval: 'rejected', results: [{ type: 'approval', summary: 'needs rework' }] },
+      { approval: 'approved', results: [{ type: 'approval', summary: 'approved after rework' }] },
+    ],
+    implementation_worker: [output({ outcome: 'implemented' })],
+    review_worker: [output({ outcome: 'ready' })],
+  });
+
+  assert.equal(final.directive.action, 'stop_done');
+  assert.deepEqual(final.history.map((entry) => entry.cursor), [
+    'worker_step',
+    'approval_step',
+    'worker_step',
+    'approval_step',
+    'implementation_worker',
+    'review_worker',
+    'done',
+  ]);
+  assert.equal(final.baton.state.artifacts.find((artifact) => artifact.id === 'draft').summary, 'reworked');
+});
+
+test('e2e: scripted blocked branch reaches stop_blocked with blocker carried on baton', () => {
+  const final = scriptedApplyLoop('e2e-blocked-branch', e2eWorkflowDoc, baton(), {
+    worker_step: [output({ outcome: 'blocked', blocker: { reason: 'missing dependency' } })],
+  });
+
+  assert.equal(final.directive.action, 'stop_blocked');
+  assert.equal(final.baton.cursor, 'blocked');
+  assert.deepEqual(final.baton.blocker, { reason: 'missing dependency' });
+  assert.deepEqual(final.history.map((entry) => entry.cursor), ['worker_step', 'blocked']);
 });
 
 test('inspect: worker kind resolves to run_worker and preserves input data', () => {
@@ -189,21 +325,35 @@ test('apply: retry policy persists attempt counters until maxAttempts then uses 
   assert.deepEqual(limited.baton.state.attempts, { 'worker_step:outcome:retry->worker_step': 2 });
 });
 
-test('validation: dangling workflow targets are rejected clearly', () => {
+test('runtime: dangling workflow targets fail when the resolver uses them', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
   workflowDoc.workflow.steps.worker_step.next.map.ready = 'missing_target';
   const result = runApply('dangling-target', baton(), output(), false, workflowDoc);
-  assert.match(result.stderr, /target not found in workflow: missing_target/);
+  assert.match(result.stderr, /transition target not found in workflow: missing_target/);
 });
 
-test('validation: unsupported legacy vocabulary is rejected clearly', () => {
+test('runtime: dangling retry limit targets fail when the resolver uses them', () => {
+  const workflowDoc = structuredClone(schemaWorkflowDoc);
+  workflowDoc.workflow.steps.worker_step.next.map.retry.onLimit = 'missing_blocked';
+  const first = runApply('dangling-retry-limit-first', baton(), output({ outcome: 'retry' }), true, workflowDoc);
+  const second = runApply('dangling-retry-limit-second', first.baton, output({ outcome: 'retry' }), true, workflowDoc);
+  const limited = runApply('dangling-retry-limit', second.baton, output({ outcome: 'retry' }), false, workflowDoc);
+  assert.match(limited.stderr, /transition target not found in workflow: missing_blocked/);
+});
+
+test('schema validation: unsupported legacy vocabulary is rejected by the workflow schema', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
   workflowDoc.workflow.steps.worker_step.kind = 'subagent';
   workflowDoc.workflow.steps.worker_step.outcomes = { ready: 'approval_step' };
   const result = runInspect('legacy-vocabulary', baton(), false, workflowDoc);
-  assert.match(result.stderr, /unsupported legacy workflow vocabulary/);
-  assert.match(result.stderr, /worker_step.kind=subagent/);
-  assert.match(result.stderr, /worker_step.outcomes/);
+  assert.match(result.stderr, /workflow failed schema validation/);
+});
+
+test('schema validation: nonterminal workflow steps require next in the workflow schema', () => {
+  const workflowDoc = structuredClone(schemaWorkflowDoc);
+  delete workflowDoc.workflow.steps.worker_step.next;
+  const result = runInspect('missing-next', baton(), false, workflowDoc);
+  assert.match(result.stderr, /workflow failed schema validation/);
 });
 
 test('validation: worker and approval transition vocabularies stay distinct', () => {
@@ -228,4 +378,19 @@ test('cli: positional paths may begin with dash', () => {
   );
   const response = expectCliResult('inspect-dash-prefixed-paths', result, true);
   assert.equal(response.directive.id, 'worker_step');
+});
+
+test('cli: schema validation rejects wrong arity with mode-specific usage', () => {
+  const inspect = runNode(['develop/scripts/workflow-interpreter.mjs', 'inspect', 'workflow.json']);
+  const apply = runNode(['develop/scripts/workflow-interpreter.mjs', 'apply', 'workflow.json', 'baton.json']);
+  const legacy = runNode(['develop/scripts/workflow-interpreter.mjs', 'workflow.json', 'baton.json']);
+
+  assert.equal(inspect.status, 1);
+  assert.match(inspect.stderr, /workflow-interpreter: usage: node scripts\/workflow-interpreter\.mjs inspect <workflow\.json> <baton\.json>/);
+
+  assert.equal(apply.status, 1);
+  assert.match(apply.stderr, /workflow-interpreter: usage: node scripts\/workflow-interpreter\.mjs apply <workflow\.json> <baton\.json> <worker-output\.json>/);
+
+  assert.equal(legacy.status, 1);
+  assert.match(legacy.stderr, /workflow-interpreter: usage: node scripts\/workflow-interpreter\.mjs inspect <workflow\.json> <baton\.json> \| apply <workflow\.json> <baton\.json> <worker-output\.json>/);
 });

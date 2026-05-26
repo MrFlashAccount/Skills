@@ -40,7 +40,7 @@
     },
     "workerStep": {
       "type": "object",
-      "required": ["name", "kind", "output"],
+      "required": ["name", "kind", "output", "next"],
       "properties": {
         "name": { "type": "string", "minLength": 1 },
         "kind": { "const": "worker" },
@@ -52,7 +52,7 @@
     },
     "approvalStep": {
       "type": "object",
-      "required": ["name", "kind"],
+      "required": ["name", "kind", "next"],
       "properties": {
         "name": { "type": "string", "minLength": 1 },
         "kind": { "const": "approval" },
