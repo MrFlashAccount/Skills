@@ -23,8 +23,7 @@ export function applyOutputToBatonState(baton, output, attempts) {
     results: appendResults(baton.state?.results ?? [], output.results ?? []),
   };
 
-  if (attempts && Object.keys(attempts).length > 0) state.attempts = attempts;
-  else delete state.attempts;
+  if (attempts) state.attempts = attempts;
 
   return state;
 }
