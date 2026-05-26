@@ -21,10 +21,6 @@
         }
       },
       "additionalProperties": true
-    },
-    "metadata": {
-      "description": "Optional workflow-instance metadata ignored by the generic workflow interpreter. Use this for prompts, templates, or operational hints owned by a specific workflow instance.",
-      "type": "object"
     }
   },
   "additionalProperties": false,
