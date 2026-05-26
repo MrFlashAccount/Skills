@@ -296,60 +296,62 @@
       }
     }
   },
-  "prompt_generation": {
-    "template_id": "dev_harness.worker_prompt",
-    "inputs": [
-      "task",
-      "cursor",
-      "cursor_instructions",
-      "approved_artifacts",
-      "constraints",
-      "expected_output_format"
-    ],
-    "exclusions": [
-      "workflow_graph",
-      "baton",
-      "global_node",
-      "allowed_outcomes"
-    ]
-  },
-  "workflow_interpreter": {
-    "modes": {
-      "inspect": {
-        "input": [
-          "workflow",
-          "baton"
-        ],
-        "validates": [
-          "workflow_shape",
-          "baton_shape",
-          "cursor_exists",
-          "required_artifacts_present_for_cursor"
-        ],
-        "output": [
-          "baton",
-          "directive"
-        ],
-        "mutates_baton": false
-      },
-      "apply": {
-        "input": [
-          "workflow",
-          "baton",
-          "worker_or_approval_output"
-        ],
-        "validates": [
-          "workflow_shape",
-          "baton_shape",
-          "output_shape_for_cursor",
-          "outcome_exists_in_workflow",
-          "outcome_allowed_from_cursor",
-          "required_output_artifacts_present"
-        ],
-        "output": [
-          "baton",
-          "directive"
-        ]
+  "metadata": {
+    "prompt_generation": {
+      "template_id": "dev_harness.worker_prompt",
+      "inputs": [
+        "task",
+        "cursor",
+        "cursor_instructions",
+        "approved_artifacts",
+        "constraints",
+        "expected_output_format"
+      ],
+      "exclusions": [
+        "workflow_graph",
+        "baton",
+        "global_node",
+        "allowed_outcomes"
+      ]
+    },
+    "workflow_interpreter": {
+      "modes": {
+        "inspect": {
+          "input": [
+            "workflow",
+            "baton"
+          ],
+          "validates": [
+            "workflow_shape",
+            "baton_shape",
+            "cursor_exists",
+            "required_artifacts_present_for_cursor"
+          ],
+          "output": [
+            "baton",
+            "directive"
+          ],
+          "mutates_baton": false
+        },
+        "apply": {
+          "input": [
+            "workflow",
+            "baton",
+            "worker_or_approval_output"
+          ],
+          "validates": [
+            "workflow_shape",
+            "baton_shape",
+            "output_shape_for_cursor",
+            "outcome_exists_in_workflow",
+            "outcome_allowed_from_cursor",
+            "required_output_artifacts_present"
+          ],
+          "output": [
+            "baton",
+            "directive"
+          ]
+        }
       }
     }
   }

@@ -62,6 +62,17 @@ const schemas = readdirSync(schemasDir, { withFileTypes: true })
   })
   .sort((a, b) => a.fileName.localeCompare(b.fileName));
 
+function normalizeStandaloneEsm(moduleCode) {
+  const imports = [];
+  const code = moduleCode.replace(/const (func\d+) = require\("([^"]+)"\)\.default;/g, (_match, name, specifier) => {
+    const esmSpecifier = specifier.startsWith('ajv/') && !specifier.endsWith('.js') ? `${specifier}.js` : specifier;
+    const moduleName = `${name}Module`;
+    imports.push(`import ${moduleName} from "${esmSpecifier}";`);
+    return `const ${name} = ${moduleName}.default;`;
+  });
+  return imports.length > 0 ? `${imports.join('\n')}\n${code}` : code;
+}
+
 if (schemas.length === 0) usage(`no JSON schemas found in ${schemasDir}`);
 
 rmSync(outDir, { recursive: true, force: true });
@@ -71,7 +82,7 @@ for (const { fileName, schema } of schemas) {
   const ajv = new Ajv2020({ code: { esm: true, source: true }, allErrors: true });
   for (const loaded of schemas) ajv.addSchema(loaded.schema);
   const validate = ajv.getSchema(schema.$id) ?? ajv.compile(schema);
-  const moduleCode = standaloneCode(ajv, validate);
+  const moduleCode = normalizeStandaloneEsm(standaloneCode(ajv, validate));
   writeFileSync(path.join(outDir, fileName), `${moduleCode}\n`);
 }
 

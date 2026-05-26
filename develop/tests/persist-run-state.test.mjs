@@ -7,7 +7,7 @@ import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const tempDir = mkdtempSync(path.join(tmpdir(), 'dev-harness-persist-'));
+const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-persist-'));
 const helperPath = path.join(root, 'develop/scripts/persist-run-state.mjs');
 
 function writeJson(filePath, value) {
@@ -32,10 +32,10 @@ function response(overrides = {}) {
       id: 'approve_research',
       action: 'wait_for_approval',
       vertex: {
-        kind: 'user_approval',
-        takesArtifacts: ['research'],
-        producesArtifacts: ['research_approval'],
-        outcomes: { approved: 'architecture', blocked: 'blocked' },
+        name: 'Approve research',
+        kind: 'approval',
+        input: { state: ['artifacts', 'results'], prompt: 'Approve research.' },
+        next: { by: 'approval', map: { approved: 'architecture', blocked: 'blocked' } },
       },
     },
   };
