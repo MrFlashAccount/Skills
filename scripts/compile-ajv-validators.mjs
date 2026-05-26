@@ -52,15 +52,21 @@ const args = parseCliArgs(process.argv.slice(2));
 const schemasDir = path.resolve(process.cwd(), args.schemas);
 const outDir = path.resolve(process.cwd(), args.out);
 
-const schemas = readdirSync(schemasDir, { withFileTypes: true })
-  .filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
-  .map((entry) => {
-    const schemaPath = path.join(schemasDir, entry.name);
-    const fileName = `${path.basename(entry.name, '.json')}.mjs`;
-    const schema = JSON.parse(readFileSync(schemaPath, 'utf8'));
-    return { fileName, schema, schemaPath };
-  })
-  .sort((a, b) => a.fileName.localeCompare(b.fileName));
+function collectSchemas(dir, baseDir = dir) {
+  return readdirSync(dir, { withFileTypes: true })
+    .flatMap((entry) => {
+      const entryPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) return collectSchemas(entryPath, baseDir);
+      if (!entry.isFile() || !entry.name.endsWith('.json')) return [];
+
+      const relativePath = path.relative(baseDir, entryPath);
+      const fileName = `${path.join(path.dirname(relativePath), path.basename(entry.name, '.json'))}.mjs`;
+      const schema = JSON.parse(readFileSync(entryPath, 'utf8'));
+      return [{ fileName, schema, schemaPath: entryPath }];
+    });
+}
+
+const schemas = collectSchemas(schemasDir).sort((a, b) => a.fileName.localeCompare(b.fileName));
 
 function normalizeStandaloneEsm(moduleCode) {
   const imports = [];
@@ -83,7 +89,9 @@ for (const { fileName, schema } of schemas) {
   for (const loaded of schemas) ajv.addSchema(loaded.schema);
   const validate = ajv.getSchema(schema.$id) ?? ajv.compile(schema);
   const moduleCode = normalizeStandaloneEsm(standaloneCode(ajv, validate));
-  writeFileSync(path.join(outDir, fileName), `${moduleCode}\n`);
+  const outputPath = path.join(outDir, fileName);
+  mkdirSync(path.dirname(outputPath), { recursive: true });
+  writeFileSync(outputPath, `${moduleCode}\n`);
 }
 
 console.log(`generated ${schemas.length} standalone validators in ${path.relative(process.cwd(), outDir) || '.'}`);

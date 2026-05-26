@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
+import validateWorkflowInterpreterCliArgs from '../dist/validators/internal/cli-args/workflow-interpreter.mjs';
 import { WorkflowInterpreterError } from '../lib/workflow/errors.mjs';
 import { applyWorkflowOutput, inspectWorkflow } from '../lib/workflow/interpreter.mjs';
 
@@ -20,26 +21,29 @@ function emit(response) {
   console.log(JSON.stringify(response, null, 2));
 }
 
+function usageForArgs(args) {
+  const [mode] = args;
+  if (mode === 'inspect' || mode === 'directive') return 'usage: node scripts/workflow-interpreter.mjs inspect <workflow.json> <baton.json>';
+  if (mode === 'apply') return 'usage: node scripts/workflow-interpreter.mjs apply <workflow.json> <baton.json> <worker-output.json>';
+  return 'usage: node scripts/workflow-interpreter.mjs inspect <workflow.json> <baton.json> | apply <workflow.json> <baton.json> <worker-output.json>';
+}
+
+function assertCliArgs(args) {
+  if (!validateWorkflowInterpreterCliArgs(args)) fail(usageForArgs(args));
+}
+
 try {
   const args = parseCliArgs(process.argv.slice(2));
+  assertCliArgs(args);
+
   const [mode, workflowPath, batonPath, outputPath] = args;
 
   if (mode === 'inspect' || mode === 'directive') {
-    if (!workflowPath || !batonPath || outputPath || args.length !== 3) {
-      fail('usage: node scripts/workflow-interpreter.mjs inspect <workflow.json> <baton.json>');
-    }
     emit(inspectWorkflow(workflowPath, batonPath));
   } else if (mode === 'apply') {
-    if (!workflowPath || !batonPath || !outputPath || args.length !== 4) {
-      fail('usage: node scripts/workflow-interpreter.mjs apply <workflow.json> <baton.json> <worker-output.json>');
-    }
     emit(applyWorkflowOutput(workflowPath, batonPath, outputPath));
   } else {
-    const [legacyWorkflowPath, legacyBatonPath, legacyOutputPath] = args;
-    if (!legacyWorkflowPath || !legacyBatonPath || !legacyOutputPath || args.length !== 3) {
-      fail('usage: node scripts/workflow-interpreter.mjs inspect <workflow.json> <baton.json> | apply <workflow.json> <baton.json> <worker-output.json>');
-    }
-    emit(applyWorkflowOutput(legacyWorkflowPath, legacyBatonPath, legacyOutputPath));
+    emit(applyWorkflowOutput(mode, workflowPath, batonPath));
   }
 } catch (error) {
   if (error instanceof WorkflowInterpreterError) fail(error.message);
