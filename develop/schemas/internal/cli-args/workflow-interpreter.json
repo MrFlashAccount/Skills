@@ -5,8 +5,7 @@
   "description": "Internal positional argv contract for develop/scripts/workflow-interpreter.mjs after node:util parseArgs normalization.",
   "oneOf": [
     { "$ref": "#/$defs/inspectMode" },
-    { "$ref": "#/$defs/applyMode" },
-    { "$ref": "#/$defs/legacyApplyMode" }
+    { "$ref": "#/$defs/applyMode" }
   ],
   "$defs": {
     "pathArg": { "type": "string", "minLength": 1 },
@@ -30,16 +29,7 @@
       ],
       "minItems": 4,
       "maxItems": 4
-    },
-    "legacyApplyMode": {
-      "type": "array",
-      "prefixItems": [
-        { "type": "string", "minLength": 1, "not": { "enum": ["inspect", "directive", "apply"] } },
-        { "$ref": "#/$defs/pathArg" },
-        { "$ref": "#/$defs/pathArg" }
-      ],
-      "minItems": 3,
-      "maxItems": 3
     }
+
   }
 }

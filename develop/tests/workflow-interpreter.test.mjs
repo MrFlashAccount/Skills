@@ -205,9 +205,9 @@ test('schema workflow fixture: DevHarness JSON is accepted without DevHarness-sp
   );
   assert.equal(response.directive.id, 'research');
   assert.equal(response.directive.action, 'run_worker');
-  assert.equal(response.directive.vertex.kind, 'worker');
-  assert.deepEqual(response.directive.vertex.input.state, ['artifacts', 'results']);
-  assert.deepEqual(response.directive.vertex.output, { template: '../../shared/templates/research-packet-template.md' });
+  assert.equal(response.directive.step.kind, 'worker');
+  assert.deepEqual(response.directive.step.input.state, ['artifacts', 'results']);
+  assert.deepEqual(response.directive.step.output, { template: '../../shared/templates/research-packet-template.md' });
 });
 
 
@@ -231,7 +231,7 @@ test('schema validation: workflow accepts output template refs on worker contrac
 
   const response = runInspect('output-template-ref-valid', baton(), true, workflowDoc);
 
-  assert.deepEqual(response.directive.vertex.output, {
+  assert.deepEqual(response.directive.step.output, {
     template: '../../shared/templates/research-packet-template.md',
   });
 });
@@ -295,7 +295,7 @@ test('schema workflow fixture: workflow-scoped extensions are accepted and ignor
   const response = runInspect('workflow-scoped-extension', baton(), true, workflowDoc);
   assert.equal(response.directive.id, 'worker_step');
   assert.equal(response.directive.action, 'run_worker');
-  assert.equal(response.directive.vertex.input.template, 'worker.md');
+  assert.equal(response.directive.step.input.template, 'worker.md');
   assert.equal(Object.hasOwn(response, 'operatorHints'), false);
 });
 
@@ -415,8 +415,8 @@ test('inspect: worker kind resolves to run_worker and preserves input data', () 
   const response = runInspect('inspect-worker', baton());
   assert.equal(response.directive.id, 'worker_step');
   assert.equal(response.directive.action, 'run_worker');
-  assert.equal(response.directive.vertex.kind, 'worker');
-  assert.equal(response.directive.vertex.input.role, 'backend');
+  assert.equal(response.directive.step.kind, 'worker');
+  assert.equal(response.directive.step.input.role, 'backend');
 });
 
 test('inspect: approval kind resolves to wait_for_approval', () => {
@@ -439,18 +439,18 @@ test('inspect: approval and terminal directives expose only canonical response f
 
   for (const response of [approval, done, blocked]) {
     assert.deepEqual(Object.keys(response), ['baton', 'directive']);
-    assert.deepEqual(Object.keys(response.directive), ['id', 'action', 'vertex']);
+    assert.deepEqual(Object.keys(response.directive), ['id', 'action', 'step']);
   }
 
   assert.deepEqual(approval.directive, {
     id: 'approval_step',
     action: 'wait_for_approval',
-    vertex: schemaWorkflowDoc.workflow.steps.approval_step,
+    step: schemaWorkflowDoc.workflow.steps.approval_step,
   });
-  assert.deepEqual(done.directive, { id: 'done', action: 'stop_done', vertex: schemaWorkflowDoc.workflow.steps.done });
-  assert.deepEqual(blocked.directive, { id: 'blocked', action: 'stop_blocked', vertex: schemaWorkflowDoc.workflow.steps.blocked });
-  assert.equal(Object.hasOwn(done.directive.vertex, 'next'), false);
-  assert.equal(Object.hasOwn(blocked.directive.vertex, 'next'), false);
+  assert.deepEqual(done.directive, { id: 'done', action: 'stop_done', step: schemaWorkflowDoc.workflow.steps.done });
+  assert.deepEqual(blocked.directive, { id: 'blocked', action: 'stop_blocked', step: schemaWorkflowDoc.workflow.steps.blocked });
+  assert.equal(Object.hasOwn(done.directive.step, 'next'), false);
+  assert.equal(Object.hasOwn(blocked.directive.step, 'next'), false);
 });
 
 test('runtime: terminal cursors reject apply instead of advancing again', () => {
@@ -622,7 +622,7 @@ test('apply: next directive exposes target step input state selectors after tran
 
   assert.equal(response.directive.id, 'direct_next_worker');
   assert.equal(response.directive.action, 'run_worker');
-  assert.deepEqual(response.directive.vertex.input.state, ['results']);
+  assert.deepEqual(response.directive.step.input.state, ['results']);
   assert.deepEqual(response.baton.state.artifacts, [{ type: 'packet', summary: 'ready packet' }]);
   assert.deepEqual(response.baton.state.results, [{ type: 'approval', summary: 'approved' }]);
 });
@@ -863,11 +863,11 @@ test('runtime: dangling retry policy targets fail when the retry branch is selec
   assert.match(result.stderr, /transition target not found in workflow: missing_retry_target/);
 });
 
-test('schema validation: unsupported legacy vocabulary is rejected by the workflow schema', () => {
+test('schema validation: unsupported obsolete vocabulary is rejected by the workflow schema', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
   workflowDoc.workflow.steps.worker_step.kind = 'subagent';
   workflowDoc.workflow.steps.worker_step.outcomes = { ready: 'approval_step' };
-  const result = runInspect('legacy-vocabulary', baton(), false, workflowDoc);
+  const result = runInspect('obsolete-vocabulary', baton(), false, workflowDoc);
   assert.match(result.stderr, /workflow failed schema validation/);
 });
 
@@ -898,7 +898,7 @@ test('schema validation: worker output contract is template-only', () => {
   const withOutputTemplate = structuredClone(schemaWorkflowDoc);
   withOutputTemplate.workflow.steps.worker_step.output.template = '../../shared/templates/implementation-plan-template.md';
   const response = runInspect('worker-step-output-template', baton(), true, withOutputTemplate);
-  assert.equal(response.directive.vertex.output.template, '../../shared/templates/implementation-plan-template.md');
+  assert.equal(response.directive.step.output.template, '../../shared/templates/implementation-plan-template.md');
 
   const emptyTemplateName = structuredClone(schemaWorkflowDoc);
   emptyTemplateName.workflow.steps.worker_step.output.template = '';
@@ -1148,7 +1148,7 @@ test('cli: directive alias returns the same inspect directive shape', () => {
 
   assert.equal(response.directive.id, 'worker_step');
   assert.equal(response.directive.action, 'run_worker');
-  assert.equal(response.directive.vertex.kind, 'worker');
+  assert.equal(response.directive.step.kind, 'worker');
   assert.equal(readFileSync(batonPath, 'utf8'), before, 'directive alias mutated baton file');
 });
 
@@ -1164,24 +1164,27 @@ test('cli: positional paths may begin with dash', () => {
   assert.equal(response.directive.id, 'worker_step');
 });
 
-test('cli: legacy three-position apply mode still applies worker output', () => {
-  const prefix = 'legacy-three-position-apply';
+test('cli: three-position apply without explicit mode is rejected', () => {
+  const prefix = 'three-position-apply-without-mode';
   const wfPath = writeJson(`${prefix}-workflow.json`, schemaWorkflowDoc);
   const batonPath = writeJson(`${prefix}-baton.json`, baton());
   const outputPath = writeJson(`${prefix}-output.json`, output());
   const before = readFileSync(batonPath, 'utf8');
 
-  const response = expectCliResult('legacy-three-position-apply', runNode(['develop/scripts/workflow-interpreter.mjs', wfPath, batonPath, outputPath]), true);
+  const result = runNode(['develop/scripts/workflow-interpreter.mjs', wfPath, batonPath, outputPath]);
 
-  assert.equal(response.baton.cursor, 'approval_step');
-  assert.equal(response.directive.action, 'wait_for_approval');
-  assert.equal(readFileSync(batonPath, 'utf8'), before, 'legacy apply mode mutated baton file');
+  assert.equal(result.status, 1);
+  assert.match(
+    result.stderr,
+    /workflow-interpreter: usage: node scripts\/workflow-interpreter\.mjs inspect <workflow\.json> <baton\.json> \| apply <workflow\.json> <baton\.json> <worker-output\.json>/,
+  );
+  assert.equal(readFileSync(batonPath, 'utf8'), before, 'rejected apply mutated baton file');
 });
 
 test('cli: schema validation rejects wrong arity with mode-specific usage', () => {
   const inspect = runNode(['develop/scripts/workflow-interpreter.mjs', 'inspect', 'workflow.json']);
   const apply = runNode(['develop/scripts/workflow-interpreter.mjs', 'apply', 'workflow.json', 'baton.json']);
-  const legacy = runNode(['develop/scripts/workflow-interpreter.mjs', 'workflow.json', 'baton.json']);
+  const missingMode = runNode(['develop/scripts/workflow-interpreter.mjs', 'workflow.json', 'baton.json']);
 
   assert.equal(inspect.status, 1);
   assert.match(inspect.stderr, /workflow-interpreter: usage: node scripts\/workflow-interpreter\.mjs inspect <workflow\.json> <baton\.json>/);
@@ -1189,8 +1192,8 @@ test('cli: schema validation rejects wrong arity with mode-specific usage', () =
   assert.equal(apply.status, 1);
   assert.match(apply.stderr, /workflow-interpreter: usage: node scripts\/workflow-interpreter\.mjs apply <workflow\.json> <baton\.json> <worker-output\.json>/);
 
-  assert.equal(legacy.status, 1);
-  assert.match(legacy.stderr, /workflow-interpreter: usage: node scripts\/workflow-interpreter\.mjs inspect <workflow\.json> <baton\.json> \| apply <workflow\.json> <baton\.json> <worker-output\.json>/);
+  assert.equal(missingMode.status, 1);
+  assert.match(missingMode.stderr, /workflow-interpreter: usage: node scripts\/workflow-interpreter\.mjs inspect <workflow\.json> <baton\.json> \| apply <workflow\.json> <baton\.json> <worker-output\.json>/);
 });
 
 test('cli: unknown explicit mode with apply arity is rejected by argument schema', () => {
