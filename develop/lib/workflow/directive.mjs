@@ -4,6 +4,6 @@ export function buildDirective(stepId, step) {
   return {
     id: stepId,
     action: actionForStep(step),
-    vertex: structuredClone(step),
+    step: structuredClone(step),
   };
 }

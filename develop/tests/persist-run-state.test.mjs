@@ -31,7 +31,7 @@ function response(overrides = {}) {
     directive: {
       id: 'approve_research',
       action: 'wait_for_approval',
-      vertex: {
+      step: {
         name: 'Approve research',
         kind: 'approval',
         input: { state: ['artifacts', 'results'], prompt: 'Approve research.' },

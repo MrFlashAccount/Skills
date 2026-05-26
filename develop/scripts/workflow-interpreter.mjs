@@ -42,8 +42,6 @@ try {
     emit(inspectWorkflow(workflowPath, batonPath));
   } else if (mode === 'apply') {
     emit(applyWorkflowOutput(workflowPath, batonPath, outputPath));
-  } else {
-    emit(applyWorkflowOutput(mode, workflowPath, batonPath));
   }
 } catch (error) {
   if (error instanceof WorkflowInterpreterError) fail(error.message);

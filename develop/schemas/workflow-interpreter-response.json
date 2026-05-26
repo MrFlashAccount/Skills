@@ -8,13 +8,13 @@
     "baton": { "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton" },
     "directive": {
       "type": "object",
-      "required": ["id", "action", "vertex"],
+      "required": ["id", "action", "step"],
       "properties": {
         "id": { "type": "string" },
         "action": {
           "enum": ["run_worker", "wait_for_approval", "stop_done", "stop_blocked"]
         },
-        "vertex": { "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/workflow#/$defs/step" }
+        "step": { "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/workflow#/$defs/step" }
       },
       "additionalProperties": false
     }
