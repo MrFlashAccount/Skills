@@ -201,18 +201,27 @@ test('schema workflow fixture: DevHarness JSON is accepted without DevHarness-sp
   assert.deepEqual(response.directive.vertex.input.state, ['artifacts', 'results']);
 });
 
-test('schema workflow fixture: workflow metadata extension is accepted and ignored by generic interpreter', () => {
+test('schema workflow fixture: workflow-scoped extensions are accepted and ignored by generic interpreter', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc.metadata = {
-    templates: { worker_step: 'workflow-owned-template.md' },
-    operatorHints: ['ignored by interpreter runtime'],
+  workflowDoc.workflow.operatorHints = {
+    owner: 'specific-wrapper',
+    prompts: { worker_step: 'wrapper-owned-prompt.md' },
   };
 
-  const response = runInspect('metadata-extension', baton(), true, workflowDoc);
+  const response = runInspect('workflow-scoped-extension', baton(), true, workflowDoc);
   assert.equal(response.directive.id, 'worker_step');
   assert.equal(response.directive.action, 'run_worker');
   assert.equal(response.directive.vertex.input.template, 'worker.md');
-  assert.equal(Object.hasOwn(response, 'metadata'), false);
+  assert.equal(Object.hasOwn(response, 'operatorHints'), false);
+});
+
+test('schema validation: step-level extension fields are rejected rather than ignored', () => {
+  const workflowDoc = structuredClone(schemaWorkflowDoc);
+  workflowDoc.workflow.steps.worker_step.operatorHints = { template: 'wrapper-owned-prompt.md' };
+
+  const result = runInspect('step-level-extension-field', baton(), false, workflowDoc);
+
+  assert.match(result.stderr, /workflow failed schema validation/);
 });
 
 test('e2e: scripted wrapper runs worker to approval to worker/review to done', () => {
@@ -345,6 +354,17 @@ test('schema validation: worker output cannot replace baton state directly', () 
   assert.match(result.stderr, /worker output failed schema validation/);
 });
 
+test('schema validation: worker output rejects unsupported fields instead of silently ignoring them', () => {
+  const result = runApply(
+    'worker-output-unsupported-field',
+    baton(),
+    { outcome: 'ready', diagnostics: { summary: 'wrapper-only metadata' } },
+    false,
+  );
+
+  assert.match(result.stderr, /worker output failed schema validation/);
+});
+
 test('apply: output state replaces same-id artifacts while appending new artifacts and results', () => {
   const response = runApply(
     'state-merge-replaces-artifacts-appends-results',
@@ -445,6 +465,26 @@ test('apply: mapped next by approval output field advances to selected target', 
   assert.equal(response.baton.state.results.at(-1).type, 'approval');
 });
 
+test('apply: next directive exposes target step input state selectors after transition', () => {
+  const response = runApply(
+    'next-directive-target-state-selectors',
+    baton({
+      cursor: 'approval_step',
+      state: {
+        artifacts: [{ type: 'packet', summary: 'ready packet' }],
+        results: [],
+      },
+    }),
+    { approval: 'approved', results: [{ type: 'approval', summary: 'approved' }] },
+  );
+
+  assert.equal(response.directive.id, 'direct_next_worker');
+  assert.equal(response.directive.action, 'run_worker');
+  assert.deepEqual(response.directive.vertex.input.state, ['results']);
+  assert.deepEqual(response.baton.state.artifacts, [{ type: 'packet', summary: 'ready packet' }]);
+  assert.deepEqual(response.baton.state.results, [{ type: 'approval', summary: 'approved' }]);
+});
+
 test('apply: approval blocked transition carries blocker and resolves blocked terminal status', () => {
   const response = runApply(
     'approval-blocked-carries-blocker',
@@ -463,6 +503,39 @@ test('apply: string next advances without consulting transition value', () => {
   assert.equal(response.baton.cursor, 'done');
   assert.equal(response.baton.status, 'done');
   assert.equal(response.directive.action, 'stop_done');
+});
+
+test('validation: direct string next still enforces worker output vocabulary before terminal transition', () => {
+  const result = runApply('string-next-worker-using-approval', baton({ cursor: 'direct_next_worker' }), { approval: 'approved' }, false);
+
+  assert.match(result.stderr, /worker cursor 'direct_next_worker' must use outcome, not approval/);
+});
+
+test('apply: direct string next still merges output state before resolving terminal directive', () => {
+  const response = runApply(
+    'string-next-state-merge-before-terminal',
+    baton({
+      cursor: 'direct_next_worker',
+      state: {
+        artifacts: [{ id: 'draft', type: 'packet', summary: 'before direct next' }],
+        results: [{ type: 'implementation', summary: 'existing result' }],
+      },
+    }),
+    {
+      outcome: 'anything',
+      artifacts: [{ id: 'draft', type: 'packet', summary: 'merged before done' }],
+      results: [{ type: 'review', summary: 'terminal evidence' }],
+    },
+  );
+
+  assert.equal(response.baton.cursor, 'done');
+  assert.equal(response.baton.status, 'done');
+  assert.equal(response.directive.action, 'stop_done');
+  assert.deepEqual(response.baton.state.artifacts, [{ id: 'draft', type: 'packet', summary: 'merged before done' }]);
+  assert.deepEqual(response.baton.state.results, [
+    { type: 'implementation', summary: 'existing result' },
+    { type: 'review', summary: 'terminal evidence' },
+  ]);
 });
 
 test('runtime: dangling direct string next targets fail when the resolver uses them', () => {
@@ -487,6 +560,23 @@ test('apply: retry policy persists attempt counters until maxAttempts then uses 
   assert.deepEqual(limited.baton.state.attempts, { 'worker_step:outcome:retry->worker_step': 2 });
 });
 
+test('apply: retry limit respects persisted attempt counters after resume', () => {
+  const resumedAtLimit = baton({
+    state: {
+      artifacts: [],
+      results: [],
+      attempts: { 'worker_step:outcome:retry->worker_step': 2 },
+    },
+  });
+
+  const limited = runApply('retry-limit-from-persisted-attempts', resumedAtLimit, output({ outcome: 'retry' }));
+
+  assert.equal(limited.baton.cursor, 'blocked');
+  assert.equal(limited.baton.status, 'blocked');
+  assert.equal(limited.directive.action, 'stop_blocked');
+  assert.deepEqual(limited.baton.state.attempts, { 'worker_step:outcome:retry->worker_step': 2 });
+});
+
 test('apply: retry onLimit blocked transition carries the limiting output blocker', () => {
   const first = runApply('retry-limit-blocker-first', baton(), output({ outcome: 'retry' }));
   const second = runApply('retry-limit-blocker-second', first.baton, output({ outcome: 'retry' }));
@@ -503,6 +593,28 @@ test('apply: retry onLimit blocked transition carries the limiting output blocke
   assert.equal(limited.directive.action, 'stop_blocked');
 });
 
+test('apply: retry onLimit blocked transition still merges limiting output state', () => {
+  const first = runApply('retry-limit-state-first', baton(), { outcome: 'retry' });
+  const second = runApply('retry-limit-state-second', first.baton, { outcome: 'retry' });
+
+  const limited = runApply(
+    'retry-limit-state',
+    second.baton,
+    output({
+      outcome: 'retry',
+      artifacts: [{ id: 'failure-packet', type: 'packet', summary: 'last failed attempt evidence' }],
+      results: [{ type: 'retry-limit', summary: 'retry budget exhausted with diagnostics' }],
+    }),
+  );
+
+  assert.equal(limited.baton.cursor, 'blocked');
+  assert.equal(limited.baton.status, 'blocked');
+  assert.equal(limited.directive.action, 'stop_blocked');
+  assert.deepEqual(limited.baton.state.artifacts, [{ id: 'failure-packet', type: 'packet', summary: 'last failed attempt evidence' }]);
+  assert.deepEqual(limited.baton.state.results, [{ type: 'retry-limit', summary: 'retry budget exhausted with diagnostics' }]);
+  assert.deepEqual(limited.baton.state.attempts, { 'worker_step:outcome:retry->worker_step': 2 });
+});
+
 test('apply: retry onLimit can target done and resolves terminal done status', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
   workflowDoc.workflow.steps.worker_step.next.map.retry.onLimit = 'done';
@@ -514,6 +626,21 @@ test('apply: retry onLimit can target done and resolves terminal done status', (
   assert.equal(limited.baton.cursor, 'done');
   assert.equal(limited.baton.status, 'done');
   assert.equal(limited.directive.action, 'stop_done');
+  assert.deepEqual(limited.baton.state.attempts, { 'worker_step:outcome:retry->worker_step': 2 });
+  assert.equal(Object.hasOwn(limited.baton, 'blocker'), false);
+});
+
+test('apply: retry onLimit can target nonterminal approval and resolves the next directive', () => {
+  const workflowDoc = structuredClone(schemaWorkflowDoc);
+  workflowDoc.workflow.steps.worker_step.next.map.retry.onLimit = 'approval_step';
+
+  const first = runApply('retry-limit-approval-first', baton(), output({ outcome: 'retry' }), true, workflowDoc);
+  const second = runApply('retry-limit-approval-second', first.baton, output({ outcome: 'retry' }), true, workflowDoc);
+  const limited = runApply('retry-limit-approval', second.baton, output({ outcome: 'retry' }), true, workflowDoc);
+
+  assert.equal(limited.baton.cursor, 'approval_step');
+  assert.equal(limited.baton.status, 'running');
+  assert.equal(limited.directive.action, 'wait_for_approval');
   assert.deepEqual(limited.baton.state.attempts, { 'worker_step:outcome:retry->worker_step': 2 });
   assert.equal(Object.hasOwn(limited.baton, 'blocker'), false);
 });
@@ -618,6 +745,16 @@ test('schema validation: nonterminal workflow steps require next in the workflow
   assert.match(result.stderr, /workflow failed schema validation/);
 });
 
+test('schema validation: worker steps require declared output schema metadata', () => {
+  const missingOutput = structuredClone(schemaWorkflowDoc);
+  delete missingOutput.workflow.steps.worker_step.output;
+  assert.match(runInspect('worker-step-missing-output', baton(), false, missingOutput).stderr, /workflow failed schema validation/);
+
+  const missingOutputSchema = structuredClone(schemaWorkflowDoc);
+  delete missingOutputSchema.workflow.steps.worker_step.output.schema;
+  assert.match(runInspect('worker-step-missing-output-schema', baton(), false, missingOutputSchema).stderr, /workflow failed schema validation/);
+});
+
 test('schema validation: retry transition policies require complete bounded-loop shape', () => {
   const missingTarget = structuredClone(schemaWorkflowDoc);
   delete missingTarget.workflow.steps.worker_step.next.map.retry.target;
@@ -640,6 +777,15 @@ test('schema validation: mapped transitions require selector and non-empty map',
   const emptyMap = structuredClone(schemaWorkflowDoc);
   emptyMap.workflow.steps.worker_step.next.map = {};
   assert.match(runInspect('transition-map-empty-map', baton(), false, emptyMap).stderr, /workflow failed schema validation/);
+});
+
+test('schema validation: mapped transition objects reject unsupported control fields', () => {
+  const workflowDoc = structuredClone(schemaWorkflowDoc);
+  workflowDoc.workflow.steps.worker_step.next.default = 'blocked';
+
+  const result = runInspect('transition-map-unsupported-default', baton(), false, workflowDoc);
+
+  assert.match(result.stderr, /workflow failed schema validation/);
 });
 
 test('schema validation: mapped transition selector must be non-empty', () => {
@@ -688,6 +834,16 @@ test('schema validation: terminal steps reject outgoing transitions', () => {
   );
 });
 
+test('schema validation: input state selectors must be unique non-empty strings', () => {
+  const duplicateSelector = structuredClone(schemaWorkflowDoc);
+  duplicateSelector.workflow.steps.worker_step.input.state = ['artifacts', 'artifacts'];
+  assert.match(runInspect('duplicate-worker-state-selector', baton(), false, duplicateSelector).stderr, /workflow failed schema validation/);
+
+  const emptyApprovalSelector = structuredClone(schemaWorkflowDoc);
+  emptyApprovalSelector.workflow.steps.approval_step.input.state = [''];
+  assert.match(runInspect('empty-approval-state-selector', baton({ cursor: 'approval_step' }), false, emptyApprovalSelector).stderr, /workflow failed schema validation/);
+});
+
 test('runtime validation: baton status must match cursor semantics', () => {
   const runningCursorMarkedDone = runInspect('running-cursor-marked-done', baton({ status: 'done' }), false);
   assert.match(runningCursorMarkedDone.stderr, /baton status 'done' is inconsistent with cursor 'worker_step'; expected 'running'/);
@@ -732,6 +888,14 @@ test('schema validation: retry policy target strings must be non-empty', () => {
   const emptyRetryOnLimit = structuredClone(schemaWorkflowDoc);
   emptyRetryOnLimit.workflow.steps.worker_step.next.map.retry.onLimit = '';
   assert.match(runInspect('empty-retry-policy-on-limit', baton(), false, emptyRetryOnLimit).stderr, /workflow failed schema validation/);
+});
+
+test('schema validation: baton retry counters must be non-negative integers', () => {
+  const fractionalAttempt = baton({ state: { artifacts: [], results: [], attempts: { 'worker_step:outcome:retry->worker_step': 1.5 } } });
+  assert.match(runInspect('baton-fractional-retry-attempt', fractionalAttempt, false).stderr, /baton failed schema validation/);
+
+  const negativeAttempt = baton({ state: { artifacts: [], results: [], attempts: { 'worker_step:outcome:retry->worker_step': -1 } } });
+  assert.match(runInspect('baton-negative-retry-attempt', negativeAttempt, false).stderr, /baton failed schema validation/);
 });
 
 test('validation: worker and approval transition vocabularies stay distinct', () => {
