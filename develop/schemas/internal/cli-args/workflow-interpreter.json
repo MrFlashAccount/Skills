@@ -5,6 +5,7 @@
   "description": "Internal positional argv contract for develop/scripts/workflow-interpreter.mjs after node:util parseArgs normalization.",
   "oneOf": [
     { "$ref": "#/$defs/inspectMode" },
+    { "$ref": "#/$defs/renderMode" },
     { "$ref": "#/$defs/applyMode" }
   ],
   "$defs": {
@@ -13,6 +14,16 @@
       "type": "array",
       "prefixItems": [
         { "enum": ["inspect", "directive"] },
+        { "$ref": "#/$defs/pathArg" },
+        { "$ref": "#/$defs/pathArg" }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "renderMode": {
+      "type": "array",
+      "prefixItems": [
+        { "const": "render" },
         { "$ref": "#/$defs/pathArg" },
         { "$ref": "#/$defs/pathArg" }
       ],

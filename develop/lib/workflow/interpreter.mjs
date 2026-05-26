@@ -4,6 +4,7 @@ import { statusForStep } from './model.mjs';
 import { readJson } from './json-io.mjs';
 import { assertBatonSchema, assertResponseSchema, assertWorkflowSchema, assertWorkerOutputSchema } from './schema-validation.mjs';
 import { applyOutputToBatonState } from './state.mjs';
+import { renderWorkflowPrompt } from './prompt-renderer.mjs';
 import { resolveTransition } from './transitions.mjs';
 
 export function loadWorkflowAndBaton(workflowPath, batonPath) {
@@ -81,6 +82,23 @@ function responseFor(baton, stepId, step) {
 export function inspectWorkflow(workflowPath, batonPath) {
   const { baton, cursorStep } = loadWorkflowAndBaton(workflowPath, batonPath);
   return responseFor(baton, baton.cursor, cursorStep);
+}
+
+export function renderWorkflow(workflowPath, batonPath, options = {}) {
+  const { workflow, baton, cursorStep } = loadWorkflowAndBaton(workflowPath, batonPath);
+  const response = responseFor(baton, baton.cursor, cursorStep);
+  return {
+    ...response,
+    compiledPrompt: renderWorkflowPrompt({
+      workflowPath,
+      workflow,
+      baton,
+      stepId: baton.cursor,
+      step: cursorStep,
+      repositoryRoot: options.repositoryRoot,
+      templateBaseDir: options.templateBaseDir,
+    }),
+  };
 }
 
 export function applyWorkflowOutput(workflowPath, batonPath, outputPath) {
