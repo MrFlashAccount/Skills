@@ -2,8 +2,8 @@
 import { mkdir, open, readFile, rename, rm } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import { parseArgs } from 'node:util';
-import validateBatonSchema from '../dist/validators/baton.mjs';
-import validateWorkflowInterpreterResponseSchema from '../dist/validators/workflow-interpreter-response.mjs';
+import { WorkflowInterpreterError } from '../lib/workflow/errors.mjs';
+import { assertBatonSchema, assertResponseSchema } from '../lib/workflow/schema-validation.mjs';
 
 function fail(message) {
   console.error(`persist-run-state: ${message}`);
@@ -38,14 +38,13 @@ function requireObject(value, name) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) fail(`${name} must be an object`);
 }
 
-function formatSchemaErrors(errors = []) {
-  return errors
-    .map((error) => `${error.instancePath || '/'} ${error.message}`.trim())
-    .join('; ');
-}
-
-function assertSchema(validate, value, name) {
-  if (!validate(value)) fail(`${name} failed schema validation: ${formatSchemaErrors(validate.errors)}`);
+function assertPersistSchema(assertFn, value) {
+  try {
+    assertFn(value);
+  } catch (error) {
+    if (error instanceof WorkflowInterpreterError) fail(error.message);
+    throw error;
+  }
 }
 
 async function readJson(path, name) {
@@ -130,9 +129,9 @@ const input = responsePath
 
 if (responsePath) {
   requireObject(input, 'workflow interpreter response');
-  assertSchema(validateWorkflowInterpreterResponseSchema, input, 'workflow interpreter response');
+  assertPersistSchema(assertResponseSchema, input);
 } else {
-  assertSchema(validateBatonSchema, input, 'baton');
+  assertPersistSchema(assertBatonSchema, input);
 }
 const baton = responsePath ? input.baton : input;
 const directive = responsePath ? input.directive : undefined;

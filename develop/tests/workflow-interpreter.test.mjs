@@ -201,6 +201,18 @@ test('schema workflow fixture: DevHarness JSON is accepted without DevHarness-sp
   assert.deepEqual(response.directive.vertex.input.state, ['artifacts', 'results']);
 });
 
+
+
+
+test('schema validation: top-level wrapper fields are rejected by the workflow schema', () => {
+  const workflowDoc = structuredClone(schemaWorkflowDoc);
+  workflowDoc['meta' + 'data'] = { owner: 'specific-wrapper' };
+
+  const result = runInspect('top-level-wrapper-field', baton(), false, workflowDoc);
+
+  assert.match(result.stderr, /workflow failed schema validation/);
+});
+
 test('schema workflow fixture: workflow-scoped extensions are accepted and ignored by generic interpreter', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
   workflowDoc.workflow.operatorHints = {
@@ -358,7 +370,7 @@ test('schema validation: worker output rejects unsupported fields instead of sil
   const result = runApply(
     'worker-output-unsupported-field',
     baton(),
-    { outcome: 'ready', diagnostics: { summary: 'wrapper-only metadata' } },
+    { outcome: 'ready', diagnostics: { summary: 'wrapper-only details' } },
     false,
   );
 
@@ -421,7 +433,7 @@ test('apply: output merge appends unkeyed artifacts even when artifact type matc
   ]);
 });
 
-test('apply: successful transition clears stale blocker metadata', () => {
+test('apply: successful transition clears stale blocker details', () => {
   const response = runApply(
     'successful-transition-clears-stale-blocker',
     baton({ blocker: { reason: 'previous blockage' } }),
@@ -433,7 +445,7 @@ test('apply: successful transition clears stale blocker metadata', () => {
   assert.equal(Object.hasOwn(response.baton, 'blocker'), false);
 });
 
-test('apply: non-blocked transition does not persist incidental output blocker metadata', () => {
+test('apply: non-blocked transition does not persist incidental output blocker details', () => {
   const response = runApply(
     'non-blocked-transition-ignores-output-blocker',
     baton({ blocker: { reason: 'previous blockage' } }),
@@ -445,7 +457,7 @@ test('apply: non-blocked transition does not persist incidental output blocker m
   assert.equal(Object.hasOwn(response.baton, 'blocker'), false);
 });
 
-test('apply: blocked transition without blocker clears stale blocker metadata', () => {
+test('apply: blocked transition without blocker clears stale blocker details', () => {
   const response = runApply(
     'blocked-transition-clears-stale-blocker-without-new-blocker',
     baton({ blocker: { reason: 'previous blockage' } }),
@@ -745,7 +757,7 @@ test('schema validation: nonterminal workflow steps require next in the workflow
   assert.match(result.stderr, /workflow failed schema validation/);
 });
 
-test('schema validation: worker steps require declared output schema metadata', () => {
+test('schema validation: worker steps require declared output schema declaration', () => {
   const missingOutput = structuredClone(schemaWorkflowDoc);
   delete missingOutput.workflow.steps.worker_step.output;
   assert.match(runInspect('worker-step-missing-output', baton(), false, missingOutput).stderr, /workflow failed schema validation/);
@@ -753,6 +765,16 @@ test('schema validation: worker steps require declared output schema metadata', 
   const missingOutputSchema = structuredClone(schemaWorkflowDoc);
   delete missingOutputSchema.workflow.steps.worker_step.output.schema;
   assert.match(runInspect('worker-step-missing-output-schema', baton(), false, missingOutputSchema).stderr, /workflow failed schema validation/);
+});
+
+test('schema validation: worker output schema declaration must stay minimal and non-empty', () => {
+  const emptySchemaName = structuredClone(schemaWorkflowDoc);
+  emptySchemaName.workflow.steps.worker_step.output.schema = '';
+  assert.match(runInspect('worker-step-empty-output-schema', baton(), false, emptySchemaName).stderr, /workflow failed schema validation/);
+
+  const wrapperOwnedDetails = structuredClone(schemaWorkflowDoc);
+  wrapperOwnedDetails.workflow.steps.worker_step.output.prompt = 'wrapper-owned-output-prompt.md';
+  assert.match(runInspect('worker-step-output-wrapper-details', baton(), false, wrapperOwnedDetails).stderr, /workflow failed schema validation/);
 });
 
 test('schema validation: retry transition policies require complete bounded-loop shape', () => {

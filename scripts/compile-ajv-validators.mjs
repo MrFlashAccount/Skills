@@ -69,14 +69,14 @@ function collectSchemas(dir, baseDir = dir) {
 const schemas = collectSchemas(schemasDir).sort((a, b) => a.fileName.localeCompare(b.fileName));
 
 function normalizeStandaloneEsm(moduleCode) {
-  const imports = [];
-  const code = moduleCode.replace(/const (func\d+) = require\("([^"]+)"\)\.default;/g, (_match, name, specifier) => {
-    const esmSpecifier = specifier.startsWith('ajv/') && !specifier.endsWith('.js') ? `${specifier}.js` : specifier;
-    const moduleName = `${name}Module`;
-    imports.push(`import ${moduleName} from "${esmSpecifier}";`);
-    return `const ${name} = ${moduleName}.default;`;
-  });
-  return imports.length > 0 ? `${imports.join('\n')}\n${code}` : code;
+  return moduleCode
+    .replace(/import (func\d+)Module from "ajv\/dist\/runtime\/ucs2length\.js";\n/g, '')
+    .replace(/const (func\d+) = \1Module\.default;/g, (_match, name) => {
+      return `const ${name} = (value) => Array.from(value).length;`;
+    })
+    .replace(/const (func\d+) = require\("ajv\/dist\/runtime\/ucs2length"\)\.default;/g, (_match, name) => {
+      return `const ${name} = (value) => Array.from(value).length;`;
+    });
 }
 
 if (schemas.length === 0) usage(`no JSON schemas found in ${schemasDir}`);

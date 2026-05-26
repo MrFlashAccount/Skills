@@ -1,4 +1,26 @@
+# Dependencies
+node_modules/
+
+# Environment / secrets
+.env*
+!.env.example
+
+# OS / editor
 .DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs / temp / caches / coverage
+*.log
+coverage/
+.nyc_output/
+.cache/
+tmp/
+temp/
 .worktrees/
+
+# Private local drafts
 skills/cover-letter-writer/private/*
 !skills/cover-letter-writer/private/.gitkeep

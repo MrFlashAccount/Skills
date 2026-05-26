@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
-import validateWorkflowInterpreterCliArgs from '../dist/validators/internal/cli-args/workflow-interpreter.mjs';
+import { validateWorkflowInterpreterCliArgs } from '../lib/workflow/cli-args-validation.mjs';
 import { WorkflowInterpreterError } from '../lib/workflow/errors.mjs';
 import { applyWorkflowOutput, inspectWorkflow } from '../lib/workflow/interpreter.mjs';
 
