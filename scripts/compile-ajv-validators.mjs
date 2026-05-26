@@ -1,10 +1,12 @@
 #!/usr/bin/env node
-import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { build } from 'esbuild';
 import Ajv2020 from 'ajv/dist/2020.js';
+import { _Code } from 'ajv/dist/compile/codegen/code.js';
 import standaloneCode from 'ajv/dist/standalone/index.js';
 
 function usage(message) {
@@ -67,63 +69,44 @@ function collectSchemas(dir, baseDir = dir) {
     });
 }
 
-const schemas = collectSchemas(schemasDir).sort((a, b) => a.fileName.localeCompare(b.fileName));
+function anonymousFunctionExpression(func) {
+  return Function.prototype.toString.call(func)
+    .replace(/^function\s+[$A-Z_a-z][$\w]*\s*\(/, 'function (');
+}
 
-const ajvRuntimePathPattern = /^ajv\/dist\/runtime\/(?<helper>[A-Za-z0-9_-]+)(?:\.js)?$/;
-
-const bundleAjvRuntimePlugin = {
-  name: 'bundle-ajv-runtime',
-  setup(buildContext) {
-    buildContext.onResolve({ filter: ajvRuntimePathPattern }, (args) => {
-      const helper = args.path.match(ajvRuntimePathPattern)?.groups?.helper;
-      return { path: helper, namespace: 'ajv-runtime' };
-    });
-
-    buildContext.onLoad({ filter: /.*/, namespace: 'ajv-runtime' }, (args) => {
-      if (args.path !== 'ucs2length') throw new Error(`unsupported AJV runtime helper: ${args.path}`);
-      return {
-        loader: 'js',
-        contents: `export default function unicodeLength(str) {
-  let length = str.length;
-  let result = 0;
-  let pos = 0;
-  let value;
-  while (pos < length) {
-    result += 1;
-    value = str.charCodeAt(pos++);
-    if (value >= 0xd800 && value <= 0xdbff && pos < length) {
-      value = str.charCodeAt(pos);
-      if ((value & 0xfc00) === 0xdc00) pos += 1;
-    }
+function inlineStandaloneFunctionScopes(ajv) {
+  for (const scopeName of ajv.scope?._values?.func?.values() ?? []) {
+    if (typeof scopeName.value?.ref !== 'function') continue;
+    scopeName.value.code = new _Code(anonymousFunctionExpression(scopeName.value.ref));
   }
-  return result;
-}`,
-      };
-    });
-  },
-};
+}
 
 async function bundleStandaloneEsm(moduleCode, fileName) {
-  const result = await build({
-    stdin: {
-      contents: moduleCode,
-      loader: 'js',
-      resolveDir: process.cwd(),
-      sourcefile: fileName,
-    },
-    bundle: true,
-    write: false,
-    format: 'esm',
-    platform: 'node',
-    target: 'node20',
-    legalComments: 'none',
-    minify: true,
-    plugins: [bundleAjvRuntimePlugin],
-    logLevel: 'silent',
-  });
+  const tempDir = mkdtempSync(path.join(tmpdir(), 'skills-ajv-standalone-'));
+  const entryPath = path.join(tempDir, fileName);
+  try {
+    mkdirSync(path.dirname(entryPath), { recursive: true });
+    writeFileSync(entryPath, moduleCode);
 
-  return result.outputFiles[0].text;
+    const result = await build({
+      entryPoints: [entryPath],
+      bundle: true,
+      write: false,
+      format: 'esm',
+      platform: 'node',
+      target: 'node20',
+      legalComments: 'none',
+      minify: true,
+      logLevel: 'silent',
+    });
+
+    return result.outputFiles[0].text;
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
 }
+
+const schemas = collectSchemas(schemasDir).sort((a, b) => a.fileName.localeCompare(b.fileName));
 
 if (schemas.length === 0) usage(`no JSON schemas found in ${schemasDir}`);
 
@@ -134,6 +117,7 @@ for (const { fileName, schema } of schemas) {
   const ajv = new Ajv2020({ code: { esm: true, source: true }, allErrors: true });
   for (const loaded of schemas) ajv.addSchema(loaded.schema);
   const validate = ajv.getSchema(schema.$id) ?? ajv.compile(schema);
+  inlineStandaloneFunctionScopes(ajv);
   const rawModuleCode = standaloneCode(ajv, validate);
   const bundledModuleCode = await bundleStandaloneEsm(rawModuleCode, fileName);
   const outputPath = path.join(outDir, fileName);

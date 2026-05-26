@@ -20,8 +20,10 @@ test('generated validators are self-contained ESM runtime artifacts', () => {
 
   for (const file of files) {
     const code = readFileSync(file, 'utf8');
-    assert.doesNotMatch(code, /\bimport\b/, `${file} must not import runtime dependencies`);
+    assert.doesNotMatch(code, /^import\b/m, `${file} must not statically import runtime dependencies`);
+    assert.doesNotMatch(code, /\bimport\s*\(/, `${file} must not dynamically import runtime dependencies`);
     assert.doesNotMatch(code, /\brequire\s*\(/, `${file} must not require runtime dependencies`);
+    assert.doesNotMatch(code, /\bcreateRequire\b/, `${file} must not create CommonJS require shims`);
     assert.doesNotMatch(code, /ajv\/dist\/runtime/, `${file} must not reference AJV runtime helpers`);
   }
 });
