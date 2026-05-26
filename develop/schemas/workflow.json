@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openclaw.local/dev-harness/schemas/workflow",
-  "title": "DevHarness Workflow Document",
+  "$id": "https://openclaw.local/workflow/schemas/workflow",
+  "title": "Workflow Document",
   "type": "object",
   "required": ["workflow"],
   "properties": {
@@ -22,8 +22,10 @@
       },
       "additionalProperties": true
     },
-    "prompt_generation": { "type": "object" },
-    "workflow_interpreter": { "type": "object" }
+    "metadata": {
+      "description": "Optional workflow-instance metadata ignored by the generic workflow interpreter. Use this for prompts, templates, or operational hints owned by a specific workflow instance.",
+      "type": "object"
+    }
   },
   "additionalProperties": false,
   "$defs": {
