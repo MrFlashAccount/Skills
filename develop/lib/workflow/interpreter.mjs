@@ -14,11 +14,31 @@ export function loadWorkflowAndBaton(workflowPath, batonPath) {
   assertBatonSchema(baton);
 
   const workflow = workflowDoc.workflow;
+  assertWorkflowRootTargets(workflow);
 
   const cursorStep = workflow.steps[baton.cursor];
   invariant(cursorStep, `baton cursor not found in workflow: ${baton.cursor}`);
 
+  const expectedStatus = statusForStep(workflow, baton.cursor, cursorStep);
+  invariant(
+    baton.status === expectedStatus,
+    `baton status '${baton.status}' is inconsistent with cursor '${baton.cursor}'; expected '${expectedStatus}'`,
+  );
+
   return { workflow, baton, cursorStep };
+}
+
+function assertWorkflowRootTargets(workflow) {
+  const startStep = workflow.steps[workflow.start];
+  invariant(startStep, `workflow start target not found: ${workflow.start}`);
+
+  const doneStep = workflow.steps[workflow.done];
+  invariant(doneStep, `workflow done target not found: ${workflow.done}`);
+  invariant(doneStep.kind === 'done', `workflow done target '${workflow.done}' must be a done step`);
+
+  const blockedStep = workflow.steps[workflow.blocked];
+  invariant(blockedStep, `workflow blocked target not found: ${workflow.blocked}`);
+  invariant(blockedStep.kind === 'blocked', `workflow blocked target '${workflow.blocked}' must be a blocked step`);
 }
 
 function responseFor(baton, stepId, step) {
@@ -45,7 +65,8 @@ export function applyWorkflowOutput(workflowPath, batonPath, outputPath) {
   updatedBaton.cursor = targetStepId;
   updatedBaton.status = statusForStep(workflow, targetStepId, targetStep);
   updatedBaton.state = applyOutputToBatonState(updatedBaton, workerOutput, attempts);
-  if (workerOutput.blocker) updatedBaton.blocker = workerOutput.blocker;
+  delete updatedBaton.blocker;
+  if (updatedBaton.status === 'blocked' && workerOutput.blocker) updatedBaton.blocker = workerOutput.blocker;
 
   return responseFor(updatedBaton, targetStepId, targetStep);
 }

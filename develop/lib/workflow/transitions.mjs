@@ -31,13 +31,13 @@ export function resolveTransition({ workflow, baton, stepId, step, output }) {
   validateOutputKind(step, output, stepId);
 
   const next = step.next;
-  if (typeof next === 'string') return { targetStepId: next, attempts: baton.state?.attempts };
+  if (typeof next === 'string') return { targetStepId: next };
 
   const by = next.by;
   const fieldValue = readTransitionField(output, by, stepId);
   invariant(Object.hasOwn(next.map, fieldValue), `transition value '${fieldValue}' is not allowed from cursor '${stepId}' by '${by}'`);
 
   const target = next.map[fieldValue];
-  if (typeof target === 'string') return { targetStepId: target, attempts: baton.state?.attempts };
+  if (typeof target === 'string') return { targetStepId: target };
   return resolveRetryPolicy({ baton, stepId, by, value: fieldValue, policy: target });
 }

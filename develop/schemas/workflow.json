@@ -11,9 +11,9 @@
       "properties": {
         "name": { "type": "string" },
         "version": { "type": "integer", "minimum": 1 },
-        "start": { "type": "string" },
-        "done": { "type": "string" },
-        "blocked": { "type": "string" },
+        "start": { "type": "string", "minLength": 1 },
+        "done": { "type": "string", "minLength": 1 },
+        "blocked": { "type": "string", "minLength": 1 },
         "steps": {
           "type": "object",
           "minProperties": 1,
