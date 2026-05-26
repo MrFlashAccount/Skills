@@ -12,10 +12,10 @@ const devHarnessWorkflowPath = path.join(root, 'develop/dev-harness.workflow.jso
 
 function outputContract(name = 'worker') {
   const templates = {
-    worker: 'shared/templates/implementation-plan-template.md',
-    research: 'shared/templates/research-packet-template.md',
+    worker: '../../shared/templates/implementation-plan-template.md',
+    research: '../../shared/templates/research-packet-template.md',
   };
-  return { schema: 'schemas/worker-output.json', template: templates[name] ?? 'shared/templates/review-verdict-template.md', format: 'markdown' };
+  return { template: templates[name] ?? '../../shared/templates/review-verdict-template.md' };
 }
 
 const schemaWorkflowDoc = {
@@ -207,22 +207,19 @@ test('schema workflow fixture: DevHarness JSON is accepted without DevHarness-sp
   assert.equal(response.directive.action, 'run_worker');
   assert.equal(response.directive.vertex.kind, 'worker');
   assert.deepEqual(response.directive.vertex.input.state, ['artifacts', 'results']);
-  assert.equal(response.directive.vertex.output.schema, 'schemas/worker-output.json');
-  assert.equal(response.directive.vertex.output.template, 'shared/templates/research-packet-template.md');
-  assert.equal(response.directive.vertex.output.format, 'markdown');
+  assert.deepEqual(response.directive.vertex.output, { template: '../../shared/templates/research-packet-template.md' });
 });
 
 
 
-test('schema workflow fixture: DevHarness worker outputs use generic schema plus shared output templates', () => {
+test('schema workflow fixture: DevHarness worker outputs use skill-relative shared output templates', () => {
   const workflowDoc = JSON.parse(readFileSync(devHarnessWorkflowPath, 'utf8'));
   for (const [stepId, step] of Object.entries(workflowDoc.workflow.steps)) {
     if (step.kind !== 'worker') continue;
 
-    assert.equal(step.output.schema, 'schemas/worker-output.json', `${stepId} should use the generic worker output schema`);
-    assert.match(step.output.template, /^shared\/templates\//, `${stepId} should use the shared templates layout`);
-    assert.ok(existsSync(path.join(root, step.output.template)), `${stepId} output template should exist`);
-    assert.equal(step.output.format, 'markdown', `${stepId} should declare markdown output format`);
+    assert.deepEqual(Object.keys(step.output).sort(), ['template'], `${stepId} output should only declare a template`);
+    assert.match(step.output.template, /^\.\.\/\.\.\/shared\/templates\//, `${stepId} should use the skill-relative shared templates layout`);
+    assert.ok(existsSync(path.resolve(root, 'skills/dev-harness', step.output.template)), `${stepId} output template should exist`);
   }
 });
 
@@ -235,18 +232,17 @@ test('schema validation: workflow accepts output template refs on worker contrac
   const response = runInspect('output-template-ref-valid', baton(), true, workflowDoc);
 
   assert.deepEqual(response.directive.vertex.output, {
-    schema: 'schemas/worker-output.json',
-    template: 'shared/templates/research-packet-template.md',
-    format: 'markdown',
+    template: '../../shared/templates/research-packet-template.md',
   });
 });
 
 test('schema validation: malformed output template contract shapes are rejected', () => {
   const cases = [
-    ['missing-format', { schema: 'schemas/worker-output.json', template: 'shared/templates/research-packet-template.md' }],
-    ['invalid-format', { schema: 'schemas/worker-output.json', template: 'shared/templates/research-packet-template.md', format: 'json' }],
-    ['blank-template', { schema: 'schemas/worker-output.json', template: '', format: 'markdown' }],
-    ['extra-output-field', { schema: 'schemas/worker-output.json', template: 'shared/templates/research-packet-template.md', format: 'markdown', sections: ['Verdict'] }],
+    ['missing-template', {}],
+    ['blank-template', { template: '' }],
+    ['obsolete-schema', { schema: 'schemas/worker-output.json', template: '../../shared/templates/research-packet-template.md' }],
+    ['obsolete-format', { template: '../../shared/templates/research-packet-template.md', format: 'markdown' }],
+    ['extra-output-field', { template: '../../shared/templates/research-packet-template.md', sections: ['Verdict'] }],
   ];
 
   for (const [label, outputShape] of cases) {
@@ -262,9 +258,7 @@ test('schema validation: malformed output template contract shapes are rejected'
 test('runtime: output template semantics are ignored while worker envelope is validated', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
   workflowDoc.workflow.steps.worker_step.output = {
-    schema: 'schemas/worker-output.json',
-    template: 'shared/templates/research-packet-template.md',
-    format: 'markdown',
+    template: '../../shared/templates/research-packet-template.md',
   };
 
   const response = runApply('output-template-semantics-ignored', baton(), {
@@ -893,37 +887,30 @@ test('schema validation: nonterminal workflow steps require next in the workflow
   assert.match(result.stderr, /workflow failed schema validation/);
 });
 
-test('schema validation: worker steps require declared output schema declaration', () => {
+test('schema validation: worker steps require declared output template contract', () => {
   const missingOutput = structuredClone(schemaWorkflowDoc);
   delete missingOutput.workflow.steps.worker_step.output;
   assert.match(runInspect('worker-step-missing-output', baton(), false, missingOutput).stderr, /workflow failed schema validation/);
-
-  const missingOutputSchema = structuredClone(schemaWorkflowDoc);
-  delete missingOutputSchema.workflow.steps.worker_step.output.schema;
-  assert.match(runInspect('worker-step-missing-output-schema', baton(), false, missingOutputSchema).stderr, /workflow failed schema validation/);
 });
 
-test('schema validation: worker output schema declaration stays generic with required markdown template contract', () => {
-  const emptySchemaName = structuredClone(schemaWorkflowDoc);
-  emptySchemaName.workflow.steps.worker_step.output.schema = '';
-  assert.match(runInspect('worker-step-empty-output-schema', baton(), false, emptySchemaName).stderr, /workflow failed schema validation/);
+test('schema validation: worker output contract is template-only', () => {
 
   const withOutputTemplate = structuredClone(schemaWorkflowDoc);
-  withOutputTemplate.workflow.steps.worker_step.output.template = 'shared/templates/implementation-plan-template.md';
+  withOutputTemplate.workflow.steps.worker_step.output.template = '../../shared/templates/implementation-plan-template.md';
   const response = runInspect('worker-step-output-template', baton(), true, withOutputTemplate);
-  assert.equal(response.directive.vertex.output.template, 'shared/templates/implementation-plan-template.md');
+  assert.equal(response.directive.vertex.output.template, '../../shared/templates/implementation-plan-template.md');
 
   const emptyTemplateName = structuredClone(schemaWorkflowDoc);
   emptyTemplateName.workflow.steps.worker_step.output.template = '';
   assert.match(runInspect('worker-step-empty-output-template', baton(), false, emptyTemplateName).stderr, /workflow failed schema validation/);
 
-  const missingFormat = structuredClone(schemaWorkflowDoc);
-  delete missingFormat.workflow.steps.worker_step.output.format;
-  assert.match(runInspect('worker-step-missing-output-format', baton(), false, missingFormat).stderr, /workflow failed schema validation/);
+  const obsoleteSchema = structuredClone(schemaWorkflowDoc);
+  obsoleteSchema.workflow.steps.worker_step.output.schema = 'schemas/worker-output.json';
+  assert.match(runInspect('worker-step-obsolete-output-schema', baton(), false, obsoleteSchema).stderr, /workflow failed schema validation/);
 
-  const invalidFormat = structuredClone(schemaWorkflowDoc);
-  invalidFormat.workflow.steps.worker_step.output.format = 'json';
-  assert.match(runInspect('worker-step-invalid-output-format', baton(), false, invalidFormat).stderr, /workflow failed schema validation/);
+  const obsoleteFormat = structuredClone(schemaWorkflowDoc);
+  obsoleteFormat.workflow.steps.worker_step.output.format = 'markdown';
+  assert.match(runInspect('worker-step-obsolete-output-format', baton(), false, obsoleteFormat).stderr, /workflow failed schema validation/);
 
   const wrapperOwnedDetails = structuredClone(schemaWorkflowDoc);
   wrapperOwnedDetails.workflow.steps.worker_step.output.prompt = 'wrapper-owned-output-prompt.md';

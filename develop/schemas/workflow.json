@@ -142,11 +142,9 @@
     },
     "output": {
       "type": "object",
-      "required": ["schema", "template", "format"],
+      "required": ["template"],
       "properties": {
-        "schema": { "type": "string", "minLength": 1 },
-        "template": { "type": "string", "minLength": 1 },
-        "format": { "const": "markdown" }
+        "template": { "type": "string", "minLength": 1 }
       },
       "additionalProperties": false
     }
