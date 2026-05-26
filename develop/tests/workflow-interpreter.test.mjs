@@ -787,35 +787,39 @@ test('apply: retry onLimit can target nonterminal approval and resolves the next
   assert.equal(Object.hasOwn(limited.baton, 'blocker'), false);
 });
 
-test('apply: successful non-retry transition clears retry attempt counters', () => {
-  const retried = runApply('retry-reset-first', baton(), output({ outcome: 'retry' }));
+test('apply: non-retry transition preserves retry attempt counters across intermediate loop steps', () => {
+  const retried = runApply('retry-preserve-first', baton(), output({ outcome: 'retry' }));
   assert.equal(retried.baton.cursor, 'worker_step');
   assert.deepEqual(retried.baton.state.attempts, { 'worker_step:outcome:retry->worker_step': 1 });
 
-  const ready = runApply('retry-reset-ready', retried.baton, output({ outcome: 'ready' }));
+  const ready = runApply('retry-preserve-ready', retried.baton, output({ outcome: 'ready' }));
   assert.equal(ready.baton.cursor, 'approval_step');
-  assert.equal(Object.hasOwn(ready.baton.state, 'attempts'), false);
+  assert.deepEqual(ready.baton.state.attempts, { 'worker_step:outcome:retry->worker_step': 1 });
 });
 
-test('apply: retry attempt counters stay reset across approval rework loops', () => {
-  const retried = runApply('retry-reset-rework-first', baton(), output({ outcome: 'retry' }));
-  assert.deepEqual(retried.baton.state.attempts, { 'worker_step:outcome:retry->worker_step': 1 });
+test('apply: retry limit counts attempts across normal steps that return to the retrying cursor', () => {
+  const workflowDoc = structuredClone(schemaWorkflowDoc);
+  workflowDoc.workflow.steps.worker_step.next.map.retry.target = 'direct_next_worker';
+  workflowDoc.workflow.steps.direct_next_worker.next = 'worker_step';
 
-  const ready = runApply('retry-reset-rework-ready', retried.baton, output({ outcome: 'ready' }));
-  assert.equal(ready.baton.cursor, 'approval_step');
-  assert.equal(Object.hasOwn(ready.baton.state, 'attempts'), false);
+  const firstRetry = runApply('retry-loop-first', baton(), output({ outcome: 'retry' }), true, workflowDoc);
+  assert.equal(firstRetry.baton.cursor, 'direct_next_worker');
+  assert.deepEqual(firstRetry.baton.state.attempts, { 'worker_step:outcome:retry->direct_next_worker': 1 });
 
-  const rejected = runApply(
-    'retry-reset-rework-rejected',
-    ready.baton,
-    { approval: 'rejected', results: [{ type: 'approval', summary: 'needs rework' }] },
-  );
-  assert.equal(rejected.baton.cursor, 'worker_step');
-  assert.equal(Object.hasOwn(rejected.baton.state, 'attempts'), false);
+  const returned = runApply('retry-loop-returned', firstRetry.baton, output({ outcome: 'ready' }), true, workflowDoc);
+  assert.equal(returned.baton.cursor, 'worker_step');
+  assert.deepEqual(returned.baton.state.attempts, { 'worker_step:outcome:retry->direct_next_worker': 1 });
 
-  const retriedAfterRework = runApply('retry-reset-rework-second', rejected.baton, output({ outcome: 'retry' }));
-  assert.equal(retriedAfterRework.baton.cursor, 'worker_step');
-  assert.deepEqual(retriedAfterRework.baton.state.attempts, { 'worker_step:outcome:retry->worker_step': 1 });
+  const secondRetry = runApply('retry-loop-second', returned.baton, output({ outcome: 'retry' }), true, workflowDoc);
+  assert.equal(secondRetry.baton.cursor, 'direct_next_worker');
+  assert.deepEqual(secondRetry.baton.state.attempts, { 'worker_step:outcome:retry->direct_next_worker': 2 });
+
+  const returnedAgain = runApply('retry-loop-returned-again', secondRetry.baton, output({ outcome: 'ready' }), true, workflowDoc);
+  const limited = runApply('retry-loop-limit', returnedAgain.baton, output({ outcome: 'retry' }), true, workflowDoc);
+
+  assert.equal(limited.baton.cursor, 'blocked');
+  assert.equal(limited.baton.status, 'blocked');
+  assert.deepEqual(limited.baton.state.attempts, { 'worker_step:outcome:retry->direct_next_worker': 2 });
 });
 
 test('apply: retry attempt counters are scoped by transition value and target', () => {
