@@ -378,6 +378,95 @@ test('prompt renderer: output template content is included as markdown, not inte
   assert.match(compiled.prompt, /\{ "type": "object", "required": \["notValidated"\] \}/);
 });
 
+
+
+test('prompt renderer: output schema is validated and injected in the output contract layer', () => {
+  writeFileSync(path.join(tempDir, 'static-schema-wrapper.md'), '# Static wrapper\n');
+  writeFileSync(path.join(tempDir, 'schema-output.md'), '## Required return\nUse this contract.\n');
+  writeFileSync(path.join(tempDir, 'artifact.schema.json'), JSON.stringify({
+    type: 'object',
+    required: ['outcome'],
+    properties: { outcome: { const: 'ready' } },
+    additionalProperties: false,
+  }, null, 2));
+  const step = {
+    name: 'Worker step',
+    kind: 'worker',
+    input: { template: 'static-schema-wrapper.md', state: [], prompt: 'Return output.' },
+    output: { template: 'schema-output.md', schema: 'artifact.schema.json' },
+    next: 'done',
+  };
+
+  const compiled = renderFixture({ label: 'render-output-schema', stepId: 'worker_step', step });
+
+  assert.equal(compiled.metadata.outputSchema, 'artifact.schema.json');
+  assertMarkersInOrder(compiled.prompt, [
+    '# Static wrapper',
+    '## Output contract',
+    '<!-- output template: schema-output.md -->',
+    '## Required return\nUse this contract.',
+    'Return valid JSON matching this schema. Before final answer, self-check and fix any schema violations.',
+    '<!-- output schema: artifact.schema.json -->',
+    '```json\n{\n  "type": "object",',
+    '## Workflow step prompt',
+  ]);
+});
+
+test('prompt renderer: missing output schema fails deterministically', () => {
+  const step = {
+    name: 'Worker step',
+    kind: 'worker',
+    input: { state: [] },
+    output: { template: 'output.md', schema: 'missing.schema.json' },
+    next: 'done',
+  };
+
+  assert.throws(
+    () => renderFixture({ label: 'render-missing-output-schema', stepId: 'worker_step', step }),
+    /missing output schema 'missing\.schema\.json'/,
+  );
+});
+
+test('prompt renderer: invalid output schema JSON fails deterministically', () => {
+  writeFileSync(path.join(tempDir, 'invalid.schema.json'), '{ "type": ');
+  const step = {
+    name: 'Worker step',
+    kind: 'worker',
+    input: { state: [] },
+    output: { template: 'output.md', schema: 'invalid.schema.json' },
+    next: 'done',
+  };
+
+  assert.throws(
+    () => renderFixture({ label: 'render-invalid-output-schema', stepId: 'worker_step', step }),
+    /invalid output schema JSON 'invalid\.schema\.json'/,
+  );
+});
+
+test('prompt renderer: absent output schema preserves existing output contract rendering', () => {
+  writeFileSync(path.join(tempDir, 'no-schema-wrapper.md'), '# Static wrapper\n');
+  writeFileSync(path.join(tempDir, 'no-schema-output.md'), '## Required return\nUse this contract.\n');
+  const step = {
+    name: 'Worker step',
+    kind: 'worker',
+    input: { template: 'no-schema-wrapper.md', state: [] },
+    output: { template: 'no-schema-output.md' },
+    next: 'done',
+  };
+
+  const compiled = renderFixture({ label: 'render-no-output-schema', stepId: 'worker_step', step });
+
+  assert.equal(compiled.metadata.outputSchema, undefined);
+  assert.doesNotMatch(compiled.prompt, /output schema|Return valid JSON matching this schema/);
+  assertMarkersInOrder(compiled.prompt, [
+    '# Static wrapper',
+    '## Output contract',
+    '<!-- output template: no-schema-output.md -->',
+    '## Required return\nUse this contract.',
+    '## Final reminder',
+  ]);
+});
+
 test('prompt renderer: output contract is always appended as static included text', () => {
   writeFileSync(path.join(tempDir, 'static-wrapper.md'), '# Static wrapper\n');
   writeFileSync(path.join(tempDir, 'wrapped-output.md'), '## Required return\nUse this contract.\n');

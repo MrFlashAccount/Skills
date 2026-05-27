@@ -237,14 +237,18 @@ test('schema workflow fixture: DevHarness worker inputs rely on renderer-owned p
 
 
 
-test('schema validation: workflow accepts output template refs on worker contracts', () => {
+test('schema validation: workflow accepts output template and schema refs on worker contracts', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc.workflow.steps.worker_step.output = outputContract('research');
+  workflowDoc.workflow.steps.worker_step.output = {
+    template: '../../shared/templates/research-packet-template.md',
+    schema: 'schemas/worker-output.json',
+  };
 
-  const response = runInspect('output-template-ref-valid', baton(), true, workflowDoc);
+  const response = runInspect('output-template-schema-ref-valid', baton(), true, workflowDoc);
 
   assert.deepEqual(response.directive.step.output, {
     template: '../../shared/templates/research-packet-template.md',
+    schema: 'schemas/worker-output.json',
   });
 });
 
@@ -252,7 +256,6 @@ test('schema validation: malformed output template contract shapes are rejected'
   const cases = [
     ['missing-template', {}],
     ['blank-template', { template: '' }],
-    ['obsolete-schema', { schema: 'schemas/worker-output.json', template: '../../shared/templates/research-packet-template.md' }],
     ['obsolete-format', { template: '../../shared/templates/research-packet-template.md', format: 'markdown' }],
     ['extra-output-field', { template: '../../shared/templates/research-packet-template.md', sections: ['Verdict'] }],
   ];
@@ -907,7 +910,7 @@ test('schema validation: worker steps require declared output template contract'
   assert.match(runInspect('worker-step-missing-output', baton(), false, missingOutput).stderr, /workflow failed schema validation/);
 });
 
-test('schema validation: worker output contract is template-only', () => {
+test('schema validation: worker output contract allows template plus optional schema only', () => {
 
   const withOutputTemplate = structuredClone(schemaWorkflowDoc);
   withOutputTemplate.workflow.steps.worker_step.output.template = '../../shared/templates/implementation-plan-template.md';
@@ -918,9 +921,10 @@ test('schema validation: worker output contract is template-only', () => {
   emptyTemplateName.workflow.steps.worker_step.output.template = '';
   assert.match(runInspect('worker-step-empty-output-template', baton(), false, emptyTemplateName).stderr, /workflow failed schema validation/);
 
-  const obsoleteSchema = structuredClone(schemaWorkflowDoc);
-  obsoleteSchema.workflow.steps.worker_step.output.schema = 'schemas/worker-output.json';
-  assert.match(runInspect('worker-step-obsolete-output-schema', baton(), false, obsoleteSchema).stderr, /workflow failed schema validation/);
+  const withOutputSchema = structuredClone(schemaWorkflowDoc);
+  withOutputSchema.workflow.steps.worker_step.output.schema = 'schemas/worker-output.json';
+  const schemaResponse = runInspect('worker-step-output-schema', baton(), true, withOutputSchema);
+  assert.equal(schemaResponse.directive.step.output.schema, 'schemas/worker-output.json');
 
   const obsoleteFormat = structuredClone(schemaWorkflowDoc);
   obsoleteFormat.workflow.steps.worker_step.output.format = 'markdown';

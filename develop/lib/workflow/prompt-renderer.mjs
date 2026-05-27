@@ -7,12 +7,12 @@ function normalizeRepositoryRoot(repositoryRoot) {
   return path.resolve(repositoryRoot ?? process.cwd());
 }
 
-function assertRelativeTemplateRef(templateRef, fieldName) {
-  if (typeof templateRef !== 'string' || templateRef.length === 0) {
-    throw new WorkflowInterpreterError(`workflow prompt render failed: ${fieldName} template reference is empty`);
+function assertRelativeLocalRef(localRef, fieldName, kind) {
+  if (typeof localRef !== 'string' || localRef.length === 0) {
+    throw new WorkflowInterpreterError(`workflow prompt render failed: ${fieldName} ${kind} reference is empty`);
   }
-  if (path.isAbsolute(templateRef)) {
-    throw new WorkflowInterpreterError(`workflow prompt render failed: ${fieldName} template must be a local relative path: ${templateRef}`);
+  if (path.isAbsolute(localRef)) {
+    throw new WorkflowInterpreterError(`workflow prompt render failed: ${fieldName} ${kind} must be a local relative path: ${localRef}`);
   }
 }
 
@@ -21,17 +21,17 @@ function isInside(child, parent) {
   return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
 }
 
-function safeReadTemplate({ templateRef, fieldName, bases, repositoryRoot, missingMessage }) {
-  assertRelativeTemplateRef(templateRef, fieldName);
+function safeReadLocalFile({ fileRef, fieldName, kind, bases, repositoryRoot, missingMessage }) {
+  assertRelativeLocalRef(fileRef, fieldName, kind);
   const root = realpathSync(repositoryRoot);
   const attempted = [];
 
   for (const base of bases) {
-    const candidate = path.resolve(base, templateRef);
+    const candidate = path.resolve(base, fileRef);
     attempted.push(candidate);
     if (!isInside(candidate, root)) {
       throw new WorkflowInterpreterError(
-        `workflow prompt render failed: ${fieldName} template escapes repository root: ${templateRef}`,
+        `workflow prompt render failed: ${fieldName} ${kind} escapes repository root: ${fileRef}`,
       );
     }
     let realCandidate;
@@ -42,13 +42,21 @@ function safeReadTemplate({ templateRef, fieldName, bases, repositoryRoot, missi
     }
     if (!isInside(realCandidate, root)) {
       throw new WorkflowInterpreterError(
-        `workflow prompt render failed: ${fieldName} template escapes repository root: ${templateRef}`,
+        `workflow prompt render failed: ${fieldName} ${kind} escapes repository root: ${fileRef}`,
       );
     }
     return { content: readFileSync(realCandidate, 'utf8'), path: path.relative(root, realCandidate) };
   }
 
-  throw new WorkflowInterpreterError(missingMessage ?? `workflow prompt render failed: missing ${fieldName} template '${templateRef}' (tried ${attempted.join(', ')})`);
+  throw new WorkflowInterpreterError(missingMessage ?? `workflow prompt render failed: missing ${fieldName} ${kind} '${fileRef}' (tried ${attempted.join(', ')})`);
+}
+
+function safeReadTemplate({ templateRef, fieldName, bases, repositoryRoot, missingMessage }) {
+  return safeReadLocalFile({ fileRef: templateRef, fieldName, kind: 'template', bases, repositoryRoot, missingMessage });
+}
+
+function safeReadSchema({ schemaRef, fieldName, bases, repositoryRoot }) {
+  return safeReadLocalFile({ fileRef: schemaRef, fieldName, kind: 'schema', bases, repositoryRoot });
 }
 
 function workflowSkillBase({ workflow, repositoryRoot }) {
@@ -72,15 +80,33 @@ function readInputTemplate({ workflowPath, workflow, input, repositoryRoot, temp
   return { content: resolved.content, metadataPath: input.template };
 }
 
-function readOutputTemplate({ workflow, step, repositoryRoot }) {
-  const templateRef = step.output?.template;
-  if (!templateRef) return { content: '', metadataPath: undefined };
+function outputBases({ workflow, repositoryRoot }) {
   const bases = [];
   const skillBase = workflowSkillBase({ workflow, repositoryRoot });
   if (skillBase) bases.push(skillBase);
   bases.push(repositoryRoot);
-  const resolved = safeReadTemplate({ templateRef, fieldName: 'output', bases, repositoryRoot });
+  return bases;
+}
+
+function readOutputTemplate({ workflow, step, repositoryRoot }) {
+  const templateRef = step.output?.template;
+  if (!templateRef) return { content: '', metadataPath: undefined };
+  const resolved = safeReadTemplate({ templateRef, fieldName: 'output', bases: outputBases({ workflow, repositoryRoot }), repositoryRoot });
   return { content: resolved.content, metadataPath: templateRef };
+}
+
+function readOutputSchema({ workflow, step, repositoryRoot }) {
+  const schemaRef = step.output?.schema;
+  if (!schemaRef) return { content: '', metadataPath: undefined };
+  const resolved = safeReadSchema({ schemaRef, fieldName: 'output', bases: outputBases({ workflow, repositoryRoot }), repositoryRoot });
+  try {
+    JSON.parse(resolved.content);
+  } catch (error) {
+    throw new WorkflowInterpreterError(
+      `workflow prompt render failed: invalid output schema JSON '${schemaRef}': ${error.message}`,
+    );
+  }
+  return { content: resolved.content, metadataPath: schemaRef };
 }
 
 function assertRoleName(role) {
@@ -153,11 +179,18 @@ function finalOutputReminder(outputContract) {
   return outputContract ? section('Final reminder', 'Return exactly according to the output contract above.') : '';
 }
 
-function outputContractSection(outputTemplate, templatePath) {
-  if (!outputTemplate) return '';
-  const templateComment = templatePath ? `\n\n<!-- output template: ${templatePath} -->` : '';
-  const body = `Return output that satisfies the workflow worker-output envelope and follows this markdown artifact template when producing the artifact content.${templateComment}\n\n${trimStable(outputTemplate)}`;
-  return section('Output contract', body);
+function outputContractSection(outputTemplate, templatePath, outputSchema, schemaPath) {
+  if (!outputTemplate && !outputSchema) return '';
+  const parts = [];
+  if (outputTemplate) {
+    const templateComment = templatePath ? `\n\n<!-- output template: ${templatePath} -->` : '';
+    parts.push(`Return output that satisfies the workflow worker-output envelope and follows this markdown artifact template when producing the artifact content.${templateComment}\n\n${trimStable(outputTemplate)}`);
+  }
+  if (outputSchema) {
+    const schemaComment = schemaPath ? `\n\n<!-- output schema: ${schemaPath} -->` : '';
+    parts.push(`Return valid JSON matching this schema. Before final answer, self-check and fix any schema violations.${schemaComment}\n\n\`\`\`json\n${trimStable(outputSchema)}\n\`\`\``);
+  }
+  return section('Output contract', parts.join('\n\n'));
 }
 
 function assertNoUnsupportedPlaceholders(promptLayer, templatePath) {
@@ -196,7 +229,8 @@ export function renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, st
   const inputTemplate = readInputTemplate({ workflowPath, workflow, input, repositoryRoot: root, templateBaseDir });
   const inputRole = readInputRole({ input, repositoryRoot: root });
   const outputTemplate = readOutputTemplate({ workflow, step, repositoryRoot: root });
-  const outputContract = outputContractSection(outputTemplate.content, outputTemplate.metadataPath);
+  const outputSchema = readOutputSchema({ workflow, step, repositoryRoot: root });
+  const outputContract = outputContractSection(outputTemplate.content, outputTemplate.metadataPath, outputSchema.content, outputSchema.metadataPath);
   const workflowInstructionBlock = workflowInstruction({ workflow });
   const userTask = concreteUserTask({ workflow });
   const finalReminder = finalOutputReminder(outputContract);
@@ -227,6 +261,7 @@ export function renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, st
   const metadata = {};
   if (input.template) metadata.inputTemplate = input.template;
   if (step.output?.template) metadata.outputTemplate = step.output.template;
+  if (step.output?.schema) metadata.outputSchema = step.output.schema;
   if (inputRole.metadataPaths.length > 0) metadata.roleMaterial = inputRole.metadataPaths;
   if (projection.projectedKeys.length > 0) metadata.projectedStateKeys = projection.projectedKeys;
 

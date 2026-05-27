@@ -17,7 +17,8 @@ That boundary should be a deterministic prompt-rendering stage, not an orchestra
 - optional step `input.template` and inline `input.prompt`;
 - explicitly allowed baton state from `input.state`;
 - role material from `input.role` when present, resolved from `roles/<name>/ROLE.md` and `roles/<name>/RUBRIC.md`;
-- worker output instructions from `output.template` when present.
+- worker output instructions from `output.template` when present;
+- optional JSON response constraints from `output.schema` when present.
 
 The orchestrator then receives a compiled prompt plus launch metadata. It may launch a subagent later, but the renderer itself never chooses transitions, applies output, calls subagents, or knows DevHarness-specific behavior.
 
@@ -29,7 +30,7 @@ In scope for #89:
 - Define and implement a dumb workflow prompt renderer.
 - Extend schemas only where needed to expose compiled prompt results cleanly.
 - Add deterministic CLI/test coverage for rendering the current step.
-- Keep output contracts based on `shared/templates` markdown templates using `output.template` only.
+- Keep output contracts based on `shared/templates` markdown templates using `output.template`, with optional local JSON schemas referenced by `output.schema` for prompt-level response constraints.
 
 ## Non-goals
 
@@ -41,7 +42,7 @@ In scope for #89:
 - No LLM/model/network tests.
 - No compatibility layer for old workflow shapes.
 - No DevHarness-specific interpreter branches.
-- No JSON schema or `format` fields inside `output`; output contracts remain markdown templates referenced by `template`.
+- No `format`, `sections`, or runtime worker-output validation changes inside `output`; output contracts remain markdown templates referenced by `template`, with optional `schema` prompt injection only.
 
 ## Existing baseline to preserve
 
@@ -91,6 +92,7 @@ Renderer-relevant fields:
 | `input.state` | all step kinds | Explicit list of baton `state` keys that may be projected. |
 | `input.role` | worker | Role name resolved from `roles/<name>/`; renderer inlines `ROLE.md` and `RUBRIC.md` into prompt context. |
 | `output.template` | worker | Markdown output contract template to include as strict return-shape instructions. |
+| `output.schema` | worker, optional | Repository-local JSON schema file to inject near the output contract as concise valid-JSON/self-check instructions. |
 | `workflow.instruction` | workflow root, optional extension | Workflow-level instruction appended directly under the top wrapper, before role/output/context layers. |
 | `workflow.userTask` | workflow root, optional extension | Concrete user task/request appended near the bottom for recency after role, output contract, and projected state context. |
 
@@ -118,14 +120,18 @@ Resolution must be deterministic and local-only:
 
 Do not silently ignore a declared `input.template`; missing declared templates fail clearly. Omitted templates use the deterministic default prompt and may emit opt-in diagnostics.
 
-### Output template reference
+### Output contract references
 
-`output.template` is an output contract, not an output schema. The renderer loads the referenced markdown file and appends it as strict worker return instructions.
+`output.template` is a markdown output contract. The renderer loads the referenced markdown file and appends it as strict worker return instructions.
+
+`output.schema` is optional prompt guidance. When present, the renderer resolves it with the same repository-root confinement rules as output templates, verifies the file is parseable JSON, and injects a concise instruction to return valid JSON matching that schema and self-check/fix before the final answer. The renderer does not validate future worker output against this schema at runtime in this slice.
 
 Rules:
 
-- use `template` only;
-- do not introduce `schema`, `format`, `sections`, or similar output contract fields;
+- keep `template` as the existing markdown contract field;
+- allow optional `schema` as a local JSON schema path;
+- reject missing, escaping, or invalid-JSON schema files with deterministic `WorkflowInterpreterError`;
+- do not introduce `format`, `sections`, or similar output contract fields;
 - do not validate returned markdown headings at render time;
 - keep worker-output envelope validation in the existing `worker-output` schema.
 
@@ -151,6 +157,7 @@ Add a renderer-level result shape that can be embedded in a future directive or 
   "prompt": "...final rendered markdown...",
   "metadata": {
     "outputTemplate": "../../shared/templates/research-packet-template.md",
+    "outputSchema": "schemas/research-output.schema.json",
     "roleMaterial": ["roles/researcher/ROLE.md", "roles/researcher/RUBRIC.md"],
     "projectedStateKeys": ["artifacts", "results"]
   }
@@ -247,6 +254,7 @@ The renderer receives already-validated workflow/baton/step data. It may be call
 
 - Load `input.template` when present.
 - Load `output.template` when present.
+- Load and parse-check `output.schema` when present.
 - Resolve relative paths deterministically and reject missing or unsafe paths.
 - Do not resolve templates from package registries, URLs, or model output.
 - Keep input templates and shared output templates separate.
