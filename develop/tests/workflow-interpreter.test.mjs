@@ -225,14 +225,14 @@ test('schema workflow fixture: DevHarness worker outputs use skill-relative shar
 });
 
 
-test('schema workflow fixture: DevHarness worker inputs share one base top-wrapper template', () => {
+test('schema workflow fixture: DevHarness worker inputs rely on renderer-owned prompt layering', () => {
   const workflowDoc = JSON.parse(readFileSync(devHarnessWorkflowPath, 'utf8'));
   for (const [stepId, step] of Object.entries(workflowDoc.workflow.steps)) {
     if (step.kind !== 'worker') continue;
 
-    assert.equal(step.input.template, 'templates/base-input.md', `${stepId} should use the shared base input template`);
+    assert.equal(Object.hasOwn(step.input, 'template'), false, `${stepId} should not declare the removed base input template`);
   }
-  assert.ok(existsSync(path.resolve(root, 'develop/templates/base-input.md')), 'shared base input template should exist');
+  assert.equal(existsSync(path.resolve(root, 'develop/templates/base-input.md')), false, 'obsolete base input template should be removed');
 });
 
 

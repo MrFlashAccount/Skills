@@ -164,8 +164,10 @@ test('prompt renderer: default prompt includes task projected state and determin
   const step = { name: 'Approval step', kind: 'approval', input: { state: ['artifacts'], prompt: 'Approve.' }, next: 'done' };
   const compiled = renderFixture({ label: 'render-default', step, batonDoc: baton({ cursor: 'approval_step', state: { artifacts: [{ id: 'a' }], results: [] } }) });
 
-  assert.equal(compiled.stepId, 'approval_step');
-  assert.equal(compiled.action, 'wait_for_approval');
+  assert.equal(Object.hasOwn(compiled, 'stepId'), false);
+  assert.equal(Object.hasOwn(compiled, 'action'), false);
+  assert.equal(Object.hasOwn(compiled, 'kind'), false);
+  assert.equal(Object.hasOwn(compiled, 'name'), false);
   assert.match(compiled.prompt, /^# Approval step\n/);
   assertMarkersInOrder(compiled.prompt, [
     '## Projected baton state\n\n```json\n{\n  "artifacts": [',
@@ -189,36 +191,25 @@ test('prompt renderer: default prompt diagnostics are opt-in', () => {
   ]);
 });
 
-test('prompt renderer: replaces allowed placeholders', () => {
-  writeRoleMaterial('backend');
-  const templatePath = path.join(tempDir, 'worker-template.md');
-  writeFileSync(templatePath, 'Step {{step.id}} / {{step.name}} / {{step.kind}}\nRole: {{input.role}}\nTask {{input.prompt}}\nState {{state}}\nOutput {{output.template}}\n');
-  writeFileSync(path.join(tempDir, 'output.md'), '## Worker output\nReturn markdown.\n');
+test('prompt renderer: rejects input template placeholders as unsupported', () => {
+  writeFileSync(path.join(tempDir, 'placeholder-template.md'), '# {{step.name}}\n');
   const step = {
     name: 'Worker step',
     kind: 'worker',
-    input: { template: 'worker-template.md', role: 'backend', state: ['results'], prompt: 'Build it.' },
+    input: { template: 'placeholder-template.md', state: [] },
     output: { template: 'output.md' },
     next: 'done',
   };
 
-  const compiled = renderFixture({ label: 'render-placeholders', stepId: 'worker_step', step, batonDoc: baton({ state: { artifacts: [], results: [{ summary: 'ready' }] } }) });
-
-  assert.equal(Object.hasOwn(compiled, 'diagnostics'), false);
-  assert.match(compiled.prompt, /Step worker_step \/ Worker step \/ worker/);
-  assert.match(compiled.prompt, /Role: backend/);
-  assert.match(compiled.prompt, /Task Build it\./);
-  assert.match(compiled.prompt, /"results": \[/);
-  assert.match(compiled.prompt, /## Output contract\n\nReturn output that satisfies the workflow worker-output envelope/);
-  assert.match(compiled.prompt, /<!-- output template: output\.md -->/);
-  assert.match(compiled.prompt, /## Worker output\nReturn markdown\./);
-  assert.match(compiled.prompt, /## Final reminder\n\nReturn exactly according to the output contract above\./);
-  assert.equal(compiled.prompt.trimEnd().endsWith('Return exactly according to the output contract above.'), true);
+  assert.throws(
+    () => renderFixture({ label: 'render-placeholders-unsupported', stepId: 'worker_step', step }),
+    /placeholders are unsupported in input template 'placeholder-template\.md': {{step\.name}}/,
+  );
 });
 
-test('prompt renderer: appends role output state and task sections in compiled layer order when template omits placeholders', () => {
+test('prompt renderer: appends role output state and task sections in fixed compiled layer order', () => {
   writeRoleMaterial('backend');
-  writeFileSync(path.join(tempDir, 'minimal-template.md'), '# {{step.name}}\n');
+  writeFileSync(path.join(tempDir, 'minimal-template.md'), '# Worker step\n');
   writeFileSync(path.join(tempDir, 'minimal-output.md'), '## Required return\nUse this contract.\n');
   const step = {
     name: 'Worker step',
@@ -267,7 +258,7 @@ test('prompt renderer: resolves input.role and inlines ROLE.md and RUBRIC.md', (
     roleBody: '# Custom Role\n\nBackend role instructions.\n',
     rubricBody: '# Custom Rubric\n\nBackend rubric checks.\n',
   });
-  writeFileSync(path.join(tempDir, 'role-template.md'), '# {{step.name}}\n\nRole: {{input.role}}\n');
+  writeFileSync(path.join(tempDir, 'role-template.md'), '# Worker step\n');
   const step = {
     name: 'Worker step',
     kind: 'worker',
@@ -278,7 +269,6 @@ test('prompt renderer: resolves input.role and inlines ROLE.md and RUBRIC.md', (
 
   const compiled = renderFixture({ label: 'render-role-material', stepId: 'worker_step', step });
 
-  assert.match(compiled.prompt, /Role: custom-backend/);
   assert.match(compiled.prompt, /<!-- role material: roles\/custom-backend\/ROLE\.md -->/);
   assert.match(compiled.prompt, /# Custom Role\n\nBackend role instructions\./);
   assert.match(compiled.prompt, /<!-- role material: roles\/custom-backend\/RUBRIC\.md -->/);
@@ -351,36 +341,24 @@ test('prompt renderer: empty input.state omits projected state section', () => {
 
   assert.doesNotMatch(compiled.prompt, /## Projected baton state/);
   assert.doesNotMatch(compiled.prompt, /```json\n\{\}\n```/);
-  assert.deepEqual(compiled.metadata.projectedStateKeys, []);
+  assert.equal(compiled.metadata, undefined);
   assert.equal(Object.hasOwn(compiled, 'diagnostics'), false);
 });
 
-test('prompt renderer: empty input.state placeholder renders empty instead of an empty state fence', () => {
-  writeFileSync(path.join(tempDir, 'empty-state-placeholder.md'), 'State:{{state}}End\n');
+test('prompt renderer: input templates are static and still omit empty projected state', () => {
+  writeFileSync(path.join(tempDir, 'static-template.md'), '# Static wrapper\n');
   const step = {
     name: 'Worker step',
     kind: 'worker',
-    input: { template: 'empty-state-placeholder.md', state: [] },
+    input: { template: 'static-template.md', state: [] },
     next: 'done',
   };
 
-  const compiled = renderFixture({ label: 'render-empty-state-placeholder', stepId: 'worker_step', step });
+  const compiled = renderFixture({ label: 'render-static-empty-state', stepId: 'worker_step', step });
 
-  assert.match(compiled.prompt, /State:End/);
+  assert.match(compiled.prompt, /^# Static wrapper\n/);
+  assert.doesNotMatch(compiled.prompt, /## Projected baton state/);
   assert.doesNotMatch(compiled.prompt, /```json\n\{\}\n```/);
-});
-
-test('prompt renderer: unresolved placeholders fail', () => {
-  writeFileSync(path.join(tempDir, 'bad-placeholder.md'), 'Unknown {{workflow.name}}\n');
-  const step = {
-    name: 'Worker step',
-    kind: 'worker',
-    input: { template: 'bad-placeholder.md', state: [] },
-    output: { template: 'output.md' },
-    next: 'done',
-  };
-
-  assert.throws(() => renderFixture({ label: 'render-unresolved', stepId: 'worker_step', step }), /unresolved placeholder {{workflow.name}}/);
 });
 
 test('prompt renderer: output template content is included as markdown, not interpreted as schema', () => {
@@ -400,22 +378,25 @@ test('prompt renderer: output template content is included as markdown, not inte
   assert.match(compiled.prompt, /\{ "type": "object", "required": \["notValidated"\] \}/);
 });
 
-test('prompt renderer: output template placeholder renders the full output contract wrapper', () => {
-  writeFileSync(path.join(tempDir, 'output-placeholder.md'), '{{output.template}}');
+test('prompt renderer: output contract is always appended as static included text', () => {
+  writeFileSync(path.join(tempDir, 'static-wrapper.md'), '# Static wrapper\n');
   writeFileSync(path.join(tempDir, 'wrapped-output.md'), '## Required return\nUse this contract.\n');
   const step = {
     name: 'Worker step',
     kind: 'worker',
-    input: { template: 'output-placeholder.md', state: [] },
+    input: { template: 'static-wrapper.md', state: [] },
     output: { template: 'wrapped-output.md' },
     next: 'done',
   };
 
-  const compiled = renderFixture({ label: 'render-output-wrapper-placeholder', stepId: 'worker_step', step });
+  const compiled = renderFixture({ label: 'render-output-wrapper-static', stepId: 'worker_step', step });
 
-  assert.match(compiled.prompt, /^## Output contract\n\nReturn output that satisfies the workflow worker-output envelope/);
-  assert.match(compiled.prompt, /<!-- output template: wrapped-output\.md -->/);
-  assert.match(compiled.prompt, /## Required return\nUse this contract\./);
+  assertMarkersInOrder(compiled.prompt, [
+    '# Static wrapper',
+    '## Output contract',
+    '<!-- output template: wrapped-output.md -->',
+    '## Required return\nUse this contract.',
+  ]);
 });
 
 test('prompt renderer: path resolver rejects escape and missing templates', () => {
@@ -491,9 +472,10 @@ test('CLI render: DevHarness fixture returns compiledPrompt and does not mutate 
 
   assert.equal(readFileSync(batonPath, 'utf8'), before, 'render mutated baton file');
   assert.equal(response.directive.id, 'research');
-  assert.equal(response.compiledPrompt.stepId, 'research');
-  assert.equal(response.compiledPrompt.action, 'run_worker');
-  assert.equal(response.compiledPrompt.metadata.inputTemplate, 'templates/base-input.md');
+  assert.equal(Object.hasOwn(response.compiledPrompt, 'stepId'), false);
+  assert.equal(Object.hasOwn(response.compiledPrompt, 'action'), false);
+  assert.equal(Object.hasOwn(response.compiledPrompt, 'kind'), false);
+  assert.equal(Object.hasOwn(response.compiledPrompt, 'name'), false);
   assert.equal(response.compiledPrompt.metadata.outputTemplate, '../../shared/templates/research-packet-template.md');
   assert.deepEqual(response.compiledPrompt.metadata.projectedStateKeys, ['artifacts', 'results']);
   assert.equal(Object.hasOwn(response.compiledPrompt, 'diagnostics'), false);

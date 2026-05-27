@@ -1,18 +1,7 @@
 import { readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
-import { actionForStep } from './model.mjs';
 import { fencedJson, projectState } from './projection.mjs';
 import { WorkflowInterpreterError } from './errors.mjs';
-
-const PLACEHOLDER_VALUES = new Set([
-  'step.id',
-  'step.name',
-  'step.kind',
-  'input.prompt',
-  'input.role',
-  'state',
-  'output.template',
-]);
 
 function normalizeRepositoryRoot(repositoryRoot) {
   return path.resolve(repositoryRoot ?? process.cwd());
@@ -139,20 +128,6 @@ function readInputRole({ input, repositoryRoot }) {
   return { content, metadataPaths: [roleFile.path, rubricFile.path] };
 }
 
-function replacePlaceholders(template, values) {
-  return template.replace(/{{\s*([^{}]+?)\s*}}/g, (match, name) => {
-    if (!PLACEHOLDER_VALUES.has(name)) return match;
-    return values[name] ?? '';
-  });
-}
-
-function assertNoUnresolvedPlaceholders(prompt) {
-  const unresolved = prompt.match(/{{\s*[^{}]+?\s*}}/g);
-  if (unresolved) {
-    throw new WorkflowInterpreterError(`workflow prompt render failed: unresolved placeholder ${unresolved[0]}`);
-  }
-}
-
 function trimStable(value) {
   return value.trim().replace(/\r\n/g, '\n');
 }
@@ -185,15 +160,23 @@ function outputContractSection(outputTemplate, templatePath) {
   return section('Output contract', body);
 }
 
-function appendMissingSections({ prompt, workflowInstructionBlock, inlinePrompt, roleBlock, stateBlock, outputContract, userTask, finalReminder, inputTemplateContent }) {
-  const parts = [trimStable(prompt)];
-  const template = inputTemplateContent ?? '';
+function assertNoUnsupportedPlaceholders(promptLayer, templatePath) {
+  const unsupported = promptLayer.match(/{{\s*[^{}]+?\s*}}/g);
+  if (unsupported) {
+    const source = templatePath ? ` in input template '${templatePath}'` : '';
+    throw new WorkflowInterpreterError(`workflow prompt render failed: placeholders are unsupported${source}: ${unsupported[0]}`);
+  }
+}
+
+function assembleFixedPrompt({ promptLayer, templatePath, workflowInstructionBlock, inlinePrompt, roleBlock, stateBlock, outputContract, userTask, finalReminder }) {
+  assertNoUnsupportedPlaceholders(promptLayer, templatePath);
+  const parts = [trimStable(promptLayer)];
 
   if (workflowInstructionBlock) parts.push(section('Workflow instruction', workflowInstructionBlock).trimEnd());
-  if (!template.includes('{{input.role}}') && roleBlock) parts.push(section('Role material', roleBlock).trimEnd());
-  if (!template.includes('{{output.template}}') && outputContract) parts.push(outputContract.trimEnd());
-  if (!template.includes('{{state}}') && stateBlock) parts.push(section('Projected baton state', stateBlock).trimEnd());
-  if (!template.includes('{{input.prompt}}') && inlinePrompt) parts.push(section('Workflow step prompt', inlinePrompt.trim()));
+  if (roleBlock) parts.push(section('Role material', roleBlock).trimEnd());
+  if (outputContract) parts.push(outputContract.trimEnd());
+  if (stateBlock) parts.push(section('Projected baton state', stateBlock).trimEnd());
+  if (inlinePrompt) parts.push(section('Workflow step prompt', inlinePrompt.trim()));
   if (userTask) parts.push(section('Concrete user task', userTask).trimEnd());
   if (finalReminder) parts.push(finalReminder.trimEnd());
 
@@ -218,22 +201,11 @@ export function renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, st
   const userTask = concreteUserTask({ workflow });
   const finalReminder = finalOutputReminder(outputContract);
 
-  const values = {
-    'step.id': stepId,
-    'step.name': step.name,
-    'step.kind': step.kind,
-    'input.prompt': input.prompt ?? '',
-    'input.role': inputRole.content,
-    state: stateBlock,
-    'output.template': outputContract,
-  };
-
   const usesDefaultPrompt = inputTemplate.content === undefined;
-  const baseTemplate = usesDefaultPrompt ? defaultPrompt({ step, input }) : inputTemplate.content;
-  const replaced = replacePlaceholders(baseTemplate, values);
-  assertNoUnresolvedPlaceholders(replaced);
-  const prompt = appendMissingSections({
-    prompt: replaced,
+  const promptLayer = usesDefaultPrompt ? defaultPrompt({ step, input }) : inputTemplate.content;
+  const prompt = assembleFixedPrompt({
+    promptLayer,
+    templatePath: inputTemplate.metadataPath,
     workflowInstructionBlock,
     inlinePrompt: input.prompt ?? '',
     roleBlock: inputRole.content,
@@ -241,7 +213,6 @@ export function renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, st
     outputContract,
     userTask,
     finalReminder,
-    inputTemplateContent: inputTemplate.content,
   });
   const diagnostics = usesDefaultPrompt
     ? [
@@ -253,20 +224,14 @@ export function renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, st
       ]
     : [];
 
-  const compiledPrompt = {
-    stepId,
-    action: actionForStep(step),
-    kind: step.kind,
-    name: step.name,
-    role: input.role,
-    prompt,
-    metadata: {
-      inputTemplate: input.template,
-      outputTemplate: step.output?.template,
-      roleMaterial: inputRole.metadataPaths,
-      projectedStateKeys: projection.projectedKeys,
-    },
-  };
-  if (includeDiagnostics) compiledPrompt.diagnostics = diagnostics;
+  const metadata = {};
+  if (input.template) metadata.inputTemplate = input.template;
+  if (step.output?.template) metadata.outputTemplate = step.output.template;
+  if (inputRole.metadataPaths.length > 0) metadata.roleMaterial = inputRole.metadataPaths;
+  if (projection.projectedKeys.length > 0) metadata.projectedStateKeys = projection.projectedKeys;
+
+  const compiledPrompt = { prompt };
+  if (Object.keys(metadata).length > 0) compiledPrompt.metadata = metadata;
+  if (includeDiagnostics && diagnostics.length > 0) compiledPrompt.diagnostics = diagnostics;
   return compiledPrompt;
 }
