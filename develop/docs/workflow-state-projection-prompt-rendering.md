@@ -124,7 +124,7 @@ Do not silently ignore a declared `input.template`; missing declared templates f
 
 `output.template` is a markdown output contract. The renderer loads the referenced markdown file and appends it as strict worker return instructions.
 
-`output.schema` is optional prompt guidance. When present, the renderer resolves it with the same repository-root confinement rules as output templates, verifies the file is parseable JSON, and injects a concise instruction to return valid JSON matching that schema and self-check/fix before the final answer. The renderer does not validate future worker output against this schema at runtime in this slice.
+`output.schema` is optional prompt guidance. When present, the renderer resolves it with the same repository-root confinement rules as output templates, verifies the file is parseable JSON, and injects an instruction to return valid JSON matching that schema. When a validation command or tool is available in the agent/subagent context, the injected instruction requires preflight validation of the generated JSON against the schema before the final answer, fixing validation errors and repeating for a bounded number of attempts. The harness/orchestrator still validates the final returned JSON again after the answer, so agent-side validation is preflight, not the final authority. If no validation command or tool is available in that context, the agent should still return strict schema-matching JSON and expect harness-level validation. The renderer does not validate future worker output against this schema at runtime in this slice.
 
 Rules:
 
