@@ -69,6 +69,10 @@
 
 <Recommend one option or state why the packet is not ready. Include the minimum evidence needed to move forward.>
 
+## Reviewer selection signal
+
+<When a structured output schema asks for reviewer selection, mirror the selected reviewer roles here in plain language without turning this research packet into a routing or fan-out plan.>
+
 ## Template rules
 
 - Stay at analytical research level: business goal, problem, scope, non-goals, options, risks, and open questions.

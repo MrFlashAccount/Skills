@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/dev-harness/reviewer-selection-output",
+  "title": "DevHarness Reviewer Selection Output",
+  "description": "Worker output envelope for DevHarness stages that must declare reviewer selection state without triggering runtime routing or fan-out.",
+  "type": "object",
+  "required": ["outcome", "review_plan"],
+  "properties": {
+    "outcome": { "type": "string", "minLength": 1 },
+    "artifacts": {
+      "type": "array",
+      "items": { "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact" }
+    },
+    "results": {
+      "type": "array",
+      "items": { "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/result" }
+    },
+    "blocker": { "type": "object" },
+    "review_plan": {
+      "type": "object",
+      "required": ["reviewers"],
+      "properties": {
+        "reviewers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reviewer" }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "reviewerRole": {
+      "type": "string",
+      "enum": [
+        "critic",
+        "backend",
+        "frontend",
+        "frontend-taste",
+        "security",
+        "qa-reliability",
+        "performance"
+      ]
+    },
+    "reviewer": {
+      "type": "object",
+      "required": ["role", "reason", "surfaces", "required"],
+      "properties": {
+        "role": { "$ref": "#/$defs/reviewerRole" },
+        "reason": { "type": "string", "minLength": 1 },
+        "surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "required": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -12,6 +12,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const tempDir = mkdtempSync(path.join(tmpdir(), 'prompt-rendering-check-'));
 writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
 const devHarnessWorkflowPath = path.join(root, 'develop/dev-harness.workflow.json');
+const devHarnessReviewerSelectionSchema = 'develop/schemas/dev-harness/reviewer-selection-output.json';
 
 function outputContract(name = 'worker') {
   const templates = {
@@ -579,6 +580,51 @@ test('CLI render: DevHarness fixture returns compiledPrompt and does not mutate 
     '## Final reminder',
     'Return exactly according to the output contract above.',
   ]);
+});
+
+test('CLI render: DevHarness research and implementation plan inject reviewer-selection schema', () => {
+  const workflowDoc = JSON.parse(readFileSync(devHarnessWorkflowPath, 'utf8'));
+  const schema = JSON.parse(readFileSync(path.join(root, devHarnessReviewerSelectionSchema), 'utf8'));
+
+  assert.deepEqual(schema.$defs.reviewerRole.enum, [
+    'critic',
+    'backend',
+    'frontend',
+    'frontend-taste',
+    'security',
+    'qa-reliability',
+    'performance',
+  ]);
+  assert.deepEqual(schema.$defs.reviewer.required, ['role', 'reason', 'surfaces', 'required']);
+  assert.deepEqual(schema.properties.review_plan.required, ['reviewers']);
+
+  for (const stepId of ['research', 'implementation_plan']) {
+    const step = workflowDoc.workflow.steps[stepId];
+    const compiled = renderWorkflowPrompt({
+      workflowPath: devHarnessWorkflowPath,
+      workflow: workflowDoc.workflow,
+      baton: { cursor: stepId, status: 'running', state: structuredClone(emptyState) },
+      stepId,
+      step,
+      repositoryRoot: root,
+    });
+
+    assert.equal(compiled.metadata.outputSchema, devHarnessReviewerSelectionSchema);
+    assert.match(compiled.prompt, new RegExp(`<!-- output schema: ${devHarnessReviewerSelectionSchema.replaceAll('/', '\\/')} -->`));
+    assert.match(compiled.prompt, /"review_plan"/);
+    assert.match(compiled.prompt, /"reviewers"/);
+    assert.match(compiled.prompt, /"role"/);
+    assert.match(compiled.prompt, /"reason"/);
+    assert.match(compiled.prompt, /"surfaces"/);
+    assert.match(compiled.prompt, /"required"/);
+    assert.match(compiled.prompt, /"critic"/);
+    assert.match(compiled.prompt, /"backend"/);
+    assert.match(compiled.prompt, /"frontend"/);
+    assert.match(compiled.prompt, /"frontend-taste"/);
+    assert.match(compiled.prompt, /"security"/);
+    assert.match(compiled.prompt, /"qa-reliability"/);
+    assert.match(compiled.prompt, /"performance"/);
+  }
 });
 
 test('CLI render: diagnostics are included only when explicitly requested', () => {
