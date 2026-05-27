@@ -20,7 +20,7 @@
     },
     "compiledPrompt": {
       "type": "object",
-      "required": ["stepId", "action", "kind", "name", "prompt", "metadata", "diagnostics"],
+      "required": ["stepId", "action", "kind", "name", "prompt", "metadata"],
       "properties": {
         "stepId": { "type": "string", "minLength": 1 },
         "action": { "enum": ["run_worker", "wait_for_approval", "stop_done", "stop_blocked"] },

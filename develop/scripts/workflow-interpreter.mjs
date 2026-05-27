@@ -11,7 +11,15 @@ function fail(message) {
 
 function parseCliArgs(argv) {
   try {
-    return parseArgs({ args: ['--', ...argv], allowPositionals: true }).positionals;
+    if (argv.includes('--diagnostics')) {
+      const parsed = parseArgs({
+        args: argv,
+        allowPositionals: true,
+        options: { diagnostics: { type: 'boolean', default: false } },
+      });
+      return { args: parsed.positionals, includeDiagnostics: parsed.values.diagnostics };
+    }
+    return { args: parseArgs({ args: ['--', ...argv], allowPositionals: true }).positionals, includeDiagnostics: false };
   } catch (error) {
     fail(error.message);
   }
@@ -24,9 +32,9 @@ function emit(response) {
 function usageForArgs(args) {
   const [mode] = args;
   if (mode === 'inspect' || mode === 'directive') return 'usage: node scripts/workflow-interpreter.mjs inspect <workflow.json> <baton.json>';
-  if (mode === 'render') return 'usage: node scripts/workflow-interpreter.mjs render <workflow.json> <baton.json>';
+  if (mode === 'render') return 'usage: node scripts/workflow-interpreter.mjs render [--diagnostics] <workflow.json> <baton.json>';
   if (mode === 'apply') return 'usage: node scripts/workflow-interpreter.mjs apply <workflow.json> <baton.json> <worker-output.json>';
-  return 'usage: node scripts/workflow-interpreter.mjs inspect <workflow.json> <baton.json> | render <workflow.json> <baton.json> | apply <workflow.json> <baton.json> <worker-output.json>';
+  return 'usage: node scripts/workflow-interpreter.mjs inspect <workflow.json> <baton.json> | render [--diagnostics] <workflow.json> <baton.json> | apply <workflow.json> <baton.json> <worker-output.json>';
 }
 
 function assertCliArgs(args) {
@@ -34,7 +42,7 @@ function assertCliArgs(args) {
 }
 
 try {
-  const args = parseCliArgs(process.argv.slice(2));
+  const { args, includeDiagnostics } = parseCliArgs(process.argv.slice(2));
   assertCliArgs(args);
 
   const [mode, workflowPath, batonPath, outputPath] = args;
@@ -42,7 +50,7 @@ try {
   if (mode === 'inspect' || mode === 'directive') {
     emit(inspectWorkflow(workflowPath, batonPath));
   } else if (mode === 'render') {
-    emit(renderWorkflow(workflowPath, batonPath));
+    emit(renderWorkflow(workflowPath, batonPath, { includeDiagnostics }));
   } else if (mode === 'apply') {
     emit(applyWorkflowOutput(workflowPath, batonPath, outputPath));
   }

@@ -53,7 +53,7 @@ Current files already establish these contracts:
 - `develop/lib/workflow/interpreter.mjs` chooses the current `step`, validates transition targets, applies output, and returns `{ baton, directive }` for `inspect`/`apply`; `render` adds `compiledPrompt` without changing those existing response shapes.
 - `develop/lib/workflow/directive.mjs` exposes `{ id, action, step }` without rendering prompts.
 - `develop/lib/workflow/projection.mjs` projects only explicit top-level `input.state` keys and fails on missing or nested selectors.
-- `develop/lib/workflow/prompt-renderer.mjs` loads local markdown templates, assembles fallback prompts, appends omitted role/output/state/step-prompt/user-task/reminder sections in the compiled layer order, and returns prompt metadata plus diagnostics.
+- `develop/lib/workflow/prompt-renderer.mjs` loads local markdown templates, assembles fallback prompts, appends omitted role/output/state/step-prompt/user-task/reminder sections in the compiled layer order, and returns prompt metadata plus opt-in diagnostics.
 - `develop/lib/workflow/state.mjs` applies worker/approval output to baton state after the worker returns.
 - `shared/templates/README.md` says shared templates are output templates and do not define orchestration or worker spawning.
 
@@ -161,8 +161,7 @@ Add a renderer-level result shape that can be embedded in a future directive or 
     "outputTemplate": "../../shared/templates/research-packet-template.md",
     "roleMaterial": ["roles/researcher/ROLE.md", "roles/researcher/RUBRIC.md"],
     "projectedStateKeys": ["artifacts", "results"]
-  },
-  "diagnostics": []
+  }
 }
 ```
 
@@ -170,7 +169,7 @@ Notes:
 
 - `prompt` is the final string passed to the orchestrator.
 - `metadata` is launch/support data only; it must not require orchestration decisions.
-- `diagnostics` should be empty on success. Hard failures should throw `WorkflowInterpreterError` or a sibling workflow renderer error and surface through CLI stderr.
+- `diagnostics` is optional and should only be emitted when the caller opts in. Hard failures should throw `WorkflowInterpreterError` or a sibling workflow renderer error and surface through CLI stderr.
 - Avoid adding this to the existing `inspect` output by default unless Sergey approves response-shape expansion. A separate CLI mode avoids breaking the current directive contract.
 
 ## `projectState` behavior
@@ -357,7 +356,7 @@ Interpreter remains responsible for current-step selection and post-output trans
 Preferred CLI surface: add a new mode beside `inspect` and `apply`:
 
 ```bash
-node develop/scripts/workflow-interpreter.mjs render <workflow.json> <baton.json>
+node develop/scripts/workflow-interpreter.mjs render [--diagnostics] <workflow.json> <baton.json>
 ```
 
 Output shape:
@@ -366,7 +365,7 @@ Output shape:
 {
   "baton": { "cursor": "research", "status": "running", "state": { "artifacts": [], "results": [] } },
   "directive": { "id": "research", "action": "run_worker", "step": { } },
-  "compiledPrompt": { "stepId": "research", "prompt": "...", "metadata": { }, "diagnostics": [] }
+  "compiledPrompt": { "stepId": "research", "prompt": "...", "metadata": { } }
 }
 ```
 
@@ -399,7 +398,7 @@ Non-errors:
 - absent `input.state`: emit no state section;
 - absent `output.template` on approval/done/blocked steps.
 
-Diagnostics are machine-readable in compiled results only when rendering succeeds with non-fatal notices. The current non-fatal diagnostic is `default_prompt_used`, emitted when a step has no `input.template` and the renderer assembles the deterministic fallback prompt. Most v1 conditions still fail hard rather than continue with a risky prompt.
+Diagnostics are machine-readable in compiled results only when rendering succeeds with non-fatal notices and the caller opts in, for example CLI `render --diagnostics`. The current non-fatal diagnostic is `default_prompt_used`, emitted when a step has no `input.template` and the renderer assembles the deterministic fallback prompt. Most v1 conditions still fail hard rather than continue with a risky prompt.
 
 ## Test plan
 
@@ -413,6 +412,7 @@ Unit tests:
 - `projectState` rejects nested selectors.
 - `projectState` serializes stable fenced JSON.
 - `renderWorkflowPrompt` renders default prompt when no input template exists.
+- `renderWorkflowPrompt` emits default-prompt diagnostics only when requested.
 - `renderWorkflowPrompt` replaces allowed placeholders.
 - `renderWorkflowPrompt` appends role/output/state/workflow-step/user-task/reminder sections in the strengthened best-practice order when template omits placeholders.
 - `renderWorkflowPrompt` fails on unresolved placeholders.
@@ -423,6 +423,7 @@ CLI/smoke tests:
 
 - `render` on a minimal fixture returns `compiledPrompt.prompt` and does not mutate baton file.
 - `render` on Dev Harness fixture succeeds with the shared base input template and fails clearly if a declared input template is missing.
+- `render --diagnostics` includes non-fatal diagnostics while plain `render` omits them.
 - `inspect` output remains unchanged unless Sergey approves adding compiled prompt there.
 - `apply` behavior remains unchanged.
 
