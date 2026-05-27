@@ -5,7 +5,7 @@
 - Slice: #89 State Projection + Prompt Rendering
 - State: implemented in PR #94 for the generic workflow interpreter
 - Scope boundary: generic workflow interpreter; no DevHarness-specific runtime semantics
-- Implementation status: `render` CLI mode, state projection, prompt rendering, minimal DevHarness input templates, and deterministic tests are present in this slice
+- Implementation status: `render` CLI mode, state projection, prompt rendering, minimal DevHarness base input template, and deterministic tests are present in this slice
 
 ## Problem
 
@@ -48,7 +48,7 @@ In scope for #89:
 Current files already establish these contracts:
 
 - `develop/dev-harness.workflow.json` declares worker and approval steps with `input.state`, optional `input.template`, optional `input.prompt`, optional worker `input.role`, and worker `output.template`.
-- `develop/templates/dev-harness/*.md` provides minimal workflow-local input prompt templates for the current Dev Harness worker steps.
+- `develop/templates/base-input.md` provides the shared workflow-local input/top-wrapper template for the current Dev Harness worker steps.
 - `develop/schemas/workflow.json` rejects step-level extension fields and allows workflow-scoped extensions only.
 - `develop/lib/workflow/interpreter.mjs` chooses the current `step`, validates transition targets, applies output, and returns `{ baton, directive }` for `inspect`/`apply`; `render` adds `compiledPrompt` without changing those existing response shapes.
 - `develop/lib/workflow/directive.mjs` exposes `{ id, action, step }` without rendering prompts.
@@ -70,7 +70,7 @@ Use the existing step vocabulary and keep the field names simple:
   "name": "Research",
   "kind": "worker",
   "input": {
-    "template": "templates/dev-harness/research.md",
+    "template": "templates/base-input.md",
     "role": "researcher",
     "state": ["artifacts", "results"],
     "prompt": "Read task context..."
@@ -109,7 +109,7 @@ Nested path selection should not ship in v1. It creates a query language, partia
 
 ### Prompt template reference
 
-`input.template` is resolved as a repository-local markdown file using the same consumer-relative convention already used by workflow descriptors. For Dev Harness, this means workflow-local input templates such as `templates/dev-harness/research.md` remain separate from shared output templates.
+`input.template` is resolved as a repository-local markdown file using the same consumer-relative convention already used by workflow descriptors. For Dev Harness, this means the workflow-local input template `templates/base-input.md` remains separate from shared output templates.
 
 Resolution must be deterministic and local-only:
 
@@ -118,7 +118,7 @@ Resolution must be deterministic and local-only:
 3. reject missing files with a renderer diagnostic;
 4. do not fetch templates from the network.
 
-If current referenced input templates are intentionally not present yet, #89 should either add minimal markdown template files in the expected location or make missing-template diagnostics part of the smoke tests. Do not silently ignore missing `input.template`.
+The Dev Harness workflow now references one committed base input template at `develop/templates/base-input.md`; render tests should fail clearly if that file is missing. Do not silently ignore missing `input.template`.
 
 ### Output template reference
 
@@ -157,7 +157,7 @@ Add a renderer-level result shape that can be embedded in a future directive or 
   "role": "researcher",
   "prompt": "...final rendered markdown...",
   "metadata": {
-    "inputTemplate": "templates/dev-harness/research.md",
+    "inputTemplate": "templates/base-input.md",
     "outputTemplate": "../../shared/templates/research-packet-template.md",
     "roleMaterial": ["roles/researcher/ROLE.md", "roles/researcher/RUBRIC.md"],
     "projectedStateKeys": ["artifacts", "results"]
@@ -280,7 +280,7 @@ Do not add arbitrary object-path placeholders in v1. They quickly turn the rende
 
 ### Prompt assembly
 
-If `input.template` exists, the renderer uses it as the optional top-level wrapper and replaces placeholders. Current minimal input templates should frame the step, not invert the lower prompt stack.
+If `input.template` exists, the renderer uses it as the optional top-level wrapper and replaces placeholders. The minimal base input template should frame the step, not invert the lower prompt stack.
 
 If `input.template` is absent, assemble a deterministic default top-level wrapper:
 
@@ -422,7 +422,7 @@ Unit tests:
 CLI/smoke tests:
 
 - `render` on a minimal fixture returns `compiledPrompt.prompt` and does not mutate baton file.
-- `render` on Dev Harness fixture either succeeds after expected input templates are added or fails with the exact missing-template diagnostic chosen for #89.
+- `render` on Dev Harness fixture succeeds with the shared base input template and fails clearly if a declared input template is missing.
 - `inspect` output remains unchanged unless Sergey approves adding compiled prompt there.
 - `apply` behavior remains unchanged.
 
@@ -442,11 +442,9 @@ Minimal migration path:
    - optional `path-resolution.mjs` if shared with JSON/template IO.
 2. Add a schema only if compiled prompt responses become part of the stable directive/response contract; this slice keeps `compiledPrompt` limited to `render` output.
 3. Add `render` CLI mode without changing `inspect` output.
-4. Add minimal input prompt templates referenced by `develop/dev-harness.workflow.json`.
+4. Use the single minimal input prompt template referenced by `develop/dev-harness.workflow.json`.
 5. Keep `output.template` unchanged and continue using `shared/templates`.
 6. Do not change transition application or baton merge semantics.
-
-If the referenced input templates are not supposed to be committed yet, #89 should not alter Dev Harness workflow references. Instead, fixtures should use local temp templates and Dev Harness smoke should assert a clear missing-template failure.
 
 ## Blunt design critique
 
@@ -475,5 +473,5 @@ Boundary pressure to watch:
 ## Open questions for Sergey approval
 
 1. CLI shape: PR #94 uses `render <workflow.json> <baton.json>` and leaves `inspect`/`apply` response shapes unchanged.
-2. Missing declared input templates: PR #94 adds minimal `develop/templates/dev-harness/*.md` files for the current workflow references and tests the Dev Harness render path.
+2. Missing declared input templates: PR #94 uses the single minimal `develop/templates/base-input.md` file for current workflow input references and tests the Dev Harness render path.
 3. Compiled prompt location: PR #94 keeps `compiledPrompt` only in the new render response; future directive embedding remains a separate approval decision.
