@@ -124,17 +124,24 @@ Do not silently ignore a declared `input.template`; missing declared templates f
 
 `output.template` is a markdown output contract. The renderer loads the referenced markdown file and appends it as strict worker return instructions.
 
-`output.schema` is optional prompt guidance. When present, the renderer resolves it with the same repository-root confinement rules as output templates, verifies the file is parseable JSON, and injects an instruction to return valid JSON matching that schema. When a validation command or tool is available in the agent/subagent context, the injected instruction requires preflight validation of the generated JSON against the schema before the final answer, fixing validation errors and repeating for a bounded number of attempts. The harness/orchestrator still validates the final returned JSON again after the answer, so agent-side validation is preflight, not the final authority. If no validation command or tool is available in that context, the agent should still return strict schema-matching JSON and expect harness-level validation. The renderer does not validate future worker output against this schema at runtime in this slice.
+`output.schema` is optional prompt guidance. When present, the renderer resolves it with the same repository-root confinement rules as output templates, verifies the file is parseable JSON, and injects an instruction to return valid JSON matching that schema. When a validation command or tool is available in the agent/subagent context, the injected instruction requires preflight validation of the generated JSON against the schema before the final answer, fixing validation errors and repeating for a bounded number of attempts. The harness/orchestrator still validates the final returned JSON again after the answer, so agent-side validation is preflight, not the final authority. If no validation command or tool is available in that context, the agent should still return strict schema-matching JSON and expect harness-level validation. The renderer does not validate future worker output while rendering. The interpreter/harness validates the returned worker JSON against this schema during `apply`.
 
 Rules:
 
 - keep `template` as the existing markdown contract field;
 - allow optional `schema` as a local JSON schema path;
-- DevHarness may use `output.schema` on research and implementation-plan worker steps to declare reviewer selection state such as `review_plan.reviewers`; this remains declarative prompt/output shape only and does not implement reviewer routing or fan-out;
+- DevHarness may use `output.schema` on research and implementation-plan worker steps to require reviewer selection state such as `review_plan.reviewers`; this validates/stores the structured output only and does not implement reviewer routing or fan-out;
 - reject missing, escaping, or invalid-JSON schema files with deterministic `WorkflowInterpreterError`;
 - do not introduce `format`, `sections`, or similar output contract fields;
 - do not validate returned markdown headings at render time;
-- keep worker-output envelope validation in the existing `worker-output` schema.
+- steps without `output.schema` keep worker-output envelope validation in the existing `worker-output` schema.
+
+
+### Harness-side output schema validation
+
+During `apply`, worker steps with `output.schema` use that schema as the authoritative validation gate for the returned JSON. The returned value must parse as JSON; non-JSON output is treated as a schema-validation failure for retry purposes. On a validation failure, the interpreter returns the same worker step again, increments `baton.state.attempts["<stepId>:output.schema"]`, and appends a compact deterministic validation-feedback prompt to the directive step input. After three failed attempts, `apply` fails with a deterministic `WorkflowInterpreterError`.
+
+On success, the validated JSON drives the normal transition logic and is stored under `baton.state.outputs[stepId]` for later state projection. `artifacts` and `results`, when present in the validated output, continue to merge into the existing top-level baton state. Steps without `output.schema` keep the previous worker-output envelope validation and behavior.
 
 ### Role material
 
@@ -410,7 +417,9 @@ CLI/smoke tests:
 - `render` on Dev Harness fixture succeeds through renderer-owned prompt layering and fails clearly if a declared input template is missing.
 - `render --diagnostics` includes non-fatal diagnostics while plain `render` omits them.
 - `inspect` output remains unchanged unless Sergey approves adding compiled prompt there.
-- `apply` behavior remains unchanged.
+- `apply` without `output.schema` behavior remains unchanged.
+- `apply` with `output.schema` accepts valid structured output and stores it under `baton.state.outputs[stepId]`.
+- `apply` with invalid structured output retries with validation feedback, then fails deterministically after the bounded attempt limit.
 
 Schema tests:
 

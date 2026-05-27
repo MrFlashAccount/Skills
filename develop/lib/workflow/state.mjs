@@ -16,12 +16,19 @@ function appendResults(existingResults = [], newResults = []) {
   return [...existingResults, ...newResults];
 }
 
-export function applyOutputToBatonState(baton, output, attempts) {
+export function applyOutputToBatonState(baton, output, attempts, stepId) {
   const state = {
     ...baton.state,
     artifacts: mergeArtifacts(baton.state?.artifacts ?? [], output.artifacts ?? []),
     results: appendResults(baton.state?.results ?? [], output.results ?? []),
   };
+
+  if (stepId) {
+    state.outputs = {
+      ...(baton.state?.outputs ?? {}),
+      [stepId]: structuredClone(output),
+    };
+  }
 
   if (attempts) state.attempts = attempts;
 
