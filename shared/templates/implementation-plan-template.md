@@ -50,6 +50,8 @@
 
 ## Reviewer plan
 
+When a structured output schema asks for reviewer selection, keep this table aligned with the JSON `review_plan.reviewers` roles/reasons/surfaces/required flags. This is a declaration for downstream selection, not runtime fan-out.
+
 | Review role | Focus | Required evidence |
 | --- | --- | --- |
 | Architecture reviewer | Placement, ownership, dependencies, integration boundaries | <diff/docs/tests to inspect> |

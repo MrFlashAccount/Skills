@@ -130,6 +130,7 @@ Rules:
 
 - keep `template` as the existing markdown contract field;
 - allow optional `schema` as a local JSON schema path;
+- DevHarness may use `output.schema` on research and implementation-plan worker steps to declare reviewer selection state such as `review_plan.reviewers`; this remains declarative prompt/output shape only and does not implement reviewer routing or fan-out;
 - reject missing, escaping, or invalid-JSON schema files with deterministic `WorkflowInterpreterError`;
 - do not introduce `format`, `sections`, or similar output contract fields;
 - do not validate returned markdown headings at render time;
@@ -331,7 +332,7 @@ Renderer must not:
 - apply worker output to baton;
 - call subagents or models;
 - load DevHarness skill-specific role instructions;
-- decide worker count, reviewer routing, fan-out, retries, approval state, or terminal handling.
+- decide worker count, reviewer routing, fan-out, retries, approval state, or terminal handling, even when a structured output declares desired reviewer selection.
 
 Interpreter remains responsible for current-step selection and post-output transitions. Orchestrator remains responsible for launching or not launching workers. Renderer is the pure compiler between those two boundaries.
 

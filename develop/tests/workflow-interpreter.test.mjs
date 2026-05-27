@@ -10,6 +10,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-schema-check-'));
 writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
 const devHarnessWorkflowPath = path.join(root, 'develop/dev-harness.workflow.json');
+const devHarnessReviewerSelectionSchema = 'develop/schemas/dev-harness/reviewer-selection-output.json';
 
 function outputContract(name = 'worker') {
   const templates = {
@@ -208,20 +209,27 @@ test('schema workflow fixture: DevHarness JSON is accepted without DevHarness-sp
   assert.equal(response.directive.action, 'run_worker');
   assert.equal(response.directive.step.kind, 'worker');
   assert.deepEqual(response.directive.step.input.state, ['artifacts', 'results']);
-  assert.deepEqual(response.directive.step.output, { template: '../../shared/templates/research-packet-template.md' });
+  assert.deepEqual(response.directive.step.output, {
+    template: '../../shared/templates/research-packet-template.md',
+    schema: devHarnessReviewerSelectionSchema,
+  });
 });
 
 
 
-test('schema workflow fixture: DevHarness worker outputs use skill-relative shared output templates', () => {
+test('schema workflow fixture: DevHarness worker outputs use skill-relative shared output templates and approved reviewer-selection schemas', () => {
   const workflowDoc = JSON.parse(readFileSync(devHarnessWorkflowPath, 'utf8'));
   for (const [stepId, step] of Object.entries(workflowDoc.workflow.steps)) {
     if (step.kind !== 'worker') continue;
 
-    assert.deepEqual(Object.keys(step.output).sort(), ['template'], `${stepId} output should only declare a template`);
+    assert.ok(['template', 'schema,template'].includes(Object.keys(step.output).sort().join(',')), `${stepId} output should only declare template plus optional schema`);
     assert.match(step.output.template, /^\.\.\/\.\.\/shared\/templates\//, `${stepId} should use the skill-relative shared templates layout`);
     assert.ok(existsSync(path.resolve(root, 'skills/dev-harness', step.output.template)), `${stepId} output template should exist`);
   }
+
+  assert.equal(workflowDoc.workflow.steps.research.output.schema, devHarnessReviewerSelectionSchema);
+  assert.equal(workflowDoc.workflow.steps.implementation_plan.output.schema, devHarnessReviewerSelectionSchema);
+  assert.equal(existsSync(path.resolve(root, devHarnessReviewerSelectionSchema)), true, 'DevHarness reviewer-selection schema should exist');
 });
 
 

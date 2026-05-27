@@ -18,7 +18,8 @@
           "prompt": "Read task context, classify the slice, gather relevant local/project evidence, identify constraints, risks, open questions, and whether architecture-sensitive scope exists. Produce a compact research packet for critic review."
         },
         "output": {
-          "template": "../../shared/templates/research-packet-template.md"
+          "template": "../../shared/templates/research-packet-template.md",
+          "schema": "develop/schemas/dev-harness/reviewer-selection-output.json"
         },
         "next": {
           "by": "outcome",
@@ -155,7 +156,8 @@
           "prompt": "Translate approved research and any structural contract into an execution contract: file zones, implementer owners, entities, verification surfaces, rollback surfaces, docs/contract touchpoints, risks, assumptions, and handoff inputs."
         },
         "output": {
-          "template": "../../shared/templates/implementation-plan-template.md"
+          "template": "../../shared/templates/implementation-plan-template.md",
+          "schema": "develop/schemas/dev-harness/reviewer-selection-output.json"
         },
         "next": {
           "by": "outcome",
