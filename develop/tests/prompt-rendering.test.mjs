@@ -405,7 +405,7 @@ test('prompt renderer: output schema is validated and injected in the output con
     '## Output contract',
     '<!-- output template: schema-output.md -->',
     '## Required return\nUse this contract.',
-    'Return valid JSON matching this schema. Before final answer, self-check and fix any schema violations.',
+    'Return valid JSON matching this schema. If a validation command or tool is available in this agent/subagent context, validate the generated JSON against this schema before the final answer; fix validation errors and repeat for a bounded number of attempts. The harness/orchestrator will validate the final returned JSON again after the answer, so this agent-side validation is a preflight, not the final authority. If no validation command or tool is available in this context, still return strict schema-matching JSON and expect harness-level validation.',
     '<!-- output schema: artifact.schema.json -->',
     '```json\n{\n  "type": "object",',
     '## Workflow step prompt',
