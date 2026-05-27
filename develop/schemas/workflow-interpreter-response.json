@@ -20,17 +20,11 @@
     },
     "compiledPrompt": {
       "type": "object",
-      "required": ["stepId", "action", "kind", "name", "prompt", "metadata"],
+      "required": ["prompt"],
       "properties": {
-        "stepId": { "type": "string", "minLength": 1 },
-        "action": { "enum": ["run_worker", "wait_for_approval", "stop_done", "stop_blocked"] },
-        "kind": { "enum": ["worker", "approval", "done", "blocked"] },
-        "name": { "type": "string", "minLength": 1 },
-        "role": { "type": "string", "minLength": 1 },
         "prompt": { "type": "string" },
         "metadata": {
           "type": "object",
-          "required": ["roleMaterial", "projectedStateKeys"],
           "properties": {
             "inputTemplate": { "type": "string", "minLength": 1 },
             "outputTemplate": { "type": "string", "minLength": 1 },
@@ -48,6 +42,7 @@
         },
         "diagnostics": {
           "type": "array",
+          "minItems": 1,
           "items": {
             "type": "object",
             "required": ["severity", "code", "message"],
