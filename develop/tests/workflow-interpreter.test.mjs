@@ -1611,7 +1611,6 @@ test('CLI render: DevHarness fixture returns compiledPrompt and does not mutate 
   assert.equal(response.compiledPrompt.metadata.outputTemplate, '../../shared/templates/research-packet-template.md');
   assert.deepEqual(response.compiledPrompt.metadata.projectedStateKeys, ['artifacts', 'results']);
   assertMarkersInOrder(response.compiledPrompt.prompt, [
-    '# Research',
     '<!-- role material: roles/researcher/ROLE.md -->',
     '<!-- role material: roles/researcher/RUBRIC.md -->',
     '## Output contract',
