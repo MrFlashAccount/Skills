@@ -10,7 +10,7 @@
         "name": "Research",
         "kind": "worker",
         "input": {
-          "template": "templates/dev-harness/research.md",
+          "template": "templates/base-input.md",
           "role": "researcher",
           "state": [
             "artifacts",
@@ -33,7 +33,7 @@
         "name": "Research critic",
         "kind": "worker",
         "input": {
-          "template": "templates/dev-harness/research-critic.md",
+          "template": "templates/base-input.md",
           "role": "reviewer",
           "state": [
             "artifacts",
@@ -80,7 +80,7 @@
         "name": "Architecture gate",
         "kind": "worker",
         "input": {
-          "template": "templates/dev-harness/architecture.md",
+          "template": "templates/base-input.md",
           "role": "architect",
           "state": [
             "artifacts",
@@ -104,7 +104,7 @@
         "name": "Architect review",
         "kind": "worker",
         "input": {
-          "template": "templates/dev-harness/architect-review.md",
+          "template": "templates/base-input.md",
           "role": "architect",
           "state": [
             "artifacts",
@@ -151,7 +151,7 @@
         "name": "Implementation plan",
         "kind": "worker",
         "input": {
-          "template": "templates/dev-harness/implementation-plan.md",
+          "template": "templates/base-input.md",
           "role": "architect",
           "state": [
             "artifacts",
@@ -174,7 +174,7 @@
         "name": "Plan review",
         "kind": "worker",
         "input": {
-          "template": "templates/dev-harness/plan-review.md",
+          "template": "templates/base-input.md",
           "role": "reviewer",
           "state": [
             "artifacts",
@@ -225,7 +225,7 @@
         "name": "Implementation handoff",
         "kind": "worker",
         "input": {
-          "template": "templates/dev-harness/implementation-handoff.md",
+          "template": "templates/base-input.md",
           "role": "backend",
           "state": [
             "artifacts",
@@ -248,7 +248,7 @@
         "name": "Post-implementation review",
         "kind": "worker",
         "input": {
-          "template": "templates/dev-harness/review.md",
+          "template": "templates/base-input.md",
           "role": "reviewer",
           "state": [
             "artifacts",

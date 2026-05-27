@@ -244,6 +244,17 @@ test('schema workflow fixture: DevHarness worker outputs use skill-relative shar
 });
 
 
+test('schema workflow fixture: DevHarness worker inputs share one base top-wrapper template', () => {
+  const workflowDoc = JSON.parse(readFileSync(devHarnessWorkflowPath, 'utf8'));
+  for (const [stepId, step] of Object.entries(workflowDoc.workflow.steps)) {
+    if (step.kind !== 'worker') continue;
+
+    assert.equal(step.input.template, 'templates/base-input.md', `${stepId} should use the shared base input template`);
+  }
+  assert.ok(existsSync(path.resolve(root, 'develop/templates/base-input.md')), 'shared base input template should exist');
+});
+
+
 
 test('schema validation: workflow accepts output template refs on worker contracts', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
@@ -1596,7 +1607,7 @@ test('CLI render: DevHarness fixture returns compiledPrompt and does not mutate 
   assert.equal(response.directive.id, 'research');
   assert.equal(response.compiledPrompt.stepId, 'research');
   assert.equal(response.compiledPrompt.action, 'run_worker');
-  assert.equal(response.compiledPrompt.metadata.inputTemplate, 'templates/dev-harness/research.md');
+  assert.equal(response.compiledPrompt.metadata.inputTemplate, 'templates/base-input.md');
   assert.equal(response.compiledPrompt.metadata.outputTemplate, '../../shared/templates/research-packet-template.md');
   assert.deepEqual(response.compiledPrompt.metadata.projectedStateKeys, ['artifacts', 'results']);
   assertMarkersInOrder(response.compiledPrompt.prompt, [
