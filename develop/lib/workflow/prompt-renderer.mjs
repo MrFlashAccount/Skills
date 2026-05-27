@@ -116,13 +116,20 @@ function section(title, body) {
   return `## ${title}\n\n${body}\n`;
 }
 
-function appendMissingSections({ prompt, inlinePrompt, stateBlock, outputTemplate, inputTemplateContent }) {
+function outputContractSection(outputTemplate, templatePath) {
+  if (!outputTemplate) return '';
+  const templateComment = templatePath ? `\n\n<!-- output template: ${templatePath} -->` : '';
+  const body = `Return output that satisfies the workflow worker-output envelope and follows this markdown artifact template when producing the artifact content.${templateComment}\n\n${trimStable(outputTemplate)}`;
+  return section('Output contract', body);
+}
+
+function appendMissingSections({ prompt, inlinePrompt, stateBlock, outputContract, inputTemplateContent }) {
   const parts = [trimStable(prompt)];
   const template = inputTemplateContent ?? '';
 
   if (!template.includes('{{input.prompt}}') && inlinePrompt) parts.push(section('Task', inlinePrompt.trim()));
-  if (!template.includes('{{state}}')) parts.push(section('Projected baton state', stateBlock).trimEnd());
-  if (!template.includes('{{output.template}}') && outputTemplate) parts.push(section('Output contract', outputTemplate.trim()).trimEnd());
+  if (!template.includes('{{state}}') && stateBlock) parts.push(section('Projected baton state', stateBlock).trimEnd());
+  if (!template.includes('{{output.template}}') && outputContract) parts.push(outputContract.trimEnd());
 
   return `${parts.filter(Boolean).join('\n\n')}\n`;
 }
@@ -136,10 +143,12 @@ function defaultPrompt({ step, input }) {
 export function renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, step, repositoryRoot, templateBaseDir } = {}) {
   const root = normalizeRepositoryRoot(repositoryRoot ?? path.resolve(path.dirname(path.resolve(workflowPath)), '..'));
   const input = step.input ?? {};
-  const projection = projectState({ batonState: baton.state ?? {}, selectors: input.state ?? [], stepId });
-  const stateBlock = fencedJson(projection.value);
+  const selectors = input.state ?? [];
+  const projection = projectState({ batonState: baton.state ?? {}, selectors, stepId });
+  const stateBlock = projection.projectedKeys.length > 0 ? fencedJson(projection.value) : '';
   const inputTemplate = readInputTemplate({ workflowPath, workflow, input, repositoryRoot: root, templateBaseDir });
   const outputTemplate = readOutputTemplate({ workflow, step, repositoryRoot: root });
+  const outputContract = outputContractSection(outputTemplate.content, outputTemplate.metadataPath);
 
   const values = {
     'step.id': stepId,
@@ -148,19 +157,29 @@ export function renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, st
     'input.prompt': input.prompt ?? '',
     'input.role': input.role ?? '',
     state: stateBlock,
-    'output.template': outputTemplate.content,
+    'output.template': outputContract,
   };
 
-  const baseTemplate = inputTemplate.content ?? defaultPrompt({ step, input });
+  const usesDefaultPrompt = inputTemplate.content === undefined;
+  const baseTemplate = usesDefaultPrompt ? defaultPrompt({ step, input }) : inputTemplate.content;
   const replaced = replacePlaceholders(baseTemplate, values);
   assertNoUnresolvedPlaceholders(replaced);
   const prompt = appendMissingSections({
     prompt: replaced,
     inlinePrompt: input.prompt ?? '',
     stateBlock,
-    outputTemplate: outputTemplate.content,
+    outputContract,
     inputTemplateContent: inputTemplate.content,
   });
+  const diagnostics = usesDefaultPrompt
+    ? [
+        {
+          severity: 'info',
+          code: 'default_prompt_used',
+          message: 'No input.template declared; assembled deterministic default prompt.',
+        },
+      ]
+    : [];
 
   return {
     stepId,
@@ -174,6 +193,6 @@ export function renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, st
       outputTemplate: step.output?.template,
       projectedStateKeys: projection.projectedKeys,
     },
-    diagnostics: [],
+    diagnostics,
   };
 }

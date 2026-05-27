@@ -3,9 +3,9 @@
 ## Status
 
 - Slice: #89 State Projection + Prompt Rendering
-- State: proposal only
+- State: implemented in PR #94 for the generic workflow interpreter
 - Scope boundary: generic workflow interpreter; no DevHarness-specific runtime semantics
-- Implementation status: no runtime implementation in this slice proposal
+- Implementation status: `render` CLI mode, state projection, prompt rendering, minimal DevHarness input templates, and deterministic tests are present in this slice
 
 ## Problem
 
@@ -48,9 +48,12 @@ In scope for #89:
 Current files already establish these contracts:
 
 - `develop/dev-harness.workflow.json` declares worker and approval steps with `input.state`, optional `input.template`, optional `input.prompt`, optional worker `input.role`, and worker `output.template`.
+- `develop/templates/dev-harness/*.md` provides minimal workflow-local input prompt templates for the current Dev Harness worker steps.
 - `develop/schemas/workflow.json` rejects step-level extension fields and allows workflow-scoped extensions only.
-- `develop/lib/workflow/interpreter.mjs` chooses the current `step`, validates transition targets, applies output, and returns `{ baton, directive }`.
+- `develop/lib/workflow/interpreter.mjs` chooses the current `step`, validates transition targets, applies output, and returns `{ baton, directive }` for `inspect`/`apply`; `render` adds `compiledPrompt` without changing those existing response shapes.
 - `develop/lib/workflow/directive.mjs` exposes `{ id, action, step }` without rendering prompts.
+- `develop/lib/workflow/projection.mjs` projects only explicit top-level `input.state` keys and fails on missing or nested selectors.
+- `develop/lib/workflow/prompt-renderer.mjs` loads local markdown templates, assembles fallback prompts, appends omitted task/state/output sections, and returns prompt metadata plus diagnostics.
 - `develop/lib/workflow/state.mjs` applies worker/approval output to baton state after the worker returns.
 - `shared/templates/README.md` says shared templates are output templates and do not define orchestration or worker spawning.
 
@@ -404,7 +407,7 @@ Non-errors:
 - absent `input.state`: emit no state section;
 - absent `output.template` on approval/done/blocked steps.
 
-Diagnostics should be machine-readable in compiled results only when rendering succeeds with warnings. Most v1 conditions should fail hard rather than continue with a risky prompt.
+Diagnostics are machine-readable in compiled results only when rendering succeeds with non-fatal notices. The current non-fatal diagnostic is `default_prompt_used`, emitted when a step has no `input.template` and the renderer assembles the deterministic fallback prompt. Most v1 conditions still fail hard rather than continue with a risky prompt.
 
 ## Test plan
 
@@ -445,9 +448,9 @@ Minimal migration path:
    - `projection.mjs` for `projectState`;
    - `prompt-renderer.mjs` for template loading/replacement/assembly;
    - optional `path-resolution.mjs` if shared with JSON/template IO.
-2. Add a schema only if compiled prompt responses are emitted in JSON through CLI or directive contracts.
+2. Add a schema only if compiled prompt responses become part of the stable directive/response contract; this slice keeps `compiledPrompt` limited to `render` output.
 3. Add `render` CLI mode without changing `inspect` output.
-4. Add or validate input prompt templates referenced by `develop/dev-harness.workflow.json`.
+4. Add minimal input prompt templates referenced by `develop/dev-harness.workflow.json`.
 5. Keep `output.template` unchanged and continue using `shared/templates`.
 6. Do not change transition application or baton merge semantics.
 
@@ -479,6 +482,6 @@ Boundary pressure to watch:
 
 ## Open questions for Sergey approval
 
-1. CLI shape: approve new `render <workflow.json> <baton.json>` mode, or prefer `inspect --render-prompt` despite the current simple positional parser?
-2. Missing declared input templates: should #89 add minimal `develop/templates/dev-harness/*.md` files for the current workflow references, or should Dev Harness smoke tests assert clear missing-template diagnostics until a later prompt-authoring slice?
-3. Compiled prompt location: should `compiledPrompt` live only in the new render response for now, or should a future directive shape include it for orchestrator consumption after this slice?
+1. CLI shape: PR #94 uses `render <workflow.json> <baton.json>` and leaves `inspect`/`apply` response shapes unchanged.
+2. Missing declared input templates: PR #94 adds minimal `develop/templates/dev-harness/*.md` files for the current workflow references and tests the Dev Harness render path.
+3. Compiled prompt location: PR #94 keeps `compiledPrompt` only in the new render response; future directive embedding remains a separate approval decision.
