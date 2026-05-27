@@ -28,6 +28,7 @@
           "properties": {
             "inputTemplate": { "type": "string", "minLength": 1 },
             "outputTemplate": { "type": "string", "minLength": 1 },
+            "outputSchema": { "type": "string", "minLength": 1 },
             "roleMaterial": {
               "type": "array",
               "items": { "type": "string", "minLength": 1 }

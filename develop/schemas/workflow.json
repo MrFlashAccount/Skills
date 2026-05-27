@@ -144,7 +144,8 @@
       "type": "object",
       "required": ["template"],
       "properties": {
-        "template": { "type": "string", "minLength": 1 }
+        "template": { "type": "string", "minLength": 1 },
+        "schema": { "type": "string", "minLength": 1 }
       },
       "additionalProperties": false
     }
