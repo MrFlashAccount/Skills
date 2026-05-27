@@ -97,6 +97,7 @@ export function renderWorkflow(workflowPath, batonPath, options = {}) {
       step: cursorStep,
       repositoryRoot: options.repositoryRoot,
       templateBaseDir: options.templateBaseDir,
+      includeDiagnostics: options.includeDiagnostics,
     }),
   };
 }

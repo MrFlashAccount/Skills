@@ -204,7 +204,7 @@ function defaultPrompt({ step }) {
   return `# ${step.name}\n`;
 }
 
-export function renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, step, repositoryRoot, templateBaseDir } = {}) {
+export function renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, step, repositoryRoot, templateBaseDir, includeDiagnostics = false } = {}) {
   const root = normalizeRepositoryRoot(repositoryRoot ?? path.resolve(path.dirname(path.resolve(workflowPath)), '..'));
   const input = step.input ?? {};
   const selectors = input.state ?? [];
@@ -253,7 +253,7 @@ export function renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, st
       ]
     : [];
 
-  return {
+  const compiledPrompt = {
     stepId,
     action: actionForStep(step),
     kind: step.kind,
@@ -266,6 +266,7 @@ export function renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, st
       roleMaterial: inputRole.metadataPaths,
       projectedStateKeys: projection.projectedKeys,
     },
-    diagnostics,
   };
+  if (includeDiagnostics) compiledPrompt.diagnostics = diagnostics;
+  return compiledPrompt;
 }
