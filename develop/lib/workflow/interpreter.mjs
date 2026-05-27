@@ -1,10 +1,12 @@
+import { readFileSync } from 'node:fs';
 import { buildDirective } from './directive.mjs';
-import { invariant } from './errors.mjs';
+import { invariant, WorkflowInterpreterError } from './errors.mjs';
 import { statusForStep } from './model.mjs';
 import { readJson } from './json-io.mjs';
 import { assertBatonSchema, assertResponseSchema, assertWorkflowSchema, assertWorkerOutputSchema } from './schema-validation.mjs';
 import { applyOutputToBatonState } from './state.mjs';
 import { renderWorkflowPrompt } from './prompt-renderer.mjs';
+import { validateAgainstOutputSchema, outputSchemaRetryKey, validationRetryPrompt, OUTPUT_SCHEMA_MAX_ATTEMPTS } from './output-schema-validation.mjs';
 import { resolveTransition } from './transitions.mjs';
 
 export function loadWorkflowAndBaton(workflowPath, batonPath) {
@@ -79,6 +81,73 @@ function responseFor(baton, stepId, step) {
   return response;
 }
 
+function stepWithValidationFeedback(step, feedbackPrompt) {
+  const updatedStep = structuredClone(step);
+  updatedStep.input = {
+    ...(updatedStep.input ?? {}),
+    prompt: [updatedStep.input?.prompt, feedbackPrompt].filter(Boolean).join('\n\n'),
+  };
+  return updatedStep;
+}
+
+function responseForOutputSchemaRetry({ baton, stepId, step, errors, attempt }) {
+  const updatedBaton = structuredClone(baton);
+  updatedBaton.state = {
+    ...updatedBaton.state,
+    attempts: {
+      ...(updatedBaton.state?.attempts ?? {}),
+      [outputSchemaRetryKey(stepId)]: attempt,
+    },
+  };
+  delete updatedBaton.blocker;
+  const feedbackPrompt = validationRetryPrompt({ errors, attempt });
+  return responseFor(updatedBaton, stepId, stepWithValidationFeedback(step, feedbackPrompt));
+}
+
+
+function invalidJsonOutputRetry({ baton, stepId, step, error }) {
+  const attempt = (baton.state?.attempts?.[outputSchemaRetryKey(stepId)] ?? 0) + 1;
+  const errors = `worker output is not valid JSON: ${error.message}`;
+  if (attempt >= OUTPUT_SCHEMA_MAX_ATTEMPTS) {
+    throw new WorkflowInterpreterError(
+      `output schema validation failed for step '${stepId}' after ${OUTPUT_SCHEMA_MAX_ATTEMPTS} attempts: ${errors}`,
+    );
+  }
+  return responseForOutputSchemaRetry({ baton, stepId, step, errors, attempt });
+}
+
+function readWorkerOutputForStep({ outputPath, baton, stepId, step }) {
+  if (!step.output?.schema) return { workerOutput: readJson(outputPath, 'worker output'), retryResponse: undefined };
+  try {
+    return { workerOutput: JSON.parse(readFileSync(outputPath, 'utf8')), retryResponse: undefined };
+  } catch (error) {
+    return { workerOutput: undefined, retryResponse: invalidJsonOutputRetry({ baton, stepId, step, error }) };
+  }
+}
+
+function assertOutputSchemaIfDeclared({ workflowPath, workflow, baton, stepId, step, workerOutput }) {
+  const schemaRef = step.output?.schema;
+  if (!schemaRef) {
+    assertWorkerOutputSchema(workerOutput);
+    return { workerOutput, retryResponse: undefined };
+  }
+
+  const validation = validateAgainstOutputSchema({ workflow, workflowPath, schemaRef, output: workerOutput });
+  if (validation.ok) return { workerOutput: validation.output, retryResponse: undefined };
+
+  const attempt = (baton.state?.attempts?.[outputSchemaRetryKey(stepId)] ?? 0) + 1;
+  if (attempt >= OUTPUT_SCHEMA_MAX_ATTEMPTS) {
+    throw new WorkflowInterpreterError(
+      `output schema validation failed for step '${stepId}' after ${OUTPUT_SCHEMA_MAX_ATTEMPTS} attempts: ${validation.errors}`,
+    );
+  }
+
+  return {
+    workerOutput,
+    retryResponse: responseForOutputSchemaRetry({ baton, stepId, step, errors: validation.errors, attempt }),
+  };
+}
+
 export function inspectWorkflow(workflowPath, batonPath) {
   const { baton, cursorStep } = loadWorkflowAndBaton(workflowPath, batonPath);
   return responseFor(baton, baton.cursor, cursorStep);
@@ -104,8 +173,17 @@ export function renderWorkflow(workflowPath, batonPath, options = {}) {
 
 export function applyWorkflowOutput(workflowPath, batonPath, outputPath) {
   const { workflow, baton, cursorStep } = loadWorkflowAndBaton(workflowPath, batonPath);
-  const workerOutput = readJson(outputPath, 'worker output');
-  assertWorkerOutputSchema(workerOutput);
+  const readResult = readWorkerOutputForStep({ outputPath, baton, stepId: baton.cursor, step: cursorStep });
+  if (readResult.retryResponse) return readResult.retryResponse;
+  const { workerOutput, retryResponse } = assertOutputSchemaIfDeclared({
+    workflowPath,
+    workflow,
+    baton,
+    stepId: baton.cursor,
+    step: cursorStep,
+    workerOutput: readResult.workerOutput,
+  });
+  if (retryResponse) return retryResponse;
 
   const { targetStepId, attempts } = resolveTransition({ workflow, baton, stepId: baton.cursor, step: cursorStep, output: workerOutput });
   const targetStep = workflow.steps[targetStepId];
@@ -114,7 +192,7 @@ export function applyWorkflowOutput(workflowPath, batonPath, outputPath) {
   const updatedBaton = structuredClone(baton);
   updatedBaton.cursor = targetStepId;
   updatedBaton.status = statusForStep(workflow, targetStepId, targetStep);
-  updatedBaton.state = applyOutputToBatonState(updatedBaton, workerOutput, attempts);
+  updatedBaton.state = applyOutputToBatonState(updatedBaton, workerOutput, attempts, cursorStep.output?.schema ? baton.cursor : undefined);
   delete updatedBaton.blocker;
   if (updatedBaton.status === 'blocked' && workerOutput.blocker) updatedBaton.blocker = workerOutput.blocker;
 

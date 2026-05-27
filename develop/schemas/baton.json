@@ -3,54 +3,105 @@
   "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton",
   "title": "Workflow Baton",
   "type": "object",
-  "required": ["cursor", "status", "state"],
+  "required": [
+    "cursor",
+    "status",
+    "state"
+  ],
   "properties": {
-    "cursor": { "type": "string" },
-    "status": { "enum": ["running", "done", "blocked"] },
+    "cursor": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "running",
+        "done",
+        "blocked"
+      ]
+    },
     "state": {
       "type": "object",
-      "required": ["artifacts", "results"],
+      "required": [
+        "artifacts",
+        "results"
+      ],
       "properties": {
         "artifacts": {
           "type": "array",
-          "items": { "$ref": "#/$defs/artifact" }
+          "items": {
+            "$ref": "#/$defs/artifact"
+          }
         },
         "results": {
           "type": "array",
-          "items": { "$ref": "#/$defs/result" }
+          "items": {
+            "$ref": "#/$defs/result"
+          }
         },
         "attempts": {
           "description": "Interpreter-owned retry counters keyed by workflow edge.",
           "type": "object",
-          "additionalProperties": { "type": "integer", "minimum": 0 }
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "outputs": {
+          "description": "Validated per-step worker outputs keyed by step id.",
+          "type": "object",
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
     },
-    "blocker": { "type": "object" },
-    "error": { "type": "object" }
+    "blocker": {
+      "type": "object"
+    },
+    "error": {
+      "type": "object"
+    }
   },
   "additionalProperties": false,
   "$defs": {
     "artifact": {
       "type": "object",
-      "required": ["type"],
+      "required": [
+        "type"
+      ],
       "properties": {
-        "type": { "type": "string" },
-        "id": { "type": "string" },
-        "ref": { "type": "string" },
-        "summary": { "type": "string" }
+        "type": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "ref": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        }
       },
       "additionalProperties": true
     },
     "result": {
       "type": "object",
       "properties": {
-        "type": { "type": "string" },
-        "cursor": { "type": "string" },
-        "outcome": { "type": "string" },
-        "summary": { "type": "string" },
-        "ref": { "type": "string" }
+        "type": {
+          "type": "string"
+        },
+        "cursor": {
+          "type": "string"
+        },
+        "outcome": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "ref": {
+          "type": "string"
+        }
       },
       "additionalProperties": true
     }

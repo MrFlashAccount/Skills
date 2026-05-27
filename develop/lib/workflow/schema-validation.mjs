@@ -4,7 +4,7 @@ import validateWorkerOutputSchema from '../../dist/validators/worker-output.mjs'
 import validateWorkflowInterpreterResponseSchema from '../../dist/validators/workflow-interpreter-response.mjs';
 import { WorkflowInterpreterError } from './errors.mjs';
 
-function formatSchemaErrors(errors = []) {
+export function formatSchemaErrors(errors = []) {
   return errors
     .map((error) => `${error.instancePath || '/'} ${error.message}`.trim())
     .join('; ');
