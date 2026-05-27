@@ -48,7 +48,7 @@ In scope for #89:
 Current files already establish these contracts:
 
 - `develop/dev-harness.workflow.json` declares worker and approval steps with `input.state`, optional `input.template`, optional `input.prompt`, optional worker `input.role`, and worker `output.template`.
-- `develop/templates/base-input.md` provides the shared workflow-local input/top-wrapper template for the current Dev Harness worker steps.
+- `develop/templates/base-input.md` provides the shared workflow-local minimal input/top-wrapper template for the current Dev Harness worker steps without step metadata/header placeholders.
 - `develop/schemas/workflow.json` rejects step-level extension fields and allows workflow-scoped extensions only.
 - `develop/lib/workflow/interpreter.mjs` chooses the current `step`, validates transition targets, applies output, and returns `{ baton, directive }` for `inspect`/`apply`; `render` adds `compiledPrompt` without changing those existing response shapes.
 - `develop/lib/workflow/directive.mjs` exposes `{ id, action, step }` without rendering prompts.
@@ -280,7 +280,7 @@ Do not add arbitrary object-path placeholders in v1. They quickly turn the rende
 
 ### Prompt assembly
 
-If `input.template` exists, the renderer uses it as the optional top-level wrapper and replaces placeholders. The minimal base input template should frame the step, not invert the lower prompt stack.
+If `input.template` exists, the renderer uses it as the optional top-level wrapper and replaces placeholders. The minimal base input template should stay generic and avoid step metadata/header placeholders, not invert the lower prompt stack.
 
 If `input.template` is absent, assemble a deterministic default top-level wrapper:
 
