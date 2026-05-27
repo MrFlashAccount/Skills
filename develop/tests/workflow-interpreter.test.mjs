@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
@@ -115,6 +115,13 @@ function writeJson(fileName, value) {
   return filePath;
 }
 
+function writeRoleMaterial(role, { roleBody = `# ${role} role\nUse role guidance.\n`, rubricBody = `# ${role} rubric\nCheck rubric guidance.\n` } = {}) {
+  const roleDir = path.join(tempDir, 'roles', role);
+  mkdirSync(roleDir, { recursive: true });
+  writeFileSync(path.join(roleDir, 'ROLE.md'), roleBody);
+  writeFileSync(path.join(roleDir, 'RUBRIC.md'), rubricBody);
+}
+
 function baton(overrides = {}) {
   return {
     cursor: 'worker_step',
@@ -130,6 +137,16 @@ function output(overrides = {}) {
 
 function runNode(args, cwd = root) {
   return spawnSync(process.execPath, args, { cwd, encoding: 'utf8' });
+}
+
+function assertMarkersInOrder(value, markers) {
+  let previousIndex = -1;
+  for (const marker of markers) {
+    const index = value.indexOf(marker);
+    assert.notEqual(index, -1, `missing marker: ${marker}`);
+    assert.ok(index > previousIndex, `marker out of order: ${marker}`);
+    previousIndex = index;
+  }
 }
 
 function expectCliResult(label, result, expectSuccess) {
@@ -1260,8 +1277,11 @@ test('prompt renderer: default prompt includes task projected state and determin
   assert.equal(compiled.stepId, 'approval_step');
   assert.equal(compiled.action, 'wait_for_approval');
   assert.match(compiled.prompt, /^# Approval step\n/);
-  assert.match(compiled.prompt, /## Task\n\nApprove\./);
-  assert.match(compiled.prompt, /## Projected baton state\n\n```json\n\{\n  "artifacts": \[/);
+  assertMarkersInOrder(compiled.prompt, [
+    '## Projected baton state\n\n```json\n{\n  "artifacts": [',
+    '## Workflow step prompt',
+    'Approve.',
+  ]);
   assert.deepEqual(compiled.diagnostics, [
     {
       severity: 'info',
@@ -1273,8 +1293,9 @@ test('prompt renderer: default prompt includes task projected state and determin
 });
 
 test('prompt renderer: replaces allowed placeholders', () => {
+  writeRoleMaterial('backend');
   const templatePath = path.join(tempDir, 'worker-template.md');
-  writeFileSync(templatePath, 'Step {{step.id}} / {{step.name}} / {{step.kind}}\nRole {{input.role}}\nTask {{input.prompt}}\nState {{state}}\nOutput {{output.template}}\n');
+  writeFileSync(templatePath, 'Step {{step.id}} / {{step.name}} / {{step.kind}}\nRole: {{input.role}}\nTask {{input.prompt}}\nState {{state}}\nOutput {{output.template}}\n');
   writeFileSync(path.join(tempDir, 'output.md'), '## Worker output\nReturn markdown.\n');
   const step = {
     name: 'Worker step',
@@ -1288,15 +1309,18 @@ test('prompt renderer: replaces allowed placeholders', () => {
 
   assert.deepEqual(compiled.diagnostics, []);
   assert.match(compiled.prompt, /Step worker_step \/ Worker step \/ worker/);
-  assert.match(compiled.prompt, /Role backend/);
+  assert.match(compiled.prompt, /Role: backend/);
   assert.match(compiled.prompt, /Task Build it\./);
   assert.match(compiled.prompt, /"results": \[/);
   assert.match(compiled.prompt, /## Output contract\n\nReturn output that satisfies the workflow worker-output envelope/);
   assert.match(compiled.prompt, /<!-- output template: output\.md -->/);
   assert.match(compiled.prompt, /## Worker output\nReturn markdown\./);
+  assert.match(compiled.prompt, /## Final reminder\n\nReturn exactly according to the output contract above\./);
+  assert.equal(compiled.prompt.trimEnd().endsWith('Return exactly according to the output contract above.'), true);
 });
 
-test('prompt renderer: appends task state and output sections when template omits placeholders', () => {
+test('prompt renderer: appends role output state and task sections in compiled layer order when template omits placeholders', () => {
+  writeRoleMaterial('backend');
   writeFileSync(path.join(tempDir, 'minimal-template.md'), '# {{step.name}}\n');
   writeFileSync(path.join(tempDir, 'minimal-output.md'), '## Required return\nUse this contract.\n');
   const step = {
@@ -1307,13 +1331,115 @@ test('prompt renderer: appends task state and output sections when template omit
     next: 'done',
   };
 
-  const compiled = renderFixture({ label: 'render-append', stepId: 'worker_step', step });
+  const compiled = renderFixture({
+    label: 'render-append',
+    stepId: 'worker_step',
+    step,
+    workflow: {
+      ...schemaWorkflowDoc.workflow,
+      instruction: 'Use the deterministic workflow renderer.',
+      userTask: 'Fix the customer-visible bug.',
+    },
+  });
 
-  assert.match(compiled.prompt, /## Task\n\nDo the task\./);
-  assert.match(compiled.prompt, /## Projected baton state\n\n```json/);
-  assert.match(compiled.prompt, /## Output contract\n\nReturn output that satisfies the workflow worker-output envelope/);
-  assert.match(compiled.prompt, /<!-- output template: minimal-output\.md -->/);
-  assert.match(compiled.prompt, /## Required return\nUse this contract\./);
+  assertMarkersInOrder(compiled.prompt, [
+    '# Worker step',
+    '## Workflow instruction',
+    'Use the deterministic workflow renderer.',
+    '## Role material',
+    '<!-- role material: roles/backend/ROLE.md -->',
+    '<!-- role material: roles/backend/RUBRIC.md -->',
+    '## Output contract',
+    '<!-- output template: minimal-output.md -->',
+    '## Required return\nUse this contract.',
+    '## Projected baton state',
+    '```json',
+    '## Workflow step prompt',
+    'Do the task.',
+    '## Concrete user task',
+    'Fix the customer-visible bug.',
+    '## Final reminder',
+    'Return exactly according to the output contract above.',
+  ]);
+});
+
+
+
+test('prompt renderer: resolves input.role and inlines ROLE.md and RUBRIC.md', () => {
+  writeRoleMaterial('custom-backend', {
+    roleBody: '# Custom Role\n\nBackend role instructions.\n',
+    rubricBody: '# Custom Rubric\n\nBackend rubric checks.\n',
+  });
+  writeFileSync(path.join(tempDir, 'role-template.md'), '# {{step.name}}\n\nRole: {{input.role}}\n');
+  const step = {
+    name: 'Worker step',
+    kind: 'worker',
+    input: { template: 'role-template.md', role: 'custom-backend', state: [] },
+    output: { template: 'output.md' },
+    next: 'done',
+  };
+
+  const compiled = renderFixture({ label: 'render-role-material', stepId: 'worker_step', step });
+
+  assert.match(compiled.prompt, /Role: custom-backend/);
+  assert.match(compiled.prompt, /<!-- role material: roles\/custom-backend\/ROLE\.md -->/);
+  assert.match(compiled.prompt, /# Custom Role\n\nBackend role instructions\./);
+  assert.match(compiled.prompt, /<!-- role material: roles\/custom-backend\/RUBRIC\.md -->/);
+  assert.match(compiled.prompt, /# Custom Rubric\n\nBackend rubric checks\./);
+  assert.deepEqual(compiled.metadata.roleMaterial, ['roles/custom-backend/ROLE.md', 'roles/custom-backend/RUBRIC.md']);
+});
+
+test('prompt renderer: input.role rejects traversal and external escape attempts', () => {
+  const traversalStep = {
+    name: 'Worker step',
+    kind: 'worker',
+    input: { role: '../backend', state: [] },
+    next: 'done',
+  };
+
+  assert.throws(
+    () => renderFixture({ label: 'render-role-traversal', stepId: 'worker_step', step: traversalStep }),
+    /input\.role must be a role directory name: \.\.\/backend/,
+  );
+
+  const outsideRolePath = path.resolve(tempDir, '../outside-role.md');
+  const escapedRoleDir = path.join(tempDir, 'roles', 'escaped-role');
+  mkdirSync(escapedRoleDir, { recursive: true });
+  writeFileSync(outsideRolePath, '# Outside role\n');
+  writeFileSync(path.join(escapedRoleDir, 'RUBRIC.md'), '# Rubric\n');
+  try {
+    symlinkSync(outsideRolePath, path.join(escapedRoleDir, 'ROLE.md'));
+    const escapeStep = {
+      name: 'Worker step',
+      kind: 'worker',
+      input: { role: 'escaped-role', state: [] },
+      next: 'done',
+    };
+
+    assert.throws(
+      () => renderFixture({ label: 'render-role-symlink-escape', stepId: 'worker_step', step: escapeStep }),
+      /input\.role material escapes repository root: roles\/escaped-role\/ROLE\.md/,
+    );
+  } finally {
+    rmSync(outsideRolePath, { force: true });
+  }
+});
+
+test('prompt renderer: missing role material fails deterministically', () => {
+  const roleDir = path.join(tempDir, 'roles', 'missing-rubric');
+  mkdirSync(roleDir, { recursive: true });
+  writeFileSync(path.join(roleDir, 'ROLE.md'), '# Role only\n');
+  const step = {
+    name: 'Worker step',
+    kind: 'worker',
+    input: { role: 'missing-rubric', state: [] },
+    next: 'done',
+  };
+
+  assert.throws(
+    () => renderFixture({ label: 'render-role-missing-material', stepId: 'worker_step', step }),
+    /missing role material for input\.role 'missing-rubric': roles\/missing-rubric\/RUBRIC\.md/,
+  );
 });
 
 test('prompt renderer: empty input.state omits projected state section', () => {
@@ -1473,8 +1599,18 @@ test('CLI render: DevHarness fixture returns compiledPrompt and does not mutate 
   assert.equal(response.compiledPrompt.metadata.inputTemplate, 'templates/dev-harness/research.md');
   assert.equal(response.compiledPrompt.metadata.outputTemplate, '../../shared/templates/research-packet-template.md');
   assert.deepEqual(response.compiledPrompt.metadata.projectedStateKeys, ['artifacts', 'results']);
-  assert.match(response.compiledPrompt.prompt, /Produce a compact research packet/);
-  assert.match(response.compiledPrompt.prompt, /Research Packet/);
+  assertMarkersInOrder(response.compiledPrompt.prompt, [
+    '# Research',
+    '<!-- role material: roles/researcher/ROLE.md -->',
+    '<!-- role material: roles/researcher/RUBRIC.md -->',
+    '## Output contract',
+    'Research Packet',
+    '## Projected baton state',
+    '## Workflow step prompt',
+    'Read task context, classify the slice',
+    '## Final reminder',
+    'Return exactly according to the output contract above.',
+  ]);
 });
 
 test('inspect/apply response shape remains unchanged without compiledPrompt', () => {

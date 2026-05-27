@@ -1,9 +1,4 @@
 # {{step.name}}
 
-Role: {{input.role}}
-
-{{input.prompt}}
-
-{{state}}
-
-{{output.template}}
+Step id: {{step.id}}
+Step kind: {{step.kind}}

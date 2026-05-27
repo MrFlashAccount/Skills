@@ -17,6 +17,50 @@
         "step": { "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/workflow#/$defs/step" }
       },
       "additionalProperties": false
+    },
+    "compiledPrompt": {
+      "type": "object",
+      "required": ["stepId", "action", "kind", "name", "prompt", "metadata", "diagnostics"],
+      "properties": {
+        "stepId": { "type": "string", "minLength": 1 },
+        "action": { "enum": ["run_worker", "wait_for_approval", "stop_done", "stop_blocked"] },
+        "kind": { "enum": ["worker", "approval", "done", "blocked"] },
+        "name": { "type": "string", "minLength": 1 },
+        "role": { "type": "string", "minLength": 1 },
+        "prompt": { "type": "string" },
+        "metadata": {
+          "type": "object",
+          "required": ["roleMaterial", "projectedStateKeys"],
+          "properties": {
+            "inputTemplate": { "type": "string", "minLength": 1 },
+            "outputTemplate": { "type": "string", "minLength": 1 },
+            "roleMaterial": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 }
+            },
+            "projectedStateKeys": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "uniqueItems": true
+            }
+          },
+          "additionalProperties": false
+        },
+        "diagnostics": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["severity", "code", "message"],
+            "properties": {
+              "severity": { "enum": ["info", "warning", "error"] },
+              "code": { "type": "string", "minLength": 1 },
+              "message": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false
