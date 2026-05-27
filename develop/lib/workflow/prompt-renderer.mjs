@@ -94,6 +94,51 @@ function readOutputTemplate({ workflow, step, repositoryRoot }) {
   return { content: resolved.content, metadataPath: templateRef };
 }
 
+function assertRoleName(role) {
+  if (typeof role !== 'string' || role.length === 0) return;
+  if (!/^[A-Za-z0-9_-]+$/.test(role)) {
+    throw new WorkflowInterpreterError(`workflow prompt render failed: input.role must be a role directory name: ${role}`);
+  }
+}
+
+function readRoleFile({ repositoryRoot, role, fileName }) {
+  const root = realpathSync(repositoryRoot);
+  const relativePath = path.join('roles', role, fileName);
+  const candidate = path.join(root, relativePath);
+  let realCandidate;
+  try {
+    realCandidate = realpathSync(candidate);
+  } catch {
+    throw new WorkflowInterpreterError(
+      `workflow prompt render failed: missing role material for input.role '${role}': ${relativePath}`,
+    );
+  }
+  if (!isInside(realCandidate, root)) {
+    throw new WorkflowInterpreterError(
+      `workflow prompt render failed: input.role material escapes repository root: ${relativePath}`,
+    );
+  }
+  return { content: readFileSync(realCandidate, 'utf8'), path: path.relative(root, realCandidate) };
+}
+
+function readInputRole({ input, repositoryRoot }) {
+  const role = input?.role;
+  if (!role) return { content: '', metadataPaths: [] };
+  assertRoleName(role);
+  const roleFile = readRoleFile({ repositoryRoot, role, fileName: 'ROLE.md' });
+  const rubricFile = readRoleFile({ repositoryRoot, role, fileName: 'RUBRIC.md' });
+  const content = [
+    role,
+    '',
+    `<!-- role material: ${roleFile.path} -->`,
+    trimStable(roleFile.content),
+    '',
+    `<!-- role material: ${rubricFile.path} -->`,
+    trimStable(rubricFile.content),
+  ].join('\n');
+  return { content, metadataPaths: [roleFile.path, rubricFile.path] };
+}
+
 function replacePlaceholders(template, values) {
   return template.replace(/{{\s*([^{}]+?)\s*}}/g, (match, name) => {
     if (!PLACEHOLDER_VALUES.has(name)) return match;
@@ -116,6 +161,23 @@ function section(title, body) {
   return `## ${title}\n\n${body}\n`;
 }
 
+function firstNonEmptyString(candidates) {
+  const value = candidates.find((candidate) => typeof candidate === 'string' && candidate.trim().length > 0);
+  return value?.trim() ?? '';
+}
+
+function workflowInstruction({ workflow }) {
+  return firstNonEmptyString([workflow?.instruction, workflow?.instructions]);
+}
+
+function concreteUserTask({ workflow }) {
+  return firstNonEmptyString([workflow?.userTask, workflow?.userRequest, workflow?.task, workflow?.request]);
+}
+
+function finalOutputReminder(outputContract) {
+  return outputContract ? section('Final reminder', 'Return exactly according to the output contract above.') : '';
+}
+
 function outputContractSection(outputTemplate, templatePath) {
   if (!outputTemplate) return '';
   const templateComment = templatePath ? `\n\n<!-- output template: ${templatePath} -->` : '';
@@ -123,21 +185,23 @@ function outputContractSection(outputTemplate, templatePath) {
   return section('Output contract', body);
 }
 
-function appendMissingSections({ prompt, inlinePrompt, stateBlock, outputContract, inputTemplateContent }) {
+function appendMissingSections({ prompt, workflowInstructionBlock, inlinePrompt, roleBlock, stateBlock, outputContract, userTask, finalReminder, inputTemplateContent }) {
   const parts = [trimStable(prompt)];
   const template = inputTemplateContent ?? '';
 
-  if (!template.includes('{{input.prompt}}') && inlinePrompt) parts.push(section('Task', inlinePrompt.trim()));
-  if (!template.includes('{{state}}') && stateBlock) parts.push(section('Projected baton state', stateBlock).trimEnd());
+  if (workflowInstructionBlock) parts.push(section('Workflow instruction', workflowInstructionBlock).trimEnd());
+  if (!template.includes('{{input.role}}') && roleBlock) parts.push(section('Role material', roleBlock).trimEnd());
   if (!template.includes('{{output.template}}') && outputContract) parts.push(outputContract.trimEnd());
+  if (!template.includes('{{state}}') && stateBlock) parts.push(section('Projected baton state', stateBlock).trimEnd());
+  if (!template.includes('{{input.prompt}}') && inlinePrompt) parts.push(section('Workflow step prompt', inlinePrompt.trim()));
+  if (userTask) parts.push(section('Concrete user task', userTask).trimEnd());
+  if (finalReminder) parts.push(finalReminder.trimEnd());
 
   return `${parts.filter(Boolean).join('\n\n')}\n`;
 }
 
-function defaultPrompt({ step, input }) {
-  const lines = [`# ${step.name}`];
-  if (input?.role) lines.push('', `Role: ${input.role}`);
-  return `${lines.join('\n')}\n`;
+function defaultPrompt({ step }) {
+  return `# ${step.name}\n`;
 }
 
 export function renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, step, repositoryRoot, templateBaseDir } = {}) {
@@ -147,15 +211,19 @@ export function renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, st
   const projection = projectState({ batonState: baton.state ?? {}, selectors, stepId });
   const stateBlock = projection.projectedKeys.length > 0 ? fencedJson(projection.value) : '';
   const inputTemplate = readInputTemplate({ workflowPath, workflow, input, repositoryRoot: root, templateBaseDir });
+  const inputRole = readInputRole({ input, repositoryRoot: root });
   const outputTemplate = readOutputTemplate({ workflow, step, repositoryRoot: root });
   const outputContract = outputContractSection(outputTemplate.content, outputTemplate.metadataPath);
+  const workflowInstructionBlock = workflowInstruction({ workflow });
+  const userTask = concreteUserTask({ workflow });
+  const finalReminder = finalOutputReminder(outputContract);
 
   const values = {
     'step.id': stepId,
     'step.name': step.name,
     'step.kind': step.kind,
     'input.prompt': input.prompt ?? '',
-    'input.role': input.role ?? '',
+    'input.role': inputRole.content,
     state: stateBlock,
     'output.template': outputContract,
   };
@@ -166,9 +234,13 @@ export function renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, st
   assertNoUnresolvedPlaceholders(replaced);
   const prompt = appendMissingSections({
     prompt: replaced,
+    workflowInstructionBlock,
     inlinePrompt: input.prompt ?? '',
+    roleBlock: inputRole.content,
     stateBlock,
     outputContract,
+    userTask,
+    finalReminder,
     inputTemplateContent: inputTemplate.content,
   });
   const diagnostics = usesDefaultPrompt
@@ -191,6 +263,7 @@ export function renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, st
     metadata: {
       inputTemplate: input.template,
       outputTemplate: step.output?.template,
+      roleMaterial: inputRole.metadataPaths,
       projectedStateKeys: projection.projectedKeys,
     },
     diagnostics,

@@ -16,7 +16,7 @@ That boundary should be a deterministic prompt-rendering stage, not an orchestra
 - the current workflow `step`;
 - the step `input.template` and inline `input.prompt`;
 - explicitly allowed baton state from `input.state`;
-- role metadata from `input.role` when present;
+- role material from `input.role` when present, resolved from `roles/<name>/ROLE.md` and `roles/<name>/RUBRIC.md`;
 - worker output instructions from `output.template` when present.
 
 The orchestrator then receives a compiled prompt plus launch metadata. It may launch a subagent later, but the renderer itself never chooses transitions, applies output, calls subagents, or knows DevHarness-specific behavior.
@@ -53,7 +53,7 @@ Current files already establish these contracts:
 - `develop/lib/workflow/interpreter.mjs` chooses the current `step`, validates transition targets, applies output, and returns `{ baton, directive }` for `inspect`/`apply`; `render` adds `compiledPrompt` without changing those existing response shapes.
 - `develop/lib/workflow/directive.mjs` exposes `{ id, action, step }` without rendering prompts.
 - `develop/lib/workflow/projection.mjs` projects only explicit top-level `input.state` keys and fails on missing or nested selectors.
-- `develop/lib/workflow/prompt-renderer.mjs` loads local markdown templates, assembles fallback prompts, appends omitted task/state/output sections, and returns prompt metadata plus diagnostics.
+- `develop/lib/workflow/prompt-renderer.mjs` loads local markdown templates, assembles fallback prompts, appends omitted role/output/state/step-prompt/user-task/reminder sections in the compiled layer order, and returns prompt metadata plus diagnostics.
 - `develop/lib/workflow/state.mjs` applies worker/approval output to baton state after the worker returns.
 - `shared/templates/README.md` says shared templates are output templates and do not define orchestration or worker spawning.
 
@@ -91,8 +91,10 @@ Renderer-relevant fields:
 | `input.template` | worker, optional for approval/terminal | Markdown input prompt template to load and render. |
 | `input.prompt` | all step kinds | Inline task instruction appended or substituted by the renderer. |
 | `input.state` | all step kinds | Explicit list of baton `state` keys that may be projected. |
-| `input.role` | worker | Role metadata for orchestrator launch and prompt context. No role file loading in v1. |
+| `input.role` | worker | Role name resolved from `roles/<name>/`; renderer inlines `ROLE.md` and `RUBRIC.md` into prompt context. |
 | `output.template` | worker | Markdown output contract template to include as strict return-shape instructions. |
+| `workflow.instruction` | workflow root, optional extension | Workflow-level instruction appended directly under the top wrapper, before role/output/context layers. |
+| `workflow.userTask` | workflow root, optional extension | Concrete user task/request appended near the bottom for recency after role, output contract, and projected state context. |
 
 ### `input.state`
 
@@ -129,16 +131,18 @@ Rules:
 - do not validate returned markdown headings at render time;
 - keep worker-output envelope validation in the existing `worker-output` schema.
 
-### Role metadata
+### Role material
 
-`input.role` remains a string metadata field in v1.
+`input.role` remains a string role name in workflow JSON and in the compiled prompt result `role` field, but the rendered prompt resolves that name to repository-local role material.
 
 Renderer behavior:
 
-- include `role` in the compiled prompt result metadata;
-- include a small prompt line such as `Role: researcher` when present;
-- do not load role files, infer capabilities, or map roles to subagent agents;
-- do not make role required for worker steps unless a separate schema decision is approved.
+- validate `input.role` as a role directory name (`A-Z`, `a-z`, `0-9`, `_`, `-`) and reject traversal or path-like values;
+- resolve role files from `roles/<input.role>/ROLE.md` and `roles/<input.role>/RUBRIC.md` under the repository root;
+- inline both files into `{{input.role}}`, with deterministic `<!-- role material: ... -->` source comments;
+- append a `## Role material` section when `input.role` is present and the input template omits `{{input.role}}`;
+- fail hard with a deterministic `WorkflowInterpreterError` when either required role material file is missing or escapes the repository root;
+- do not infer capabilities, map roles to subagent agents, or make role required for worker steps unless a separate schema decision is approved.
 
 ### Compiled prompt result shape
 
@@ -155,6 +159,7 @@ Add a renderer-level result shape that can be embedded in a future directive or 
   "metadata": {
     "inputTemplate": "templates/dev-harness/research.md",
     "outputTemplate": "../../shared/templates/research-packet-template.md",
+    "roleMaterial": ["roles/researcher/ROLE.md", "roles/researcher/RUBRIC.md"],
     "projectedStateKeys": ["artifacts", "results"]
   },
   "diagnostics": []
@@ -267,7 +272,7 @@ Allowed placeholders in `input.template`:
 | `{{step.name}}` | current step display name |
 | `{{step.kind}}` | current step kind |
 | `{{input.prompt}}` | inline prompt or empty string |
-| `{{input.role}}` | role string or empty string |
+| `{{input.role}}` | rendered role material for `input.role`, including `ROLE.md` and `RUBRIC.md`, or empty string |
 | `{{state}}` | serialized projected baton state fenced block |
 | `{{output.template}}` | rendered output contract section or empty string |
 
@@ -275,39 +280,25 @@ Do not add arbitrary object-path placeholders in v1. They quickly turn the rende
 
 ### Prompt assembly
 
-If `input.template` exists, the renderer uses it as the primary document and replaces placeholders.
+If `input.template` exists, the renderer uses it as the optional top-level wrapper and replaces placeholders. Current minimal input templates should frame the step, not invert the lower prompt stack.
 
-If `input.template` is absent, assemble a deterministic default markdown prompt:
+If `input.template` is absent, assemble a deterministic default top-level wrapper:
 
-````markdown
-# Workflow Step: <step.name>
-
-Step id: <stepId>
-Step kind: <step.kind>
-Role: <input.role if present>
-
-## Task
-
-<input.prompt or "No inline prompt provided.">
-
-## Projected baton state
-
-```json
-...
+```markdown
+# <step.name>
 ```
 
-## Output contract
+After the wrapper, the renderer appends strict leftover sections in this fixed compiled layer order when the template omits important content:
 
-<contents of output.template, if present>
-````
+1. `## Workflow instruction` if the workflow root carries the optional top-level instruction, canonically `workflow.instruction`;
+2. `## Role material` if `input.role` exists and the rendered template did not consume `{{input.role}}`;
+3. `## Output contract` if `output.template` exists and the rendered template did not consume `{{output.template}}`;
+4. `## Projected baton state` if `input.state` selected anything and the rendered template did not consume `{{state}}`;
+5. `## Workflow step prompt` if `input.prompt` exists and the rendered template did not consume `{{input.prompt}}`;
+6. `## Concrete user task` if the workflow root carries a concrete user request, canonically `workflow.userTask`;
+7. `## Final reminder` when an output contract exists: `Return exactly according to the output contract above.`
 
-The renderer should append strict leftover sections when the template omits important content:
-
-- append `## Task` if `input.prompt` exists and the rendered template did not consume `{{input.prompt}}`;
-- append projected state if `input.state` selected anything and the rendered template did not consume `{{state}}`;
-- append `## Output contract` if `output.template` exists and the rendered template did not consume `{{output.template}}`.
-
-This keeps templates flexible without allowing silent omission of output rules or projected state.
+This keeps the output contract high for primacy, places context before the executable step/user request, and keeps a short output-contract reminder at the bottom for recency. It also preserves compatibility with existing placeholder templates while documenting `input.template` as the optional top wrapper. New templates should avoid duplicating the lower stack so the final concrete task and reminder remain at the bottom.
 
 ### Output rules inclusion
 
@@ -397,13 +388,14 @@ Hard errors:
 - nested or unsupported state selector;
 - missing `input.template` when declared;
 - missing `output.template` when declared;
+- invalid `input.role`, role material escape, or missing `roles/<name>/ROLE.md` / `roles/<name>/RUBRIC.md`;
 - template path escapes allowed roots;
 - unresolved `{{...}}` placeholders after render.
 
 Non-errors:
 
 - absent `input.template`: use deterministic default prompt;
-- absent `input.prompt`: emit a default task sentence if no template consumed it;
+- absent `input.prompt`: omit the workflow-step-prompt section;
 - absent `input.state`: emit no state section;
 - absent `output.template` on approval/done/blocked steps.
 
@@ -422,7 +414,7 @@ Unit tests:
 - `projectState` serializes stable fenced JSON.
 - `renderWorkflowPrompt` renders default prompt when no input template exists.
 - `renderWorkflowPrompt` replaces allowed placeholders.
-- `renderWorkflowPrompt` appends task/state/output sections when template omits placeholders.
+- `renderWorkflowPrompt` appends role/output/state/workflow-step/user-task/reminder sections in the strengthened best-practice order when template omits placeholders.
 - `renderWorkflowPrompt` fails on unresolved placeholders.
 - `renderWorkflowPrompt` includes shared output template content without treating it as schema.
 - path resolver rejects path escape and missing template references.
