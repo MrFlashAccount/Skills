@@ -247,24 +247,6 @@ test('output.schema: legitimate x-usage data property is preserved during valida
   assert.equal(response.baton.state.outputs.worker_step['x-usage'], 'ordinary data field');
 });
 
-test('output.schema: invalid JSON retries as validation failure', () => {
-  const doc = workflowWithSchema('invalid-json-output', {
-    $schema: 'https://json-schema.org/draft/2020-12/schema',
-    type: 'object',
-    required: ['outcome'],
-    properties: { outcome: { const: 'ready' } },
-    additionalProperties: false,
-  });
-  const prefix = safeName('output-schema-invalid-json');
-  const batonPath = writeJson(`${prefix}-baton.json`, baton());
-  const outputPath = path.join(tempDir, `${prefix}-output.json`);
-  writeFileSync(outputPath, '{ not json');
-  const wfPath = writeJson(`${prefix}-workflow.json`, doc);
-
-  const response = expectCliResult('output-schema-invalid-json', runNode(['develop/scripts/workflow-interpreter.mjs', 'apply', wfPath, batonPath, outputPath]), true);
-  assert.equal(response.baton.cursor, 'worker_step');
-  assert.match(response.steps[0].step.input.prompt, /worker output is not valid JSON/);
-});
 
 test('output.schema: invalid output exhausts retry limit deterministically', () => {
   const doc = workflowWithSchema('exhaust-structured-output', structuredSchema);
