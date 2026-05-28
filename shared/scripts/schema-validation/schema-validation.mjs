@@ -1,4 +1,4 @@
-import Ajv2020 from 'ajv/dist/2020.js';
+import Ajv2020 from './vendor/ajv.mjs';
 
 /**
  * Validate a value against a JSON Schema with optional referenced schemas.

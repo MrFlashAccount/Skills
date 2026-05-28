@@ -1,5 +1,5 @@
 #!/bin/sh
 set -eu
-echo "Bundling schema-validation library..."
-npm run schema-validation:bundle
-git add shared/scripts/schema-validation/dist/schema-validation.mjs
+echo "Bundling schema-validation vendor Ajv..."
+npm run schema-validation:bundle-vendor-ajv
+git add shared/scripts/schema-validation/vendor/ajv.mjs
