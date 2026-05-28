@@ -10,8 +10,32 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const tempDir = mkdtempSync(path.join(tmpdir(), 'dev-harness-start-'));
 const helperPath = path.join(root, 'develop/scripts/start-run.mjs');
 
+const fixtureWorkflowPath = path.join(tempDir, 'fixture.workflow.json');
+const fixtureWorkflowDoc = {
+  workflow: {
+    name: 'start-run-fixture',
+    version: 1,
+    start: 'worker_step',
+    done: 'done',
+    blocked: 'blocked',
+    steps: {
+      worker_step: {
+        name: 'Worker step',
+        kind: 'worker',
+        input: { state: ['artifacts'], prompt: 'Run worker.' },
+        output: { template: '../../shared/templates/implementation-plan-template.md' },
+        next: 'done',
+      },
+      done: { name: 'Done', kind: 'done', input: { prompt: 'Finished.' } },
+      blocked: { name: 'Blocked', kind: 'blocked', input: { prompt: 'Blocked.' } },
+    },
+  },
+};
+writeFileSync(fixtureWorkflowPath, `${JSON.stringify(fixtureWorkflowDoc, null, 2)}
+`);
+
 function runStart(args) {
-  return spawnSync(process.execPath, [helperPath, ...args], { cwd: root, encoding: 'utf8' });
+  return spawnSync(process.execPath, [helperPath, '--workflow', fixtureWorkflowPath, ...args], { cwd: root, encoding: 'utf8' });
 }
 
 function parseSuccess(label, result) {
@@ -47,10 +71,10 @@ test('start-run creates run dir, initializes baton/history, and returns steps', 
   assert.equal(status.initialized, true);
   assert.equal(status.resumed, false);
   assert.equal(status.runDir, runDir);
-  assert.equal(status.response.baton.cursor, 'research');
+  assert.equal(status.response.baton.cursor, 'worker_step');
   assert.equal(status.response.baton.status, 'running');
   assert.deepEqual(status.response.baton.state, { artifacts: [], results: [] });
-  assert.equal(status.response.steps[0].id, 'research');
+  assert.equal(status.response.steps[0].id, 'worker_step');
   assert.equal(status.response.steps[0].action, 'run_worker');
   assert.deepEqual(JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8')), status.response.baton);
   assert.equal(readFileSync(path.join(runDir, 'history.md'), 'utf8'), '');

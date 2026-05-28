@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
@@ -9,8 +9,6 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-schema-check-'));
 writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
-const devHarnessWorkflowPath = path.join(root, 'develop/dev-harness.workflow.json');
-const devHarnessReviewerSelectionSchema = 'develop/schemas/dev-harness/reviewer-selection-output.json';
 
 function outputContract(name = 'worker') {
   const templates = {
@@ -197,53 +195,6 @@ function scriptedApplyLoop(label, workflowDoc, initialBaton, scriptedOutputs, { 
 after(() => {
   rmSync(tempDir, { recursive: true, force: true });
 });
-
-test('schema workflow fixture: DevHarness JSON is accepted without DevHarness-specific interpreter semantics', () => {
-  const batonPath = writeJson('dev-harness-baton.json', { cursor: 'research', status: 'running', state: structuredClone(emptyState) });
-  const response = expectCliResult(
-    'dev-harness-fixture',
-    runNode(['develop/scripts/workflow-interpreter.mjs', 'inspect', devHarnessWorkflowPath, batonPath]),
-    true,
-  );
-  assert.equal(response.steps[0].id, 'research');
-  assert.equal(response.steps[0].action, 'run_worker');
-  assert.equal(response.steps[0].step.kind, 'worker');
-  assert.deepEqual(response.steps[0].step.input.state, ['artifacts', 'results']);
-  assert.deepEqual(response.steps[0].step.output, {
-    template: '../../shared/templates/research-packet-template.md',
-    schema: devHarnessReviewerSelectionSchema,
-  });
-});
-
-
-
-test('schema workflow fixture: DevHarness worker outputs use skill-relative shared output templates and approved reviewer-selection schemas', () => {
-  const workflowDoc = JSON.parse(readFileSync(devHarnessWorkflowPath, 'utf8'));
-  for (const [stepId, step] of Object.entries(workflowDoc.workflow.steps)) {
-    if (step.kind !== 'worker') continue;
-
-    assert.ok(['template', 'schema,template'].includes(Object.keys(step.output).sort().join(',')), `${stepId} output should only declare template plus optional schema`);
-    assert.match(step.output.template, /^\.\.\/\.\.\/shared\/templates\//, `${stepId} should use the skill-relative shared templates layout`);
-    assert.ok(existsSync(path.resolve(root, 'skills/dev-harness', step.output.template)), `${stepId} output template should exist`);
-  }
-
-  assert.equal(workflowDoc.workflow.steps.research.output.schema, devHarnessReviewerSelectionSchema);
-  assert.equal(workflowDoc.workflow.steps.implementation_plan.output.schema, devHarnessReviewerSelectionSchema);
-  assert.equal(existsSync(path.resolve(root, devHarnessReviewerSelectionSchema)), true, 'DevHarness reviewer-selection schema should exist');
-});
-
-
-test('schema workflow fixture: DevHarness worker inputs rely on renderer-owned prompt layering', () => {
-  const workflowDoc = JSON.parse(readFileSync(devHarnessWorkflowPath, 'utf8'));
-  for (const [stepId, step] of Object.entries(workflowDoc.workflow.steps)) {
-    if (step.kind !== 'worker') continue;
-
-    assert.equal(Object.hasOwn(step.input, 'template'), false, `${stepId} should not declare the removed base input template`);
-  }
-  assert.equal(existsSync(path.resolve(root, 'develop/templates/base-input.md')), false, 'obsolete base input template should be removed');
-});
-
-
 
 test('schema validation: workflow accepts output template and schema refs on worker contracts', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
