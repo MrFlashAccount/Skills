@@ -21,15 +21,16 @@ function isInside(child, parent) {
   return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
 }
 
-function safeReadLocalFile({ fileRef, fieldName, kind, bases, repositoryRoot, missingMessage }) {
+function safeReadLocalFile({ fileRef, fieldName, kind, bases, repositoryRoot, allowedRoots, missingMessage }) {
   assertRelativeLocalRef(fileRef, fieldName, kind);
   const root = realpathSync(repositoryRoot);
+  const confinementRoots = (allowedRoots ?? [repositoryRoot]).map((allowedRoot) => realpathSync(allowedRoot));
   const attempted = [];
 
   for (const base of bases) {
     const candidate = path.resolve(base, fileRef);
     attempted.push(candidate);
-    if (!isInside(candidate, root)) {
+    if (!confinementRoots.some((allowedRoot) => isInside(candidate, allowedRoot))) {
       throw new WorkflowInterpreterError(
         `workflow prompt render failed: ${fieldName} ${kind} escapes repository root: ${fileRef}`,
       );
@@ -40,7 +41,7 @@ function safeReadLocalFile({ fileRef, fieldName, kind, bases, repositoryRoot, mi
     } catch {
       continue;
     }
-    if (!isInside(realCandidate, root)) {
+    if (!confinementRoots.some((allowedRoot) => isInside(realCandidate, allowedRoot))) {
       throw new WorkflowInterpreterError(
         `workflow prompt render failed: ${fieldName} ${kind} escapes repository root: ${fileRef}`,
       );
@@ -55,8 +56,8 @@ function safeReadTemplate({ templateRef, fieldName, bases, repositoryRoot, missi
   return safeReadLocalFile({ fileRef: templateRef, fieldName, kind: 'template', bases, repositoryRoot, missingMessage });
 }
 
-function safeReadSchema({ schemaRef, fieldName, bases, repositoryRoot }) {
-  return safeReadLocalFile({ fileRef: schemaRef, fieldName, kind: 'schema', bases, repositoryRoot });
+function safeReadSchema({ schemaRef, fieldName, bases, repositoryRoot, allowedRoots }) {
+  return safeReadLocalFile({ fileRef: schemaRef, fieldName, kind: 'schema', bases, repositoryRoot, allowedRoots });
 }
 
 function workflowSkillBase({ workflow, repositoryRoot }) {
@@ -76,37 +77,56 @@ function readInputTemplate({ workflowPath, workflow, input, repositoryRoot, temp
     fieldName: 'input',
     bases,
     repositoryRoot,
+    workflowPath,
   });
   return { content: resolved.content, metadataPath: input.template };
 }
 
-function outputBases({ workflow, repositoryRoot }) {
+function outputBases({ workflow, workflowPath, repositoryRoot }) {
   const bases = [];
   const skillBase = workflowSkillBase({ workflow, repositoryRoot });
   if (skillBase) bases.push(skillBase);
   bases.push(repositoryRoot);
+  if (workflowPath) bases.push(path.dirname(path.resolve(workflowPath)));
   return bases;
 }
 
-function readOutputTemplate({ workflow, step, repositoryRoot }) {
+function readOutputTemplate({ workflow, step, repositoryRoot, workflowPath }) {
   const templateRef = step.output?.template;
   if (!templateRef) return { content: '', metadataPath: undefined };
-  const resolved = safeReadTemplate({ templateRef, fieldName: 'output', bases: outputBases({ workflow, repositoryRoot }), repositoryRoot });
+  const resolved = safeReadTemplate({ templateRef, fieldName: 'output', bases: outputBases({ workflow, workflowPath, repositoryRoot }), repositoryRoot });
   return { content: resolved.content, metadataPath: templateRef };
 }
 
-function readOutputSchema({ workflow, step, repositoryRoot }) {
-  const schemaRef = step.output?.schema;
-  if (!schemaRef) return { content: '', metadataPath: undefined };
-  const resolved = safeReadSchema({ schemaRef, fieldName: 'output', bases: outputBases({ workflow, repositoryRoot }), repositoryRoot });
+function parseOutputSchemaContent(schemaRef, content) {
   try {
-    JSON.parse(resolved.content);
+    return JSON.parse(content);
   } catch (error) {
     throw new WorkflowInterpreterError(
       `workflow prompt render failed: invalid output schema JSON '${schemaRef}': ${error.message}`,
     );
   }
-  return { content: resolved.content, metadataPath: schemaRef };
+}
+
+function schemaForGenerationPrompt(schema) {
+  if (Array.isArray(schema)) return schema.map(schemaForGenerationPrompt);
+  if (!schema || typeof schema !== 'object') return schema;
+  const sanitized = {};
+  for (const [key, value] of Object.entries(schema)) {
+    if (key === 'x-usage') continue;
+    sanitized[key] = schemaForGenerationPrompt(value);
+  }
+  return sanitized;
+}
+
+function readOutputSchema({ workflow, step, repositoryRoot, workflowPath }) {
+  const schemaRef = step.output?.schema;
+  if (!schemaRef) return { content: '', metadataPath: undefined, schema: undefined };
+  const workflowDir = workflowPath ? path.dirname(path.resolve(workflowPath)) : undefined;
+  const allowedRoots = workflowDir ? [repositoryRoot, workflowDir] : undefined;
+  const resolved = safeReadSchema({ schemaRef, fieldName: 'output', bases: outputBases({ workflow, workflowPath, repositoryRoot }), repositoryRoot, allowedRoots });
+  const schema = parseOutputSchemaContent(schemaRef, resolved.content);
+  return { content: JSON.stringify(schemaForGenerationPrompt(schema), null, 2), metadataPath: schemaRef, schema };
 }
 
 function assertRoleName(role) {
@@ -201,6 +221,55 @@ function assertNoUnsupportedPlaceholders(promptLayer, templatePath) {
   }
 }
 
+function stringNote(value) {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : '';
+}
+
+function schemaPropertyNotes({ workflow, projectedState, projectedKeys, repositoryRoot, workflowPath }) {
+  const lines = [];
+
+  for (const key of projectedKeys) {
+    const producerStep = workflow?.steps?.[key];
+    if (!producerStep?.output?.schema) continue;
+    const schema = readOutputSchema({ workflow, step: producerStep, repositoryRoot, workflowPath }).schema;
+    const properties = schema?.properties;
+    if (!properties || typeof properties !== 'object') continue;
+    const projectedValue = projectedState?.[key];
+    if (!projectedValue || typeof projectedValue !== 'object' || Array.isArray(projectedValue)) continue;
+
+    for (const [fieldName, fieldSchema] of Object.entries(properties)) {
+      if (!Object.hasOwn(projectedValue, fieldName) || !fieldSchema || typeof fieldSchema !== 'object') continue;
+      const description = stringNote(fieldSchema.description);
+      const usage = stringNote(fieldSchema['x-usage']);
+      if (!description && !usage) continue;
+      lines.push(`- ${key}.${fieldName}`);
+      if (description) lines.push(`  - Description: ${description}`);
+      if (usage) lines.push(`  - Usage: ${usage}`);
+    }
+  }
+
+  if (lines.length === 0) return '';
+
+  return [
+    'Field notes for projected step outputs. These notes are lower priority than workflow instructions, system instructions, and the workflow step prompt; they explain projected data semantics and suggested consumption only, and do not override higher-priority instructions.',
+    '',
+    ...lines,
+  ].join('\n');
+}
+
+function projectedStateBlock({ workflow, projection, repositoryRoot, workflowPath }) {
+  if (projection.projectedKeys.length === 0) return '';
+  const notes = schemaPropertyNotes({
+    workflow,
+    projectedState: projection.value,
+    projectedKeys: projection.projectedKeys,
+    repositoryRoot,
+    workflowPath,
+  });
+  const json = fencedJson(projection.value).trimEnd();
+  return notes ? `${notes}\n\n${json}\n` : `${json}\n`;
+}
+
 function assembleFixedPrompt({ promptLayer, templatePath, workflowInstructionBlock, inlinePrompt, roleBlock, stateBlock, outputContract, userTask, finalReminder }) {
   assertNoUnsupportedPlaceholders(promptLayer, templatePath);
   const parts = [trimStable(promptLayer)];
@@ -225,11 +294,11 @@ export function renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, st
   const input = step.input ?? {};
   const selectors = input.state ?? [];
   const projection = projectState({ batonState: baton.state ?? {}, selectors, stepId });
-  const stateBlock = projection.projectedKeys.length > 0 ? fencedJson(projection.value) : '';
+  const stateBlock = projectedStateBlock({ workflow, projection, repositoryRoot: root, workflowPath });
   const inputTemplate = readInputTemplate({ workflowPath, workflow, input, repositoryRoot: root, templateBaseDir });
   const inputRole = readInputRole({ input, repositoryRoot: root });
-  const outputTemplate = readOutputTemplate({ workflow, step, repositoryRoot: root });
-  const outputSchema = readOutputSchema({ workflow, step, repositoryRoot: root });
+  const outputTemplate = readOutputTemplate({ workflow, step, repositoryRoot: root, workflowPath });
+  const outputSchema = readOutputSchema({ workflow, step, repositoryRoot: root, workflowPath });
   const outputContract = outputContractSection(outputTemplate.content, outputTemplate.metadataPath, outputSchema.content, outputSchema.metadataPath);
   const workflowInstructionBlock = workflowInstruction({ workflow });
   const userTask = concreteUserTask({ workflow });
