@@ -191,7 +191,8 @@ test('output.schema: projected structured output renders schema field notes befo
     repositoryRoot: tempDir,
   });
   assert.match(workerRenderResponse.prompt, /Validated payload from the worker step\./);
-  assert.doesNotMatch(workerRenderResponse.prompt, /x-usage|authoritative downstream input/);
+  assert.match(workerRenderResponse.prompt, /"x-usage": "Use this payload as the authoritative downstream input\."/);
+  assert.doesNotMatch(workerRenderResponse.prompt, /Usage: Use this payload as the authoritative downstream input\./);
 
   const applyResponse = runApply('output-schema-field-notes-apply', baton(), {
     outcome: 'ready',
@@ -221,6 +222,28 @@ test('output.schema: projected structured output renders schema field notes befo
     '"ok": true',
   ]);
   assert.doesNotMatch(renderResponse.compiledPrompt.prompt, /\[object Object\]/);
+});
+
+test('output.schema: legitimate x-usage data property is preserved during validation', () => {
+  const doc = workflowWithSchema('x-usage-data-property', {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome', 'x-usage'],
+    properties: {
+      outcome: { const: 'ready' },
+      'x-usage': { type: 'string' },
+    },
+    additionalProperties: false,
+  });
+
+  const response = runApply('output-schema-x-usage-data-property', baton(), {
+    outcome: 'ready',
+    'x-usage': 'ordinary data field',
+  }, true, doc);
+
+  assert.equal(response.baton.cursor, 'done');
+  assert.equal(response.baton.state.worker_step['x-usage'], 'ordinary data field');
+  assert.equal(response.baton.state.outputs.worker_step['x-usage'], 'ordinary data field');
 });
 
 test('output.schema: invalid JSON retries as validation failure', () => {

@@ -108,17 +108,6 @@ function parseOutputSchemaContent(schemaRef, content) {
   }
 }
 
-function schemaForGenerationPrompt(schema) {
-  if (Array.isArray(schema)) return schema.map(schemaForGenerationPrompt);
-  if (!schema || typeof schema !== 'object') return schema;
-  const sanitized = {};
-  for (const [key, value] of Object.entries(schema)) {
-    if (key === 'x-usage') continue;
-    sanitized[key] = schemaForGenerationPrompt(value);
-  }
-  return sanitized;
-}
-
 function readOutputSchema({ workflow, step, repositoryRoot, workflowPath }) {
   const schemaRef = step.output?.schema;
   if (!schemaRef) return { content: '', metadataPath: undefined, schema: undefined };
@@ -126,7 +115,7 @@ function readOutputSchema({ workflow, step, repositoryRoot, workflowPath }) {
   const allowedRoots = workflowDir ? [repositoryRoot, workflowDir] : undefined;
   const resolved = safeReadSchema({ schemaRef, fieldName: 'output', bases: outputBases({ workflow, workflowPath, repositoryRoot }), repositoryRoot, allowedRoots });
   const schema = parseOutputSchemaContent(schemaRef, resolved.content);
-  return { content: JSON.stringify(schemaForGenerationPrompt(schema), null, 2), metadataPath: schemaRef, schema };
+  return { content: JSON.stringify(schema, null, 2), metadataPath: schemaRef, schema };
 }
 
 function assertRoleName(role) {
