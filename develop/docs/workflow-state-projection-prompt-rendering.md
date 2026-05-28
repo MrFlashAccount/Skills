@@ -77,7 +77,7 @@ Use the existing step vocabulary and keep the field names simple:
   "output": {
     "template": "../../shared/templates/research-packet-template.md"
   },
-  "next": { "by": "outcome", "map": { "ready": "next_step" } }
+  "next": { "match": "${{ output.outcome }}", "cases": { "ready": "next_step" } }
 }
 ```
 

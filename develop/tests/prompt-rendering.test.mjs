@@ -35,13 +35,13 @@ const schemaWorkflowDoc = {
         kind: 'worker',
         input: { template: 'worker.md', role: 'backend', state: ['artifacts'], prompt: 'Run worker.' },
         output: outputContract(),
-        next: { by: 'outcome', map: { ready: 'approval_step', retry: { target: 'worker_step', maxAttempts: 2, onLimit: 'blocked' }, blocked: 'blocked' } },
+        next: { match: '${{ output.outcome }}', cases: { ready: 'approval_step', retry: 'worker_step', blocked: 'blocked' } },
       },
       approval_step: {
         name: 'Approval step',
         kind: 'approval',
         input: { state: ['artifacts'], prompt: 'Approve.' },
-        next: { by: 'approval', map: { approved: 'direct_next_worker', rejected: 'worker_step', blocked: 'blocked' } },
+        next: { match: '${{ output.approval }}', cases: { approved: 'direct_next_worker', rejected: 'worker_step', blocked: 'blocked' } },
       },
       direct_next_worker: {
         name: 'Direct next worker',

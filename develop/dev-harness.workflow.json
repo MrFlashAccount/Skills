@@ -22,8 +22,8 @@
           "schema": "develop/schemas/dev-harness/reviewer-selection-output.json"
         },
         "next": {
-          "by": "outcome",
-          "map": {
+          "match": "${{ output.outcome }}",
+          "cases": {
             "ready_for_critic": "research_critic",
             "blocked": "blocked"
           }
@@ -44,14 +44,10 @@
           "template": "../../shared/templates/review-verdict-template.md"
         },
         "next": {
-          "by": "outcome",
-          "map": {
+          "match": "${{ output.outcome }}",
+          "cases": {
             "approved": "approve_research",
-            "needs_revision": {
-              "target": "research",
-              "maxAttempts": 3,
-              "onLimit": "blocked"
-            },
+            "needs_revision": "research",
             "blocked": "blocked"
           }
         }
@@ -67,8 +63,8 @@
           "prompt": "Show the cleaned research review packet to the user. Continue only after explicit approval."
         },
         "next": {
-          "by": "approval",
-          "map": {
+          "match": "${{ output.approval }}",
+          "cases": {
             "approved": "architecture",
             "rejected": "research",
             "blocked": "blocked"
@@ -90,8 +86,8 @@
           "template": "../../shared/templates/architecture-proposal-template.md"
         },
         "next": {
-          "by": "outcome",
-          "map": {
+          "match": "${{ output.outcome }}",
+          "cases": {
             "ready_for_review": "architect_review",
             "skip_review": "approve_architecture",
             "blocked": "blocked"
@@ -113,14 +109,10 @@
           "template": "../../shared/templates/review-verdict-template.md"
         },
         "next": {
-          "by": "outcome",
-          "map": {
+          "match": "${{ output.outcome }}",
+          "cases": {
             "approved": "approve_architecture",
-            "needs_revision": {
-              "target": "architecture",
-              "maxAttempts": 3,
-              "onLimit": "blocked"
-            },
+            "needs_revision": "architecture",
             "blocked": "blocked"
           }
         }
@@ -136,8 +128,8 @@
           "prompt": "Show the architecture decision or structural contract to the user. Continue only after explicit approval when the slice is non-trivial or architecture-sensitive."
         },
         "next": {
-          "by": "approval",
-          "map": {
+          "match": "${{ output.approval }}",
+          "cases": {
             "approved": "implementation_plan",
             "rejected": "architecture",
             "blocked": "blocked"
@@ -160,8 +152,8 @@
           "schema": "develop/schemas/dev-harness/reviewer-selection-output.json"
         },
         "next": {
-          "by": "outcome",
-          "map": {
+          "match": "${{ output.outcome }}",
+          "cases": {
             "ready_for_review": "plan_review",
             "blocked": "blocked"
           }
@@ -182,14 +174,10 @@
           "template": "../../shared/templates/review-verdict-template.md"
         },
         "next": {
-          "by": "outcome",
-          "map": {
+          "match": "${{ output.outcome }}",
+          "cases": {
             "approved": "approve_plan",
-            "needs_revision": {
-              "target": "implementation_plan",
-              "maxAttempts": 3,
-              "onLimit": "blocked"
-            },
+            "needs_revision": "implementation_plan",
             "blocked": "blocked"
           }
         }
@@ -205,14 +193,10 @@
           "prompt": "Show one cleaned execution plan to the user. Stop until explicit implementation approval."
         },
         "next": {
-          "by": "approval",
-          "map": {
+          "match": "${{ output.approval }}",
+          "cases": {
             "approved": "implementation_handoff",
-            "rejected": {
-              "target": "implementation_plan",
-              "maxAttempts": 3,
-              "onLimit": "blocked"
-            },
+            "rejected": "implementation_plan",
             "blocked": "blocked"
           }
         }
@@ -232,8 +216,8 @@
           "template": "../../shared/templates/implementer-handoff-template.md"
         },
         "next": {
-          "by": "outcome",
-          "map": {
+          "match": "${{ output.outcome }}",
+          "cases": {
             "ready_for_review": "review",
             "blocked": "blocked"
           }
@@ -254,14 +238,10 @@
           "template": "../../shared/templates/review-verdict-template.md"
         },
         "next": {
-          "by": "outcome",
-          "map": {
+          "match": "${{ output.outcome }}",
+          "cases": {
             "passed": "done",
-            "needs_changes": {
-              "target": "implementation_handoff",
-              "maxAttempts": 3,
-              "onLimit": "blocked"
-            },
+            "needs_changes": "implementation_handoff",
             "blocked": "blocked"
           }
         }
