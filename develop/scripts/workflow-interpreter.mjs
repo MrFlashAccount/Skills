@@ -2,7 +2,7 @@
 import { parseArgs } from 'node:util';
 import { validateWorkflowInterpreterCliArgs } from '../lib/workflow/cli-args-validation.mjs';
 import { WorkflowInterpreterError } from '../lib/workflow/errors.mjs';
-import { applyWorkflowOutput, inspectWorkflow, renderWorkflow } from '../lib/workflow/interpreter.mjs';
+import { applyWorkflowOutput, inspectWorkflow, renderWorkflow } from '../lib/workflow/interpreter/index.mjs';
 
 function fail(message) {
   console.error(`workflow-interpreter: ${message}`);
