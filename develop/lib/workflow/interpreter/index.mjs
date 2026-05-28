@@ -1,6 +1,5 @@
-import { isExpressionString } from '../expressions/index.mjs';
 import { assertResponseSchema } from '../schema-validation.mjs';
-import { resolveTransition } from '../transitions.mjs';
+import { isDynamicTransitionNext, isStaticParallelNext, resolveTransition } from '../transitions.mjs';
 import { loadWorkflowAndBaton } from './guards/workflow.mjs';
 import { hasAppliedOutputForStep, responseFor } from './output/response.mjs';
 import { renderStepPrompts } from './parallel/render.mjs';
@@ -12,8 +11,8 @@ export { renderStepPrompts } from './parallel/render.mjs';
 
 function preparedParallelStep({ workflow, baton, cursorStep }) {
   if (!hasAppliedOutputForStep(baton, baton.cursor)) return { step: cursorStep, parallelTargets: false };
-  if (Array.isArray(cursorStep.next)) return { step: cursorStep, parallelTargets: true };
-  if (typeof cursorStep.next !== 'string' || !isExpressionString(cursorStep.next)) return { step: cursorStep, parallelTargets: false };
+  if (isStaticParallelNext(cursorStep.next)) return { step: cursorStep, parallelTargets: true };
+  if (!isDynamicTransitionNext(cursorStep.next)) return { step: cursorStep, parallelTargets: false };
 
   const resolved = resolveTransition({ workflow, baton, stepId: baton.cursor, step: cursorStep, output: baton.state[baton.cursor] });
   if (!resolved.targetStepIds) return { step: cursorStep, parallelTargets: false };
