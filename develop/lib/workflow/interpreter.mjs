@@ -195,7 +195,7 @@ export function inspectWorkflow(workflowPath, batonPath) {
 export function renderWorkflow(workflowPath, batonPath, options = {}) {
   const { workflow, baton, cursorStep } = loadWorkflowAndBaton(workflowPath, batonPath);
   const response = responseFor(baton, baton.cursor, cursorStep, workflow);
-  return {
+  const rendered = {
     ...response,
     compiledPrompt: renderWorkflowPrompt({
       workflowPath,
@@ -208,6 +208,38 @@ export function renderWorkflow(workflowPath, batonPath, options = {}) {
       includeDiagnostics: options.includeDiagnostics,
     }),
   };
+  if (response.directive.action === 'run_parallel') {
+    rendered.compiledParallelPrompts = renderParallelBranchPrompts({
+      workflowPath,
+      workflow,
+      baton,
+      directive: response.directive,
+      repositoryRoot: options.repositoryRoot,
+      templateBaseDir: options.templateBaseDir,
+      includeDiagnostics: options.includeDiagnostics,
+    });
+  }
+  assertResponseSchema(rendered);
+  return rendered;
+}
+
+export function renderParallelBranchPrompts({ workflowPath, workflow, baton, directive, repositoryRoot, templateBaseDir, includeDiagnostics = false } = {}) {
+  invariant(directive?.action === 'run_parallel', 'parallel branch prompt rendering requires a run_parallel directive');
+  return directive.parallel.map((branch) => ({
+    id: branch.id,
+    action: branch.action,
+    step: structuredClone(branch.step),
+    compiledPrompt: renderWorkflowPrompt({
+      workflowPath,
+      workflow,
+      baton,
+      stepId: branch.id,
+      step: branch.step,
+      repositoryRoot,
+      templateBaseDir,
+      includeDiagnostics,
+    }),
+  }));
 }
 
 
