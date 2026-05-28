@@ -4,6 +4,7 @@ import { readJson } from '../../json-io.mjs';
 import { applyOutputToBatonState } from '../../state.mjs';
 import { responseFor } from '../output/response.mjs';
 import { assertOutputSchemaIfDeclared } from '../output/worker-output.mjs';
+import { joinForParallelTargets } from './targets.mjs';
 
 function readParallelOutputForStep(allOutput, stepId) {
   invariant(allOutput && typeof allOutput === 'object' && !Array.isArray(allOutput), 'parallel output must be an object');
@@ -13,16 +14,10 @@ function readParallelOutputForStep(allOutput, stepId) {
   return steps[stepId];
 }
 
-function parallelTargetsForStep(step) {
+function parallelTargetsForStep(step, targets) {
+  if (targets) return targets;
   invariant(Array.isArray(step.next), 'parallel output can only be applied at a cursor with array next');
   return step.next;
-}
-
-function joinForParallelTargets(workflow, targets) {
-  const firstTarget = targets[0];
-  const join = workflow.steps[firstTarget]?.next;
-  invariant(typeof join === 'string', `parallel branch target '${firstTarget}' must use a string next to an explicit join step`);
-  return join;
 }
 
 function assertParallelOutputShape(targets, allOutput) {
@@ -47,8 +42,8 @@ function validateOutputKindForParallel(step, output, stepId) {
   }
 }
 
-export function applyParallelOutputs({ workflowPath, workflow, baton, cursorStep, outputPath, allOutput }) {
-  const targets = parallelTargetsForStep(cursorStep);
+export function applyParallelOutputs({ workflowPath, workflow, baton, cursorStep, outputPath, allOutput, targets: resolvedTargets }) {
+  const targets = parallelTargetsForStep(cursorStep, resolvedTargets);
   assertParallelOutputShape(targets, allOutput ?? readJson(outputPath, 'parallel output'));
   const parallelOutput = allOutput ?? readJson(outputPath, 'parallel output');
 

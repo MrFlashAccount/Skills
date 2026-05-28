@@ -19,13 +19,14 @@ export function renderStepPrompts({ workflowPath, workflow, baton, steps, reposi
   }));
 }
 
-export function prepareParallelBranch({ workflow, baton, stepId, step, output, attempts }) {
-  invariant(Array.isArray(step.next), `workflow step '${stepId}' cannot prepare parallel branch steps without array next`);
+export function prepareParallelBranch({ workflow, baton, stepId, step, output, attempts, targets = step.next, storeStepOutput = false }) {
+  invariant(Array.isArray(targets), `workflow step '${stepId}' cannot prepare parallel branch steps without array next`);
   const updatedBaton = structuredClone(baton);
-  updatedBaton.state = applyOutputToBatonState(updatedBaton, output, attempts, step.kind === 'worker' ? stepId : undefined, {
+  const outputStepId = step.kind === 'worker' || storeStepOutput ? stepId : undefined;
+  updatedBaton.state = applyOutputToBatonState(updatedBaton, output, attempts, outputStepId, {
     mirrorToOutputs: Boolean(step.output?.schema),
   });
   updatedBaton.status = 'running';
   delete updatedBaton.blocker;
-  return responseFor(updatedBaton, stepId, step, workflow, { parallelTargets: true });
+  return responseFor(updatedBaton, stepId, { ...step, next: targets }, workflow, { parallelTargets: true });
 }
