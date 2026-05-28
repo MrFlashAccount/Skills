@@ -1,4 +1,6 @@
+import { isExpressionString } from '../expressions/index.mjs';
 import { assertResponseSchema } from '../schema-validation.mjs';
+import { resolveTransition } from '../transitions.mjs';
 import { loadWorkflowAndBaton } from './guards/workflow.mjs';
 import { hasAppliedOutputForStep, responseFor } from './output/response.mjs';
 import { renderStepPrompts } from './parallel/render.mjs';
@@ -8,18 +10,26 @@ export { applyWorkflowOutput } from './output/apply.mjs';
 export { loadWorkflowAndBaton } from './guards/workflow.mjs';
 export { renderStepPrompts } from './parallel/render.mjs';
 
-function shouldExposeParallelTargets(baton, cursorStep) {
-  return Array.isArray(cursorStep.next) && hasAppliedOutputForStep(baton, baton.cursor);
+function preparedParallelStep({ workflow, baton, cursorStep }) {
+  if (!hasAppliedOutputForStep(baton, baton.cursor)) return { step: cursorStep, parallelTargets: false };
+  if (Array.isArray(cursorStep.next)) return { step: cursorStep, parallelTargets: true };
+  if (typeof cursorStep.next !== 'string' || !isExpressionString(cursorStep.next)) return { step: cursorStep, parallelTargets: false };
+
+  const resolved = resolveTransition({ workflow, baton, stepId: baton.cursor, step: cursorStep, output: baton.state[baton.cursor] });
+  if (!resolved.targetStepIds) return { step: cursorStep, parallelTargets: false };
+  return { step: { ...cursorStep, next: resolved.targetStepIds }, parallelTargets: true };
 }
 
 export function inspectWorkflow(workflowPath, batonPath) {
   const { workflow, baton, cursorStep } = loadWorkflowAndBaton(workflowPath, batonPath);
-  return responseFor(baton, baton.cursor, cursorStep, workflow, { parallelTargets: shouldExposeParallelTargets(baton, cursorStep) });
+  const prepared = preparedParallelStep({ workflow, baton, cursorStep });
+  return responseFor(baton, baton.cursor, prepared.step, workflow, { parallelTargets: prepared.parallelTargets });
 }
 
 export function renderWorkflow(workflowPath, batonPath, options = {}) {
   const { workflow, baton, cursorStep } = loadWorkflowAndBaton(workflowPath, batonPath);
-  const response = responseFor(baton, baton.cursor, cursorStep, workflow, { parallelTargets: shouldExposeParallelTargets(baton, cursorStep) });
+  const prepared = preparedParallelStep({ workflow, baton, cursorStep });
+  const response = responseFor(baton, baton.cursor, prepared.step, workflow, { parallelTargets: prepared.parallelTargets });
   const rendered = {
     ...response,
     steps: renderStepPrompts({

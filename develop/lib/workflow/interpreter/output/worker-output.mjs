@@ -5,8 +5,8 @@ import { assertWorkerOutputSchema } from '../../schema-validation.mjs';
 import { validateAgainstOutputSchema, OUTPUT_SCHEMA_MAX_ATTEMPTS } from '../../output-schema-validation.mjs';
 import { invalidJsonOutputRetry, outputSchemaAttempt, responseForOutputSchemaRetry } from '../loop/guard.mjs';
 
-export function readWorkerOutputForStep({ outputPath, baton, stepId, step }) {
-  if (!step.output?.schema) return { workerOutput: readJson(outputPath, 'worker output'), retryResponse: undefined };
+export function readWorkerOutputForStep({ outputPath, baton, stepId, step, allOutput }) {
+  if (!step.output?.schema) return { workerOutput: allOutput ?? readJson(outputPath, 'worker output'), retryResponse: undefined };
   try {
     return { workerOutput: JSON.parse(readFileSync(outputPath, 'utf8')), retryResponse: undefined };
   } catch (error) {

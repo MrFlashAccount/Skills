@@ -2,10 +2,24 @@ import { statusForStep } from '../../model.mjs';
 import { applyOutputToBatonState } from '../../state.mjs';
 import { invariant } from '../../errors.mjs';
 import { resolveTransition } from '../../transitions.mjs';
+import { prepareParallelBranch } from '../parallel/render.mjs';
 import { responseFor } from '../output/response.mjs';
 
 export function applyNextTransition({ workflow, baton, cursorStep, workerOutput }) {
-  const { targetStepId, attempts } = resolveTransition({ workflow, baton, stepId: baton.cursor, step: cursorStep, output: workerOutput });
+  const { targetStepId, targetStepIds, attempts } = resolveTransition({ workflow, baton, stepId: baton.cursor, step: cursorStep, output: workerOutput });
+  if (targetStepIds) {
+    return prepareParallelBranch({
+      workflow,
+      baton,
+      stepId: baton.cursor,
+      step: cursorStep,
+      output: workerOutput,
+      attempts,
+      targets: targetStepIds,
+      storeStepOutput: true,
+    });
+  }
+
   const targetStep = workflow.steps[targetStepId];
   invariant(targetStep, `transition target not found in workflow: ${targetStepId}`);
 

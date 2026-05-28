@@ -1,7 +1,9 @@
 import { invariant } from '../../errors.mjs';
 import { statusForStep } from '../../model.mjs';
 import { readJson } from '../../json-io.mjs';
+import { isExpressionString, parsePathExpression } from '../../expressions/index.mjs';
 import { assertBatonSchema, assertWorkflowSchema } from '../../schema-validation.mjs';
+import { assertParallelTargets, assertTransitionTarget } from '../parallel/targets.mjs';
 
 export function loadWorkflowAndBaton(workflowPath, batonPath) {
   const workflowDoc = readJson(workflowPath, 'workflow');
@@ -45,7 +47,8 @@ function assertWorkflowTransitionTargets(workflow) {
 
     const next = step.next;
     if (typeof next === 'string') {
-      assertTransitionTarget(workflow, stepId, 'next', next);
+      if (isExpressionString(next)) parsePathExpression(next);
+      else assertTransitionTarget(workflow, stepId, 'next', next);
       continue;
     }
 
@@ -65,37 +68,4 @@ function assertWorkflowTransitionTargets(workflow) {
       assertTransitionTarget(workflow, stepId, `${path}.onLimit`, target.onLimit);
     }
   }
-}
-
-function assertTransitionTarget(workflow, stepId, fieldPath, targetStepId) {
-  invariant(
-    Object.hasOwn(workflow.steps, targetStepId),
-    `workflow step '${stepId}' transition '${fieldPath}' target not found: ${targetStepId}`,
-  );
-}
-
-function assertParallelTargets(workflow, stepId, targets) {
-  const joinTargets = new Set();
-  for (const targetStepId of targets) {
-    assertTransitionTarget(workflow, stepId, 'next', targetStepId);
-    invariant(targetStepId !== stepId, `workflow step '${stepId}' parallel branch cannot target itself`);
-
-    const targetStep = workflow.steps[targetStepId];
-    invariant(
-      targetStep.kind !== 'done' && targetStep.kind !== 'blocked',
-      `workflow step '${stepId}' parallel branch target '${targetStepId}' cannot be terminal`,
-    );
-    invariant(
-      !Array.isArray(targetStep.next),
-      `workflow step '${stepId}' parallel branch target '${targetStepId}' cannot start nested parallel steps`,
-    );
-    invariant(
-      typeof targetStep.next === 'string',
-      `workflow step '${stepId}' parallel branch target '${targetStepId}' must use a string next to an explicit join step`,
-    );
-    assertTransitionTarget(workflow, targetStepId, 'next', targetStep.next);
-    joinTargets.add(targetStep.next);
-  }
-
-  invariant(joinTargets.size === 1, `workflow step '${stepId}' parallel branch targets must share one explicit join step`);
 }
