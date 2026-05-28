@@ -1,55 +1,88 @@
 ---
 name: develop-workflow-runtime
-description: Use for requests that should run a baton workflow through bounded worker prompts, approval waits, and the workflow interpreter.
+description: Use for requests that should run a baton workflow through deterministic runner requests and host actions.
 ---
 
-# Workflow Runtime
+# Workflow Runtime Host Adapter
 
-Run the selected workflow definition from `<steps>`. Do not decide workflow transitions yourself.
+This skill is a thin host adapter. The code-level runner owns the workflow loop: start or resume the run, render the current step, apply host outputs, persist baton state, and repeat until a host action is needed or the workflow reaches `done` / `blocked`.
+
+The skill does not choose transitions and does not interpret workflow structure.
 
 ## Variables
 
-- `<run-dir>`: existing/current run state directory chosen by the caller/orchestrator.
-- `<workflow>`: workflow file provided by the caller, selected workflow definition, or configured workflow path.
-- `<baton.json>`: JSON file containing the current live baton.
-- `<steps>`: current executable step array returned by start-run or the workflow interpreter.
-- `<output.json>`: output from the worker subagent, user approval step, or parallel branch wrapper for `<steps>`.
-- `<apply-response.json>`: JSON response from `scripts/workflow-interpreter.mjs apply`; contains the returned baton and `steps[]`.
-- `<render-response.json>`: JSON response from `scripts/workflow-interpreter.mjs render`; contains `steps[]`, each with its rendered `compiledPrompt`.
-- `<decision>`: compact decision label for this loop application, if persist requires it.
-
-## Start run prerequisite
-
-Before entering the main loop, call the start script with `<run-dir>`:
-
-```bash
-scripts/start-run.mjs --run-dir <run-dir>
-```
-
-It returns `{ baton, steps }`. Put the returned baton into `<baton.json>` / baton variable, and put the returned steps into `<steps>`.
+- `RUN_DIR`: directory for one run, for example `/tmp/develop-run`.
+- `WORKFLOW`: optional workflow JSON path. If omitted, the runner uses `develop/dev-harness.workflow.json`.
 
 ## Main loop
 
-Strictly follow these four steps.
-
-1. Evaluate `<steps>`:
-   - if it has one step with `stop_done` or `stop_blocked`: exit the loop with the returned result.
-   - if it has one step with `run_worker`: render/build one bounded prompt from that step, launch exactly one bounded subagent/executor, and write the result to `<output.json>`.
-   - if it has more than one step: call `scripts/workflow-interpreter.mjs render <workflow> <baton.json>` and use `<render-response.json>.steps[]` to launch each branch prompt from `compiledPrompt`. Wait for every result, and write `<output.json>` as `{ "steps": { "<stepId>": <worker-or-approval-output> } }`. Parallel step outputs remain separate in `baton.state[stepId]`; the workflow then advances to the explicit join step.
-   - if it has one step with `wait_for_approval`: wait for explicit user response/approval, e.g. LGTM/ПОДТВЕРЖДАЮ as appropriate, then write that response to `<output.json>`.
-   - else: exit as blocked for unknown step action.
-2. Call workflow interpreter:
+1. Ask the runner for the next host work:
 
    ```bash
-   scripts/workflow-interpreter.mjs apply <workflow> <baton.json> <output.json>
+   node develop/scripts/workflow-runner.mjs next --run-dir "$RUN_DIR" --workflow "$WORKFLOW"
    ```
 
-   Store the response as `<apply-response.json>`. If it fails, exit as blocked; do not rerun the worker/approval step automatically.
-3. Call persist script with `<run-dir>`, `<apply-response.json>`, `<output.json>`, and `<decision>`:
+   For an existing run, use the same command or:
 
    ```bash
-   scripts/persist-run-state.mjs --run-dir <run-dir> --response <apply-response.json> --output <output.json> --decision "<decision>"
+   node develop/scripts/workflow-runner.mjs continue --run-dir "$RUN_DIR" --workflow "$WORKFLOW"
    ```
 
-   If persist fails, exit as blocked.
-4. Update `<baton.json>` from `<apply-response.json>.baton`, update `<steps>` from `<apply-response.json>.steps`, then return to step 1.
+2. Read the JSON response.
+
+   - `status: "needs_host_actions"`: execute every item in `requests[]` using available host capabilities.
+   - `status: "done"`: stop; report completion.
+   - `status: "blocked"`: stop; report the blocker from the baton.
+   - `status: "error"` or non-zero CLI exit: stop; report the error.
+
+3. For each request, do only the requested host action.
+
+   Request shape:
+
+   ```json
+   {
+     "id": "step_id",
+     "action": "run_worker",
+     "compiledPrompt": { "prompt": "..." },
+     "outputPath": "/path/to/run/outputs/step_id.json"
+   }
+   ```
+
+4. Write the host action result to exactly `outputPath` as JSON.
+
+   Worker or approval output should follow the normal envelope:
+
+   ```json
+   {
+     "outcome": "ready",
+     "results": [{ "type": "summary", "summary": "..." }]
+   }
+   ```
+
+   If the host lacks a required capability, write a blocked result instead of inventing a transition:
+
+   ```json
+   {
+     "outcome": "blocked",
+     "blocker": {
+       "reason": "missing host capability",
+       "needed": "..."
+     }
+   }
+   ```
+
+5. Call continue after outputs are written:
+
+   ```bash
+   node develop/scripts/workflow-runner.mjs continue --run-dir "$RUN_DIR" --workflow "$WORKFLOW"
+   ```
+
+6. Repeat until the runner returns `done` or `blocked`.
+
+## Rules
+
+- Do not choose branch, join, loop, retry, done, or blocked transitions in skill text.
+- Do not edit baton state by hand.
+- Do not add host-specific fields to workflow JSON or worker outputs.
+- Execute only host action requests returned by the runner.
+- Missing host capability becomes a blocked output at the requested path.
