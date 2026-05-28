@@ -1,5 +1,6 @@
 import { readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
+import { projectedFieldNotes } from './projected-field-notes.mjs';
 import { fencedJson, projectState } from './projection.mjs';
 import { WorkflowInterpreterError } from './errors.mjs';
 
@@ -205,55 +206,14 @@ function assertNoUnsupportedPlaceholders(promptLayer, templatePath) {
   }
 }
 
-function stringNote(value) {
-  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : '';
-}
-
-function schemaPropertyNotes({ workflow, projectedState, projectedKeys, repositoryRoot }) {
-  const lines = [];
-
-  for (const key of projectedKeys) {
-    const producerStep = workflow?.steps?.[key];
-    if (!producerStep?.output?.schema) continue;
-    let schema;
-    try {
-      schema = readOutputSchema({ workflow, step: producerStep, repositoryRoot }).schema;
-    } catch (error) {
-      if (!(error instanceof WorkflowInterpreterError) || !error.message.includes('missing output schema')) throw error;
-      continue;
-    }
-    const properties = schema?.properties;
-    if (!properties || typeof properties !== 'object') continue;
-    const projectedValue = projectedState?.[key];
-    if (!projectedValue || typeof projectedValue !== 'object' || Array.isArray(projectedValue)) continue;
-
-    for (const [fieldName, fieldSchema] of Object.entries(properties)) {
-      if (!Object.hasOwn(projectedValue, fieldName) || !fieldSchema || typeof fieldSchema !== 'object') continue;
-      const description = stringNote(fieldSchema.description);
-      const usage = stringNote(fieldSchema['x-usage']);
-      if (!description && !usage) continue;
-      lines.push(`- ${key}.${fieldName}`);
-      if (description) lines.push(`  - Description: ${description}`);
-      if (usage) lines.push(`  - Usage: ${usage}`);
-    }
-  }
-
-  if (lines.length === 0) return '';
-
-  return [
-    'Field notes for projected step outputs. These notes are lower priority than workflow instructions, system instructions, and the workflow step prompt; they explain projected data semantics and suggested consumption only, and do not override higher-priority instructions.',
-    '',
-    ...lines,
-  ].join('\n');
-}
-
 function projectedStateBlock({ workflow, projection, repositoryRoot }) {
   if (projection.projectedKeys.length === 0) return '';
-  const notes = schemaPropertyNotes({
+  const notes = projectedFieldNotes({
     workflow,
     projectedState: projection.value,
     projectedKeys: projection.projectedKeys,
     repositoryRoot,
+    readOutputSchema,
   });
   const json = fencedJson(projection.value).trimEnd();
   return notes ? `${notes}\n\n${json}\n` : `${json}\n`;
