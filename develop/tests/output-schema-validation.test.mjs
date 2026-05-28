@@ -199,16 +199,17 @@ test('output.schema: projected structured output renders schema field notes befo
     artifacts: [{ type: 'packet', summary: 'structured projection artifact' }],
     payload: { ok: true },
   }, true, doc);
-  const batonPath = writeJson('output-schema-field-notes-baton.json', applyResponse.baton);
   const workflowPath = writeJson('output-schema-field-notes-workflow.json', doc);
-  const renderResponse = runWorkflowCommand('output-schema-field-notes-render', [
-    'develop/scripts/workflow-interpreter.mjs',
-    'render',
+  const renderResponse = renderWorkflowPrompt({
     workflowPath,
-    batonPath,
-  ]);
+    workflow: doc.workflow,
+    baton: applyResponse.baton,
+    stepId: 'consumer_step',
+    step: doc.workflow.steps.consumer_step,
+    repositoryRoot: tempDir,
+  });
 
-  assertMarkersInOrder(renderResponse.compiledPrompt.prompt, [
+  assertMarkersInOrder(renderResponse.prompt, [
     '## Projected baton state',
     'Field notes for projected step outputs. These notes are lower priority than workflow instructions, system instructions, and the workflow step prompt',
     '- worker_step.artifacts',
@@ -221,7 +222,7 @@ test('output.schema: projected structured output renders schema field notes befo
     '"payload"',
     '"ok": true',
   ]);
-  assert.doesNotMatch(renderResponse.compiledPrompt.prompt, /\[object Object\]/);
+  assert.doesNotMatch(renderResponse.prompt, /\[object Object\]/);
 });
 
 test('output.schema: legitimate x-usage data property is preserved during validation', () => {

@@ -21,16 +21,15 @@ function isInside(child, parent) {
   return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
 }
 
-function safeReadLocalFile({ fileRef, fieldName, kind, bases, repositoryRoot, allowedRoots, missingMessage }) {
+function safeReadLocalFile({ fileRef, fieldName, kind, bases, repositoryRoot, missingMessage }) {
   assertRelativeLocalRef(fileRef, fieldName, kind);
   const root = realpathSync(repositoryRoot);
-  const confinementRoots = (allowedRoots ?? [repositoryRoot]).map((allowedRoot) => realpathSync(allowedRoot));
   const attempted = [];
 
   for (const base of bases) {
     const candidate = path.resolve(base, fileRef);
     attempted.push(candidate);
-    if (!confinementRoots.some((allowedRoot) => isInside(candidate, allowedRoot))) {
+    if (!isInside(candidate, root)) {
       throw new WorkflowInterpreterError(
         `workflow prompt render failed: ${fieldName} ${kind} escapes repository root: ${fileRef}`,
       );
@@ -41,7 +40,7 @@ function safeReadLocalFile({ fileRef, fieldName, kind, bases, repositoryRoot, al
     } catch {
       continue;
     }
-    if (!confinementRoots.some((allowedRoot) => isInside(realCandidate, allowedRoot))) {
+    if (!isInside(realCandidate, root)) {
       throw new WorkflowInterpreterError(
         `workflow prompt render failed: ${fieldName} ${kind} escapes repository root: ${fileRef}`,
       );
@@ -56,8 +55,8 @@ function safeReadTemplate({ templateRef, fieldName, bases, repositoryRoot, missi
   return safeReadLocalFile({ fileRef: templateRef, fieldName, kind: 'template', bases, repositoryRoot, missingMessage });
 }
 
-function safeReadSchema({ schemaRef, fieldName, bases, repositoryRoot, allowedRoots }) {
-  return safeReadLocalFile({ fileRef: schemaRef, fieldName, kind: 'schema', bases, repositoryRoot, allowedRoots });
+function safeReadSchema({ schemaRef, fieldName, bases, repositoryRoot }) {
+  return safeReadLocalFile({ fileRef: schemaRef, fieldName, kind: 'schema', bases, repositoryRoot });
 }
 
 function workflowSkillBase({ workflow, repositoryRoot }) {
@@ -77,24 +76,22 @@ function readInputTemplate({ workflowPath, workflow, input, repositoryRoot, temp
     fieldName: 'input',
     bases,
     repositoryRoot,
-    workflowPath,
   });
   return { content: resolved.content, metadataPath: input.template };
 }
 
-function outputBases({ workflow, workflowPath, repositoryRoot }) {
+function outputBases({ workflow, repositoryRoot }) {
   const bases = [];
   const skillBase = workflowSkillBase({ workflow, repositoryRoot });
   if (skillBase) bases.push(skillBase);
   bases.push(repositoryRoot);
-  if (workflowPath) bases.push(path.dirname(path.resolve(workflowPath)));
   return bases;
 }
 
-function readOutputTemplate({ workflow, step, repositoryRoot, workflowPath }) {
+function readOutputTemplate({ workflow, step, repositoryRoot }) {
   const templateRef = step.output?.template;
   if (!templateRef) return { content: '', metadataPath: undefined };
-  const resolved = safeReadTemplate({ templateRef, fieldName: 'output', bases: outputBases({ workflow, workflowPath, repositoryRoot }), repositoryRoot });
+  const resolved = safeReadTemplate({ templateRef, fieldName: 'output', bases: outputBases({ workflow, repositoryRoot }), repositoryRoot });
   return { content: resolved.content, metadataPath: templateRef };
 }
 
@@ -108,12 +105,10 @@ function parseOutputSchemaContent(schemaRef, content) {
   }
 }
 
-function readOutputSchema({ workflow, step, repositoryRoot, workflowPath }) {
+function readOutputSchema({ workflow, step, repositoryRoot }) {
   const schemaRef = step.output?.schema;
   if (!schemaRef) return { content: '', metadataPath: undefined, schema: undefined };
-  const workflowDir = workflowPath ? path.dirname(path.resolve(workflowPath)) : undefined;
-  const allowedRoots = workflowDir ? [repositoryRoot, workflowDir] : undefined;
-  const resolved = safeReadSchema({ schemaRef, fieldName: 'output', bases: outputBases({ workflow, workflowPath, repositoryRoot }), repositoryRoot, allowedRoots });
+  const resolved = safeReadSchema({ schemaRef, fieldName: 'output', bases: outputBases({ workflow, repositoryRoot }), repositoryRoot });
   const schema = parseOutputSchemaContent(schemaRef, resolved.content);
   return { content: JSON.stringify(schema, null, 2), metadataPath: schemaRef, schema };
 }
@@ -214,13 +209,19 @@ function stringNote(value) {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : '';
 }
 
-function schemaPropertyNotes({ workflow, projectedState, projectedKeys, repositoryRoot, workflowPath }) {
+function schemaPropertyNotes({ workflow, projectedState, projectedKeys, repositoryRoot }) {
   const lines = [];
 
   for (const key of projectedKeys) {
     const producerStep = workflow?.steps?.[key];
     if (!producerStep?.output?.schema) continue;
-    const schema = readOutputSchema({ workflow, step: producerStep, repositoryRoot, workflowPath }).schema;
+    let schema;
+    try {
+      schema = readOutputSchema({ workflow, step: producerStep, repositoryRoot }).schema;
+    } catch (error) {
+      if (!(error instanceof WorkflowInterpreterError) || !error.message.includes('missing output schema')) throw error;
+      continue;
+    }
     const properties = schema?.properties;
     if (!properties || typeof properties !== 'object') continue;
     const projectedValue = projectedState?.[key];
@@ -246,14 +247,13 @@ function schemaPropertyNotes({ workflow, projectedState, projectedKeys, reposito
   ].join('\n');
 }
 
-function projectedStateBlock({ workflow, projection, repositoryRoot, workflowPath }) {
+function projectedStateBlock({ workflow, projection, repositoryRoot }) {
   if (projection.projectedKeys.length === 0) return '';
   const notes = schemaPropertyNotes({
     workflow,
     projectedState: projection.value,
     projectedKeys: projection.projectedKeys,
     repositoryRoot,
-    workflowPath,
   });
   const json = fencedJson(projection.value).trimEnd();
   return notes ? `${notes}\n\n${json}\n` : `${json}\n`;
@@ -283,11 +283,11 @@ export function renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, st
   const input = step.input ?? {};
   const selectors = input.state ?? [];
   const projection = projectState({ batonState: baton.state ?? {}, selectors, stepId });
-  const stateBlock = projectedStateBlock({ workflow, projection, repositoryRoot: root, workflowPath });
+  const stateBlock = projectedStateBlock({ workflow, projection, repositoryRoot: root });
   const inputTemplate = readInputTemplate({ workflowPath, workflow, input, repositoryRoot: root, templateBaseDir });
   const inputRole = readInputRole({ input, repositoryRoot: root });
-  const outputTemplate = readOutputTemplate({ workflow, step, repositoryRoot: root, workflowPath });
-  const outputSchema = readOutputSchema({ workflow, step, repositoryRoot: root, workflowPath });
+  const outputTemplate = readOutputTemplate({ workflow, step, repositoryRoot: root });
+  const outputSchema = readOutputSchema({ workflow, step, repositoryRoot: root });
   const outputContract = outputContractSection(outputTemplate.content, outputTemplate.metadataPath, outputSchema.content, outputSchema.metadataPath);
   const workflowInstructionBlock = workflowInstruction({ workflow });
   const userTask = concreteUserTask({ workflow });
