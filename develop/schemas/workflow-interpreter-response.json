@@ -12,9 +12,23 @@
       "properties": {
         "id": { "type": "string" },
         "action": {
-          "enum": ["run_worker", "wait_for_approval", "stop_done", "stop_blocked"]
+          "enum": ["run_worker", "wait_for_approval", "run_parallel", "stop_done", "stop_blocked"]
         },
-        "step": { "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/workflow#/$defs/step" }
+        "step": { "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/workflow#/$defs/step" },
+        "parallel": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "action", "step"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "action": { "enum": ["run_worker", "wait_for_approval"] },
+              "step": { "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/workflow#/$defs/step" }
+            },
+            "additionalProperties": false
+          }
+        }
       },
       "additionalProperties": false
     },
