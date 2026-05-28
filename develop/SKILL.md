@@ -1,15 +1,16 @@
 ---
-name: develop-dev-harness
-description: Use for coding requests that should run the DevHarness baton workflow through bounded worker prompts, approval waits, and the workflow interpreter.
+name: develop-workflow-runtime
+description: Use for requests that should run a baton workflow through bounded worker prompts, approval waits, and the workflow interpreter.
 ---
 
-# Dev Harness
+# Workflow Runtime
 
-Run the DevHarness workflow from `<directive>`. Do not decide workflow transitions yourself.
+Run the selected workflow definition from `<directive>`. Do not decide workflow transitions yourself.
 
 ## Variables
 
 - `<run-dir>`: existing/current run state directory chosen by the caller/orchestrator.
+- `<workflow>`: workflow file provided by the caller, selected workflow definition, or configured workflow path.
 - `<baton.json>`: JSON file containing the current live baton.
 - `<directive>`: current workflow directive returned by start-run or the workflow interpreter.
 - `<output.json>`: output from the worker subagent or user approval step for `<directive>`.
@@ -34,13 +35,13 @@ Strictly follow these four steps.
 1. Evaluate `<directive>.action`:
    - if `stop_done` or `stop_blocked`: exit the loop with the returned result.
    - if `run_worker`: render/build one bounded prompt from `<directive>`, launch exactly one bounded subagent/executor, and write the result to `<output.json>`.
-   - if `run_parallel`: call `scripts/workflow-interpreter.mjs render dev-harness.workflow.json <baton.json>` and use `<render-response.json>.compiledParallelPrompts[]` to launch each branch prompt. Wait for every result, and write `<output.json>` as `{ "steps": { "<stepId>": <worker-or-approval-output> } }`. Parallel step outputs remain separate in `baton.state[stepId]`; the workflow then advances to the explicit join step.
+   - if `run_parallel`: call `scripts/workflow-interpreter.mjs render <workflow> <baton.json>` and use `<render-response.json>.compiledParallelPrompts[]` to launch each branch prompt. Wait for every result, and write `<output.json>` as `{ "steps": { "<stepId>": <worker-or-approval-output> } }`. Parallel step outputs remain separate in `baton.state[stepId]`; the workflow then advances to the explicit join step.
    - if `wait_for_approval`: wait for explicit user response/approval, e.g. LGTM/ПОДТВЕРЖДАЮ as appropriate, then write that response to `<output.json>`.
    - else: exit as blocked for unknown `<directive>.action`.
 2. Call workflow interpreter:
 
    ```bash
-   scripts/workflow-interpreter.mjs apply dev-harness.workflow.json <baton.json> <output.json>
+   scripts/workflow-interpreter.mjs apply <workflow> <baton.json> <output.json>
    ```
 
    Store the response as `<apply-response.json>`. If it fails, exit as blocked; do not rerun the worker/approval step automatically.
