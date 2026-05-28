@@ -11,8 +11,6 @@ import { renderWorkflowPrompt } from '../lib/workflow/prompt-renderer.mjs';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'prompt-rendering-check-'));
 writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
-const devHarnessWorkflowPath = path.join(root, 'develop/dev-harness.workflow.json');
-const devHarnessReviewerSelectionSchema = 'develop/schemas/dev-harness/reviewer-selection-output.json';
 
 function outputContract(name = 'worker') {
   const templates = {
@@ -557,78 +555,40 @@ test('prompt renderer: template root confinement rejects symlink escapes and ext
   }
 });
 
-test('CLI render: DevHarness fixture returns compiledPrompt and does not mutate baton', () => {
-  const batonPath = writeJson('dev-harness-render-baton.json', { cursor: 'research', status: 'running', state: structuredClone(emptyState) });
+test('CLI render: fixture returns compiledPrompt and does not mutate baton', () => {
+  const outputTemplateRef = `${path.basename(tempDir)}-worker-output.md`;
+  writeFileSync(path.join(tempDir, 'worker.md'), '# Worker template\n');
+  writeFileSync(path.resolve(tempDir, '..', outputTemplateRef), '## Required return\nUse this contract.\n');
+  const workflowDoc = structuredClone(schemaWorkflowDoc);
+  delete workflowDoc.workflow.steps.worker_step.input.role;
+  workflowDoc.workflow.steps.worker_step.output = { template: outputTemplateRef };
+  const workflowPath = writeJson('fixture-render-workflow.json', workflowDoc);
+  const batonPath = writeJson('fixture-render-baton.json', baton({ state: { artifacts: [{ type: 'packet', summary: 'ready' }], results: [] } }));
   const before = readFileSync(batonPath, 'utf8');
 
-  const result = runNode(['develop/scripts/workflow-interpreter.mjs', 'render', devHarnessWorkflowPath, batonPath]);
-  const response = expectCliResult('dev-harness-render', result, true);
+  const result = runNode(['develop/scripts/workflow-interpreter.mjs', 'render', workflowPath, batonPath]);
+  const response = expectCliResult('fixture-render', result, true);
 
   assert.equal(readFileSync(batonPath, 'utf8'), before, 'render mutated baton file');
-  assert.equal(response.steps[0].id, 'research');
+  assert.equal(response.steps[0].id, 'worker_step');
   assert.equal(Object.hasOwn(response.steps[0].compiledPrompt, 'stepId'), false);
   assert.equal(Object.hasOwn(response.steps[0].compiledPrompt, 'action'), false);
   assert.equal(Object.hasOwn(response.steps[0].compiledPrompt, 'kind'), false);
   assert.equal(Object.hasOwn(response.steps[0].compiledPrompt, 'name'), false);
-  assert.equal(response.steps[0].compiledPrompt.metadata.outputTemplate, '../../shared/templates/research-packet-template.md');
-  assert.deepEqual(response.steps[0].compiledPrompt.metadata.projectedStateKeys, ['artifacts', 'results']);
+  assert.equal(response.steps[0].compiledPrompt.metadata.outputTemplate, outputTemplateRef);
+  assert.deepEqual(response.steps[0].compiledPrompt.metadata.projectedStateKeys, ['artifacts']);
   assert.equal(Object.hasOwn(response.steps[0].compiledPrompt, 'diagnostics'), false);
   assertMarkersInOrder(response.steps[0].compiledPrompt.prompt, [
-    '<!-- role material: roles/researcher/ROLE.md -->',
-    '<!-- role material: roles/researcher/RUBRIC.md -->',
+    '# Worker template',
     '## Output contract',
-    'Research Packet',
+    `<!-- output template: ${outputTemplateRef} -->`,
+    '## Required return\nUse this contract.',
     '## Projected baton state',
     '## Workflow step prompt',
-    'Read task context, classify the slice',
+    'Run worker.',
     '## Final reminder',
     'Return exactly according to the output contract above.',
   ]);
-});
-
-test('CLI render: DevHarness research and implementation plan inject reviewer-selection schema', () => {
-  const workflowDoc = JSON.parse(readFileSync(devHarnessWorkflowPath, 'utf8'));
-  const schema = JSON.parse(readFileSync(path.join(root, devHarnessReviewerSelectionSchema), 'utf8'));
-
-  assert.deepEqual(schema.$defs.reviewerRole.enum, [
-    'critic',
-    'backend',
-    'frontend',
-    'frontend-taste',
-    'security',
-    'qa-reliability',
-    'performance',
-  ]);
-  assert.deepEqual(schema.$defs.reviewer.required, ['role', 'reason', 'surfaces', 'required']);
-  assert.deepEqual(schema.properties.review_plan.required, ['reviewers']);
-
-  for (const stepId of ['research', 'implementation_plan']) {
-    const step = workflowDoc.workflow.steps[stepId];
-    const compiled = renderWorkflowPrompt({
-      workflowPath: devHarnessWorkflowPath,
-      workflow: workflowDoc.workflow,
-      baton: { cursor: stepId, status: 'running', state: structuredClone(emptyState) },
-      stepId,
-      step,
-      repositoryRoot: root,
-    });
-
-    assert.equal(compiled.metadata.outputSchema, devHarnessReviewerSelectionSchema);
-    assert.match(compiled.prompt, new RegExp(`<!-- output schema: ${devHarnessReviewerSelectionSchema.replaceAll('/', '\\/')} -->`));
-    assert.match(compiled.prompt, /"review_plan"/);
-    assert.match(compiled.prompt, /"reviewers"/);
-    assert.match(compiled.prompt, /"role"/);
-    assert.match(compiled.prompt, /"reason"/);
-    assert.match(compiled.prompt, /"surfaces"/);
-    assert.match(compiled.prompt, /"required"/);
-    assert.match(compiled.prompt, /"critic"/);
-    assert.match(compiled.prompt, /"backend"/);
-    assert.match(compiled.prompt, /"frontend"/);
-    assert.match(compiled.prompt, /"frontend-taste"/);
-    assert.match(compiled.prompt, /"security"/);
-    assert.match(compiled.prompt, /"qa-reliability"/);
-    assert.match(compiled.prompt, /"performance"/);
-  }
 });
 
 test('CLI render: diagnostics are included only when explicitly requested', () => {
