@@ -1,8 +1,29 @@
-import validateBatonSchema from '../../dist/validators/baton.mjs';
-import validateWorkflowSchema from '../../dist/validators/workflow.mjs';
-import validateWorkerOutputSchema from '../../dist/validators/worker-output.mjs';
-import validateWorkflowInterpreterResponseSchema from '../../dist/validators/workflow-interpreter-response.mjs';
+import batonSchema from '../../schemas/baton.json' with { type: 'json' };
+import reviewerSelectionOutputSchema from '../../schemas/dev-harness/reviewer-selection-output.json' with { type: 'json' };
+import workflowInterpreterCliArgsSchema from '../../schemas/internal/cli-args/workflow-interpreter.json' with { type: 'json' };
+import workerOutputSchema from '../../schemas/worker-output.json' with { type: 'json' };
+import workflowInterpreterResponseSchema from '../../schemas/workflow-interpreter-response.json' with { type: 'json' };
+import workflowSchema from '../../schemas/workflow.json' with { type: 'json' };
+import { validateJsonSchema } from '../json-schema-validation.mjs';
 import { WorkflowInterpreterError } from './errors.mjs';
+
+export const workflowSchemas = [
+  batonSchema,
+  reviewerSelectionOutputSchema,
+  workflowInterpreterCliArgsSchema,
+  workerOutputSchema,
+  workflowInterpreterResponseSchema,
+  workflowSchema,
+];
+
+export {
+  batonSchema,
+  reviewerSelectionOutputSchema,
+  workflowInterpreterCliArgsSchema,
+  workerOutputSchema,
+  workflowInterpreterResponseSchema,
+  workflowSchema,
+};
 
 export function formatSchemaErrors(errors = []) {
   return errors
@@ -10,22 +31,23 @@ export function formatSchemaErrors(errors = []) {
     .join('; ');
 }
 
-export function assertSchema(validate, value, name) {
-  if (!validate(value)) throw new WorkflowInterpreterError(`${name} failed schema validation: ${formatSchemaErrors(validate.errors)}`);
+export function assertSchema(schema, value, name) {
+  const validation = validateJsonSchema(schema, value, { schemas: workflowSchemas });
+  if (!validation.ok) throw new WorkflowInterpreterError(`${name} failed schema validation: ${formatSchemaErrors(validation.errors)}`);
 }
 
 export function assertWorkflowSchema(workflowDoc) {
-  assertSchema(validateWorkflowSchema, workflowDoc, 'workflow');
+  assertSchema(workflowSchema, workflowDoc, 'workflow');
 }
 
 export function assertBatonSchema(baton) {
-  assertSchema(validateBatonSchema, baton, 'baton');
+  assertSchema(batonSchema, baton, 'baton');
 }
 
 export function assertWorkerOutputSchema(workerOutput) {
-  assertSchema(validateWorkerOutputSchema, workerOutput, 'worker output');
+  assertSchema(workerOutputSchema, workerOutput, 'worker output');
 }
 
 export function assertResponseSchema(response) {
-  assertSchema(validateWorkflowInterpreterResponseSchema, response, 'workflow interpreter response');
+  assertSchema(workflowInterpreterResponseSchema, response, 'workflow interpreter response');
 }
