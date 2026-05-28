@@ -143,7 +143,7 @@ function expectCliResult(label, result, expectSuccess) {
 
   const response = JSON.parse(result.stdout);
   assert.ok(response.baton, `check '${label}' returned no baton`);
-  assert.ok(response.directive, `check '${label}' returned no directive`);
+  assert.ok(response.steps[0], `check '${label}' returned no step`);
   return response;
 }
 
@@ -175,12 +175,12 @@ function runApply(label, batonDoc, workerOutput, expectSuccess = true, workflowD
 function scriptedApplyLoop(label, workflowDoc, initialBaton, scriptedOutputs, { maxSteps = 12 } = {}) {
   const history = [];
   let currentBaton = structuredClone(initialBaton);
-  let currentDirective = runInspect(`${label}-inspect-0`, currentBaton, true, workflowDoc).directive;
+  let currentDirective = runInspect(`${label}-inspect-0`, currentBaton, true, workflowDoc).steps[0];
 
   for (let index = 0; index < maxSteps; index += 1) {
     history.push({ cursor: currentBaton.cursor, action: currentDirective.action });
     if (currentDirective.action === 'stop_done' || currentDirective.action === 'stop_blocked') {
-      return { baton: currentBaton, directive: currentDirective, history };
+      return { baton: currentBaton, steps: [currentDirective], history };
     }
 
     const queue = scriptedOutputs[currentBaton.cursor];
@@ -188,7 +188,7 @@ function scriptedApplyLoop(label, workflowDoc, initialBaton, scriptedOutputs, { 
     const workerOutput = queue.shift();
     const response = runApply(`${label}-apply-${index}-${currentBaton.cursor}`, currentBaton, workerOutput, true, workflowDoc);
     currentBaton = response.baton;
-    currentDirective = response.directive;
+    currentDirective = response.steps[0];
   }
 
   assert.fail(`scripted workflow did not reach a terminal action within ${maxSteps} steps`);
@@ -205,11 +205,11 @@ test('schema workflow fixture: DevHarness JSON is accepted without DevHarness-sp
     runNode(['develop/scripts/workflow-interpreter.mjs', 'inspect', devHarnessWorkflowPath, batonPath]),
     true,
   );
-  assert.equal(response.directive.id, 'research');
-  assert.equal(response.directive.action, 'run_worker');
-  assert.equal(response.directive.step.kind, 'worker');
-  assert.deepEqual(response.directive.step.input.state, ['artifacts', 'results']);
-  assert.deepEqual(response.directive.step.output, {
+  assert.equal(response.steps[0].id, 'research');
+  assert.equal(response.steps[0].action, 'run_worker');
+  assert.equal(response.steps[0].step.kind, 'worker');
+  assert.deepEqual(response.steps[0].step.input.state, ['artifacts', 'results']);
+  assert.deepEqual(response.steps[0].step.output, {
     template: '../../shared/templates/research-packet-template.md',
     schema: devHarnessReviewerSelectionSchema,
   });
@@ -254,7 +254,7 @@ test('schema validation: workflow accepts output template and schema refs on wor
 
   const response = runInspect('output-template-schema-ref-valid', baton(), true, workflowDoc);
 
-  assert.deepEqual(response.directive.step.output, {
+  assert.deepEqual(response.steps[0].step.output, {
     template: '../../shared/templates/research-packet-template.md',
     schema: 'schemas/worker-output.json',
   });
@@ -316,9 +316,9 @@ test('schema workflow fixture: workflow-scoped extensions are accepted and ignor
   };
 
   const response = runInspect('workflow-scoped-extension', baton(), true, workflowDoc);
-  assert.equal(response.directive.id, 'worker_step');
-  assert.equal(response.directive.action, 'run_worker');
-  assert.equal(response.directive.step.input.template, 'worker.md');
+  assert.equal(response.steps[0].id, 'worker_step');
+  assert.equal(response.steps[0].action, 'run_worker');
+  assert.equal(response.steps[0].step.input.template, 'worker.md');
   assert.equal(Object.hasOwn(response, 'operatorHints'), false);
 });
 
@@ -339,7 +339,7 @@ test('e2e: scripted wrapper runs worker to approval to worker/review to done', (
     review_worker: [output({ outcome: 'ready', results: [{ type: 'review', summary: 'reviewed' }] })],
   });
 
-  assert.equal(final.directive.action, 'stop_done');
+  assert.equal(final.steps[0].action, 'stop_done');
   assert.equal(final.baton.cursor, 'done');
   assert.deepEqual(final.history.map((entry) => entry.cursor), [
     'worker_step',
@@ -373,7 +373,7 @@ test('e2e: approval rejection loops back to worker before successful done', () =
     review_worker: [output({ outcome: 'ready' })],
   });
 
-  assert.equal(final.directive.action, 'stop_done');
+  assert.equal(final.steps[0].action, 'stop_done');
   assert.deepEqual(final.history.map((entry) => entry.cursor), [
     'worker_step',
     'approval_step',
@@ -391,7 +391,7 @@ test('e2e: scripted blocked branch reaches stop_blocked with blocker carried on 
     worker_step: [output({ outcome: 'blocked', blocker: { reason: 'missing dependency' } })],
   });
 
-  assert.equal(final.directive.action, 'stop_blocked');
+  assert.equal(final.steps[0].action, 'stop_blocked');
   assert.equal(final.baton.cursor, 'blocked');
   assert.deepEqual(final.baton.blocker, { reason: 'missing dependency' });
   assert.deepEqual(final.history.map((entry) => entry.cursor), ['worker_step', 'blocked']);
@@ -436,47 +436,48 @@ test('e2e: non-retry transition cycles stop at the deterministic scripted loop g
 
 test('inspect: worker kind resolves to run_worker and preserves input data', () => {
   const response = runInspect('inspect-worker', baton());
-  assert.equal(response.directive.id, 'worker_step');
-  assert.equal(response.directive.action, 'run_worker');
-  assert.equal(response.directive.step.kind, 'worker');
-  assert.equal(response.directive.step.input.role, 'backend');
+  assert.equal(response.steps[0].id, 'worker_step');
+  assert.equal(response.steps[0].action, 'run_worker');
+  assert.equal(response.steps[0].step.kind, 'worker');
+  assert.equal(response.steps[0].step.input.role, 'backend');
 });
 
 test('inspect: approval kind resolves to wait_for_approval', () => {
   const response = runInspect('inspect-approval', baton({ cursor: 'approval_step' }));
-  assert.equal(response.directive.id, 'approval_step');
-  assert.equal(response.directive.action, 'wait_for_approval');
+  assert.equal(response.steps[0].id, 'approval_step');
+  assert.equal(response.steps[0].action, 'wait_for_approval');
 });
 
-test('inspect: done and blocked kinds resolve to stop directives', () => {
+test('inspect: done and blocked kinds resolve to stop steps', () => {
   const done = runInspect('inspect-done', baton({ cursor: 'done', status: 'done' }));
   const blocked = runInspect('inspect-blocked', baton({ cursor: 'blocked', status: 'blocked' }));
-  assert.equal(done.directive.action, 'stop_done');
-  assert.equal(blocked.directive.action, 'stop_blocked');
+  assert.equal(done.steps[0].action, 'stop_done');
+  assert.equal(blocked.steps[0].action, 'stop_blocked');
 });
 
-test('inspect: approval and terminal directives expose only canonical response fields', () => {
-  const approval = runInspect('inspect-approval-directive-shape', baton({ cursor: 'approval_step' }));
-  const done = runInspect('inspect-done-directive-shape', baton({ cursor: 'done', status: 'done' }));
-  const blocked = runInspect('inspect-blocked-directive-shape', baton({ cursor: 'blocked', status: 'blocked' }));
+test('inspect: approval and terminal steps expose only canonical response fields', () => {
+  const approval = runInspect('inspect-approval-step-shape', baton({ cursor: 'approval_step' }));
+  const done = runInspect('inspect-done-step-shape', baton({ cursor: 'done', status: 'done' }));
+  const blocked = runInspect('inspect-blocked-step-shape', baton({ cursor: 'blocked', status: 'blocked' }));
 
   for (const response of [approval, done, blocked]) {
-    assert.deepEqual(Object.keys(response), ['baton', 'directive']);
-    assert.deepEqual(Object.keys(response.directive), ['id', 'action', 'step']);
+    assert.deepEqual(Object.keys(response), ['baton', 'steps']);
+    assert.equal(response.steps.length, 1);
+    assert.deepEqual(Object.keys(response.steps[0]), ['id', 'action', 'step']);
   }
 
-  assert.deepEqual(approval.directive, {
+  assert.deepEqual(approval.steps[0], {
     id: 'approval_step',
     action: 'wait_for_approval',
     step: schemaWorkflowDoc.workflow.steps.approval_step,
   });
-  assert.deepEqual(done.directive, { id: 'done', action: 'stop_done', step: schemaWorkflowDoc.workflow.steps.done });
-  assert.deepEqual(blocked.directive, { id: 'blocked', action: 'stop_blocked', step: schemaWorkflowDoc.workflow.steps.blocked });
-  assert.equal(Object.hasOwn(done.directive.step, 'next'), false);
-  assert.equal(Object.hasOwn(blocked.directive.step, 'next'), false);
+  assert.deepEqual(done.steps[0], { id: 'done', action: 'stop_done', step: schemaWorkflowDoc.workflow.steps.done });
+  assert.deepEqual(blocked.steps[0], { id: 'blocked', action: 'stop_blocked', step: schemaWorkflowDoc.workflow.steps.blocked });
+  assert.equal(Object.hasOwn(done.steps[0].step, 'next'), false);
+  assert.equal(Object.hasOwn(blocked.steps[0].step, 'next'), false);
 });
 
-test('runtime: non-root terminal step kinds resolve terminal status and stop directives', () => {
+test('runtime: non-root terminal step kinds resolve terminal status and stop steps', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
   workflowDoc.workflow.steps.archived_done = { name: 'Archived done', kind: 'done', input: { prompt: 'Archived finish.' } };
   workflowDoc.workflow.steps.deferred_blocked = { name: 'Deferred blocked', kind: 'blocked', input: { prompt: 'Deferred blockage.' } };
@@ -484,12 +485,12 @@ test('runtime: non-root terminal step kinds resolve terminal status and stop dir
   const done = runInspect('inspect-non-root-done', baton({ cursor: 'archived_done', status: 'done' }), true, workflowDoc);
   const blocked = runInspect('inspect-non-root-blocked', baton({ cursor: 'deferred_blocked', status: 'blocked' }), true, workflowDoc);
 
-  assert.equal(done.directive.action, 'stop_done');
+  assert.equal(done.steps[0].action, 'stop_done');
   assert.equal(done.baton.status, 'done');
-  assert.equal(done.directive.step.input.prompt, 'Archived finish.');
-  assert.equal(blocked.directive.action, 'stop_blocked');
+  assert.equal(done.steps[0].step.input.prompt, 'Archived finish.');
+  assert.equal(blocked.steps[0].action, 'stop_blocked');
   assert.equal(blocked.baton.status, 'blocked');
-  assert.equal(blocked.directive.step.input.prompt, 'Deferred blockage.');
+  assert.equal(blocked.steps[0].step.input.prompt, 'Deferred blockage.');
 });
 test('runtime: terminal cursors reject apply instead of advancing again', () => {
   const done = runApply('apply-terminal-done', baton({ cursor: 'done', status: 'done' }), output(), false);
@@ -514,7 +515,7 @@ test('apply: mapped next by worker output field advances to selected target', ()
   const response = runApply('map-by-outcome', baton(), output());
   assert.equal(response.baton.cursor, 'approval_step');
   assert.equal(response.baton.status, 'running');
-  assert.equal(response.directive.action, 'wait_for_approval');
+  assert.equal(response.steps[0].action, 'wait_for_approval');
   assert.equal(response.baton.state.artifacts.at(-1).type, 'packet');
 });
 
@@ -664,14 +665,14 @@ test('apply: blocked transition without blocker clears stale blocker details', (
 
   assert.equal(response.baton.cursor, 'blocked');
   assert.equal(response.baton.status, 'blocked');
-  assert.equal(response.directive.action, 'stop_blocked');
+  assert.equal(response.steps[0].action, 'stop_blocked');
   assert.equal(Object.hasOwn(response.baton, 'blocker'), false);
 });
 
 test('apply: mapped next by approval output field advances to selected target', () => {
   const response = runApply('map-by-approval', baton({ cursor: 'approval_step' }), { approval: 'approved', results: [{ type: 'approval', summary: 'yes' }] });
   assert.equal(response.baton.cursor, 'direct_next_worker');
-  assert.equal(response.directive.action, 'run_worker');
+  assert.equal(response.steps[0].action, 'run_worker');
   assert.equal(response.baton.state.results.at(-1).type, 'approval');
 });
 
@@ -724,9 +725,9 @@ test('apply: next directive exposes target step input state selectors after tran
     { approval: 'approved', results: [{ type: 'approval', summary: 'approved' }] },
   );
 
-  assert.equal(response.directive.id, 'direct_next_worker');
-  assert.equal(response.directive.action, 'run_worker');
-  assert.deepEqual(response.directive.step.input.state, ['results']);
+  assert.equal(response.steps[0].id, 'direct_next_worker');
+  assert.equal(response.steps[0].action, 'run_worker');
+  assert.deepEqual(response.steps[0].step.input.state, ['results']);
   assert.deepEqual(response.baton.state.artifacts, [{ type: 'packet', summary: 'ready packet' }]);
   assert.deepEqual(response.baton.state.results, [{ type: 'approval', summary: 'approved' }]);
 });
@@ -741,14 +742,14 @@ test('apply: approval blocked transition carries blocker and resolves blocked te
   assert.equal(response.baton.cursor, 'blocked');
   assert.equal(response.baton.status, 'blocked');
   assert.deepEqual(response.baton.blocker, { reason: 'approver needs stakeholder decision' });
-  assert.equal(response.directive.action, 'stop_blocked');
+  assert.equal(response.steps[0].action, 'stop_blocked');
 });
 
 test('apply: string next advances without consulting transition value', () => {
   const response = runApply('string-next', baton({ cursor: 'direct_next_worker' }), output({ outcome: 'anything' }));
   assert.equal(response.baton.cursor, 'done');
   assert.equal(response.baton.status, 'done');
-  assert.equal(response.directive.action, 'stop_done');
+  assert.equal(response.steps[0].action, 'stop_done');
 });
 
 test('validation: direct string next still enforces worker output vocabulary before terminal transition', () => {
@@ -776,7 +777,7 @@ test('apply: direct string next still merges output state before resolving termi
 
   assert.equal(response.baton.cursor, 'done');
   assert.equal(response.baton.status, 'done');
-  assert.equal(response.directive.action, 'stop_done');
+  assert.equal(response.steps[0].action, 'stop_done');
   assert.deepEqual(response.baton.state.artifacts, [{ id: 'draft', type: 'packet', summary: 'merged before done' }]);
   assert.deepEqual(response.baton.state.results, [
     { type: 'implementation', summary: 'existing result' },
@@ -819,7 +820,7 @@ test('apply: retry limit respects persisted attempt counters after resume', () =
 
   assert.equal(limited.baton.cursor, 'blocked');
   assert.equal(limited.baton.status, 'blocked');
-  assert.equal(limited.directive.action, 'stop_blocked');
+  assert.equal(limited.steps[0].action, 'stop_blocked');
   assert.deepEqual(limited.baton.state.attempts, { 'worker_step:outcome:retry->worker_step': 2 });
 });
 
@@ -836,7 +837,7 @@ test('apply: retry onLimit blocked transition carries the limiting output blocke
   assert.equal(limited.baton.cursor, 'blocked');
   assert.equal(limited.baton.status, 'blocked');
   assert.deepEqual(limited.baton.blocker, { reason: 'retry budget exhausted' });
-  assert.equal(limited.directive.action, 'stop_blocked');
+  assert.equal(limited.steps[0].action, 'stop_blocked');
 });
 
 test('apply: retry onLimit blocked transition still merges limiting output state', () => {
@@ -855,7 +856,7 @@ test('apply: retry onLimit blocked transition still merges limiting output state
 
   assert.equal(limited.baton.cursor, 'blocked');
   assert.equal(limited.baton.status, 'blocked');
-  assert.equal(limited.directive.action, 'stop_blocked');
+  assert.equal(limited.steps[0].action, 'stop_blocked');
   assert.deepEqual(limited.baton.state.artifacts, [{ id: 'failure-packet', type: 'packet', summary: 'last failed attempt evidence' }]);
   assert.deepEqual(limited.baton.state.results, [{ type: 'retry-limit', summary: 'retry budget exhausted with diagnostics' }]);
   assert.deepEqual(limited.baton.state.attempts, { 'worker_step:outcome:retry->worker_step': 2 });
@@ -871,7 +872,7 @@ test('apply: retry onLimit can target done and resolves terminal done status', (
 
   assert.equal(limited.baton.cursor, 'done');
   assert.equal(limited.baton.status, 'done');
-  assert.equal(limited.directive.action, 'stop_done');
+  assert.equal(limited.steps[0].action, 'stop_done');
   assert.deepEqual(limited.baton.state.attempts, { 'worker_step:outcome:retry->worker_step': 2 });
   assert.equal(Object.hasOwn(limited.baton, 'blocker'), false);
 });
@@ -886,7 +887,7 @@ test('apply: retry onLimit can target nonterminal approval and resolves the next
 
   assert.equal(limited.baton.cursor, 'approval_step');
   assert.equal(limited.baton.status, 'running');
-  assert.equal(limited.directive.action, 'wait_for_approval');
+  assert.equal(limited.steps[0].action, 'wait_for_approval');
   assert.deepEqual(limited.baton.state.attempts, { 'worker_step:outcome:retry->worker_step': 2 });
   assert.equal(Object.hasOwn(limited.baton, 'blocker'), false);
 });
@@ -1004,7 +1005,7 @@ test('schema validation: worker output contract allows template plus optional sc
   const withOutputTemplate = structuredClone(schemaWorkflowDoc);
   withOutputTemplate.workflow.steps.worker_step.output.template = '../../shared/templates/implementation-plan-template.md';
   const response = runInspect('worker-step-output-template', baton(), true, withOutputTemplate);
-  assert.equal(response.directive.step.output.template, '../../shared/templates/implementation-plan-template.md');
+  assert.equal(response.steps[0].step.output.template, '../../shared/templates/implementation-plan-template.md');
 
   const emptyTemplateName = structuredClone(schemaWorkflowDoc);
   emptyTemplateName.workflow.steps.worker_step.output.template = '';
@@ -1013,7 +1014,7 @@ test('schema validation: worker output contract allows template plus optional sc
   const withOutputSchema = structuredClone(schemaWorkflowDoc);
   withOutputSchema.workflow.steps.worker_step.output.schema = 'schemas/worker-output.json';
   const schemaResponse = runInspect('worker-step-output-schema', baton(), true, withOutputSchema);
-  assert.equal(schemaResponse.directive.step.output.schema, 'schemas/worker-output.json');
+  assert.equal(schemaResponse.steps[0].step.output.schema, 'schemas/worker-output.json');
 
   const obsoleteFormat = structuredClone(schemaWorkflowDoc);
   obsoleteFormat.workflow.steps.worker_step.output.format = 'markdown';
@@ -1305,7 +1306,7 @@ test('apply: mapped transition value string zero is accepted as a real map key',
 
   const response = runApply('zero-string-map-value', baton(), output({ outcome: '0' }), true, workflowDoc);
   assert.equal(response.baton.cursor, 'approval_step');
-  assert.equal(response.directive.action, 'wait_for_approval');
+  assert.equal(response.steps[0].action, 'wait_for_approval');
 });
 
 test('validation: mapped transition values are matched literally without whitespace trimming', () => {
@@ -1323,22 +1324,17 @@ test('validation: unknown approval mapped value is rejected', () => {
   assert.match(result.stderr, /transition value 'deferred' is not allowed from cursor 'approval_step' by 'approval'/);
 });
 
-test('cli: directive alias returns the same inspect directive shape', () => {
-  const prefix = 'directive-alias';
+test('cli: removed directive alias is rejected', () => {
+  const prefix = 'removed-alias';
   const batonPath = writeJson(`${prefix}-baton.json`, baton());
   const wfPath = writeJson(`${prefix}-workflow.json`, schemaWorkflowDoc);
   const before = readFileSync(batonPath, 'utf8');
 
-  const response = expectCliResult(
-    'directive-alias',
-    runNode(['develop/scripts/workflow-interpreter.mjs', 'directive', wfPath, batonPath]),
-    true,
-  );
+  const result = runNode(['develop/scripts/workflow-interpreter.mjs', 'directive', wfPath, batonPath]);
 
-  assert.equal(response.directive.id, 'worker_step');
-  assert.equal(response.directive.action, 'run_worker');
-  assert.equal(response.directive.step.kind, 'worker');
-  assert.equal(readFileSync(batonPath, 'utf8'), before, 'directive alias mutated baton file');
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /workflow-interpreter failed schema validation|usage:/);
+  assert.equal(readFileSync(batonPath, 'utf8'), before, 'removed alias mutated baton file');
 });
 
 test('cli: positional paths may begin with dash', () => {
@@ -1350,7 +1346,7 @@ test('cli: positional paths may begin with dash', () => {
     tempDir,
   );
   const response = expectCliResult('inspect-dash-prefixed-paths', result, true);
-  assert.equal(response.directive.id, 'worker_step');
+  assert.equal(response.steps[0].id, 'worker_step');
 });
 
 test('cli: three-position apply without explicit mode is rejected', () => {

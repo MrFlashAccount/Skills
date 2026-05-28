@@ -1,7 +1,7 @@
-import { invariant } from '../errors.mjs';
-import { statusForStep } from '../model.mjs';
-import { readJson } from '../json-io.mjs';
-import { assertBatonSchema, assertWorkflowSchema } from '../schema-validation.mjs';
+import { invariant } from '../../errors.mjs';
+import { statusForStep } from '../../model.mjs';
+import { readJson } from '../../json-io.mjs';
+import { assertBatonSchema, assertWorkflowSchema } from '../../schema-validation.mjs';
 
 export function loadWorkflowAndBaton(workflowPath, batonPath) {
   const workflowDoc = readJson(workflowPath, 'workflow');

@@ -132,10 +132,10 @@ test('output.schema: invalid output retries with validation feedback then succee
 
   const retry = runApply('output-schema-invalid-retry', baton(), { outcome: 'ready', payload: { ok: false } }, true, doc);
   assert.equal(retry.baton.cursor, 'worker_step');
-  assert.equal(retry.directive.action, 'run_worker');
+  assert.equal(retry.steps[0].action, 'run_worker');
   assert.equal(retry.baton.state.attempts['worker_step:output.schema'], 1);
-  assert.match(retry.directive.step.input.prompt, /Previous output failed output\.schema validation/);
-  assert.match(retry.directive.step.input.prompt, /must be equal to constant/);
+  assert.match(retry.steps[0].step.input.prompt, /Previous output failed output\.schema validation/);
+  assert.match(retry.steps[0].step.input.prompt, /must be equal to constant/);
 
   const response = runApply('output-schema-retry-success', retry.baton, { outcome: 'ready', payload: { ok: true } }, true, doc);
   assert.equal(response.baton.cursor, 'done');
@@ -163,12 +163,12 @@ test('output.schema: structured step output is projected by step id into downstr
     batonPath,
   ]);
 
-  assert.match(renderResponse.compiledPrompt.prompt, /## Projected baton state/);
-  assert.match(renderResponse.compiledPrompt.prompt, /"worker_step"/);
-  assert.match(renderResponse.compiledPrompt.prompt, /"payload"/);
-  assert.match(renderResponse.compiledPrompt.prompt, /"ok": true/);
-  assert.doesNotMatch(renderResponse.compiledPrompt.prompt, /Field notes for projected step outputs/);
-  assert.doesNotMatch(renderResponse.compiledPrompt.prompt, /\[object Object\]/);
+  assert.match(renderResponse.steps[0].compiledPrompt.prompt, /## Projected baton state/);
+  assert.match(renderResponse.steps[0].compiledPrompt.prompt, /"worker_step"/);
+  assert.match(renderResponse.steps[0].compiledPrompt.prompt, /"payload"/);
+  assert.match(renderResponse.steps[0].compiledPrompt.prompt, /"ok": true/);
+  assert.doesNotMatch(renderResponse.steps[0].compiledPrompt.prompt, /Field notes for projected step outputs/);
+  assert.doesNotMatch(renderResponse.steps[0].compiledPrompt.prompt, /\[object Object\]/);
 });
 
 test('output.schema: projected structured output renders schema field notes before JSON', () => {
@@ -263,7 +263,7 @@ test('output.schema: invalid JSON retries as validation failure', () => {
 
   const response = expectCliResult('output-schema-invalid-json', runNode(['develop/scripts/workflow-interpreter.mjs', 'apply', wfPath, batonPath, outputPath]), true);
   assert.equal(response.baton.cursor, 'worker_step');
-  assert.match(response.directive.step.input.prompt, /worker output is not valid JSON/);
+  assert.match(response.steps[0].step.input.prompt, /worker output is not valid JSON/);
 });
 
 test('output.schema: invalid output exhausts retry limit deterministically', () => {
@@ -306,6 +306,6 @@ test('output.schema: non-structured worker output is projected by step id into d
     batonPath,
   ]);
 
-  assert.match(renderResponse.compiledPrompt.prompt, /"worker_step"/);
-  assert.match(renderResponse.compiledPrompt.prompt, /"plain markdown result body"/);
+  assert.match(renderResponse.steps[0].compiledPrompt.prompt, /"worker_step"/);
+  assert.match(renderResponse.steps[0].compiledPrompt.prompt, /"plain markdown result body"/);
 });

@@ -110,7 +110,7 @@ function expectCliResult(label, result, expectSuccess) {
 
   const response = JSON.parse(result.stdout);
   assert.ok(response.baton, `check '${label}' returned no baton`);
-  assert.ok(response.directive, `check '${label}' returned no directive`);
+  assert.ok(response.steps[0], `check '${label}' returned no step`);
   return response;
 }
 
@@ -565,15 +565,15 @@ test('CLI render: DevHarness fixture returns compiledPrompt and does not mutate 
   const response = expectCliResult('dev-harness-render', result, true);
 
   assert.equal(readFileSync(batonPath, 'utf8'), before, 'render mutated baton file');
-  assert.equal(response.directive.id, 'research');
-  assert.equal(Object.hasOwn(response.compiledPrompt, 'stepId'), false);
-  assert.equal(Object.hasOwn(response.compiledPrompt, 'action'), false);
-  assert.equal(Object.hasOwn(response.compiledPrompt, 'kind'), false);
-  assert.equal(Object.hasOwn(response.compiledPrompt, 'name'), false);
-  assert.equal(response.compiledPrompt.metadata.outputTemplate, '../../shared/templates/research-packet-template.md');
-  assert.deepEqual(response.compiledPrompt.metadata.projectedStateKeys, ['artifacts', 'results']);
-  assert.equal(Object.hasOwn(response.compiledPrompt, 'diagnostics'), false);
-  assertMarkersInOrder(response.compiledPrompt.prompt, [
+  assert.equal(response.steps[0].id, 'research');
+  assert.equal(Object.hasOwn(response.steps[0].compiledPrompt, 'stepId'), false);
+  assert.equal(Object.hasOwn(response.steps[0].compiledPrompt, 'action'), false);
+  assert.equal(Object.hasOwn(response.steps[0].compiledPrompt, 'kind'), false);
+  assert.equal(Object.hasOwn(response.steps[0].compiledPrompt, 'name'), false);
+  assert.equal(response.steps[0].compiledPrompt.metadata.outputTemplate, '../../shared/templates/research-packet-template.md');
+  assert.deepEqual(response.steps[0].compiledPrompt.metadata.projectedStateKeys, ['artifacts', 'results']);
+  assert.equal(Object.hasOwn(response.steps[0].compiledPrompt, 'diagnostics'), false);
+  assertMarkersInOrder(response.steps[0].compiledPrompt.prompt, [
     '<!-- role material: roles/researcher/ROLE.md -->',
     '<!-- role material: roles/researcher/RUBRIC.md -->',
     '## Output contract',
@@ -640,12 +640,12 @@ test('CLI render: diagnostics are included only when explicitly requested', () =
     runNode(['develop/scripts/workflow-interpreter.mjs', 'render', workflowPath, batonPath]),
     true,
   );
-  assert.equal(Object.hasOwn(defaultResponse.compiledPrompt, 'diagnostics'), false);
+  assert.equal(Object.hasOwn(defaultResponse.steps[0].compiledPrompt, 'diagnostics'), false);
 
   const diagnosticsResponse = expectCliResult(
     'render-diagnostics-opt-in',
     runNode(['develop/scripts/workflow-interpreter.mjs', 'render', '--diagnostics', workflowPath, batonPath]),
     true,
   );
-  assert.deepEqual(diagnosticsResponse.compiledPrompt.diagnostics.map((diagnostic) => diagnostic.code), ['default_prompt_used']);
+  assert.deepEqual(diagnosticsResponse.steps[0].compiledPrompt.diagnostics.map((diagnostic) => diagnostic.code), ['default_prompt_used']);
 });

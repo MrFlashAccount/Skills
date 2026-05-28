@@ -67,7 +67,7 @@ function compact(value) {
   return String(value).replace(/\s+/g, ' ').trim();
 }
 
-function historyEntry({ baton, directive, source, output, decision }) {
+function historyEntry({ baton, steps, source, output, decision }) {
   const lines = [
     `## ${new Date().toISOString()}`,
     '',
@@ -75,7 +75,7 @@ function historyEntry({ baton, directive, source, output, decision }) {
     `- baton: cursor=${baton.cursor ?? 'unknown'} status=${baton.status ?? 'unknown'}`,
   ];
 
-  if (directive) lines.push(`- directive: id=${directive.id ?? 'unknown'} action=${directive.action ?? 'unknown'}`);
+  if (steps) lines.push(`- steps: ${steps.map((step) => `id=${step.id ?? 'unknown'} action=${step.action ?? 'unknown'}`).join('; ')}`);
   if (output) lines.push(`- output: ${output}`);
   if (decision) lines.push(`- decision: ${decision}`);
   if (baton.blocker) lines.push(`- blocker: ${compact(JSON.stringify(baton.blocker))}`);
@@ -134,7 +134,7 @@ if (responsePath) {
   assertPersistSchema(assertBatonSchema, input);
 }
 const baton = responsePath ? input.baton : input;
-const directive = responsePath ? input.directive : undefined;
+const steps = responsePath ? input.steps : undefined;
 requireObject(baton, 'baton');
 
 await mkdir(runDir, { recursive: true });
@@ -144,7 +144,7 @@ const historyPath = join(runDir, 'history.md');
 const batonContent = `${JSON.stringify(baton, null, 2)}\n`;
 const entry = historyEntry({
   baton,
-  directive,
+  steps,
   source: responsePath ? responsePath : batonPath,
   output: compact(values.output),
   decision: compact(values.decision),

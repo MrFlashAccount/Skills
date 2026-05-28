@@ -97,7 +97,7 @@ function expectCliResult(label, result, expectSuccess) {
 
   const response = JSON.parse(result.stdout);
   assert.ok(response.baton, `check '${label}' returned no baton`);
-  assert.ok(response.directive, `check '${label}' returned no directive`);
+  assert.ok(response.steps[0], `check '${label}' returned no step`);
   return response;
 }
 
@@ -149,18 +149,18 @@ test('runtime: sequential string next still advances to one target', () => {
   const response = runApply('parallel-sequential-string-next', baton({ cursor: 'branch_a' }), output({ outcome: 'ready' }));
 
   assert.equal(response.baton.cursor, 'join');
-  assert.equal(response.directive.id, 'join');
-  assert.equal(response.directive.action, 'run_worker');
+  assert.equal(response.steps[0].id, 'join');
+  assert.equal(response.steps[0].action, 'run_worker');
   assert.deepEqual(response.baton.state.branch_a.outcome, 'ready');
 });
 
-test('runtime: next array starts parallel steps and records pending branch state', () => {
+test('runtime: next array returns multiple branch steps without pending branch state', () => {
   const response = runApply('parallel-start', baton({ cursor: 'prepare' }), output({ outcome: 'ready' }));
 
   assert.equal(response.baton.cursor, 'prepare');
-  assert.equal(response.directive.action, 'run_parallel');
-  assert.deepEqual(response.directive.parallel.map((step) => step.id), ['branch_a', 'branch_b']);
-  assert.deepEqual(response.baton.parallel, { from: 'prepare', targets: ['branch_a', 'branch_b'], join: 'join' });
+  assert.deepEqual(response.steps.map((step) => step.id), ['branch_a', 'branch_b']);
+  assert.deepEqual(response.steps.map((step) => step.action), ['run_worker', 'run_worker']);
+  assert.equal(Object.hasOwn(response.baton, 'parallel'), false);
   assert.deepEqual(response.baton.state.prepare.outcome, 'ready');
 });
 
@@ -178,8 +178,8 @@ test('runtime: parallel step outputs write separate state and advance to explici
   );
 
   assert.equal(response.baton.cursor, 'join');
-  assert.equal(response.directive.id, 'join');
-  assert.equal(response.directive.action, 'run_worker');
+  assert.equal(response.steps[0].id, 'join');
+  assert.equal(response.steps[0].action, 'run_worker');
   assert.equal(response.baton.state.branch_a.results[0].summary, 'A');
   assert.equal(response.baton.state.branch_b.results[0].summary, 'B');
   assert.equal(Object.hasOwn(response.baton, 'parallel'), false);
@@ -198,12 +198,11 @@ test('e2e: wrapper can render parallel branch prompts, collect branch outputs, a
   }), true, workflowDoc).baton;
 
   const branchRender = runRender('parallel-e2e-render-branches', pending, true, workflowDoc);
-  assert.equal(branchRender.directive.action, 'run_parallel');
-  assert.deepEqual(branchRender.compiledParallelPrompts.map((entry) => entry.id), ['branch_a', 'branch_b']);
-  assert.match(branchRender.compiledParallelPrompts[0].compiledPrompt.prompt, /# Branch A/);
-  assert.match(branchRender.compiledParallelPrompts[0].compiledPrompt.prompt, /"prepare"/);
-  assert.match(branchRender.compiledParallelPrompts[0].compiledPrompt.prompt, /ready to branch/);
-  assert.match(branchRender.compiledParallelPrompts[1].compiledPrompt.prompt, /# Branch B/);
+  assert.deepEqual(branchRender.steps.map((step) => step.id), ['branch_a', 'branch_b']);
+  assert.match(branchRender.steps[0].compiledPrompt.prompt, /# Branch A/);
+  assert.match(branchRender.steps[0].compiledPrompt.prompt, /"prepare"/);
+  assert.match(branchRender.steps[0].compiledPrompt.prompt, /ready to branch/);
+  assert.match(branchRender.steps[1].compiledPrompt.prompt, /# Branch B/);
 
   const joined = runApply('parallel-e2e-collect-branches', pending, {
     steps: {
@@ -214,12 +213,12 @@ test('e2e: wrapper can render parallel branch prompts, collect branch outputs, a
 
   assert.equal(joined.cursor, 'join');
   const joinRender = runRender('parallel-e2e-render-join', joined, true, workflowDoc);
-  assert.equal(joinRender.directive.id, 'join');
-  assert.equal(joinRender.directive.action, 'run_worker');
-  assert.match(joinRender.compiledPrompt.prompt, /"branch_a"/);
-  assert.match(joinRender.compiledPrompt.prompt, /A says go/);
-  assert.match(joinRender.compiledPrompt.prompt, /"branch_b"/);
-  assert.match(joinRender.compiledPrompt.prompt, /B says go/);
+  assert.equal(joinRender.steps[0].id, 'join');
+  assert.equal(joinRender.steps[0].action, 'run_worker');
+  assert.match(joinRender.steps[0].compiledPrompt.prompt, /"branch_a"/);
+  assert.match(joinRender.steps[0].compiledPrompt.prompt, /A says go/);
+  assert.match(joinRender.steps[0].compiledPrompt.prompt, /"branch_b"/);
+  assert.match(joinRender.steps[0].compiledPrompt.prompt, /B says go/);
 });
 
 test('runtime: join step can read parallel branch state and continue to done', () => {
@@ -232,7 +231,7 @@ test('runtime: join step can read parallel branch state and continue to done', (
   const response = runApply('parallel-join-complete', joined, output({ outcome: 'ready', results: [{ type: 'join', summary: 'joined' }] }));
 
   assert.equal(response.baton.cursor, 'done');
-  assert.equal(response.directive.action, 'stop_done');
+  assert.equal(response.steps[0].action, 'stop_done');
   assert.equal(response.baton.state.join.results[0].summary, 'joined');
 });
 

@@ -13,7 +13,7 @@
     "inspectMode": {
       "type": "array",
       "prefixItems": [
-        { "enum": ["inspect", "directive"] },
+        { "const": "inspect" },
         { "$ref": "#/$defs/pathArg" },
         { "$ref": "#/$defs/pathArg" }
       ],

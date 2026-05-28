@@ -3,32 +3,25 @@
   "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/workflow-interpreter-response",
   "title": "Workflow Interpreter Response",
   "type": "object",
-  "required": ["baton", "directive"],
+  "required": ["baton", "steps"],
   "properties": {
     "baton": { "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton" },
-    "directive": {
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/executableStep" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "executableStep": {
       "type": "object",
       "required": ["id", "action", "step"],
       "properties": {
-        "id": { "type": "string" },
-        "action": {
-          "enum": ["run_worker", "wait_for_approval", "run_parallel", "stop_done", "stop_blocked"]
-        },
+        "id": { "type": "string", "minLength": 1 },
+        "action": { "enum": ["run_worker", "wait_for_approval", "stop_done", "stop_blocked"] },
         "step": { "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/workflow#/$defs/step" },
-        "parallel": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "type": "object",
-            "required": ["id", "action", "step"],
-            "properties": {
-              "id": { "type": "string", "minLength": 1 },
-              "action": { "enum": ["run_worker", "wait_for_approval"] },
-              "step": { "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/workflow#/$defs/step" }
-            },
-            "additionalProperties": false
-          }
-        }
+        "compiledPrompt": { "$ref": "#/$defs/compiledPrompt" }
       },
       "additionalProperties": false
     },
@@ -71,61 +64,6 @@
         }
       },
       "additionalProperties": false
-    },
-    "compiledParallelPrompts": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "object",
-        "required": ["id", "action", "step", "compiledPrompt"],
-        "properties": {
-          "id": { "type": "string", "minLength": 1 },
-          "action": { "enum": ["run_worker", "wait_for_approval"] },
-          "step": { "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/workflow#/$defs/step" },
-          "compiledPrompt": {
-            "type": "object",
-            "required": ["prompt"],
-            "properties": {
-              "prompt": { "type": "string" },
-              "metadata": {
-                "type": "object",
-                "properties": {
-                  "inputTemplate": { "type": "string", "minLength": 1 },
-                  "outputTemplate": { "type": "string", "minLength": 1 },
-                  "outputSchema": { "type": "string", "minLength": 1 },
-                  "roleMaterial": {
-                    "type": "array",
-                    "items": { "type": "string", "minLength": 1 }
-                  },
-                  "projectedStateKeys": {
-                    "type": "array",
-                    "items": { "type": "string", "minLength": 1 },
-                    "uniqueItems": true
-                  }
-                },
-                "additionalProperties": false
-              },
-              "diagnostics": {
-                "type": "array",
-                "minItems": 1,
-                "items": {
-                  "type": "object",
-                  "required": ["severity", "code", "message"],
-                  "properties": {
-                    "severity": { "enum": ["info", "warning", "error"] },
-                    "code": { "type": "string", "minLength": 1 },
-                    "message": { "type": "string", "minLength": 1 }
-                  },
-                  "additionalProperties": false
-                }
-              }
-            },
-            "additionalProperties": false
-          }
-        },
-        "additionalProperties": false
-      }
     }
-  },
-  "additionalProperties": false
+  }
 }
