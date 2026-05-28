@@ -1,7 +1,7 @@
 import { readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
-import { WorkflowInterpreterError } from './errors.mjs';
-import { isInside, safeReadTemplate, trimStable, workflowSkillBase } from './prompt-render-utils.mjs';
+import { WorkflowInterpreterError } from '../../errors.mjs';
+import { isInside, safeReadTemplate, trimStable, workflowSkillBase } from '../utils.mjs';
 
 export function readInputTemplate({ workflowPath, workflow, input, repositoryRoot, templateBaseDir }) {
   if (!input?.template) return { content: undefined, metadataPath: undefined };

@@ -1,6 +1,6 @@
 import { readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
-import { WorkflowInterpreterError } from './errors.mjs';
+import { WorkflowInterpreterError } from '../errors.mjs';
 
 export function normalizeRepositoryRoot(repositoryRoot) {
   return path.resolve(repositoryRoot ?? process.cwd());
