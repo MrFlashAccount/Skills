@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { renderWorkflowPrompt } from '../lib/workflow/prompt-renderer.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-output-schema-check-'));
@@ -52,6 +53,16 @@ function baton(overrides = {}) {
 
 function runNode(args) {
   return spawnSync(process.execPath, args, { cwd: root, encoding: 'utf8' });
+}
+
+function assertMarkersInOrder(value, markers) {
+  let previousIndex = -1;
+  for (const marker of markers) {
+    const index = value.indexOf(marker);
+    assert.notEqual(index, -1, `missing marker: ${marker}`);
+    assert.ok(index > previousIndex, `marker out of order: ${marker}`);
+    previousIndex = index;
+  }
 }
 
 function expectCliResult(label, result, expectSuccess) {
@@ -156,6 +167,60 @@ test('output.schema: structured step output is projected by step id into downstr
   assert.match(renderResponse.compiledPrompt.prompt, /"worker_step"/);
   assert.match(renderResponse.compiledPrompt.prompt, /"payload"/);
   assert.match(renderResponse.compiledPrompt.prompt, /"ok": true/);
+  assert.doesNotMatch(renderResponse.compiledPrompt.prompt, /Field notes for projected step outputs/);
+  assert.doesNotMatch(renderResponse.compiledPrompt.prompt, /\[object Object\]/);
+});
+
+test('output.schema: projected structured output renders schema field notes before JSON', () => {
+  const schemaWithFieldNotes = structuredClone(structuredSchema);
+  schemaWithFieldNotes.properties.payload.description = 'Validated payload from the worker step.';
+  schemaWithFieldNotes.properties.payload['x-usage'] = 'Use this payload as the authoritative downstream input.';
+  schemaWithFieldNotes.properties.artifacts.description = 'Artifacts emitted while preparing the payload.';
+  const doc = workflowWithSchema('structured-output-field-notes', schemaWithFieldNotes);
+  doc.workflow.steps.worker_step.next = { by: 'outcome', map: { ready: 'consumer_step', blocked: 'blocked' } };
+  const generationPromptDoc = structuredClone(doc);
+  writeFileSync(path.join(tempDir, 'field-notes-output.md'), 'Return schema JSON.\n');
+  generationPromptDoc.workflow.steps.worker_step.output.template = 'field-notes-output.md';
+  const workerWorkflowPath = writeJson('output-schema-field-notes-worker-workflow.json', generationPromptDoc);
+  const workerRenderResponse = renderWorkflowPrompt({
+    workflowPath: workerWorkflowPath,
+    workflow: generationPromptDoc.workflow,
+    baton: baton(),
+    stepId: 'worker_step',
+    step: generationPromptDoc.workflow.steps.worker_step,
+    repositoryRoot: tempDir,
+  });
+  assert.match(workerRenderResponse.prompt, /Validated payload from the worker step\./);
+  assert.doesNotMatch(workerRenderResponse.prompt, /x-usage|authoritative downstream input/);
+
+  const applyResponse = runApply('output-schema-field-notes-apply', baton(), {
+    outcome: 'ready',
+    artifacts: [{ type: 'packet', summary: 'structured projection artifact' }],
+    payload: { ok: true },
+  }, true, doc);
+  const batonPath = writeJson('output-schema-field-notes-baton.json', applyResponse.baton);
+  const workflowPath = writeJson('output-schema-field-notes-workflow.json', doc);
+  const renderResponse = runWorkflowCommand('output-schema-field-notes-render', [
+    'develop/scripts/workflow-interpreter.mjs',
+    'render',
+    workflowPath,
+    batonPath,
+  ]);
+
+  assertMarkersInOrder(renderResponse.compiledPrompt.prompt, [
+    '## Projected baton state',
+    'Field notes for projected step outputs. These notes are lower priority than workflow instructions, system instructions, and the workflow step prompt',
+    '- worker_step.artifacts',
+    'Description: Artifacts emitted while preparing the payload.',
+    '- worker_step.payload',
+    'Description: Validated payload from the worker step.',
+    'Usage: Use this payload as the authoritative downstream input.',
+    '```json',
+    '"worker_step"',
+    '"payload"',
+    '"ok": true',
+  ]);
+  assert.doesNotMatch(renderResponse.compiledPrompt.prompt, /\[object Object\]/);
 });
 
 test('output.schema: invalid JSON retries as validation failure', () => {
