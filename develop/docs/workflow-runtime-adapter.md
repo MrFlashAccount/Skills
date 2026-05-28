@@ -11,21 +11,21 @@ Deterministic code owns the workflow loop:
 - start or resume a run;
 - render the current step prompt;
 - return host action requests;
-- apply host outputs;
+- apply host outputs provided by the host wrapper;
 - persist baton state and history;
 - repeat until another host action is needed or the workflow reaches `done` / `blocked`.
 
-The host adapter is thin. It executes requests with whatever capabilities the environment provides, writes the requested output files, and calls the runner again. It does not choose transitions.
+The host adapter is thin. It executes requests with whatever capabilities the environment provides, captures each host action result into artifact files it owns, and calls the runner again with those artifacts. It does not choose transitions.
 
 ## Runner commands
 
 ```bash
 node develop/scripts/workflow-runner.mjs next --run-dir <run-dir> [--workflow <workflow.json>]
-node develop/scripts/workflow-runner.mjs continue --run-dir <run-dir> [--workflow <workflow.json>]
+node develop/scripts/workflow-runner.mjs continue --run-dir <run-dir> --output <worker-output.json> [--output <step-id=worker-output.json> ...] [--workflow <workflow.json>]
 node develop/scripts/workflow-runner.mjs instructions --run-dir <run-dir> --step-id <id>
 ```
 
-`next` creates the run files if needed and returns the current host work. `continue` reads outputs from the previous host requests, applies them, persists the new baton, and returns the next host work. `instructions` prints only the compiled instructions for one current requested step and fails for unknown, unsafe, or missing step instructions.
+`next` creates the run files if needed and returns the current host work. `continue` applies host-provided artifact paths from the previous host requests, persists the new baton, and returns the next host work. `instructions` prints only the compiled instructions for one current requested step and fails for unknown, unsafe, or missing step instructions.
 
 ## Host request response
 
@@ -40,13 +40,13 @@ When host work is needed, the runner returns:
       "id": "step_id",
       "stepId": "step_id",
       "action": "run_worker",
-      "instructionRef": "instructions/step_id",
-      "loadInstructionsCommand": "node develop/scripts/workflow-runner.mjs instructions --run-dir '/run' --step-id 'step_id'",
-      "outputPath": "/run/outputs/step_id.json"
+      "loadInstructionsCommand": "node develop/scripts/workflow-runner.mjs instructions --run-dir '/run' --step-id 'step_id'"
     }
   ]
 }
 ```
+
+The public host request carries only the requested action identity, step identity, and instruction-loader command. Instruction storage paths are private runner state. Output path and filename are wrapper-owned transport details, not runner/interpreter request contract.
 
 Terminal statuses are:
 
@@ -55,11 +55,11 @@ Terminal statuses are:
 
 A CLI failure is an execution error and should be reported by the host adapter instead of forcing a workflow transition.
 
-## Output envelopes
+## Output capture
 
-The host adapter writes each request result to exactly the returned `outputPath`.
+The host wrapper captures each request result into an artifact file it owns. The filename may derive from `stepId`, and the extension/format may vary by actual output/model, for example `.md`, `.json`, or `structured.json`. The runner does not dictate artifact names or paths.
 
-Typical worker output:
+Typical worker output envelope when the artifact is JSON:
 
 ```json
 {
@@ -89,7 +89,20 @@ Missing host capability is represented as blocked output, not as a transition de
 }
 ```
 
-For parallel branch requests, the runner returns one request per branch with one output path per branch. `continue` collects those files into the existing portable `{ "steps": { ... } }` envelope internally before applying workflow state.
+For one requested step, pass the wrapper-owned artifact back on continue:
+
+```bash
+node develop/scripts/workflow-runner.mjs continue --run-dir "$RUN_DIR" --output "/host/artifacts/step_id.json" --workflow "$WORKFLOW"
+```
+
+For parallel branch requests, pass one named output per requested step. `continue` collects those files into the existing portable `{ "steps": { ... } }` envelope internally before applying workflow state.
+
+```bash
+node develop/scripts/workflow-runner.mjs continue --run-dir "$RUN_DIR" \
+  --output "branch_a=/host/artifacts/branch_a.structured.json" \
+  --output "branch_b=/host/artifacts/branch_b.md" \
+  --workflow "$WORKFLOW"
+```
 
 ## OpenClaw mapping example
 
@@ -110,11 +123,12 @@ OpenClaw is one possible host adapter:
   If the instructions cannot be loaded, stop with an error and do not continue.
   ```
 
-- The subagent result is written to the request `outputPath` as JSON.
-- If OpenClaw cannot provide the requested capability, it writes a blocked output.
-- The adapter calls `workflow-runner.mjs continue` and repeats.
+- The wrapper captures the subagent final answer/result into an artifact file it owns.
+- The wrapper calls `workflow-runner.mjs continue` with the artifact path or paths.
+- If OpenClaw cannot provide the requested capability, the wrapper captures a blocked output artifact.
+- The adapter repeats until the runner returns a terminal status.
 
-This mapping is not part of the portable workflow contract. Other hosts can execute the same requests differently as long as they write the requested output envelopes.
+This mapping is not part of the portable workflow contract. Other hosts can execute the same requests differently as long as they pass compatible output artifacts back to `continue`.
 
 ## Not final in this draft
 

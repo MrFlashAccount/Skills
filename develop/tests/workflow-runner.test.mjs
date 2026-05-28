@@ -71,7 +71,7 @@ function workerOutput(summary) {
 
 after(() => rmSync(tempDir, { recursive: true, force: true }));
 
-test('runner: next returns a single host action request with instruction ref, load command, and output path', () => {
+test('runner: next returns a single host action request with load command only', () => {
   const runDir = path.join(tempDir, 'single');
   const workflowPath = path.join(tempDir, 'single-workflow.json');
   const singleWorkflow = structuredClone(workflowDoc);
@@ -86,9 +86,13 @@ test('runner: next returns a single host action request with instruction ref, lo
   assert.equal(response.requests[0].action, 'run_worker');
   assert.equal(Object.hasOwn(response.requests[0], 'compiledPrompt'), false);
   assert.equal(response.requests[0].stepId, 'prepare');
-  assert.equal(response.requests[0].instructionRef, 'instructions/prepare');
+  assert.equal(Object.hasOwn(response.requests[0], 'instructionRef'), false);
   assert.match(response.requests[0].loadInstructionsCommand, /workflow-runner\.mjs instructions --run-dir .* --step-id 'prepare'/);
-  assert.equal(response.requests[0].outputPath, path.join(runDir, 'outputs', 'prepare.json'));
+  assert.equal(Object.hasOwn(response.requests[0], 'outputPath'), false);
+
+  const lastResponse = JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8'));
+  assert.equal(Object.hasOwn(lastResponse.requests[0], 'instructionRef'), false);
+  assert.equal(Object.hasOwn(lastResponse.requests[0], 'outputPath'), false);
 
   const loaded = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'prepare']);
   assert.equal(loaded.status, 0, loaded.stderr);
@@ -104,9 +108,10 @@ test('runner: continue applies single output and returns terminal done', () => {
   singleWorkflow.workflow.steps.prepare.next = 'done';
   writeJson(workflowPath, singleWorkflow);
 
-  const first = expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next single continue');
-  writeJson(first.requests[0].outputPath, workerOutput('prepared'));
-  const response = expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath], 'continue single');
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next single continue');
+  const outputPath = path.join(runDir, 'prepare-result.json');
+  writeJson(outputPath, workerOutput('prepared'));
+  const response = expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', outputPath], 'continue single');
 
   assert.equal(response.status, 'done');
   assert.equal(response.baton.cursor, 'done');
@@ -114,23 +119,22 @@ test('runner: continue applies single output and returns terminal done', () => {
   assert.equal(response.baton.state.prepare.results[0].summary, 'prepared');
 });
 
-test('runner: continue fans out parallel branch requests with separate output paths', () => {
+test('runner: continue fans out parallel branch requests with separate step ids and load commands', () => {
   const runDir = path.join(tempDir, 'parallel');
   const workflowPath = path.join(tempDir, 'parallel-workflow.json');
   writeJson(workflowPath, workflowDoc);
 
-  const first = expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next prepare');
-  writeJson(first.requests[0].outputPath, workerOutput('prepared'));
-  const response = expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath], 'continue prepare');
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next prepare');
+  const prepareOutput = path.join(runDir, 'prepare-output.json');
+  writeJson(prepareOutput, workerOutput('prepared'));
+  const response = expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', prepareOutput], 'continue prepare');
 
   assert.equal(response.status, 'needs_host_actions');
   assert.deepEqual(response.requests.map((request) => request.id), ['branch_a', 'branch_b']);
-  assert.deepEqual(response.requests.map((request) => request.outputPath), [
-    path.join(runDir, 'outputs', 'branch_a.json'),
-    path.join(runDir, 'outputs', 'branch_b.json'),
-  ]);
+  assert.deepEqual(response.requests.map((request) => request.stepId), ['branch_a', 'branch_b']);
   assert.equal(Object.hasOwn(response.requests[0], 'compiledPrompt'), false);
-  assert.deepEqual(response.requests.map((request) => request.instructionRef), ['instructions/branch_a', 'instructions/branch_b']);
+  assert.equal(Object.hasOwn(response.requests[0], 'outputPath'), false);
+  assert.equal(Object.hasOwn(response.requests[0], 'instructionRef'), false);
   assert.notEqual(response.requests[0].loadInstructionsCommand, response.requests[1].loadInstructionsCommand);
   const loaded = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'branch_a']);
   assert.equal(loaded.status, 0, loaded.stderr);
@@ -142,11 +146,16 @@ test('runner: continue collects parallel outputs and advances to join request', 
   const workflowPath = path.join(tempDir, 'parallel-join-workflow.json');
   writeJson(workflowPath, workflowDoc);
 
-  const first = expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next prepare join');
-  writeJson(first.requests[0].outputPath, workerOutput('prepared'));
-  const branches = expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath], 'continue prepare join');
-  for (const request of branches.requests) writeJson(request.outputPath, workerOutput(`${request.id} complete`));
-  const response = expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath], 'continue branches');
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next prepare join');
+  const prepareOutput = path.join(runDir, 'prepare-output.json');
+  writeJson(prepareOutput, workerOutput('prepared'));
+  const branches = expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', prepareOutput], 'continue prepare join');
+  const branchOutputs = branches.requests.map((request) => {
+    const outputPath = path.join(runDir, `${request.id}-artifact.json`);
+    writeJson(outputPath, workerOutput(`${request.id} complete`));
+    return `${request.id}=${outputPath}`;
+  });
+  const response = expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, ...branchOutputs.flatMap((output) => ['--output', output])], 'continue branches');
 
   assert.equal(response.status, 'needs_host_actions');
   assert.deepEqual(response.requests.map((request) => request.id), ['join']);
