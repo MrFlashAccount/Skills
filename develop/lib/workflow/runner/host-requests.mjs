@@ -13,16 +13,6 @@ function shellQuote(value) {
   return `'${String(value).replaceAll("'", "'\\''")}'`;
 }
 
-function outputPathForStep(outputsDir, stepId) {
-  assertSafeStepId(stepId);
-  return join(outputsDir, `${stepId}.json`);
-}
-
-export function instructionRefForStep(stepId) {
-  assertSafeStepId(stepId);
-  return `instructions/${stepId}`;
-}
-
 export function instructionPathForStep(instructionsDir, stepId) {
   assertSafeStepId(stepId);
   return join(instructionsDir, `${stepId}.md`);
@@ -40,7 +30,7 @@ export function responseStatusForInterpreterResponse(interpreterResponse) {
   return 'needs_host_actions';
 }
 
-export function buildHostRequests(interpreterResponse, { outputsDir, runDir }) {
+export function buildHostRequests(interpreterResponse, { runDir }) {
   const status = responseStatusForInterpreterResponse(interpreterResponse);
   if (status !== 'needs_host_actions') return [];
 
@@ -50,9 +40,7 @@ export function buildHostRequests(interpreterResponse, { outputsDir, runDir }) {
       id: step.id,
       stepId: step.id,
       action: step.action,
-      instructionRef: instructionRefForStep(step.id),
       loadInstructionsCommand: loadInstructionsCommandForStep(runDir, step.id),
-      outputPath: outputPathForStep(outputsDir, step.id),
     }));
 }
 

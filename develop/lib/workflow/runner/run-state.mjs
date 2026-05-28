@@ -15,7 +15,6 @@ export function resolveRunPaths({ runDir, workflowPath }) {
     workflowPath: resolve(workflowPath ?? defaultWorkflowPath),
     batonPath: join(resolvedRunDir, 'baton.json'),
     historyPath: join(resolvedRunDir, 'history.md'),
-    outputsDir: join(resolvedRunDir, 'outputs'),
     runnerDir: join(resolvedRunDir, '.workflow-runner'),
     instructionsDir: join(resolvedRunDir, '.workflow-runner', 'instructions'),
     lastResponsePath: join(resolvedRunDir, '.workflow-runner', 'last-response.json'),
@@ -69,7 +68,6 @@ function workflowStart(workflowDoc, workflowPath) {
 
 export async function ensureRunFiles(paths) {
   await mkdir(paths.runDir, { recursive: true });
-  await mkdir(paths.outputsDir, { recursive: true });
   await mkdir(paths.runnerDir, { recursive: true });
   await mkdir(paths.instructionsDir, { recursive: true });
 
@@ -159,14 +157,7 @@ export async function appendHistory(paths, { source, baton, requests, output }) 
   }
 }
 
-export async function clearHostOutputPaths(requests = []) {
-  for (const request of requests) {
-    if (request?.outputPath) await rm(request.outputPath, { force: true });
-  }
-}
-
 export async function persistRunnerResponse(paths, response) {
-  await clearHostOutputPaths(response.requests);
   await writeJsonAtomic(paths.lastResponsePath, response);
   await appendHistory(paths, { source: 'workflow-runner', baton: response.baton, requests: response.requests });
 }

@@ -5,7 +5,7 @@ description: Use for requests that should run a baton workflow through determini
 
 # Workflow Runtime Host Adapter
 
-This skill is a thin host adapter. The code-level runner owns the workflow loop: start or resume the run, render the current step, apply host outputs, persist baton state, and repeat until a host action is needed or the workflow reaches `done` / `blocked`.
+This skill is a thin host adapter. The code-level runner owns the workflow loop: start or resume the run, render the current step, apply host outputs provided by the wrapper, persist baton state, and repeat until a host action is needed or the workflow reaches `done` / `blocked`.
 
 The skill does not choose transitions and does not interpret workflow structure.
 
@@ -13,6 +13,7 @@ The skill does not choose transitions and does not interpret workflow structure.
 
 - `RUN_DIR`: directory for one run, for example `/tmp/develop-run`.
 - `WORKFLOW`: optional workflow JSON path. If omitted, the runner uses `develop/dev-harness.workflow.json`.
+- `ARTIFACT_PATH`: wrapper-owned file path for one captured host action result.
 
 ## Main loop
 
@@ -22,10 +23,10 @@ The skill does not choose transitions and does not interpret workflow structure.
    node develop/scripts/workflow-runner.mjs next --run-dir "$RUN_DIR" --workflow "$WORKFLOW"
    ```
 
-   For an existing run, use the same command or:
+   For an existing run, continue only after wrapper-owned output artifacts are ready:
 
    ```bash
-   node develop/scripts/workflow-runner.mjs continue --run-dir "$RUN_DIR" --workflow "$WORKFLOW"
+   node develop/scripts/workflow-runner.mjs continue --run-dir "$RUN_DIR" --workflow "$WORKFLOW" --output "$ARTIFACT_PATH"
    ```
 
 2. Read the JSON response.
@@ -44,9 +45,7 @@ The skill does not choose transitions and does not interpret workflow structure.
      "id": "step_id",
      "stepId": "step_id",
      "action": "run_worker",
-     "instructionRef": "instructions/step_id",
-     "loadInstructionsCommand": "node develop/scripts/workflow-runner.mjs instructions --run-dir '/path/to/run' --step-id 'step_id'",
-     "outputPath": "/path/to/run/outputs/step_id.json"
+     "loadInstructionsCommand": "node develop/scripts/workflow-runner.mjs instructions --run-dir '/path/to/run' --step-id 'step_id'"
    }
    ```
 
@@ -64,9 +63,11 @@ The skill does not choose transitions and does not interpret workflow structure.
    If the instructions cannot be loaded, stop with an error and do not continue.
    ```
 
-4. Write the host action result to exactly `outputPath` as JSON.
+4. Capture the host action result into a wrapper-owned artifact file.
 
-   Worker or approval output should follow the normal envelope:
+   Output path/name is wrapper-owned transport, not runner/interpreter contract. The filename may derive from `stepId`, and the extension/format may vary (`.md`, `.json`, `structured.json`, etc.) depending on actual step output/model.
+
+   Worker or approval output should follow the normal envelope when captured as JSON:
 
    ```json
    {
@@ -75,7 +76,7 @@ The skill does not choose transitions and does not interpret workflow structure.
    }
    ```
 
-   If the host lacks a required capability, write a blocked result instead of inventing a transition:
+   If the host lacks a required capability, capture a blocked result instead of inventing a transition:
 
    ```json
    {
@@ -87,10 +88,20 @@ The skill does not choose transitions and does not interpret workflow structure.
    }
    ```
 
-5. Call continue after outputs are written:
+5. Call continue with the wrapper-owned artifacts.
+
+   Single request:
 
    ```bash
-   node develop/scripts/workflow-runner.mjs continue --run-dir "$RUN_DIR" --workflow "$WORKFLOW"
+   node develop/scripts/workflow-runner.mjs continue --run-dir "$RUN_DIR" --workflow "$WORKFLOW" --output "$ARTIFACT_PATH"
+   ```
+
+   Parallel requests:
+
+   ```bash
+   node develop/scripts/workflow-runner.mjs continue --run-dir "$RUN_DIR" --workflow "$WORKFLOW" \
+     --output "branch_a=/host/artifacts/branch_a.structured.json" \
+     --output "branch_b=/host/artifacts/branch_b.md"
    ```
 
 6. Repeat until the runner returns `done` or `blocked`.
@@ -102,4 +113,5 @@ The skill does not choose transitions and does not interpret workflow structure.
 - Do not add host-specific fields to workflow JSON or worker outputs.
 - Execute only host action requests returned by the runner.
 - Use `loadInstructionsCommand` to load step instructions; host requests must not carry compiled prompt text.
-- Missing host capability becomes a blocked output at the requested path.
+- Output capture is wrapper-owned transport. Do not treat output paths as runner/interpreter request fields.
+- Missing host capability becomes a blocked output artifact.

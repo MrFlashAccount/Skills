@@ -15,7 +15,7 @@ async function persistStepInstructions(paths, interpreterResponse) {
 async function runnerResponseForRendered(paths, rendered, { initialized, resumed }) {
   await persistStepInstructions(paths, rendered);
   const response = {
-    ...toRunnerResponse(rendered, { outputsDir: paths.outputsDir, runDir: paths.runDir }),
+    ...toRunnerResponse(rendered, { runDir: paths.runDir }),
     runDir: paths.runDir,
     workflow: paths.workflowPath,
     initialized,
@@ -35,29 +35,59 @@ export async function next({ runDir, workflowPath, includeDiagnostics = false })
   });
 }
 
-async function outputPathForCurrentState(paths) {
+function normalizeOutputRefs(outputRefs) {
+  if (outputRefs === undefined) return [];
+  return Array.isArray(outputRefs) ? outputRefs : [outputRefs];
+}
+
+function parseOutputRef(ref) {
+  const text = String(ref ?? '');
+  const separator = text.indexOf('=');
+  if (separator <= 0) return { path: text };
+  const stepId = text.slice(0, separator);
+  assertSafeStepId(stepId);
+  return { stepId, path: text.slice(separator + 1) };
+}
+
+function outputPathForRequest(request, outputRefs) {
+  if (outputRefs.length === 0) throw new Error(`missing host output for workflow step ${request.id}`);
+  const parsed = outputRefs.map(parseOutputRef);
+  const named = parsed.filter((candidate) => candidate.stepId);
+  if (named.length > 0) {
+    const match = named.find((candidate) => candidate.stepId === request.id || candidate.stepId === request.stepId);
+    if (!match?.path) throw new Error(`missing host output for workflow step ${request.id}`);
+    return match.path;
+  }
+  if (outputRefs.length === 1) return parsed[0].path;
+  throw new Error('parallel host outputs must use --output <step-id>=<path> for each requested step');
+}
+
+async function outputPathForCurrentState(paths, outputRefs = []) {
   const lastResponse = await readJson(paths.lastResponsePath, 'last runner response');
   if (lastResponse.status !== 'needs_host_actions') throw new Error(`last runner response is '${lastResponse.status}', not needs_host_actions`);
 
   const missing = [];
+  const pathsByStep = new Map();
   for (const request of lastResponse.requests ?? []) {
-    if (!(await pathExists(request.outputPath))) missing.push(request.outputPath);
+    const outputPath = outputPathForRequest(request, outputRefs);
+    pathsByStep.set(request.id, outputPath);
+    if (!(await pathExists(outputPath))) missing.push(outputPath);
   }
   if (missing.length > 0) throw new Error(`missing host output: ${missing.join(', ')}`);
 
-  if ((lastResponse.requests ?? []).length === 1) return { outputPath: lastResponse.requests[0].outputPath, usedEnvelope: false };
+  if ((lastResponse.requests ?? []).length === 1) return { outputPath: pathsByStep.get(lastResponse.requests[0].id), usedEnvelope: false };
 
   const steps = {};
-  for (const request of lastResponse.requests) steps[request.id] = await readJson(request.outputPath, `host output ${request.id}`);
+  for (const request of lastResponse.requests) steps[request.id] = await readJson(pathsByStep.get(request.id), `host output ${request.id}`);
   const envelopePath = join(paths.runnerDir, 'parallel-output.json');
   await writeJsonAtomic(envelopePath, { steps });
   return { outputPath: envelopePath, usedEnvelope: true };
 }
 
-export async function continueRun({ runDir, workflowPath, includeDiagnostics = false }) {
+export async function continueRun({ runDir, workflowPath, output, includeDiagnostics = false }) {
   const paths = resolveRunPaths({ runDir, workflowPath });
   await ensureRunFiles(paths);
-  const { outputPath } = await outputPathForCurrentState(paths);
+  const { outputPath } = await outputPathForCurrentState(paths, normalizeOutputRefs(output));
   const applied = applyWorkflowOutput(paths.workflowPath, paths.batonPath, outputPath);
   await writeJsonAtomic(paths.batonPath, applied.baton);
   await appendHistory(paths, { source: 'workflow-runner-continue', baton: applied.baton, output: outputPath });

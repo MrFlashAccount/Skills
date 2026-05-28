@@ -9,7 +9,7 @@ function fail(message) {
 }
 
 function usage() {
-  return 'usage: node scripts/workflow-runner.mjs next --run-dir <dir> [--workflow <workflow.json>] [--diagnostics] | continue --run-dir <dir> [--workflow <workflow.json>] [--diagnostics] | instructions --run-dir <dir> --step-id <id>';
+  return 'usage: node scripts/workflow-runner.mjs next --run-dir <dir> [--workflow <workflow.json>] [--diagnostics] | continue --run-dir <dir> --output <worker-output.json> [--output <step-id=worker-output.json> ...] [--workflow <workflow.json>] [--diagnostics] | instructions --run-dir <dir> --step-id <id>';
 }
 
 function parseCliArgs(argv) {
@@ -23,6 +23,7 @@ function parseCliArgs(argv) {
         'step-id': { type: 'string' },
         workflow: { type: 'string' },
         diagnostics: { type: 'boolean', default: false },
+        output: { type: 'string', multiple: true },
       },
       strict: true,
       allowPositionals: false,
@@ -30,7 +31,8 @@ function parseCliArgs(argv) {
     if (!parsed.values['run-dir']) fail(usage());
     if (mode === 'instructions' && !parsed.values['step-id']) fail(usage());
     if (mode !== 'instructions' && parsed.values['step-id']) fail(usage());
-    if (mode === 'instructions' && (parsed.values.workflow || parsed.values.diagnostics)) fail(usage());
+    if (mode !== 'continue' && parsed.values.output?.length) fail(usage());
+    if (mode === 'instructions' && (parsed.values.workflow || parsed.values.diagnostics || parsed.values.output?.length)) fail(usage());
     return { mode, values: parsed.values };
   } catch (error) {
     fail(`${error.message}\n${usage()}`);
@@ -51,6 +53,7 @@ try {
       runDir: values['run-dir'],
       workflowPath: values.workflow,
       includeDiagnostics: values.diagnostics,
+      output: values.output,
     });
     console.log(JSON.stringify(response, null, 2));
   }
