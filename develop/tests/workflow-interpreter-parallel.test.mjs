@@ -1,0 +1,227 @@
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import test, { after } from 'node:test';
+import { fileURLToPath } from 'node:url';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-parallel-check-'));
+
+function outputContract() {
+  return { template: '../../shared/templates/implementation-plan-template.md' };
+}
+
+const emptyState = { artifacts: [], results: [] };
+
+const parallelWorkflowDoc = {
+  workflow: {
+    name: 'parallel-spec',
+    version: 1,
+    start: 'prepare',
+    done: 'done',
+    blocked: 'blocked',
+    steps: {
+      prepare: {
+        name: 'Prepare',
+        kind: 'worker',
+        input: { prompt: 'Prepare branch.' },
+        output: outputContract(),
+        next: ['branch_a', 'branch_b'],
+      },
+      branch_a: {
+        name: 'Branch A',
+        kind: 'worker',
+        input: { prompt: 'Run branch A.' },
+        output: outputContract(),
+        next: 'join',
+      },
+      branch_b: {
+        name: 'Branch B',
+        kind: 'worker',
+        input: { prompt: 'Run branch B.' },
+        output: outputContract(),
+        next: 'join',
+      },
+      join: {
+        name: 'Join',
+        kind: 'worker',
+        input: { state: ['branch_a', 'branch_b'], prompt: 'Read branch states and decide.' },
+        output: outputContract(),
+        next: 'done',
+      },
+      done: { name: 'Done', kind: 'done', input: { prompt: 'Finished.' } },
+      blocked: { name: 'Blocked', kind: 'blocked', input: { prompt: 'Blocked.' } },
+    },
+  },
+};
+
+function safeName(label) {
+  return label.replace(/[^a-z0-9_-]+/gi, '-');
+}
+
+function writeJson(fileName, value) {
+  const filePath = path.join(tempDir, fileName);
+  writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
+  return filePath;
+}
+
+function baton(overrides = {}) {
+  return {
+    cursor: 'worker_step',
+    status: 'running',
+    state: structuredClone(emptyState),
+    ...overrides,
+  };
+}
+
+function output(overrides = {}) {
+  return { outcome: 'ready', artifacts: [{ type: 'packet', summary: 'minimal packet' }], ...overrides };
+}
+
+function runNode(args, cwd = root) {
+  return spawnSync(process.execPath, args, { cwd, encoding: 'utf8' });
+}
+
+function expectCliResult(label, result, expectSuccess) {
+  const succeeded = result.status === 0;
+  assert.equal(
+    succeeded,
+    expectSuccess,
+    `check '${label}' expected ${expectSuccess ? 'success' : 'failure'} but got ${result.status}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
+  );
+
+  if (!expectSuccess) return { stdout: result.stdout, stderr: result.stderr };
+
+  const response = JSON.parse(result.stdout);
+  assert.ok(response.baton, `check '${label}' returned no baton`);
+  assert.ok(response.directive, `check '${label}' returned no directive`);
+  return response;
+}
+
+function runInspect(label, batonDoc, expectSuccess = true, workflowDoc = parallelWorkflowDoc) {
+  const prefix = safeName(label);
+  const batonPath = writeJson(`${prefix}-baton.json`, batonDoc);
+  const wfPath = writeJson(`${prefix}-workflow.json`, workflowDoc);
+  const before = readFileSync(batonPath, 'utf8');
+
+  const result = runNode(['develop/scripts/workflow-interpreter.mjs', 'inspect', wfPath, batonPath]);
+  const response = expectCliResult(label, result, expectSuccess);
+  assert.equal(readFileSync(batonPath, 'utf8'), before, `check '${label}' mutated baton file during inspect`);
+  return response;
+}
+
+function runApply(label, batonDoc, workerOutput, expectSuccess = true, workflowDoc = parallelWorkflowDoc) {
+  const prefix = safeName(label);
+  const batonPath = writeJson(`${prefix}-baton.json`, batonDoc);
+  const outputPath = writeJson(`${prefix}-output.json`, workerOutput);
+  const wfPath = writeJson(`${prefix}-workflow.json`, workflowDoc);
+  const before = readFileSync(batonPath, 'utf8');
+
+  const result = runNode(['develop/scripts/workflow-interpreter.mjs', 'apply', wfPath, batonPath, outputPath]);
+  const response = expectCliResult(label, result, expectSuccess);
+  assert.equal(readFileSync(batonPath, 'utf8'), before, `check '${label}' mutated baton file during apply`);
+  return response;
+}
+
+after(() => {
+  rmSync(tempDir, { recursive: true, force: true });
+});
+
+test('runtime: sequential string next still advances to one target', () => {
+  const response = runApply('parallel-sequential-string-next', baton({ cursor: 'branch_a' }), output({ outcome: 'ready' }));
+
+  assert.equal(response.baton.cursor, 'join');
+  assert.equal(response.directive.id, 'join');
+  assert.equal(response.directive.action, 'run_worker');
+  assert.deepEqual(response.baton.state.branch_a.outcome, 'ready');
+});
+
+test('runtime: next array starts parallel steps and records pending branch state', () => {
+  const response = runApply('parallel-start', baton({ cursor: 'prepare' }), output({ outcome: 'ready' }));
+
+  assert.equal(response.baton.cursor, 'prepare');
+  assert.equal(response.directive.action, 'run_parallel');
+  assert.deepEqual(response.directive.parallel.map((step) => step.id), ['branch_a', 'branch_b']);
+  assert.deepEqual(response.baton.parallel, { from: 'prepare', targets: ['branch_a', 'branch_b'], join: 'join' });
+  assert.deepEqual(response.baton.state.prepare.outcome, 'ready');
+});
+
+test('runtime: parallel step outputs write separate state and advance to explicit join', () => {
+  const pending = runApply('parallel-to-pending', baton({ cursor: 'prepare' }), output({ outcome: 'ready' })).baton;
+  const response = runApply(
+    'parallel-complete',
+    pending,
+    {
+      steps: {
+        branch_a: output({ outcome: 'ready', results: [{ type: 'branch', summary: 'A' }] }),
+        branch_b: output({ outcome: 'ready', results: [{ type: 'branch', summary: 'B' }] }),
+      },
+    },
+  );
+
+  assert.equal(response.baton.cursor, 'join');
+  assert.equal(response.directive.id, 'join');
+  assert.equal(response.directive.action, 'run_worker');
+  assert.equal(response.baton.state.branch_a.results[0].summary, 'A');
+  assert.equal(response.baton.state.branch_b.results[0].summary, 'B');
+  assert.equal(Object.hasOwn(response.baton, 'parallel'), false);
+});
+
+test('runtime: join step can read parallel branch state and continue to done', () => {
+  const pending = runApply('parallel-join-pending', baton({ cursor: 'prepare' }), output({ outcome: 'ready' })).baton;
+  const joined = runApply(
+    'parallel-join-arrive',
+    pending,
+    { steps: { branch_a: output({ outcome: 'ready' }), branch_b: output({ outcome: 'ready' }) } },
+  ).baton;
+  const response = runApply('parallel-join-complete', joined, output({ outcome: 'ready', results: [{ type: 'join', summary: 'joined' }] }));
+
+  assert.equal(response.baton.cursor, 'done');
+  assert.equal(response.directive.action, 'stop_done');
+  assert.equal(response.baton.state.join.results[0].summary, 'joined');
+});
+
+test('schema validation: parallel next rejects empty arrays and duplicate targets', () => {
+  const emptyNextWorkflowDoc = structuredClone(parallelWorkflowDoc);
+  emptyNextWorkflowDoc.workflow.steps.prepare.next = [];
+  const empty = runInspect('parallel-empty-next', baton({ cursor: 'prepare' }), false, emptyNextWorkflowDoc);
+  assert.match(empty.stderr, /workflow failed schema validation/);
+
+  const duplicateNextWorkflowDoc = structuredClone(parallelWorkflowDoc);
+  duplicateNextWorkflowDoc.workflow.steps.prepare.next = ['branch_a', 'branch_a'];
+  const duplicate = runInspect('parallel-duplicate-next', baton({ cursor: 'prepare' }), false, duplicateNextWorkflowDoc);
+  assert.match(duplicate.stderr, /workflow failed schema validation/);
+});
+
+test('runtime validation: parallel branches reject nested parallel and non-join shapes', () => {
+  const nestedWorkflowDoc = structuredClone(parallelWorkflowDoc);
+  nestedWorkflowDoc.workflow.steps.branch_a.next = ['join'];
+  const nested = runInspect('parallel-nested-rejected', baton({ cursor: 'prepare' }), false, nestedWorkflowDoc);
+  assert.match(nested.stderr, /cannot start nested parallel steps/);
+
+  const mappedBranchWorkflowDoc = structuredClone(parallelWorkflowDoc);
+  mappedBranchWorkflowDoc.workflow.steps.branch_a.next = { by: 'outcome', map: { ready: 'join' } };
+  const mapped = runInspect('parallel-mapped-branch-rejected', baton({ cursor: 'prepare' }), false, mappedBranchWorkflowDoc);
+  assert.match(mapped.stderr, /must use a string next to an explicit join step/);
+});
+
+test('runtime: repeated sequential loop execution still overwrites latest per-step state', () => {
+  const workflowDoc = structuredClone(parallelWorkflowDoc);
+  workflowDoc.workflow.start = 'worker_step';
+  workflowDoc.workflow.steps.worker_step = {
+    name: 'Worker step',
+    kind: 'worker',
+    input: { prompt: 'Run worker.' },
+    output: outputContract(),
+    next: { by: 'outcome', map: { ready: 'join', retry: { target: 'worker_step', maxAttempts: 2, onLimit: 'blocked' } } },
+  };
+
+  const first = runApply('loop-latest-first', baton(), output({ outcome: 'retry', results: [{ type: 'try', summary: 'first' }] }), true, workflowDoc).baton;
+  const second = runApply('loop-latest-second', first, output({ outcome: 'ready', results: [{ type: 'try', summary: 'second' }] }), true, workflowDoc).baton;
+
+  assert.equal(second.cursor, 'join');
+  assert.equal(second.state.worker_step.results[0].summary, 'second');
+  assert.equal(second.state.results.at(-1).summary, 'second');
+});

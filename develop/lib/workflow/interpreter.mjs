@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { buildDirective } from './directive.mjs';
+import { buildDirective, buildParallelDirective } from './directive.mjs';
 import { invariant, WorkflowInterpreterError } from './errors.mjs';
 import { statusForStep } from './model.mjs';
 import { readJson } from './json-io.mjs';
@@ -55,6 +55,11 @@ function assertWorkflowTransitionTargets(workflow) {
       continue;
     }
 
+    if (Array.isArray(next)) {
+      assertParallelTargets(workflow, stepId, next);
+      continue;
+    }
+
     for (const [value, target] of Object.entries(next.map)) {
       const path = `next.map.${value}`;
       if (typeof target === 'string') {
@@ -75,8 +80,42 @@ function assertTransitionTarget(workflow, stepId, fieldPath, targetStepId) {
   );
 }
 
-function responseFor(baton, stepId, step) {
-  const response = { baton, directive: buildDirective(stepId, step) };
+function assertParallelTargets(workflow, stepId, targets) {
+  const joinTargets = new Set();
+  for (const targetStepId of targets) {
+    assertTransitionTarget(workflow, stepId, 'next', targetStepId);
+    invariant(targetStepId !== stepId, `workflow step '${stepId}' parallel branch cannot target itself`);
+
+    const targetStep = workflow.steps[targetStepId];
+    invariant(
+      targetStep.kind !== 'done' && targetStep.kind !== 'blocked',
+      `workflow step '${stepId}' parallel branch target '${targetStepId}' cannot be terminal`,
+    );
+    invariant(
+      !Array.isArray(targetStep.next),
+      `workflow step '${stepId}' parallel branch target '${targetStepId}' cannot start nested parallel steps`,
+    );
+    invariant(
+      typeof targetStep.next === 'string',
+      `workflow step '${stepId}' parallel branch target '${targetStepId}' must use a string next to an explicit join step`,
+    );
+    assertTransitionTarget(workflow, targetStepId, 'next', targetStep.next);
+    joinTargets.add(targetStep.next);
+  }
+
+  invariant(joinTargets.size === 1, `workflow step '${stepId}' parallel branch targets must share one explicit join step`);
+}
+
+function parallelDirectiveForBaton(workflow, baton, cursorStep) {
+  const pending = baton.parallel;
+  if (!pending) return undefined;
+  invariant(pending.from === baton.cursor, `pending parallel branch '${pending.from}' does not match baton cursor '${baton.cursor}'`);
+  return buildParallelDirective(baton.cursor, cursorStep, workflow, pending.targets);
+}
+
+function responseFor(baton, stepId, step, workflow) {
+  const directive = workflow ? (parallelDirectiveForBaton(workflow, baton, step) ?? buildDirective(stepId, step)) : buildDirective(stepId, step);
+  const response = { baton, directive };
   assertResponseSchema(response);
   return response;
 }
@@ -149,13 +188,13 @@ function assertOutputSchemaIfDeclared({ workflowPath, workflow, baton, stepId, s
 }
 
 export function inspectWorkflow(workflowPath, batonPath) {
-  const { baton, cursorStep } = loadWorkflowAndBaton(workflowPath, batonPath);
-  return responseFor(baton, baton.cursor, cursorStep);
+  const { workflow, baton, cursorStep } = loadWorkflowAndBaton(workflowPath, batonPath);
+  return responseFor(baton, baton.cursor, cursorStep, workflow);
 }
 
 export function renderWorkflow(workflowPath, batonPath, options = {}) {
   const { workflow, baton, cursorStep } = loadWorkflowAndBaton(workflowPath, batonPath);
-  const response = responseFor(baton, baton.cursor, cursorStep);
+  const response = responseFor(baton, baton.cursor, cursorStep, workflow);
   return {
     ...response,
     compiledPrompt: renderWorkflowPrompt({
@@ -171,8 +210,89 @@ export function renderWorkflow(workflowPath, batonPath, options = {}) {
   };
 }
 
+
+function prepareParallelBranch({ workflow, baton, stepId, step, output, attempts }) {
+  const join = workflow.steps[step.next[0]].next;
+  const updatedBaton = structuredClone(baton);
+  updatedBaton.state = applyOutputToBatonState(updatedBaton, output, attempts, step.kind === 'worker' ? stepId : undefined, {
+    mirrorToOutputs: Boolean(step.output?.schema),
+  });
+  updatedBaton.parallel = { from: stepId, targets: structuredClone(step.next), join };
+  updatedBaton.status = 'running';
+  delete updatedBaton.blocker;
+  return responseFor(updatedBaton, stepId, step, workflow);
+}
+
+function readParallelOutputForStep(allOutput, stepId) {
+  invariant(allOutput && typeof allOutput === 'object' && !Array.isArray(allOutput), 'parallel output must be an object');
+  const steps = allOutput.steps;
+  invariant(steps && typeof steps === 'object' && !Array.isArray(steps), 'parallel output must include object steps');
+  invariant(Object.hasOwn(steps, stepId), `parallel output missing step '${stepId}'`);
+  return steps[stepId];
+}
+
+function assertParallelOutputShape(pending, allOutput) {
+  const steps = allOutput?.steps;
+  invariant(steps && typeof steps === 'object' && !Array.isArray(steps), 'parallel output must include object steps');
+  const expected = new Set(pending.targets);
+  for (const stepId of Object.keys(steps)) {
+    invariant(expected.has(stepId), `parallel output included unexpected step '${stepId}'`);
+  }
+}
+
+function applyParallelOutputs({ workflowPath, workflow, baton, outputPath }) {
+  const pending = baton.parallel;
+  invariant(pending, `cursor '${baton.cursor}' has no pending parallel steps`);
+  const allOutput = readJson(outputPath, 'parallel output');
+  assertParallelOutputShape(pending, allOutput);
+
+  let updatedBaton = structuredClone(baton);
+  for (const stepId of pending.targets) {
+    const step = workflow.steps[stepId];
+    const rawOutput = readParallelOutputForStep(allOutput, stepId);
+    const { workerOutput, retryResponse } = assertOutputSchemaIfDeclared({
+      workflowPath,
+      workflow,
+      baton: updatedBaton,
+      stepId,
+      step,
+      workerOutput: rawOutput,
+    });
+    invariant(!retryResponse, `parallel step '${stepId}' output failed schema validation and cannot be retried inside a parallel group`);
+    validateOutputKindForParallel(step, workerOutput, stepId);
+    updatedBaton.state = applyOutputToBatonState(updatedBaton, workerOutput, undefined, step.kind === 'worker' ? stepId : undefined, {
+      mirrorToOutputs: Boolean(step.output?.schema),
+    });
+    if (workerOutput.blocker) updatedBaton.blocker = workerOutput.blocker;
+  }
+
+  const targetStepId = pending.join;
+  const targetStep = workflow.steps[targetStepId];
+  invariant(targetStep, `transition target not found in workflow: ${targetStepId}`);
+  updatedBaton.cursor = targetStepId;
+  updatedBaton.status = statusForStep(workflow, targetStepId, targetStep);
+  delete updatedBaton.parallel;
+  if (updatedBaton.status !== 'blocked') delete updatedBaton.blocker;
+  return responseFor(updatedBaton, targetStepId, targetStep, workflow);
+}
+
+function validateOutputKindForParallel(step, output, stepId) {
+  if (step.kind === 'approval') {
+    invariant(!('outcome' in output), `approval cursor '${stepId}' must use approval, not outcome`);
+    invariant('approval' in output, `approval cursor '${stepId}' must include string approval`);
+    return;
+  }
+
+  if (step.kind === 'worker') {
+    invariant(!('approval' in output), `worker cursor '${stepId}' must use outcome, not approval`);
+    invariant('outcome' in output, `worker cursor '${stepId}' must include string outcome`);
+  }
+}
+
 export function applyWorkflowOutput(workflowPath, batonPath, outputPath) {
   const { workflow, baton, cursorStep } = loadWorkflowAndBaton(workflowPath, batonPath);
+  if (baton.parallel) return applyParallelOutputs({ workflowPath, workflow, baton, outputPath });
+
   const readResult = readWorkerOutputForStep({ outputPath, baton, stepId: baton.cursor, step: cursorStep });
   if (readResult.retryResponse) return readResult.retryResponse;
   const { workerOutput, retryResponse } = assertOutputSchemaIfDeclared({
@@ -184,6 +304,10 @@ export function applyWorkflowOutput(workflowPath, batonPath, outputPath) {
     workerOutput: readResult.workerOutput,
   });
   if (retryResponse) return retryResponse;
+
+  if (Array.isArray(cursorStep.next)) {
+    return prepareParallelBranch({ workflow, baton, stepId: baton.cursor, step: cursorStep, output: workerOutput, attempts: undefined });
+  }
 
   const { targetStepId, attempts } = resolveTransition({ workflow, baton, stepId: baton.cursor, step: cursorStep, output: workerOutput });
   const targetStep = workflow.steps[targetStepId];
@@ -198,5 +322,5 @@ export function applyWorkflowOutput(workflowPath, batonPath, outputPath) {
   delete updatedBaton.blocker;
   if (updatedBaton.status === 'blocked' && workerOutput.blocker) updatedBaton.blocker = workerOutput.blocker;
 
-  return responseFor(updatedBaton, targetStepId, targetStep);
+  return responseFor(updatedBaton, targetStepId, targetStep, workflow);
 }

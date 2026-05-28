@@ -33,6 +33,7 @@ Strictly follow these four steps.
 1. Evaluate `<directive>.action`:
    - if `stop_done` or `stop_blocked`: exit the loop with the returned result.
    - if `run_worker`: build one bounded prompt from `<directive>`, launch exactly one bounded subagent/executor, and write the result to `<output.json>`.
+   - if `run_parallel`: launch each entry in `<directive>.parallel` as a parallel step, wait for every result, and write `<output.json>` as `{ "steps": { "<stepId>": <worker-or-approval-output> } }`. Parallel step outputs remain separate in `baton.state[stepId]`; the workflow then advances to the explicit join step.
    - if `wait_for_approval`: wait for explicit user response/approval, e.g. LGTM/ПОДТВЕРЖДАЮ as appropriate, then write that response to `<output.json>`.
    - else: exit as blocked for unknown `<directive>.action`.
 2. Call workflow interpreter:
