@@ -29,12 +29,23 @@ function emit(response) {
   console.log(JSON.stringify(response, null, 2));
 }
 
+const DEFAULT_USAGE = 'usage: node scripts/workflow-interpreter.mjs inspect <workflow.json> <baton.json> | render [--diagnostics] <workflow.json> <baton.json> | apply <workflow.json> <baton.json> <worker-output.json>';
+
+const USAGE_BY_MODE = {
+  inspect: 'usage: node scripts/workflow-interpreter.mjs inspect <workflow.json> <baton.json>',
+  render: 'usage: node scripts/workflow-interpreter.mjs render [--diagnostics] <workflow.json> <baton.json>',
+  apply: 'usage: node scripts/workflow-interpreter.mjs apply <workflow.json> <baton.json> <worker-output.json>',
+};
+
+const COMMANDS = {
+  inspect: ({ workflowPath, batonPath }) => inspectWorkflow(workflowPath, batonPath),
+  render: ({ workflowPath, batonPath, includeDiagnostics }) => renderWorkflow(workflowPath, batonPath, { includeDiagnostics }),
+  apply: ({ workflowPath, batonPath, outputPath }) => applyWorkflowOutput(workflowPath, batonPath, outputPath),
+};
+
 function usageForArgs(args) {
   const [mode] = args;
-  if (mode === 'inspect') return 'usage: node scripts/workflow-interpreter.mjs inspect <workflow.json> <baton.json>';
-  if (mode === 'render') return 'usage: node scripts/workflow-interpreter.mjs render [--diagnostics] <workflow.json> <baton.json>';
-  if (mode === 'apply') return 'usage: node scripts/workflow-interpreter.mjs apply <workflow.json> <baton.json> <worker-output.json>';
-  return 'usage: node scripts/workflow-interpreter.mjs inspect <workflow.json> <baton.json> | render [--diagnostics] <workflow.json> <baton.json> | apply <workflow.json> <baton.json> <worker-output.json>';
+  return USAGE_BY_MODE[mode] ?? DEFAULT_USAGE;
 }
 
 function assertCliArgs(args) {
@@ -46,14 +57,8 @@ try {
   assertCliArgs(args);
 
   const [mode, workflowPath, batonPath, outputPath] = args;
-
-  if (mode === 'inspect') {
-    emit(inspectWorkflow(workflowPath, batonPath));
-  } else if (mode === 'render') {
-    emit(renderWorkflow(workflowPath, batonPath, { includeDiagnostics }));
-  } else if (mode === 'apply') {
-    emit(applyWorkflowOutput(workflowPath, batonPath, outputPath));
-  }
+  const command = COMMANDS[mode];
+  emit(command({ workflowPath, batonPath, outputPath, includeDiagnostics }));
 } catch (error) {
   if (error instanceof WorkflowInterpreterError) fail(error.message);
   throw error;
