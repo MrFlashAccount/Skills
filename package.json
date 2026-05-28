@@ -3,9 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "validate": "make -C develop validate"
+    "validate": "make -C develop validate",
+    "maintain:bundle-json-schema-validation": "node scripts/bundle-json-schema-validation.mjs"
   },
-  "dependencies": {
-    "ajv": "^8.17.1"
+  "devDependencies": {
+    "ajv": "^8.17.1",
+    "esbuild": "^0.28.0"
   }
 }
