@@ -2,12 +2,13 @@
   "workflow": {
     "name": "dev-harness",
     "version": 1,
-    "start": "research",
+    "start": "research_draft",
     "done": "done",
     "blocked": "blocked",
+    "instruction": "Run DevHarness as a deterministic inline workflow. Use branch steps, loop steps, parallel implementation steps, explicit join steps, and dynamic next targets only when the target ids are declared in this workflow.",
     "steps": {
-      "research": {
-        "name": "Research",
+      "research_draft": {
+        "name": "Research draft",
         "kind": "worker",
         "input": {
           "role": "researcher",
@@ -15,30 +16,29 @@
             "artifacts",
             "results"
           ],
-          "prompt": "Read task context, classify the slice, gather relevant local/project evidence, identify constraints, risks, open questions, and whether architecture-sensitive scope exists. Produce a compact research packet for critic review."
+          "prompt": "Read the task context, gather local/project evidence, identify constraints, risks, open questions, and architecture-sensitive pressure. Return a research packet for attack. Use outcome ready_for_attack when the packet is ready, or blocked when implementation-critical input is missing."
         },
         "output": {
-          "template": "../../shared/templates/research-packet-template.md",
-          "schema": "develop/schemas/dev-harness/reviewer-selection-output.json"
+          "template": "../../shared/templates/research-packet-template.md"
         },
         "next": {
           "match": "${{ output.outcome }}",
           "cases": {
-            "ready_for_critic": "research_critic",
+            "ready_for_attack": "research_attack",
             "blocked": "blocked"
           }
         }
       },
-      "research_critic": {
-        "name": "Research critic",
+      "research_attack": {
+        "name": "Research attack",
         "kind": "worker",
         "input": {
-          "role": "reviewer",
+          "role": "critic",
           "state": [
             "artifacts",
             "results"
           ],
-          "prompt": "Attack the research packet for missing evidence, unsafe assumptions, scope drift, sensitive surfaces, and unclear approval questions. Allow one bounded revision loop when gaps are fixable."
+          "prompt": "Attack the research packet for missing evidence, unsafe assumptions, scope drift, sensitive surfaces, and unclear approval questions. Return approved, needs_revision, or blocked."
         },
         "output": {
           "template": "../../shared/templates/review-verdict-template.md"
@@ -47,7 +47,7 @@
           "match": "${{ output.outcome }}",
           "cases": {
             "approved": "approve_research",
-            "needs_revision": "research",
+            "needs_revision": "research_draft",
             "blocked": "blocked"
           }
         }
@@ -60,19 +60,19 @@
             "artifacts",
             "results"
           ],
-          "prompt": "Show the cleaned research review packet to the user. Continue only after explicit approval."
+          "prompt": "Show the cleaned research packet and attack verdict to the user. Continue only after explicit approval. Return approval approved to continue to architecture_draft. Return approval rejected when the research must be revised. Return approval blocked with a blocker when the workflow cannot continue safely."
         },
         "next": {
           "match": "${{ output.approval }}",
           "cases": {
-            "approved": "architecture",
-            "rejected": "research",
+            "approved": "architecture_draft",
+            "rejected": "research_draft",
             "blocked": "blocked"
           }
         }
       },
-      "architecture": {
-        "name": "Architecture gate",
+      "architecture_draft": {
+        "name": "Architecture draft",
         "kind": "worker",
         "input": {
           "role": "architect",
@@ -80,7 +80,7 @@
             "artifacts",
             "results"
           ],
-          "prompt": "Decide whether the approved research requires an architecture-sensitive structural contract or durable architecture artifact work. For architecture-sensitive work, produce the minimal structural contract; otherwise record an explicit no-architecture-artifact decision."
+          "prompt": "Produce the minimal architecture decision or structural contract required by the approved research. If architecture work is not needed, record the explicit no-artifact decision. Use outcome ready_for_attack or blocked."
         },
         "output": {
           "template": "../../shared/templates/architecture-proposal-template.md"
@@ -88,8 +88,195 @@
         "next": {
           "match": "${{ output.outcome }}",
           "cases": {
-            "ready_for_review": "architect_review",
-            "skip_review": "approve_architecture",
+            "ready_for_attack": "architecture_attack",
+            "blocked": "blocked"
+          }
+        }
+      },
+      "architecture_attack": {
+        "name": "Architecture attack",
+        "kind": "worker",
+        "input": {
+          "role": "architect",
+          "state": [
+            "artifacts",
+            "results"
+          ],
+          "prompt": "Attack the architecture decision or structural contract for ownership seams, dependency direction, contract surfaces, durable artifact pressure, and compatibility risk. Return approved, needs_revision, or blocked."
+        },
+        "output": {
+          "template": "../../shared/templates/review-verdict-template.md"
+        },
+        "next": {
+          "match": "${{ output.outcome }}",
+          "cases": {
+            "approved": "approve_architecture",
+            "needs_revision": "architecture_draft",
+            "blocked": "blocked"
+          }
+        }
+      },
+      "approve_architecture": {
+        "name": "Approve architecture",
+        "kind": "approval",
+        "input": {
+          "state": [
+            "artifacts",
+            "results"
+          ],
+          "prompt": "Show the architecture decision or structural contract to the user. Continue only after explicit approval when the slice is non-trivial or architecture-sensitive. Return approval approved to continue to planning_draft. Return approval rejected when architecture must be revised. Return approval blocked with a blocker when the workflow cannot continue safely."
+        },
+        "next": {
+          "match": "${{ output.approval }}",
+          "cases": {
+            "approved": "planning_draft",
+            "rejected": "architecture_draft",
+            "blocked": "blocked"
+          }
+        }
+      },
+      "planning_draft": {
+        "name": "Planning draft",
+        "kind": "worker",
+        "input": {
+          "role": "architect",
+          "state": [
+            "artifacts",
+            "results"
+          ],
+          "prompt": "Translate approved research and any architecture contract into an execution plan: file zones, implementer owners, reviewer plan, verification surfaces, rollback surfaces, docs/contract touchpoints, risks, and assumptions. Use outcome ready_for_attack or blocked."
+        },
+        "output": {
+          "template": "../../shared/templates/implementation-plan-template.md"
+        },
+        "next": {
+          "match": "${{ output.outcome }}",
+          "cases": {
+            "ready_for_attack": "planning_attack",
+            "blocked": "blocked"
+          }
+        }
+      },
+      "planning_attack": {
+        "name": "Planning attack",
+        "kind": "worker",
+        "input": {
+          "role": "critic",
+          "state": [
+            "artifacts",
+            "results"
+          ],
+          "prompt": "Challenge the execution plan for entity coverage, one-owner-per-file-zone, project baseline, architecture artifact manifest, verification and rollback surfaces, sensitive surfaces, request-path/contract touchpoints, and max-detail leaks. Return approved, needs_revision, or blocked."
+        },
+        "output": {
+          "template": "../../shared/templates/review-verdict-template.md"
+        },
+        "next": {
+          "match": "${{ output.outcome }}",
+          "cases": {
+            "approved": "approve_plan",
+            "needs_revision": "planning_draft",
+            "blocked": "blocked"
+          }
+        }
+      },
+      "approve_plan": {
+        "name": "Approve implementation plan",
+        "kind": "approval",
+        "input": {
+          "state": [
+            "artifacts",
+            "results"
+          ],
+          "prompt": "Show one cleaned execution plan to the user. Stop until explicit implementation approval. Return approval approved to run the approved implementation branches, approval rejected to revise planning, or approval blocked with a blocker when implementation cannot continue safely."
+        },
+        "next": {
+          "match": "${{ output.approval }}",
+          "cases": {
+            "approved": [
+              "backend_implementation",
+              "frontend_implementation",
+              "architecture_artifact_update"
+            ],
+            "rejected": "planning_draft",
+            "blocked": "blocked"
+          }
+        }
+      },
+      "backend_implementation": {
+        "name": "Backend implementation",
+        "kind": "worker",
+        "input": {
+          "role": "backend",
+          "state": [
+            "artifacts",
+            "results"
+          ],
+          "prompt": "Implement the approved backend slice only. Preserve the frozen research, architecture, execution plan, and user constraints. Verify your slice enough for the implementation join. Return outcome implemented or blocked."
+        },
+        "output": {
+          "template": "../../shared/templates/implementer-handoff-template.md"
+        },
+        "next": "implementation_join"
+      },
+      "frontend_implementation": {
+        "name": "Frontend implementation",
+        "kind": "worker",
+        "input": {
+          "role": "frontend",
+          "state": [
+            "artifacts",
+            "results"
+          ],
+          "prompt": "Implement the approved frontend slice only. Preserve the frozen research, architecture, execution plan, and user constraints. Verify your slice enough for the implementation join. Return outcome implemented or blocked."
+        },
+        "output": {
+          "template": "../../shared/templates/implementer-handoff-template.md"
+        },
+        "next": "implementation_join"
+      },
+      "architecture_artifact_update": {
+        "name": "Architecture artifact update",
+        "kind": "worker",
+        "input": {
+          "role": "architect",
+          "state": [
+            "artifacts",
+            "results"
+          ],
+          "prompt": "Update only approved architecture artifacts or architecture handoff notes required by the execution plan. Do not redesign. Return outcome implemented or blocked."
+        },
+        "output": {
+          "template": "../../shared/templates/implementer-handoff-template.md"
+        },
+        "next": "implementation_join"
+      },
+      "implementation_join": {
+        "name": "Implementation join",
+        "kind": "worker",
+        "input": {
+          "role": "backend",
+          "state": [
+            "artifacts",
+            "results"
+          ],
+          "prompt": "Join all implementation branch outputs. Check that selected branches completed, verification evidence exists, and no branch widened scope. Return outcome ready_for_review when implementation evidence is complete, or blocked with a blocker when implementation evidence is incomplete."
+        },
+        "output": {
+          "template": "../../shared/templates/reviewer-handoff-template.md"
+        },
+        "next": {
+          "match": "${{ output.outcome }}",
+          "cases": {
+            "ready_for_review": [
+              "architect_review",
+              "backend_review",
+              "frontend_review",
+              "frontend_taste_review",
+              "security_review",
+              "privacy_review",
+              "qa_review"
+            ],
             "blocked": "blocked"
           }
         }
@@ -103,106 +290,15 @@
             "artifacts",
             "results"
           ],
-          "prompt": "Attack the architecture decision or structural contract for ownership seams, dependency direction, contract surfaces, and durable artifact pressure. Allow one bounded revise/re-review loop when fixable."
+          "prompt": "Review implementation against the approved architecture decision, ownership seams, dependency direction, compatibility surfaces, and artifact obligations. Return outcome passed, needs_changes, or blocked."
         },
         "output": {
           "template": "../../shared/templates/review-verdict-template.md"
         },
-        "next": {
-          "match": "${{ output.outcome }}",
-          "cases": {
-            "approved": "approve_architecture",
-            "needs_revision": "architecture",
-            "blocked": "blocked"
-          }
-        }
+        "next": "review_join"
       },
-      "approve_architecture": {
-        "name": "Approve architecture",
-        "kind": "approval",
-        "input": {
-          "state": [
-            "artifacts",
-            "results"
-          ],
-          "prompt": "Show the architecture decision or structural contract to the user. Continue only after explicit approval when the slice is non-trivial or architecture-sensitive."
-        },
-        "next": {
-          "match": "${{ output.approval }}",
-          "cases": {
-            "approved": "implementation_plan",
-            "rejected": "architecture",
-            "blocked": "blocked"
-          }
-        }
-      },
-      "implementation_plan": {
-        "name": "Implementation plan",
-        "kind": "worker",
-        "input": {
-          "role": "architect",
-          "state": [
-            "artifacts",
-            "results"
-          ],
-          "prompt": "Translate approved research and any structural contract into an execution contract: file zones, implementer owners, entities, verification surfaces, rollback surfaces, docs/contract touchpoints, risks, assumptions, and handoff inputs."
-        },
-        "output": {
-          "template": "../../shared/templates/implementation-plan-template.md",
-          "schema": "develop/schemas/dev-harness/reviewer-selection-output.json"
-        },
-        "next": {
-          "match": "${{ output.outcome }}",
-          "cases": {
-            "ready_for_review": "plan_review",
-            "blocked": "blocked"
-          }
-        }
-      },
-      "plan_review": {
-        "name": "Plan review",
-        "kind": "worker",
-        "input": {
-          "role": "reviewer",
-          "state": [
-            "artifacts",
-            "results"
-          ],
-          "prompt": "Challenge the execution plan for entity coverage, one-owner-per-file-zone, project baseline, architecture artifact manifest, verification and rollback surfaces, sensitive surfaces, request-path/contract touchpoints, and max-detail leaks."
-        },
-        "output": {
-          "template": "../../shared/templates/review-verdict-template.md"
-        },
-        "next": {
-          "match": "${{ output.outcome }}",
-          "cases": {
-            "approved": "approve_plan",
-            "needs_revision": "implementation_plan",
-            "blocked": "blocked"
-          }
-        }
-      },
-      "approve_plan": {
-        "name": "Approve implementation plan",
-        "kind": "approval",
-        "input": {
-          "state": [
-            "artifacts",
-            "results"
-          ],
-          "prompt": "Show one cleaned execution plan to the user. Stop until explicit implementation approval."
-        },
-        "next": {
-          "match": "${{ output.approval }}",
-          "cases": {
-            "approved": "implementation_handoff",
-            "rejected": "implementation_plan",
-            "blocked": "blocked"
-          }
-        }
-      },
-      "implementation_handoff": {
-        "name": "Implementation handoff",
+      "backend_review": {
+        "name": "Backend review",
         "kind": "worker",
         "input": {
           "role": "backend",
@@ -210,29 +306,103 @@
             "artifacts",
             "results"
           ],
-          "prompt": "Build the handoff packet for implementation-harness from approved task context, approved research, structural contract when present, approved execution plan, supporting materials, and user constraints. Route concrete coding through delegated implementer roles rather than the orchestrator."
+          "prompt": "Review backend correctness, contracts, data flow, validation, failure handling, permissions, rollout safety, observability, and tests for the implemented slice. Return outcome passed, needs_changes, or blocked."
         },
         "output": {
-          "template": "../../shared/templates/implementer-handoff-template.md"
+          "template": "../../shared/templates/review-verdict-template.md"
         },
-        "next": {
-          "match": "${{ output.outcome }}",
-          "cases": {
-            "ready_for_review": "review",
-            "blocked": "blocked"
-          }
-        }
+        "next": "review_join"
       },
-      "review": {
-        "name": "Post-implementation review",
+      "frontend_review": {
+        "name": "Frontend review",
         "kind": "worker",
         "input": {
-          "role": "reviewer",
+          "role": "frontend",
           "state": [
             "artifacts",
             "results"
           ],
-          "prompt": "Run the explicit post-implementation review gate, including verification evidence, contract/docs drift, sensitive-surface handling, and scope-growth or redesign pressure. Return for implementation fixes when needed."
+          "prompt": "Review frontend correctness, data flow, state handling, accessibility-relevant behavior, and tests for the implemented slice. Return outcome passed, needs_changes, or blocked."
+        },
+        "output": {
+          "template": "../../shared/templates/review-verdict-template.md"
+        },
+        "next": "review_join"
+      },
+      "frontend_taste_review": {
+        "name": "Frontend taste review",
+        "kind": "worker",
+        "input": {
+          "role": "frontend-taste",
+          "state": [
+            "artifacts",
+            "results"
+          ],
+          "prompt": "Review visual/product taste, copy fit, interaction polish, and user-facing coherence for frontend-relevant changes. Return outcome passed, needs_changes, or blocked."
+        },
+        "output": {
+          "template": "../../shared/templates/review-verdict-template.md"
+        },
+        "next": "review_join"
+      },
+      "security_review": {
+        "name": "Security review",
+        "kind": "worker",
+        "input": {
+          "role": "security",
+          "state": [
+            "artifacts",
+            "results"
+          ],
+          "prompt": "Review trust boundaries, injection surfaces, secret handling, permission assumptions, and unsafe automation paths for the implemented slice. Return outcome passed, needs_changes, or blocked."
+        },
+        "output": {
+          "template": "../../shared/templates/review-verdict-template.md"
+        },
+        "next": "review_join"
+      },
+      "privacy_review": {
+        "name": "Privacy review",
+        "kind": "worker",
+        "input": {
+          "role": "privacy-data-safety",
+          "state": [
+            "artifacts",
+            "results"
+          ],
+          "prompt": "Review data minimization, sensitive content exposure, durable memory/logging risk, and user-context handling for the implemented slice. Return outcome passed, needs_changes, or blocked."
+        },
+        "output": {
+          "template": "../../shared/templates/review-verdict-template.md"
+        },
+        "next": "review_join"
+      },
+      "qa_review": {
+        "name": "QA review",
+        "kind": "worker",
+        "input": {
+          "role": "qa-reliability",
+          "state": [
+            "artifacts",
+            "results"
+          ],
+          "prompt": "Review verification depth, regression risk, edge cases, deterministic runtime behavior, and handoff quality for the implemented slice. Return outcome passed, needs_changes, or blocked."
+        },
+        "output": {
+          "template": "../../shared/templates/review-verdict-template.md"
+        },
+        "next": "review_join"
+      },
+      "review_join": {
+        "name": "Review join",
+        "kind": "worker",
+        "input": {
+          "role": "critic",
+          "state": [
+            "artifacts",
+            "results"
+          ],
+          "prompt": "Join all selected review branch outputs. If every required reviewer passes, return outcome passed. If implementation changes are needed, return outcome needs_changes. If review cannot finish safely, return outcome blocked with a blocker."
         },
         "output": {
           "template": "../../shared/templates/review-verdict-template.md"
@@ -241,7 +411,11 @@
           "match": "${{ output.outcome }}",
           "cases": {
             "passed": "done",
-            "needs_changes": "implementation_handoff",
+            "needs_changes": [
+              "backend_implementation",
+              "frontend_implementation",
+              "architecture_artifact_update"
+            ],
             "blocked": "blocked"
           }
         }
