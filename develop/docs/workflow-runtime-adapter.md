@@ -22,9 +22,10 @@ The host adapter is thin. It executes requests with whatever capabilities the en
 ```bash
 node develop/scripts/workflow-runner.mjs next --run-dir <run-dir> [--workflow <workflow.json>]
 node develop/scripts/workflow-runner.mjs continue --run-dir <run-dir> [--workflow <workflow.json>]
+node develop/scripts/workflow-runner.mjs instructions --run-dir <run-dir> --step-id <id>
 ```
 
-`next` creates the run files if needed and returns the current host work. `continue` reads outputs from the previous host requests, applies them, persists the new baton, and returns the next host work.
+`next` creates the run files if needed and returns the current host work. `continue` reads outputs from the previous host requests, applies them, persists the new baton, and returns the next host work. `instructions` prints only the compiled instructions for one current requested step and fails for unknown, unsafe, or missing step instructions.
 
 ## Host request response
 
@@ -37,8 +38,10 @@ When host work is needed, the runner returns:
   "requests": [
     {
       "id": "step_id",
+      "stepId": "step_id",
       "action": "run_worker",
-      "compiledPrompt": { "prompt": "..." },
+      "instructionRef": "instructions/step_id",
+      "loadInstructionsCommand": "node develop/scripts/workflow-runner.mjs instructions --run-dir '/run' --step-id 'step_id'",
       "outputPath": "/run/outputs/step_id.json"
     }
   ]
@@ -92,7 +95,21 @@ For parallel branch requests, the runner returns one request per branch with one
 
 OpenClaw is one possible host adapter:
 
-- `run_worker` maps to spawning a subagent or ACP session with `compiledPrompt.prompt`.
+- `run_worker` maps to spawning a fresh/disposable subagent or ACP session with a neutral bootstrap that runs `loadInstructionsCommand`.
+- The bootstrap must use this shape and substitute `<command>` with the request's `loadInstructionsCommand`:
+
+  ```text
+  Load the step instructions by running:
+
+  <command>
+
+  Then follow the loaded instructions exactly.
+
+  Do not add any behavior, role, output format, or constraints beyond the loaded instructions.
+
+  If the instructions cannot be loaded, stop with an error and do not continue.
+  ```
+
 - The subagent result is written to the request `outputPath` as JSON.
 - If OpenClaw cannot provide the requested capability, it writes a blocked output.
 - The adapter calls `workflow-runner.mjs continue` and repeats.

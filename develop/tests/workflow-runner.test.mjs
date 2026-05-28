@@ -71,7 +71,7 @@ function workerOutput(summary) {
 
 after(() => rmSync(tempDir, { recursive: true, force: true }));
 
-test('runner: next returns a single host action request with compiled prompt and output path', () => {
+test('runner: next returns a single host action request with instruction ref, load command, and output path', () => {
   const runDir = path.join(tempDir, 'single');
   const workflowPath = path.join(tempDir, 'single-workflow.json');
   const singleWorkflow = structuredClone(workflowDoc);
@@ -84,8 +84,16 @@ test('runner: next returns a single host action request with compiled prompt and
   assert.equal(response.baton.cursor, 'prepare');
   assert.deepEqual(response.requests.map((request) => request.id), ['prepare']);
   assert.equal(response.requests[0].action, 'run_worker');
-  assert.match(response.requests[0].compiledPrompt.prompt, /# Prepare/);
+  assert.equal(Object.hasOwn(response.requests[0], 'compiledPrompt'), false);
+  assert.equal(response.requests[0].stepId, 'prepare');
+  assert.equal(response.requests[0].instructionRef, 'instructions/prepare');
+  assert.match(response.requests[0].loadInstructionsCommand, /workflow-runner\.mjs instructions --run-dir .* --step-id 'prepare'/);
   assert.equal(response.requests[0].outputPath, path.join(runDir, 'outputs', 'prepare.json'));
+
+  const loaded = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'prepare']);
+  assert.equal(loaded.status, 0, loaded.stderr);
+  assert.match(loaded.stdout, /# Prepare/);
+
   assert.equal(existsSync(path.join(runDir, 'baton.json')), true);
 });
 
@@ -121,7 +129,12 @@ test('runner: continue fans out parallel branch requests with separate output pa
     path.join(runDir, 'outputs', 'branch_a.json'),
     path.join(runDir, 'outputs', 'branch_b.json'),
   ]);
-  assert.match(response.requests[0].compiledPrompt.prompt, /prepared/);
+  assert.equal(Object.hasOwn(response.requests[0], 'compiledPrompt'), false);
+  assert.deepEqual(response.requests.map((request) => request.instructionRef), ['instructions/branch_a', 'instructions/branch_b']);
+  assert.notEqual(response.requests[0].loadInstructionsCommand, response.requests[1].loadInstructionsCommand);
+  const loaded = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'branch_a']);
+  assert.equal(loaded.status, 0, loaded.stderr);
+  assert.match(loaded.stdout, /prepared/);
 });
 
 test('runner: continue collects parallel outputs and advances to join request', () => {
@@ -137,8 +150,11 @@ test('runner: continue collects parallel outputs and advances to join request', 
 
   assert.equal(response.status, 'needs_host_actions');
   assert.deepEqual(response.requests.map((request) => request.id), ['join']);
-  assert.match(response.requests[0].compiledPrompt.prompt, /branch_a complete/);
-  assert.match(response.requests[0].compiledPrompt.prompt, /branch_b complete/);
+  assert.equal(Object.hasOwn(response.requests[0], 'compiledPrompt'), false);
+  const loaded = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'join']);
+  assert.equal(loaded.status, 0, loaded.stderr);
+  assert.match(loaded.stdout, /branch_a complete/);
+  assert.match(loaded.stdout, /branch_b complete/);
   const baton = JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8'));
   assert.equal(baton.cursor, 'join');
 });
@@ -155,4 +171,28 @@ test('runner: continue reports missing requested output as an error', () => {
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /missing host output/);
+});
+
+
+test('runner: instructions rejects unknown, unsafe, and missing instructions', () => {
+  const runDir = path.join(tempDir, 'instructions-errors');
+  const workflowPath = path.join(tempDir, 'instructions-errors-workflow.json');
+  const singleWorkflow = structuredClone(workflowDoc);
+  singleWorkflow.workflow.steps.prepare.next = 'done';
+  writeJson(workflowPath, singleWorkflow);
+
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next instructions errors');
+
+  const unknown = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'nope']);
+  assert.notEqual(unknown.status, 0);
+  assert.match(unknown.stderr, /unknown current workflow step id: nope/);
+
+  const unsafe = runRunner(['instructions', '--run-dir', runDir, '--step-id', '../prepare']);
+  assert.notEqual(unsafe.status, 0);
+  assert.match(unsafe.stderr, /invalid workflow step id/);
+
+  rmSync(path.join(runDir, '.workflow-runner', 'instructions', 'prepare.md'), { force: true });
+  const missing = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'prepare']);
+  assert.notEqual(missing.status, 0);
+  assert.match(missing.stderr, /cannot read instructions for workflow step prepare/);
 });
