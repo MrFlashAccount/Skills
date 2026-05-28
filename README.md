@@ -140,6 +140,15 @@ If a skill needs reusable instructions that are not a runnable skill:
 5. Add scripts only for deterministic repeated work.
 6. Test with representative prompts before calling it done.
 
+### Validate maintainer changes
+
+- `npm test` runs the repo test suite.
+- `npm run schema-validation:bundle` rebuilds the committed `shared/scripts/schema-validation/dist/schema-validation.mjs` artifact from the library source.
+- `npm run schema-validation:check` rebuilds that artifact and fails if the committed dist file is stale.
+- `npm run validate` runs tests plus the schema-validation bundle freshness check.
+
+Fresh clones can use the committed schema-validation library dist artifact directly; normal users do not need to build it after cloning. Maintainer checks and the pre-commit hook regenerate it when source changes.
+
 ## Skill index
 
 ### Writing and docs
