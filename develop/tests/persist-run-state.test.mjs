@@ -28,16 +28,18 @@ function baton(overrides = {}) {
 function response(overrides = {}) {
   return {
     baton: baton(overrides.baton),
-    directive: {
-      id: 'approve_research',
-      action: 'wait_for_approval',
-      step: {
-        name: 'Approve research',
-        kind: 'approval',
-        input: { state: ['artifacts', 'results'], prompt: 'Approve research.' },
-        next: { by: 'approval', map: { approved: 'architecture', blocked: 'blocked' } },
+    steps: [
+      {
+        id: 'approve_research',
+        action: 'wait_for_approval',
+        step: {
+          name: 'Approve research',
+          kind: 'approval',
+          input: { state: ['artifacts', 'results'], prompt: 'Approve research.' },
+          next: { by: 'approval', map: { approved: 'architecture', blocked: 'blocked' } },
+        },
       },
-    },
+    ],
   };
 }
 
@@ -66,7 +68,7 @@ test('persist helper atomically replaces baton and appends readable history', ()
 
   const history = readFileSync(path.join(runDir, 'history.md'), 'utf8');
   assert.match(history, /baton: cursor=architecture status=running/);
-  assert.match(history, /directive: id=approve_research action=wait_for_approval/);
+  assert.match(history, /steps: id=approve_research action=wait_for_approval/);
   assert.match(history, /output: .*research\.json/);
   assert.match(history, /decision: research ready for approval/);
 

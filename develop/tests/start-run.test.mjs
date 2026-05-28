@@ -38,7 +38,7 @@ after(() => {
   rmSync(tempDir, { recursive: true, force: true });
 });
 
-test('start-run creates run dir, initializes baton/history, and returns directive', () => {
+test('start-run creates run dir, initializes baton/history, and returns steps', () => {
   const runDir = path.join(tempDir, 'new-run');
   const result = runStart(['--run-dir', runDir]);
   const status = parseSuccess('new run', result);
@@ -50,8 +50,8 @@ test('start-run creates run dir, initializes baton/history, and returns directiv
   assert.equal(status.response.baton.cursor, 'research');
   assert.equal(status.response.baton.status, 'running');
   assert.deepEqual(status.response.baton.state, { artifacts: [], results: [] });
-  assert.equal(status.response.directive.id, 'research');
-  assert.equal(status.response.directive.action, 'run_worker');
+  assert.equal(status.response.steps[0].id, 'research');
+  assert.equal(status.response.steps[0].action, 'run_worker');
   assert.deepEqual(JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8')), status.response.baton);
   assert.equal(readFileSync(path.join(runDir, 'history.md'), 'utf8'), '');
 });
@@ -71,7 +71,7 @@ test('start-run resumes existing baton without overwriting it', () => {
   assert.equal(status.initialized, false);
   assert.equal(status.resumed, true);
   assert.equal(status.response.baton.cursor, 'done');
-  assert.equal(status.response.directive.action, 'stop_done');
+  assert.equal(status.response.steps[0].action, 'stop_done');
   assert.equal(readFileSync(path.join(runDir, 'baton.json'), 'utf8'), beforeBaton);
   assert.equal(readFileSync(path.join(runDir, 'history.md'), 'utf8'), beforeHistory);
 });

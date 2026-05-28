@@ -31,7 +31,7 @@ function emit(response) {
 
 function usageForArgs(args) {
   const [mode] = args;
-  if (mode === 'inspect' || mode === 'directive') return 'usage: node scripts/workflow-interpreter.mjs inspect <workflow.json> <baton.json>';
+  if (mode === 'inspect') return 'usage: node scripts/workflow-interpreter.mjs inspect <workflow.json> <baton.json>';
   if (mode === 'render') return 'usage: node scripts/workflow-interpreter.mjs render [--diagnostics] <workflow.json> <baton.json>';
   if (mode === 'apply') return 'usage: node scripts/workflow-interpreter.mjs apply <workflow.json> <baton.json> <worker-output.json>';
   return 'usage: node scripts/workflow-interpreter.mjs inspect <workflow.json> <baton.json> | render [--diagnostics] <workflow.json> <baton.json> | apply <workflow.json> <baton.json> <worker-output.json>';
@@ -47,7 +47,7 @@ try {
 
   const [mode, workflowPath, batonPath, outputPath] = args;
 
-  if (mode === 'inspect' || mode === 'directive') {
+  if (mode === 'inspect') {
     emit(inspectWorkflow(workflowPath, batonPath));
   } else if (mode === 'render') {
     emit(renderWorkflow(workflowPath, batonPath, { includeDiagnostics }));

@@ -1,6 +1,6 @@
-import { WorkflowInterpreterError } from '../errors.mjs';
-import { outputSchemaRetryKey, validationRetryPrompt, OUTPUT_SCHEMA_MAX_ATTEMPTS } from '../output-schema-validation.mjs';
-import { responseFor, stepWithValidationFeedback } from './run-step.mjs';
+import { WorkflowInterpreterError } from '../../errors.mjs';
+import { outputSchemaRetryKey, validationRetryPrompt, OUTPUT_SCHEMA_MAX_ATTEMPTS } from '../../output-schema-validation.mjs';
+import { responseFor, stepWithValidationFeedback } from '../output/response.mjs';
 
 export function responseForOutputSchemaRetry({ baton, stepId, step, errors, attempt }) {
   const updatedBaton = structuredClone(baton);
