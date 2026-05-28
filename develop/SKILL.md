@@ -1,40 +1,65 @@
 ---
 name: develop-workflow-runtime
-description: Run workflow-runner host requests through the deterministic host adapter loop.
+description: Use for requests that should run a baton workflow through bounded worker prompts, approval waits, and the workflow interpreter.
 ---
 
-# Workflow Runtime Host Adapter
+# Workflow Runtime
 
-Boundary: this skill is only the host adapter loop; the runner owns workflow state, transitions, baton files, and terminal decisions.
+Run the selected workflow definition from `<steps>`. Do not decide workflow transitions yourself.
+
+## Variables
+
+- `<run-dir>`: existing/current run state directory chosen by the caller/orchestrator.
+- `<workflow>`: workflow file provided by the caller, selected workflow definition, or configured workflow path.
+- `<baton.json>`: JSON file containing the current live baton.
+- `<steps>`: current executable step array returned by start-run or the workflow interpreter.
+- `<output.json>`: output from the worker subagent, user approval step, or parallel branch wrapper for `<steps>`.
+- `<apply-response.json>`: JSON response from `scripts/workflow-interpreter.mjs apply`; contains the returned baton and `steps[]`.
+- `<render-response.json>`: JSON response from `scripts/workflow-interpreter.mjs render`; contains `steps[]`, each with its rendered `compiledPrompt`.
+- `<decision>`: compact decision label for this loop application, if persist requires it.
+
+## Start run prerequisite
+
+Before entering the main loop, call the start script with `<run-dir>`:
+
+```bash
+scripts/start-run.mjs --run-dir <run-dir>
+```
+
+It returns `{ baton, steps }`. Put the returned baton into `<baton.json>` / baton variable, and put the returned steps into `<steps>`.
 
 ## Main loop
 
-1. Start or resume the runner.
-   - Start: `node develop/scripts/workflow-runner.mjs next --run-dir <run-dir> [--workflow <workflow.json>]`
-   - Resume: `node develop/scripts/workflow-runner.mjs continue --run-dir <run-dir> --output <artifact.json> [--output <step-id=artifact.json> ...] [--workflow <workflow.json>]`
-2. Read the runner response.
-   - If it is terminal `done` or `blocked`, report that result and stop.
-   - If it asks for host action, execute only the returned request or requests.
-3. If the request action is `run_worker`, spawn one fresh worker.
-   - Put the request's instruction-loading command into the bootstrap template below.
-   - The field may be named `loadInstructionsCommand`; that just means: run the command from the request.
-4. If the response contains parallel worker requests, spawn all fresh workers in parallel.
-   - Use each request's own instruction-loading command.
-   - Do not reuse worker sessions across requests.
-5. Capture every worker result as a host-owned artifact.
-   - The artifact path/name is wrapper-owned transport, not runner contract.
-   - The artifact content passed back to `continue` must be workflow-compatible JSON/envelope.
-6. If the response asks the user or needs approval, ask the user exactly for that decision.
-   - Capture the user's answer as the artifact/result the runner expects.
-   - Pass it back with `continue`.
-7. Repeat: call `continue` with the produced artifact or artifacts, then handle the next runner response.
+Strictly follow these four steps.
+
+1. Evaluate `<steps>`:
+   - if it has one step with `stop_done` or `stop_blocked`: exit the loop with the returned result.
+   - if it has one step with `run_worker`: render/build one bounded prompt from that step, launch exactly one bounded subagent/executor, and write the result to `<output.json>`.
+   - if it has more than one step: call `scripts/workflow-interpreter.mjs render <workflow> <baton.json>` and use `<render-response.json>.steps[]` to launch each branch prompt from `compiledPrompt`. Wait for every result, and write `<output.json>` as `{ "steps": { "<stepId>": <worker-or-approval-output> } }`. Parallel step outputs remain separate in `baton.state[stepId]`; the workflow then advances to the explicit join step.
+   - if it has one step with `wait_for_approval`: wait for explicit user response/approval, e.g. LGTM/ПОДТВЕРЖДАЮ as appropriate, then write that response to `<output.json>`.
+   - else: exit as blocked for unknown step action.
+2. Call workflow interpreter:
+
+   ```bash
+   scripts/workflow-interpreter.mjs apply <workflow> <baton.json> <output.json>
+   ```
+
+   Store the response as `<apply-response.json>`. If it fails, exit as blocked; do not rerun the worker/approval step automatically.
+3. Call persist script with `<run-dir>`, `<apply-response.json>`, `<output.json>`, and `<decision>`:
+
+   ```bash
+   scripts/persist-run-state.mjs --run-dir <run-dir> --response <apply-response.json> --output <output.json> --decision "<decision>"
+   ```
+
+   If persist fails, exit as blocked.
+4. Update `<baton.json>` from `<apply-response.json>.baton`, update `<steps>` from `<apply-response.json>.steps`, then return to step 1.
 
 ## Worker bootstrap template
 
 ```text
 Load the step instructions by running:
 
-<command from the runner request>
+<command>
 
 Then follow the loaded instructions exactly.
 
@@ -42,13 +67,3 @@ Do not add any behavior, role, output format, or constraints beyond the loaded i
 
 If the instructions cannot be loaded, stop with an error and do not continue.
 ```
-
-## Hard rules
-
-- Do not choose next steps, branches, joins, retries, `done`, or `blocked`.
-- Do not edit baton, runner state, or persisted instruction files manually.
-- Do not paste compiled instructions into parent context.
-- Do not invent outputs, success, approval, or user answers.
-- Do not pass architecture notes back as worker output.
-- Pass only actual worker results, user answers, or blocked/error artifacts back to the runner.
-- Keep architecture details in `develop/docs/workflow-runtime-adapter.md`, not here.
