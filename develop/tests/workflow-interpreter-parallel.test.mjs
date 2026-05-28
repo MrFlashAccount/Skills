@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-parallel-check-'));
+const renderWorkflowPaths = [];
 
 function outputContract() {
   return { template: '../../shared/templates/implementation-plan-template.md' };
@@ -125,8 +126,23 @@ function runApply(label, batonDoc, workerOutput, expectSuccess = true, workflowD
   return response;
 }
 
+function runRender(label, batonDoc, expectSuccess = true, workflowDoc = parallelWorkflowDoc) {
+  const prefix = safeName(label);
+  const batonPath = writeJson(`${prefix}-baton.json`, batonDoc);
+  const wfPath = path.join(root, 'develop', `${prefix}-workflow.json`);
+  writeFileSync(wfPath, `${JSON.stringify(workflowDoc, null, 2)}\n`);
+  renderWorkflowPaths.push(wfPath);
+  const before = readFileSync(batonPath, 'utf8');
+
+  const result = runNode(['develop/scripts/workflow-interpreter.mjs', 'render', wfPath, batonPath]);
+  const response = expectCliResult(label, result, expectSuccess);
+  assert.equal(readFileSync(batonPath, 'utf8'), before, `check '${label}' mutated baton file during render`);
+  return response;
+}
+
 after(() => {
   rmSync(tempDir, { recursive: true, force: true });
+  for (const filePath of renderWorkflowPaths) rmSync(filePath, { force: true });
 });
 
 test('runtime: sequential string next still advances to one target', () => {
@@ -167,6 +183,43 @@ test('runtime: parallel step outputs write separate state and advance to explici
   assert.equal(response.baton.state.branch_a.results[0].summary, 'A');
   assert.equal(response.baton.state.branch_b.results[0].summary, 'B');
   assert.equal(Object.hasOwn(response.baton, 'parallel'), false);
+});
+
+
+test('e2e: wrapper can render parallel branch prompts, collect branch outputs, and render join state', () => {
+  const workflowDoc = structuredClone(parallelWorkflowDoc);
+  workflowDoc.workflow.name = 'dev-harness';
+  workflowDoc.workflow.steps.branch_a.input.state = ['prepare'];
+  workflowDoc.workflow.steps.branch_b.input.state = ['prepare'];
+
+  const pending = runApply('parallel-e2e-start', baton({ cursor: 'prepare' }), output({
+    outcome: 'ready',
+    results: [{ type: 'prepare', summary: 'ready to branch' }],
+  }), true, workflowDoc).baton;
+
+  const branchRender = runRender('parallel-e2e-render-branches', pending, true, workflowDoc);
+  assert.equal(branchRender.directive.action, 'run_parallel');
+  assert.deepEqual(branchRender.compiledParallelPrompts.map((entry) => entry.id), ['branch_a', 'branch_b']);
+  assert.match(branchRender.compiledParallelPrompts[0].compiledPrompt.prompt, /# Branch A/);
+  assert.match(branchRender.compiledParallelPrompts[0].compiledPrompt.prompt, /"prepare"/);
+  assert.match(branchRender.compiledParallelPrompts[0].compiledPrompt.prompt, /ready to branch/);
+  assert.match(branchRender.compiledParallelPrompts[1].compiledPrompt.prompt, /# Branch B/);
+
+  const joined = runApply('parallel-e2e-collect-branches', pending, {
+    steps: {
+      branch_a: output({ outcome: 'ready', results: [{ type: 'branch', summary: 'A says go' }] }),
+      branch_b: output({ outcome: 'ready', results: [{ type: 'branch', summary: 'B says go' }] }),
+    },
+  }, true, workflowDoc).baton;
+
+  assert.equal(joined.cursor, 'join');
+  const joinRender = runRender('parallel-e2e-render-join', joined, true, workflowDoc);
+  assert.equal(joinRender.directive.id, 'join');
+  assert.equal(joinRender.directive.action, 'run_worker');
+  assert.match(joinRender.compiledPrompt.prompt, /"branch_a"/);
+  assert.match(joinRender.compiledPrompt.prompt, /A says go/);
+  assert.match(joinRender.compiledPrompt.prompt, /"branch_b"/);
+  assert.match(joinRender.compiledPrompt.prompt, /B says go/);
 });
 
 test('runtime: join step can read parallel branch state and continue to done', () => {
