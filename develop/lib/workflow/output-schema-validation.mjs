@@ -1,10 +1,8 @@
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
-import Ajv2020 from 'ajv/dist/2020.js';
-import batonSchema from '../../schemas/baton.json' with { type: 'json' };
-import workerOutputSchema from '../../schemas/worker-output.json' with { type: 'json' };
+import { validateJsonSchema } from '../json-schema-validation.mjs';
 import { WorkflowInterpreterError } from './errors.mjs';
-import { formatSchemaErrors } from './schema-validation.mjs';
+import { formatSchemaErrors, workflowSchemas } from './schema-validation.mjs';
 
 export const OUTPUT_SCHEMA_MAX_ATTEMPTS = 3;
 
@@ -59,18 +57,15 @@ export function readOutputSchema({ workflow, workflowPath, schemaRef, repository
 
 export function validateAgainstOutputSchema({ workflow, workflowPath, schemaRef, output, repositoryRoot = process.cwd() }) {
   const schema = readOutputSchema({ workflow, workflowPath, schemaRef, repositoryRoot });
-  const ajv = new Ajv2020({ allErrors: true });
-  ajv.addSchema(batonSchema);
-  ajv.addSchema(workerOutputSchema);
-  let validate;
+  let validation;
   try {
-    validate = ajv.compile(schema);
+    validation = validateJsonSchema(schema, output, { schemas: workflowSchemas });
   } catch (error) {
     throw new WorkflowInterpreterError(`output schema validation failed: invalid output schema '${schemaRef}': ${error.message}`);
   }
 
-  if (validate(output)) return { ok: true, output: structuredClone(output), errors: [] };
-  return { ok: false, errors: formatSchemaErrors(validate.errors) };
+  if (validation.ok) return { ok: true, output: structuredClone(output), errors: [] };
+  return { ok: false, errors: formatSchemaErrors(validation.errors) };
 }
 
 export function outputSchemaRetryKey(stepId) {

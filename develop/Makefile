@@ -3,9 +3,9 @@
 TEST_FILES := tests/*.test.mjs
 
 build:
-	node ../scripts/compile-ajv-validators.mjs --schemas schemas --out dist/validators
+	@echo "JSON Schema validation uses runtime schema documents; no generated validators required."
 
-test: build
+test:
 	node --test $(TEST_FILES)
 
 validate: test

@@ -1,5 +1,6 @@
-import validateWorkflowInterpreterCliArgsSchema from '../../dist/validators/internal/cli-args/workflow-interpreter.mjs';
+import { validateJsonSchema } from '../json-schema-validation.mjs';
+import { workflowInterpreterCliArgsSchema, workflowSchemas } from './schema-validation.mjs';
 
 export function validateWorkflowInterpreterCliArgs(args) {
-  return validateWorkflowInterpreterCliArgsSchema(args);
+  return validateJsonSchema(workflowInterpreterCliArgsSchema, args, { schemas: workflowSchemas }).ok;
 }
