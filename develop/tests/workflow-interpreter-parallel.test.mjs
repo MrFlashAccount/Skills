@@ -253,10 +253,10 @@ test('runtime validation: parallel branches reject nested parallel and non-join 
   const nested = runInspect('parallel-nested-rejected', baton({ cursor: 'prepare' }), false, nestedWorkflowDoc);
   assert.match(nested.stderr, /cannot start nested parallel steps/);
 
-  const mappedBranchWorkflowDoc = structuredClone(parallelWorkflowDoc);
-  mappedBranchWorkflowDoc.workflow.steps.branch_a.next = { by: 'outcome', map: { ready: 'join' } };
-  const mapped = runInspect('parallel-mapped-branch-rejected', baton({ cursor: 'prepare' }), false, mappedBranchWorkflowDoc);
-  assert.match(mapped.stderr, /must use a string next to an explicit join step/);
+  const matchCasesBranchWorkflowDoc = structuredClone(parallelWorkflowDoc);
+  matchCasesBranchWorkflowDoc.workflow.steps.branch_a.next = { match: '${{ output.outcome }}', cases: { ready: 'join' } };
+  const matchCases = runInspect('parallel-matchCases-branch-rejected', baton({ cursor: 'prepare' }), false, matchCasesBranchWorkflowDoc);
+  assert.match(matchCases.stderr, /must use a string next to an explicit join step/);
 });
 
 test('runtime: repeated sequential loop execution still overwrites latest per-step state', () => {
@@ -267,7 +267,7 @@ test('runtime: repeated sequential loop execution still overwrites latest per-st
     kind: 'worker',
     input: { prompt: 'Run worker.' },
     output: outputContract(),
-    next: { by: 'outcome', map: { ready: 'join', retry: { target: 'worker_step', maxAttempts: 2, onLimit: 'blocked' } } },
+    next: { match: '${{ output.outcome }}', cases: { ready: 'join', retry: 'worker_step' } },
   };
 
   const first = runApply('loop-latest-first', baton(), output({ outcome: 'retry', results: [{ type: 'try', summary: 'first' }] }), true, workflowDoc).baton;

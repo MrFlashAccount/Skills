@@ -204,10 +204,10 @@ test('dynamic parallel next enforces join-shape validation', () => {
     /parallel branch target 'review_a' cannot start nested parallel steps/,
   );
 
-  const mappedBranchWorkflow = workflow('${{ output.selected_steps }}');
-  mappedBranchWorkflow.workflow.steps.review_a.next = { by: 'outcome', map: { ready: 'join' } };
+  const matchCasesBranchWorkflow = workflow('${{ output.selected_steps }}');
+  matchCasesBranchWorkflow.workflow.steps.review_a.next = { match: '${{ output.outcome }}', cases: { ready: 'join' } };
   assert.match(
-    runApply('dynamic-mapped-branch-target', baton(), { outcome: 'ready', selected_steps: ['review_a', 'review_b'] }, false, mappedBranchWorkflow).stderr,
+    runApply('dynamic-match-cases-branch-target', baton(), { outcome: 'ready', selected_steps: ['review_a', 'review_b'] }, false, matchCasesBranchWorkflow).stderr,
     /parallel branch target 'review_a' must use a string next to an explicit join step/,
   );
 
@@ -219,14 +219,130 @@ test('dynamic parallel next enforces join-shape validation', () => {
   );
 });
 
-test('static literal next, static parallel next, and old next.by map still work', () => {
+test('match/cases output path routes string target', () => {
+  const matchWorkflow = workflow({ match: '${{ output.outcome }}', cases: { ready: 'review_b', blocked: 'blocked' } });
+  const matched = runApply('match-cases-output-string', baton(), { outcome: 'ready' }, true, matchWorkflow);
+  assert.equal(matched.baton.cursor, 'review_b');
+});
+
+test('match/cases input projected path routes target', () => {
+  const matchWorkflow = workflow({ match: '${{ input.planning_draft.route }}', cases: { review: 'review_a', blocked: 'blocked' } });
+  const matched = runApply(
+    'match-cases-input-string',
+    baton({ state: { artifacts: [], results: [], planning_draft: { selected_reviewers: ['review_a', 'review_b'], route: 'review' } } }),
+    { outcome: 'ready' },
+    true,
+    matchWorkflow,
+  );
+  assert.equal(matched.baton.cursor, 'review_a');
+});
+
+test('match/cases target can be a string array', () => {
+  const matchWorkflow = workflow({ match: '${{ output.outcome }}', cases: { ready: ['review_a', 'review_b'], blocked: 'blocked' } });
+  const matched = runApply('match-cases-array-target', baton(), { outcome: 'ready' }, true, matchWorkflow);
+  assert.deepEqual(matched.steps.map((step) => step.id), ['review_a', 'review_b']);
+});
+
+test('match/cases rejects missing cases and non-string match results', () => {
+  const matchWorkflow = workflow({ match: '${{ output.outcome }}', cases: { ready: 'review_b' } });
+  assert.match(
+    runApply('match-cases-missing-case', baton(), { outcome: 'blocked' }, false, matchWorkflow).stderr,
+    /next\.match case 'blocked' is not defined in next\.cases/,
+  );
+
+  const nonStringWorkflow = workflow({ match: '${{ output.dynamic_value }}', cases: { ready: 'review_b' } });
+  for (const [label, dynamic_value] of [
+    ['match-null', null],
+    ['match-number', 7],
+    ['match-boolean', true],
+    ['match-object', { outcome: 'ready' }],
+    ['match-array', ['ready']],
+  ]) {
+    assert.match(
+      runApply(label, baton(), { outcome: 'ready', dynamic_value }, false, nonStringWorkflow).stderr,
+      /next\.match must resolve to a string case key/,
+    );
+  }
+});
+
+
+test('match/cases array target rejects empty, duplicate, unknown, and nested arrays', () => {
+  for (const [label, target, pattern] of [
+    ['case-array-empty', [], /workflow failed schema validation|must resolve to a non-empty array/],
+    ['case-array-duplicate', ['review_a', 'review_a'], /workflow failed schema validation|duplicate target 'review_a'/],
+    ['case-array-unknown', ['review_a', 'missing'], /target not found: missing/],
+    ['case-array-nested', ['review_a', ['review_b']], /workflow failed schema validation|must resolve to non-empty string step ids/],
+  ]) {
+    const matchWorkflow = workflow({ match: '${{ output.outcome }}', cases: { ready: target, blocked: 'blocked' } });
+    assert.match(runApply(label, baton(), { outcome: 'ready' }, false, matchWorkflow).stderr, pattern);
+  }
+});
+
+
+
+test('top-level next array supports static plus match/cases string target', () => {
+  const workflowDoc = workflow(['review_a', { match: '${{ output.outcome }}', cases: { ready: 'review_b', blocked: 'blocked' } }]);
+  const response = runApply('top-array-static-match-string', baton(), { outcome: 'ready' }, true, workflowDoc);
+  assert.deepEqual(response.steps.map((step) => step.id), ['review_a', 'review_b']);
+});
+
+test('top-level next array flattens match/cases array target', () => {
+  const workflowDoc = workflow(['review_a', { match: '${{ output.outcome }}', cases: { ready: ['review_b'], blocked: 'blocked' } }]);
+  const response = runApply('top-array-match-array-flatten', baton(), { outcome: 'ready' }, true, workflowDoc);
+  assert.deepEqual(response.steps.map((step) => step.id), ['review_a', 'review_b']);
+});
+
+test('top-level next array rejects duplicates and unknown ids after flattening', () => {
+  const duplicateWorkflow = workflow(['review_a', { match: '${{ output.outcome }}', cases: { ready: ['review_a', 'review_b'] } }]);
+  assert.match(runApply('top-array-flatten-duplicate', baton(), { outcome: 'ready' }, false, duplicateWorkflow).stderr, /duplicate target 'review_a'/);
+
+  const unknownWorkflow = workflow(['review_a', { match: '${{ output.outcome }}', cases: { ready: ['review_b', 'missing'] } }]);
+  assert.match(runApply('top-array-flatten-unknown', baton(), { outcome: 'ready' }, false, unknownWorkflow).stderr, /target not found: missing/);
+});
+
+test('match/cases rejects nested match/cases inside cases explicitly', () => {
+  const workflowDoc = workflow({
+    match: '${{ output.outcome }}',
+    cases: { ready: { match: '${{ output.route.next }}', cases: { review: 'review_b' } } },
+  });
+  assert.match(
+    runApply('nested-match-cases-case', baton(), { outcome: 'ready', route: { next: 'review' } }, false, workflowDoc).stderr,
+    /workflow failed schema validation: nested match\/cases transitions are not supported at steps\.selector\.next\.cases\.ready/,
+  );
+});
+
+test('top-level next array rejects nested match/cases inside cases explicitly', () => {
+  const workflowDoc = workflow([
+    'review_a',
+    { match: '${{ output.outcome }}', cases: { ready: { match: '${{ output.route.next }}', cases: { review: 'review_b' } } } },
+  ]);
+  assert.match(
+    runApply('top-array-nested-match-cases-case', baton(), { outcome: 'ready', route: { next: 'review' } }, false, workflowDoc).stderr,
+    /workflow failed schema validation: nested match\/cases transitions are not supported at steps\.selector\.next\.1\.cases\.ready/,
+  );
+});
+
+test('match/cases rejects nested match/cases inside case arrays explicitly', () => {
+  const workflowDoc = workflow({
+    match: '${{ output.outcome }}',
+    cases: { ready: ['review_a', { match: '${{ output.route.next }}', cases: { review: 'review_b' } }] },
+  });
+  assert.match(
+    runApply('case-array-nested-match-cases', baton(), { outcome: 'ready', route: { next: 'review' } }, false, workflowDoc).stderr,
+    /workflow failed schema validation: nested match\/cases transitions are not supported at steps\.selector\.next\.cases\.ready\.1/,
+  );
+});
+
+test('old next.by/map is rejected while static and direct dynamic next still work', () => {
   const literal = runApply('literal-next', baton(), { outcome: 'ready', next: 'ignored' }, true, workflow('review_a'));
   assert.equal(literal.baton.cursor, 'review_a');
 
   const staticParallel = runApply('static-parallel-next', baton(), { outcome: 'ready', next: 'ignored' }, true, workflow(['review_a', 'review_b']));
   assert.deepEqual(staticParallel.steps.map((step) => step.id), ['review_a', 'review_b']);
 
-  const mappedWorkflow = workflow({ by: 'outcome', map: { ready: 'review_b', blocked: 'blocked' } });
-  const mapped = runApply('mapped-next', baton(), { outcome: 'ready' }, true, mappedWorkflow);
-  assert.equal(mapped.baton.cursor, 'review_b');
+  const directDynamic = runApply('direct-dynamic-next-still-works', baton(), { outcome: 'ready', next: 'review_a' });
+  assert.equal(directDynamic.baton.cursor, 'review_a');
+
+  const result = runApply('old-by-map-rejected', baton(), { outcome: 'ready' }, false, workflow({ by: 'outcome', map: { ready: 'review_b' } }));
+  assert.match(result.stderr, /workflow failed schema validation/);
 });

@@ -23,13 +23,13 @@ const workflowDoc = {
         kind: 'worker',
         input: { prompt: 'Run worker.' },
         output: { template: '../../shared/templates/implementation-plan-template.md' },
-        next: { by: 'outcome', map: { ready: 'done', blocked: 'blocked' } },
+        next: { match: '${{ output.outcome }}', cases: { ready: 'done', blocked: 'blocked' } },
       },
       consumer_step: {
         name: 'Consumer step',
         kind: 'approval',
         input: { state: ['worker_step'], prompt: 'Use prior worker output.' },
-        next: { by: 'approval', map: { approved: 'done', blocked: 'blocked' } },
+        next: { match: '${{ output.approval }}', cases: { approved: 'done', blocked: 'blocked' } },
       },
       done: { name: 'Done', kind: 'done' },
       blocked: { name: 'Blocked', kind: 'blocked' },
@@ -145,7 +145,7 @@ test('output.schema: invalid output retries with validation feedback then succee
 
 test('output.schema: structured step output is projected by step id into downstream prompt', () => {
   const doc = workflowWithSchema('structured-output-step-id-projection', structuredSchema);
-  doc.workflow.steps.worker_step.next = { by: 'outcome', map: { ready: 'consumer_step', blocked: 'blocked' } };
+  doc.workflow.steps.worker_step.next = { match: '${{ output.outcome }}', cases: { ready: 'consumer_step', blocked: 'blocked' } };
 
   const applyResponse = runApply('output-schema-structured-project-apply', baton(), {
     outcome: 'ready',
@@ -177,7 +177,7 @@ test('output.schema: projected structured output renders schema field notes befo
   schemaWithFieldNotes.properties.payload['x-usage'] = 'Use this payload as the authoritative downstream input.';
   schemaWithFieldNotes.properties.artifacts.description = 'Artifacts emitted while preparing the payload.';
   const doc = workflowWithSchema('structured-output-field-notes', schemaWithFieldNotes);
-  doc.workflow.steps.worker_step.next = { by: 'outcome', map: { ready: 'consumer_step', blocked: 'blocked' } };
+  doc.workflow.steps.worker_step.next = { match: '${{ output.outcome }}', cases: { ready: 'consumer_step', blocked: 'blocked' } };
   const generationPromptDoc = structuredClone(doc);
   writeFileSync(path.join(tempDir, 'field-notes-output.md'), 'Return schema JSON.\n');
   generationPromptDoc.workflow.steps.worker_step.output.template = 'field-notes-output.md';
@@ -289,7 +289,7 @@ test('output.schema: absent schema preserves previous envelope behavior without 
 
 test('output.schema: non-structured worker output is projected by step id into downstream prompt', () => {
   const doc = structuredClone(workflowDoc);
-  doc.workflow.steps.worker_step.next = { by: 'outcome', map: { ready: 'consumer_step', blocked: 'blocked' } };
+  doc.workflow.steps.worker_step.next = { match: '${{ output.outcome }}', cases: { ready: 'consumer_step', blocked: 'blocked' } };
 
   const applyResponse = runApply('output-schema-plain-project-apply', baton(), {
     outcome: 'ready',
