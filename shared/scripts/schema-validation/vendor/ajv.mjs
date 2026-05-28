@@ -1,5 +1,5 @@
-// Generated bundle from shared/scripts/schema-validation/internal/bundle-entry.mjs.
-// Commit this artifact so JSON Schema validation works from a fresh clone without npm install/build.
+// Generated vendor bundle for Ajv 2020.
+// Commit this artifact so schema-validation works from a fresh clone without npm install/build.
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -7074,7 +7074,7 @@ var require__ = __commonJS({
     var discriminator_1 = require_discriminator();
     var json_schema_2020_12_1 = require_json_schema_2020_12();
     var META_SCHEMA_ID = "https://json-schema.org/draft/2020-12/schema";
-    var Ajv20202 = class extends core_1.default {
+    var Ajv2020 = class extends core_1.default {
       constructor(opts = {}) {
         super({
           ...opts,
@@ -7101,11 +7101,11 @@ var require__ = __commonJS({
         return this.opts.defaultMeta = super.defaultMeta() || (this.getSchema(META_SCHEMA_ID) ? META_SCHEMA_ID : void 0);
       }
     };
-    exports.Ajv2020 = Ajv20202;
-    module.exports = exports = Ajv20202;
-    module.exports.Ajv2020 = Ajv20202;
+    exports.Ajv2020 = Ajv2020;
+    module.exports = exports = Ajv2020;
+    module.exports.Ajv2020 = Ajv2020;
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.default = Ajv20202;
+    exports.default = Ajv2020;
     var validate_1 = require_validate();
     Object.defineProperty(exports, "KeywordCxt", { enumerable: true, get: function() {
       return validate_1.KeywordCxt;
@@ -7140,24 +7140,9 @@ var require__ = __commonJS({
   }
 });
 
-// shared/scripts/schema-validation/internal/bundle-entry.mjs
+// schema-validation-vendor-ajv-entry.mjs
 var import__ = __toESM(require__(), 1);
-function validateJsonSchema(schema, value, options = {}) {
-  const ajv = new import__.default({ allErrors: true });
-  const loadedSchemaIds = /* @__PURE__ */ new Set();
-  for (const referencedSchema of options.schemas ?? []) {
-    const schemaId = referencedSchema?.$id;
-    if (schemaId && loadedSchemaIds.has(schemaId)) continue;
-    ajv.addSchema(referencedSchema);
-    if (schemaId) loadedSchemaIds.add(schemaId);
-  }
-  const validate = schema?.$id ? ajv.getSchema(schema.$id) ?? ajv.compile(schema) : ajv.compile(schema);
-  const ok = validate(value);
-  return {
-    ok,
-    errors: validate.errors ?? []
-  };
-}
+var export_default = import__.default;
 export {
-  validateJsonSchema
+  export_default as default
 };

@@ -4,11 +4,11 @@
   "type": "module",
   "scripts": {
     "test": "make -C develop test",
-    "schema-validation:bundle": "node scripts/bundle-schema-validation.mjs",
-    "schema-validation:check": "npm run schema-validation:bundle && git diff --exit-code -- shared/scripts/schema-validation/dist/schema-validation.mjs && test -z \"$(git status --porcelain -- shared/scripts/schema-validation/dist/schema-validation.mjs)\"",
-    "validate": "npm test && npm run schema-validation:check",
+    "validate": "npm test && npm run schema-validation:check-vendor-ajv",
     "prepare": "git config core.hooksPath .githooks || true",
-    "maintain:bundle-schema-validation": "npm run schema-validation:bundle"
+    "schema-validation:bundle-vendor-ajv": "node scripts/bundle-schema-validation-vendor-ajv.mjs",
+    "schema-validation:check-vendor-ajv": "npm run schema-validation:bundle-vendor-ajv && git diff --exit-code -- shared/scripts/schema-validation/vendor/ajv.mjs && test -z \"$(git status --porcelain -- shared/scripts/schema-validation/vendor/ajv.mjs)\"",
+    "maintain:bundle-schema-validation-vendor-ajv": "npm run schema-validation:bundle-vendor-ajv"
   },
   "devDependencies": {
     "ajv": "^8.17.1",

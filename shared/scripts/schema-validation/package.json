@@ -3,9 +3,10 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./dist/schema-validation.mjs"
+    ".": "./schema-validation.mjs"
   },
   "files": [
-    "dist"
+    "schema-validation.mjs",
+    "vendor"
   ]
 }
