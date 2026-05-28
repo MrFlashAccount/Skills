@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
-import { validateJsonSchema } from '../json-schema-validation.mjs';
+import { validateJsonSchema } from '../../../shared/scripts/json-schema-validation.mjs';
 import { WorkflowInterpreterError } from './errors.mjs';
 import { formatSchemaErrors, workflowSchemas } from './schema-validation.mjs';
 
