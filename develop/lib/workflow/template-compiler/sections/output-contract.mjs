@@ -1,5 +1,5 @@
-import { safeReadSchema, safeReadTemplate, section, trimStable, workflowSkillBase } from './prompt-render-utils.mjs';
-import { WorkflowInterpreterError } from './errors.mjs';
+import { safeReadSchema, safeReadTemplate, section, trimStable, workflowSkillBase } from '../utils.mjs';
+import { WorkflowInterpreterError } from '../../errors.mjs';
 
 function outputBases({ workflow, repositoryRoot }) {
   const bases = [];

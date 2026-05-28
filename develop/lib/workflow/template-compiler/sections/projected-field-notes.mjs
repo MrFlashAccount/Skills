@@ -1,4 +1,4 @@
-import { WorkflowInterpreterError } from './errors.mjs';
+import { WorkflowInterpreterError } from '../../errors.mjs';
 
 function stringNote(value) {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : '';
