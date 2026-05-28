@@ -387,7 +387,9 @@ test('prompt renderer: output schema is validated and injected in the output con
   writeFileSync(path.join(tempDir, 'artifact.schema.json'), JSON.stringify({
     type: 'object',
     required: ['outcome'],
-    properties: { outcome: { const: 'ready' } },
+    properties: {
+      outcome: { const: 'ready', 'x-usage': 'Use this field only for routing the worker outcome.' },
+    },
     additionalProperties: false,
   }, null, 2));
   const step = {
@@ -409,8 +411,10 @@ test('prompt renderer: output schema is validated and injected in the output con
     'Return valid JSON matching this schema. If a validation command or tool is available in this agent/subagent context, validate the generated JSON against this schema before the final answer; fix validation errors and repeat for a bounded number of attempts. The harness/orchestrator will validate the final returned JSON again after the answer, so this agent-side validation is a preflight, not the final authority. If no validation command or tool is available in this context, still return strict schema-matching JSON and expect harness-level validation.',
     '<!-- output schema: artifact.schema.json -->',
     '```json\n{\n  "type": "object",',
+    '"x-usage": "Use this field only for routing the worker outcome."',
     '## Workflow step prompt',
   ]);
+  assert.doesNotMatch(compiled.prompt, /Usage: Use this field only for routing the worker outcome\./);
 });
 
 test('prompt renderer: missing output schema fails deterministically', () => {

@@ -6,8 +6,14 @@ import Ajv2020 from './vendor/ajv.mjs';
  * The schema documents remain the source of truth; callers pass the schema
  * object they want checked at runtime instead of importing generated validators.
  */
-export function validateJsonSchema(schema, value, options = {}) {
+function createAjv() {
   const ajv = new Ajv2020({ allErrors: true });
+  ajv.addKeyword({ keyword: 'x-usage' });
+  return ajv;
+}
+
+export function validateJsonSchema(schema, value, options = {}) {
+  const ajv = createAjv();
   const loadedSchemaIds = new Set();
 
   for (const referencedSchema of options.schemas ?? []) {

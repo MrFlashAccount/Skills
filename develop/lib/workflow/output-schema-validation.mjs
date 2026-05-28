@@ -55,22 +55,11 @@ export function readOutputSchema({ workflow, workflowPath, schemaRef, repository
   }
 }
 
-function schemaForValidation(schema) {
-  if (Array.isArray(schema)) return schema.map(schemaForValidation);
-  if (!schema || typeof schema !== 'object') return schema;
-  const sanitized = {};
-  for (const [key, value] of Object.entries(schema)) {
-    if (key === 'x-usage') continue;
-    sanitized[key] = schemaForValidation(value);
-  }
-  return sanitized;
-}
-
 export function validateAgainstOutputSchema({ workflow, workflowPath, schemaRef, output, repositoryRoot = process.cwd() }) {
   const schema = readOutputSchema({ workflow, workflowPath, schemaRef, repositoryRoot });
   let validation;
   try {
-    validation = validateJsonSchema(schemaForValidation(schema), output, { schemas: workflowSchemas });
+    validation = validateJsonSchema(schema, output, { schemas: workflowSchemas });
   } catch (error) {
     throw new WorkflowInterpreterError(`output schema validation failed: invalid output schema '${schemaRef}': ${error.message}`);
   }
