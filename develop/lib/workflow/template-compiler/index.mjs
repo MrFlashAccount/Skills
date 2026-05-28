@@ -3,7 +3,8 @@ import { finalOutputReminder, outputContractSection, readOutputSchema, readOutpu
 import { projectedStateBlock } from './sections/projected-state.mjs';
 import { projectState } from '../projection.mjs';
 import { normalizeRepositoryRoot, section, trimStable } from './utils.mjs';
-import { assertNoUnsupportedPlaceholders, defaultPrompt, readInputRole, readInputTemplate } from './sections/template.mjs';
+import { readInputRole } from './sections/role.mjs';
+import { assertNoUnsupportedPlaceholders, defaultPrompt, readInputTemplate } from './sections/template.mjs';
 
 function firstNonEmptyString(candidates) {
   const value = candidates.find((candidate) => typeof candidate === 'string' && candidate.trim().length > 0);
