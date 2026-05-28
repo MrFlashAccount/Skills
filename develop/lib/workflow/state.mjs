@@ -16,7 +16,7 @@ function appendResults(existingResults = [], newResults = []) {
   return [...existingResults, ...newResults];
 }
 
-export function applyOutputToBatonState(baton, output, attempts, stepId) {
+export function applyOutputToBatonState(baton, output, attempts, stepId, { mirrorToOutputs = false } = {}) {
   const state = {
     ...baton.state,
     artifacts: mergeArtifacts(baton.state?.artifacts ?? [], output.artifacts ?? []),
@@ -24,10 +24,13 @@ export function applyOutputToBatonState(baton, output, attempts, stepId) {
   };
 
   if (stepId) {
-    state.outputs = {
-      ...(baton.state?.outputs ?? {}),
-      [stepId]: structuredClone(output),
-    };
+    state[stepId] = structuredClone(output);
+    if (mirrorToOutputs) {
+      state.outputs = {
+        ...(baton.state?.outputs ?? {}),
+        [stepId]: structuredClone(output),
+      };
+    }
   }
 
   if (attempts) state.attempts = attempts;

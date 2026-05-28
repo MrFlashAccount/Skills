@@ -141,7 +141,7 @@ Rules:
 
 During `apply`, worker steps with `output.schema` use that schema as the authoritative validation gate for the returned JSON. The returned value must parse as JSON; non-JSON output is treated as a schema-validation failure for retry purposes. On a validation failure, the interpreter returns the same worker step again, increments `baton.state.attempts["<stepId>:output.schema"]`, and appends a compact deterministic validation-feedback prompt to the directive step input. After three failed attempts, `apply` fails with a deterministic `WorkflowInterpreterError`.
 
-On success, the validated JSON drives the normal transition logic and is stored under `baton.state.outputs[stepId]` for later state projection. `artifacts` and `results`, when present in the validated output, continue to merge into the existing top-level baton state. Steps without `output.schema` keep the previous worker-output envelope validation and behavior.
+On success, every worker output is stored under `baton.state[stepId]` for later state projection. Validated structured JSON is also mirrored under legacy `baton.state.outputs[stepId]` for compatibility. `artifacts` and `results`, when present in the output, continue to merge into the existing top-level baton state. Steps without `output.schema` keep the previous worker-output envelope validation while still making the full envelope projectable by step id.
 
 ### Role material
 
@@ -418,7 +418,7 @@ CLI/smoke tests:
 - `render --diagnostics` includes non-fatal diagnostics while plain `render` omits them.
 - `inspect` output remains unchanged unless Sergey approves adding compiled prompt there.
 - `apply` without `output.schema` behavior remains unchanged.
-- `apply` with `output.schema` accepts valid structured output and stores it under `baton.state.outputs[stepId]`.
+- `apply` stores each worker output under `baton.state[stepId]`, mirrors structured `output.schema` outputs under `baton.state.outputs[stepId]`, and keeps `artifacts`/`results` aggregation intact.
 - `apply` with invalid structured output retries with validation feedback, then fails deterministically after the bounded attempt limit.
 
 Schema tests:

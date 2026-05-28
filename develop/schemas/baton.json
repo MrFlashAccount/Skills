@@ -47,10 +47,18 @@
           }
         },
         "outputs": {
-          "description": "Validated per-step worker outputs keyed by step id.",
+          "description": "Legacy mirror of validated structured per-step worker outputs keyed by step id.",
           "type": "object",
           "additionalProperties": true
         }
+      },
+      "patternProperties": {
+        "^[A-Za-z_][A-Za-z0-9_-]*$": {
+          "description": "Per-step worker output keyed by workflow step id for downstream input.state projection."
+        }
+      },
+      "propertyNames": {
+        "not": { "enum": ["run", "history"] }
       },
       "additionalProperties": false
     },
