@@ -3,8 +3,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "validate": "make -C develop validate",
-    "maintain:bundle-schema-validation": "node scripts/bundle-schema-validation.mjs"
+    "test": "make -C develop test",
+    "schema-validation:bundle": "node scripts/bundle-schema-validation.mjs",
+    "schema-validation:check": "npm run schema-validation:bundle && git diff --exit-code -- shared/scripts/schema-validation/dist/schema-validation.mjs && test -z \"$(git status --porcelain -- shared/scripts/schema-validation/dist/schema-validation.mjs)\"",
+    "validate": "npm test && npm run schema-validation:check",
+    "prepare": "git config core.hooksPath .githooks || true",
+    "maintain:bundle-schema-validation": "npm run schema-validation:bundle"
   },
   "devDependencies": {
     "ajv": "^8.17.1",

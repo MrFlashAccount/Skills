@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+echo "Bundling schema-validation library..."
+npm run schema-validation:bundle
+git add shared/scripts/schema-validation/dist/schema-validation.mjs
