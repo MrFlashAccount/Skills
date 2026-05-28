@@ -4,7 +4,7 @@ import workflowInterpreterCliArgsSchema from '../../schemas/internal/cli-args/wo
 import workerOutputSchema from '../../schemas/worker-output.json' with { type: 'json' };
 import workflowInterpreterResponseSchema from '../../schemas/workflow-interpreter-response.json' with { type: 'json' };
 import workflowSchema from '../../schemas/workflow.json' with { type: 'json' };
-import { validateJsonSchema } from '../../../shared/scripts/json-schema-validation.mjs';
+import { validateJsonSchema } from 'schema-validation';
 import { WorkflowInterpreterError } from './errors.mjs';
 
 export const workflowSchemas = [

@@ -1,4 +1,4 @@
-// Generated bundle from shared/scripts/json-schema-validation.source.mjs.
+// Generated bundle from shared/scripts/schema-validation/internal/bundle-entry.mjs.
 // Commit this artifact so JSON Schema validation works from a fresh clone without npm install/build.
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -7140,7 +7140,7 @@ var require__ = __commonJS({
   }
 });
 
-// shared/scripts/json-schema-validation.source.mjs
+// shared/scripts/schema-validation/internal/bundle-entry.mjs
 var import__ = __toESM(require__(), 1);
 function validateJsonSchema(schema, value, options = {}) {
   const ajv = new import__.default({ allErrors: true });

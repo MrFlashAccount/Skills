@@ -1,0 +1,11 @@
+{
+  "name": "schema-validation",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./dist/schema-validation.mjs"
+  },
+  "files": [
+    "dist"
+  ]
+}
