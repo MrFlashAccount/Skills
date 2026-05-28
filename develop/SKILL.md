@@ -42,10 +42,26 @@ The skill does not choose transitions and does not interpret workflow structure.
    ```json
    {
      "id": "step_id",
+     "stepId": "step_id",
      "action": "run_worker",
-     "compiledPrompt": { "prompt": "..." },
+     "instructionRef": "instructions/step_id",
+     "loadInstructionsCommand": "node develop/scripts/workflow-runner.mjs instructions --run-dir '/path/to/run' --step-id 'step_id'",
      "outputPath": "/path/to/run/outputs/step_id.json"
    }
+   ```
+
+   Do not spawn a long-lived worker with compiled prompt text from the request. Load the step instructions in a fresh/disposable worker with this neutral bootstrap:
+
+   ```text
+   Load the step instructions by running:
+
+   <command>
+
+   Then follow the loaded instructions exactly.
+
+   Do not add any behavior, role, output format, or constraints beyond the loaded instructions.
+
+   If the instructions cannot be loaded, stop with an error and do not continue.
    ```
 
 4. Write the host action result to exactly `outputPath` as JSON.
@@ -85,4 +101,5 @@ The skill does not choose transitions and does not interpret workflow structure.
 - Do not edit baton state by hand.
 - Do not add host-specific fields to workflow JSON or worker outputs.
 - Execute only host action requests returned by the runner.
+- Use `loadInstructionsCommand` to load step instructions; host requests must not carry compiled prompt text.
 - Missing host capability becomes a blocked output at the requested path.

@@ -17,6 +17,7 @@ export function resolveRunPaths({ runDir, workflowPath }) {
     historyPath: join(resolvedRunDir, 'history.md'),
     outputsDir: join(resolvedRunDir, 'outputs'),
     runnerDir: join(resolvedRunDir, '.workflow-runner'),
+    instructionsDir: join(resolvedRunDir, '.workflow-runner', 'instructions'),
     lastResponsePath: join(resolvedRunDir, '.workflow-runner', 'last-response.json'),
   };
 }
@@ -70,6 +71,7 @@ export async function ensureRunFiles(paths) {
   await mkdir(paths.runDir, { recursive: true });
   await mkdir(paths.outputsDir, { recursive: true });
   await mkdir(paths.runnerDir, { recursive: true });
+  await mkdir(paths.instructionsDir, { recursive: true });
 
   const batonExists = await exists(paths.batonPath);
   if (!batonExists) {
@@ -106,6 +108,33 @@ export async function writeJsonAtomic(path, value) {
       await handle.close();
     } catch {}
     if (!renamed) await rm(tempPath, { force: true });
+  }
+}
+
+export async function writeTextAtomic(path, value) {
+  await mkdir(dirname(path), { recursive: true });
+  const tempPath = join(dirname(path), `.${basename(path)}.${process.pid}.${Date.now()}.tmp`);
+  const handle = await open(tempPath, 'wx', 0o600);
+  let renamed = false;
+  try {
+    await handle.writeFile(value, 'utf8');
+    await handle.sync();
+    await handle.close();
+    await rename(tempPath, path);
+    renamed = true;
+  } finally {
+    try {
+      await handle.close();
+    } catch {}
+    if (!renamed) await rm(tempPath, { force: true });
+  }
+}
+
+export async function readText(path, name) {
+  try {
+    return await readFile(path, 'utf8');
+  } catch (error) {
+    throw new Error(`cannot read ${name} from ${path}: ${error.message}`);
   }
 }
 
