@@ -9,7 +9,7 @@
 
 ## Problem
 
-The workflow interpreter can identify the current `step` and return a directive, but the next boundary is still implicit: something must turn the current workflow step plus baton state into a ready prompt for a child worker or approval surface.
+The workflow interpreter can identify the current `step` and return executable step entries, but the next boundary is still implicit: something must turn the current workflow step plus baton state into a ready prompt for a child worker or approval surface.
 
 That boundary should be a deterministic prompt-rendering stage, not an orchestrator shortcut and not interpreter transition logic. The renderer compiles a prompt from:
 
@@ -50,8 +50,8 @@ Current files already establish these contracts:
 
 - `develop/dev-harness.workflow.json` declares worker and approval steps with `input.state`, optional `input.template`, optional `input.prompt`, optional worker `input.role`, and worker `output.template`.
 - `develop/schemas/workflow.json` rejects step-level extension fields and allows workflow-scoped extensions only.
-- `develop/lib/workflow/interpreter/index.mjs` chooses the current `step`, validates transition targets, applies output, and returns `{ baton, directive }` for `inspect`/`apply`; `render` adds `compiledPrompt` without changing those existing response shapes.
-- `develop/lib/workflow/directive.mjs` exposes `{ id, action, step }` without rendering prompts.
+- `develop/lib/workflow/interpreter/index.mjs` chooses the current `step`, validates transition targets, applies output, and returns the unified `{ baton, steps[] }` response for `inspect`/`apply`; `render` adds `compiledPrompt` to step entries without moving transition decisions into skill text.
+- `develop/lib/workflow/executable-steps.mjs` exposes step entries shaped as `{ id, action, step }` before rendering prompts.
 - `develop/lib/workflow/projection.mjs` projects only explicit top-level `input.state` keys and fails on missing or nested selectors.
 - `develop/lib/workflow/prompt-renderer.mjs` loads local markdown templates, assembles fallback prompts, appends omitted role/output/state/step-prompt/user-task/reminder sections in the compiled layer order, and returns prompt metadata plus opt-in diagnostics.
 - `develop/lib/workflow/state.mjs` applies worker/approval output to baton state after the worker returns.
