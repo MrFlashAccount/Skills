@@ -17,6 +17,12 @@ const dynamicOutputSchema = {
     outcome: { type: 'string' },
     next: { type: 'string' },
     selected_steps: { type: 'array', items: { type: 'string' } },
+    dynamic_value: {},
+    route: {
+      type: 'object',
+      properties: { next: { type: 'string' } },
+      additionalProperties: false,
+    },
     artifacts: { type: 'array' },
     results: { type: 'array' },
     blocker: { type: 'object' },
@@ -104,6 +110,12 @@ test('dynamic output string routes to the selected existing step', () => {
   assert.equal(response.steps[0].id, 'review_a');
 });
 
+test('dynamic nested output path routes to the selected existing step', () => {
+  const response = runApply('nested-output-string', baton(), { outcome: 'ready', route: { next: 'review_b' } }, true, workflow('${{ output.route.next }}'));
+  assert.equal(response.baton.cursor, 'review_b');
+  assert.equal(response.steps[0].id, 'review_b');
+});
+
 test('dynamic output array prepares and executes parallel steps like static array next', () => {
   const prepared = runApply('output-array-prepare', baton(), { outcome: 'ready', selected_steps: ['review_a', 'review_b'] }, true, workflow('${{ output.selected_steps }}'));
   assert.deepEqual(prepared.steps.map((step) => step.id), ['review_a', 'review_b']);
@@ -141,6 +153,26 @@ test('dynamic input path not projected errors deterministically', () => {
   assert.match(result.stderr, /could not resolve missing path 'input.planning_draft'/);
 });
 
+test('dynamic next rejects missing paths and invalid resolved values', () => {
+  assert.match(
+    runApply('missing-output-path', baton(), { outcome: 'ready' }, false, workflow('${{ output.missing_next }}')).stderr,
+    /could not resolve missing path 'output.missing_next'/,
+  );
+  assert.match(runApply('empty-string', baton(), { outcome: 'ready', next: '' }, false).stderr, /dynamic next resolved to an empty string/);
+
+  for (const [label, dynamic_value] of [
+    ['null-value', null],
+    ['number-value', 7],
+    ['object-value', { target: 'review_a' }],
+    ['nested-array-value', ['review_a', ['review_b']]],
+  ]) {
+    assert.match(
+      runApply(label, baton(), { outcome: 'ready', dynamic_value }, false, workflow('${{ output.dynamic_value }}')).stderr,
+      /dynamic next must resolve to a string step id or array of step ids|must resolve to non-empty string step ids/,
+    );
+  }
+});
+
 test('dynamic next rejects unknown target, empty arrays, and duplicate ids', () => {
   assert.match(runApply('unknown-target', baton(), { outcome: 'ready', next: 'missing' }, false).stderr, /target not found: missing/);
   assert.match(
@@ -153,9 +185,35 @@ test('dynamic next rejects unknown target, empty arrays, and duplicate ids', () 
   );
 });
 
-test('static literal next and old next.by map still work', () => {
+test('dynamic parallel next enforces join-shape validation', () => {
+  const nestedWorkflow = workflow('${{ output.selected_steps }}');
+  nestedWorkflow.workflow.steps.review_a.next = ['join'];
+  assert.match(
+    runApply('dynamic-nested-parallel-target', baton(), { outcome: 'ready', selected_steps: ['review_a', 'review_b'] }, false, nestedWorkflow).stderr,
+    /parallel branch target 'review_a' cannot start nested parallel steps/,
+  );
+
+  const mappedBranchWorkflow = workflow('${{ output.selected_steps }}');
+  mappedBranchWorkflow.workflow.steps.review_a.next = { by: 'outcome', map: { ready: 'join' } };
+  assert.match(
+    runApply('dynamic-mapped-branch-target', baton(), { outcome: 'ready', selected_steps: ['review_a', 'review_b'] }, false, mappedBranchWorkflow).stderr,
+    /parallel branch target 'review_a' must use a string next to an explicit join step/,
+  );
+
+  const splitJoinWorkflow = workflow('${{ output.selected_steps }}');
+  splitJoinWorkflow.workflow.steps.review_b.next = 'done';
+  assert.match(
+    runApply('dynamic-split-join-targets', baton(), { outcome: 'ready', selected_steps: ['review_a', 'review_b'] }, false, splitJoinWorkflow).stderr,
+    /parallel branch targets must share one explicit join step/,
+  );
+});
+
+test('static literal next, static parallel next, and old next.by map still work', () => {
   const literal = runApply('literal-next', baton(), { outcome: 'ready', next: 'ignored' }, true, workflow('review_a'));
   assert.equal(literal.baton.cursor, 'review_a');
+
+  const staticParallel = runApply('static-parallel-next', baton(), { outcome: 'ready', next: 'ignored' }, true, workflow(['review_a', 'review_b']));
+  assert.deepEqual(staticParallel.steps.map((step) => step.id), ['review_a', 'review_b']);
 
   const mappedWorkflow = workflow({ by: 'outcome', map: { ready: 'review_b', blocked: 'blocked' } });
   const mapped = runApply('mapped-next', baton(), { outcome: 'ready' }, true, mappedWorkflow);
