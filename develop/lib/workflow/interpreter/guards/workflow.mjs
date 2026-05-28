@@ -1,9 +1,8 @@
 import { invariant } from '../../errors.mjs';
 import { statusForStep } from '../../model.mjs';
 import { readJson } from '../../json-io.mjs';
-import { isExpressionString, parsePathExpression } from '../../expressions/index.mjs';
 import { assertBatonSchema, assertWorkflowSchema } from '../../schema-validation.mjs';
-import { assertParallelTargets, assertTransitionTarget } from '../parallel/targets.mjs';
+import { assertTransitionDescriptorTargets, normalizeTransitionNext } from '../../transitions.mjs';
 
 export function loadWorkflowAndBaton(workflowPath, batonPath) {
   const workflowDoc = readJson(workflowPath, 'workflow');
@@ -45,27 +44,7 @@ function assertWorkflowTransitionTargets(workflow) {
   for (const [stepId, step] of Object.entries(workflow.steps)) {
     if (!Object.hasOwn(step, 'next')) continue;
 
-    const next = step.next;
-    if (typeof next === 'string') {
-      if (isExpressionString(next)) parsePathExpression(next);
-      else assertTransitionTarget(workflow, stepId, 'next', next);
-      continue;
-    }
-
-    if (Array.isArray(next)) {
-      assertParallelTargets(workflow, stepId, next);
-      continue;
-    }
-
-    for (const [value, target] of Object.entries(next.map)) {
-      const path = `next.map.${value}`;
-      if (typeof target === 'string') {
-        assertTransitionTarget(workflow, stepId, path, target);
-        continue;
-      }
-
-      assertTransitionTarget(workflow, stepId, `${path}.target`, target.target);
-      assertTransitionTarget(workflow, stepId, `${path}.onLimit`, target.onLimit);
-    }
+    const descriptor = normalizeTransitionNext(step.next);
+    assertTransitionDescriptorTargets(workflow, stepId, descriptor);
   }
 }

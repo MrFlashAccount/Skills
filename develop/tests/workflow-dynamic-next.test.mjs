@@ -23,6 +23,11 @@ const dynamicOutputSchema = {
       properties: { next: { type: 'string' } },
       additionalProperties: false,
     },
+    steps: {
+      type: 'object',
+      properties: { next: { type: 'string' } },
+      additionalProperties: false,
+    },
     artifacts: { type: 'array' },
     results: { type: 'array' },
     blocker: { type: 'object' },
@@ -114,6 +119,12 @@ test('dynamic nested output path routes to the selected existing step', () => {
   const response = runApply('nested-output-string', baton(), { outcome: 'ready', route: { next: 'review_b' } }, true, workflow('${{ output.route.next }}'));
   assert.equal(response.baton.cursor, 'review_b');
   assert.equal(response.steps[0].id, 'review_b');
+});
+
+test('dynamic output path can read a top-level steps object as ordinary worker output', () => {
+  const response = runApply('steps-output-string', baton(), { outcome: 'ready', steps: { next: 'review_a' } }, true, workflow('${{ output.steps.next }}'));
+  assert.equal(response.baton.cursor, 'review_a');
+  assert.equal(response.steps[0].id, 'review_a');
 });
 
 test('dynamic output array prepares and executes parallel steps like static array next', () => {

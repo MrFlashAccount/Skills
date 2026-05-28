@@ -4,7 +4,7 @@ import { readJson } from '../../json-io.mjs';
 import { applyOutputToBatonState } from '../../state.mjs';
 import { responseFor } from '../output/response.mjs';
 import { assertOutputSchemaIfDeclared } from '../output/worker-output.mjs';
-import { joinForParallelTargets } from './targets.mjs';
+import { joinForParallelTargets } from '../../transition-targets.mjs';
 
 function readParallelOutputForStep(allOutput, stepId) {
   invariant(allOutput && typeof allOutput === 'object' && !Array.isArray(allOutput), 'parallel output must be an object');
