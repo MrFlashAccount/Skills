@@ -13,23 +13,6 @@ Default chain:
 
 Keep path small. Use the full harness only when needed.
 
-
-## Workflow runtime contract
-
-When running through `develop/dev-harness.workflow.json`, do not decide workflow transitions yourself. Use `develop/scripts/workflow-interpreter.mjs`:
-
-- `inspect <workflow.json> <baton.json>` returns the current directive.
-- `render <workflow.json> <baton.json>` returns the current compiled prompt. If the directive action is `run_parallel`, it also returns `compiledParallelPrompts[]` with one rendered prompt per branch.
-- `apply <workflow.json> <baton.json> <output.json>` applies exactly one directive result and returns the next baton/directive.
-
-For `run_parallel`, launch every branch from `compiledParallelPrompts[]`, wait for all branch outputs, then apply one output shaped as:
-
-```json
-{ "steps": { "<stepId>": { "outcome": "ready" } } }
-```
-
-The interpreter writes each branch output to `baton.state[stepId]` and advances to the explicit join step. Keep this static: parallel steps, one join step, no dynamic next, no nested parallel, no automatic semantic merge.
-
 ## When to use
 
 - Use for one-file fixes too; keep the plan compact.
