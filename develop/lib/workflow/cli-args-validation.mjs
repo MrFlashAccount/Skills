@@ -1,4 +1,4 @@
-import { validateJsonSchema } from '../../../shared/scripts/json-schema-validation.mjs';
+import { validateJsonSchema } from 'schema-validation';
 import { workflowInterpreterCliArgsSchema, workflowSchemas } from './schema-validation.mjs';
 
 export function validateWorkflowInterpreterCliArgs(args) {

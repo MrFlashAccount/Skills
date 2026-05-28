@@ -4,10 +4,13 @@
   "type": "module",
   "scripts": {
     "validate": "make -C develop validate",
-    "maintain:bundle-json-schema-validation": "node scripts/bundle-json-schema-validation.mjs"
+    "maintain:bundle-schema-validation": "node scripts/bundle-schema-validation.mjs"
   },
   "devDependencies": {
     "ajv": "^8.17.1",
     "esbuild": "^0.28.0"
-  }
+  },
+  "workspaces": [
+    "shared/scripts/schema-validation"
+  ]
 }
