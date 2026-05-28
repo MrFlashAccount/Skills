@@ -57,9 +57,9 @@ A CLI failure is an execution error and should be reported by the host adapter i
 
 ## Output capture
 
-The host wrapper captures each request result into an artifact file it owns. The filename may derive from `stepId`, and the extension/format may vary by actual output/model, for example `.md`, `.json`, or `structured.json`. The runner does not dictate artifact names or paths.
+The host wrapper captures each request result into an artifact file it owns. The filename may derive from `stepId`; the runner does not dictate public artifact names, paths, or `outputPath`.
 
-Typical worker output envelope when the artifact is JSON:
+The artifact content passed back to the runner must still be workflow-compatible output JSON/envelope that the runner/interpreter can read. Typical worker output envelope:
 
 ```json
 {
@@ -100,7 +100,7 @@ For parallel branch requests, pass one named output per requested step. `continu
 ```bash
 node develop/scripts/workflow-runner.mjs continue --run-dir "$RUN_DIR" \
   --output "branch_a=/host/artifacts/branch_a.structured.json" \
-  --output "branch_b=/host/artifacts/branch_b.md" \
+  --output "branch_b=/host/artifacts/branch_b.output.json" \
   --workflow "$WORKFLOW"
 ```
 
@@ -124,11 +124,11 @@ OpenClaw is one possible host adapter:
   ```
 
 - The wrapper captures the subagent final answer/result into an artifact file it owns.
-- The wrapper calls `workflow-runner.mjs continue` with the artifact path or paths.
+- The wrapper calls `workflow-runner.mjs continue` with the artifact path or paths; those paths are wrapper-owned transport, but the file content must be runner-compatible output JSON/envelope.
 - If OpenClaw cannot provide the requested capability, the wrapper captures a blocked output artifact.
 - The adapter repeats until the runner returns a terminal status.
 
-This mapping is not part of the portable workflow contract. Other hosts can execute the same requests differently as long as they pass compatible output artifacts back to `continue`.
+This mapping is not part of the portable workflow contract. Other hosts can execute the same requests differently as long as they pass compatible output artifacts back to `continue`. If a host action produces markdown or a report, the wrapper should wrap it in the step's expected JSON output or store it as a referenced artifact; it should not pass arbitrary markdown as runner output unless the step schema/runtime explicitly expects that.
 
 ## Not final in this draft
 

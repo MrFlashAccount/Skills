@@ -65,9 +65,9 @@ The skill does not choose transitions and does not interpret workflow structure.
 
 4. Capture the host action result into a wrapper-owned artifact file.
 
-   Output path/name is wrapper-owned transport, not runner/interpreter contract. The filename may derive from `stepId`, and the extension/format may vary (`.md`, `.json`, `structured.json`, etc.) depending on actual step output/model.
+   Output path/name is wrapper-owned transport, not runner/interpreter contract. The filename may derive from `stepId`; the runner does not dictate the public `outputPath`.
 
-   Worker or approval output should follow the normal envelope when captured as JSON:
+   The artifact content passed back to the runner must still be workflow-compatible output JSON/envelope that the runner/interpreter can read. Worker or approval output should follow the normal envelope:
 
    ```json
    {
@@ -101,7 +101,7 @@ The skill does not choose transitions and does not interpret workflow structure.
    ```bash
    node develop/scripts/workflow-runner.mjs continue --run-dir "$RUN_DIR" --workflow "$WORKFLOW" \
      --output "branch_a=/host/artifacts/branch_a.structured.json" \
-     --output "branch_b=/host/artifacts/branch_b.md"
+     --output "branch_b=/host/artifacts/branch_b.output.json"
    ```
 
 6. Repeat until the runner returns `done` or `blocked`.
@@ -114,4 +114,5 @@ The skill does not choose transitions and does not interpret workflow structure.
 - Execute only host action requests returned by the runner.
 - Use `loadInstructionsCommand` to load step instructions; host requests must not carry compiled prompt text.
 - Output capture is wrapper-owned transport. Do not treat output paths as runner/interpreter request fields.
+- Output artifact content passed to `continue` must be workflow-compatible output JSON/envelope. If a step produces markdown/report content, wrap it in the expected JSON result or store it as a referenced artifact according to that step's expected output; do not pass arbitrary markdown as runner output unless that step schema/runtime explicitly expects it.
 - Missing host capability becomes a blocked output artifact.
