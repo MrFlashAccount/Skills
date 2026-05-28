@@ -476,11 +476,38 @@ test('inspect: approval and terminal directives expose only canonical response f
   assert.equal(Object.hasOwn(blocked.directive.step, 'next'), false);
 });
 
+test('runtime: non-root terminal step kinds resolve terminal status and stop directives', () => {
+  const workflowDoc = structuredClone(schemaWorkflowDoc);
+  workflowDoc.workflow.steps.archived_done = { name: 'Archived done', kind: 'done', input: { prompt: 'Archived finish.' } };
+  workflowDoc.workflow.steps.deferred_blocked = { name: 'Deferred blocked', kind: 'blocked', input: { prompt: 'Deferred blockage.' } };
+
+  const done = runInspect('inspect-non-root-done', baton({ cursor: 'archived_done', status: 'done' }), true, workflowDoc);
+  const blocked = runInspect('inspect-non-root-blocked', baton({ cursor: 'deferred_blocked', status: 'blocked' }), true, workflowDoc);
+
+  assert.equal(done.directive.action, 'stop_done');
+  assert.equal(done.baton.status, 'done');
+  assert.equal(done.directive.step.input.prompt, 'Archived finish.');
+  assert.equal(blocked.directive.action, 'stop_blocked');
+  assert.equal(blocked.baton.status, 'blocked');
+  assert.equal(blocked.directive.step.input.prompt, 'Deferred blockage.');
+});
 test('runtime: terminal cursors reject apply instead of advancing again', () => {
   const done = runApply('apply-terminal-done', baton({ cursor: 'done', status: 'done' }), output(), false);
   const blocked = runApply('apply-terminal-blocked', baton({ cursor: 'blocked', status: 'blocked' }), output(), false);
   assert.match(done.stderr, /cursor 'done' is terminal and cannot be applied/);
   assert.match(blocked.stderr, /cursor 'blocked' is terminal and cannot be applied/);
+});
+
+test('runtime: non-root terminal cursors reject apply instead of advancing again', () => {
+  const workflowDoc = structuredClone(schemaWorkflowDoc);
+  workflowDoc.workflow.steps.archived_done = { name: 'Archived done', kind: 'done', input: { prompt: 'Archived finish.' } };
+  workflowDoc.workflow.steps.deferred_blocked = { name: 'Deferred blocked', kind: 'blocked', input: { prompt: 'Deferred blockage.' } };
+
+  const done = runApply('apply-non-root-terminal-done', baton({ cursor: 'archived_done', status: 'done' }), output(), false, workflowDoc);
+  const blocked = runApply('apply-non-root-terminal-blocked', baton({ cursor: 'deferred_blocked', status: 'blocked' }), output(), false, workflowDoc);
+
+  assert.match(done.stderr, /cursor 'archived_done' is terminal and cannot be applied/);
+  assert.match(blocked.stderr, /cursor 'deferred_blocked' is terminal and cannot be applied/);
 });
 
 test('apply: mapped next by worker output field advances to selected target', () => {
@@ -528,6 +555,24 @@ test('schema validation: worker output rejects unsupported fields instead of sil
   );
 
   assert.match(result.stderr, /worker output failed schema validation/);
+});
+
+test('schema validation: worker output state collections reject malformed entries', () => {
+  const artifactMissingType = runApply(
+    'worker-output-artifact-missing-type',
+    baton(),
+    { outcome: 'ready', artifacts: [{ summary: 'untyped artifact would poison baton state' }] },
+    false,
+  );
+  assert.match(artifactMissingType.stderr, /worker output failed schema validation/);
+
+  const nonObjectResult = runApply(
+    'worker-output-result-non-object',
+    baton(),
+    { outcome: 'ready', results: ['string result would poison baton state'] },
+    false,
+  );
+  assert.match(nonObjectResult.stderr, /worker output failed schema validation/);
 });
 
 test('apply: output state replaces same-id artifacts while appending new artifacts and results', () => {
@@ -628,6 +673,42 @@ test('apply: mapped next by approval output field advances to selected target', 
   assert.equal(response.baton.cursor, 'direct_next_worker');
   assert.equal(response.directive.action, 'run_worker');
   assert.equal(response.baton.state.results.at(-1).type, 'approval');
+});
+
+test('schema validation: approval output state collections reject malformed entries', () => {
+  const artifactMissingType = runApply(
+    'approval-output-artifact-missing-type',
+    baton({ cursor: 'approval_step' }),
+    { approval: 'approved', artifacts: [{ summary: 'untyped approval artifact would poison baton state' }] },
+    false,
+  );
+  assert.match(artifactMissingType.stderr, /worker output failed schema validation/);
+
+  const nonObjectResult = runApply(
+    'approval-output-result-non-object',
+    baton({ cursor: 'approval_step' }),
+    { approval: 'approved', results: ['string approval result would poison baton state'] },
+    false,
+  );
+  assert.match(nonObjectResult.stderr, /worker output failed schema validation/);
+});
+
+test('schema validation: approval output rejects wrapper-owned runtime fields', () => {
+  const directStateReplacement = runApply(
+    'approval-output-direct-state-replacement',
+    baton({ cursor: 'approval_step' }),
+    { approval: 'approved', state: { artifacts: [], results: [{ type: 'approval', summary: 'bypassed merge' }] } },
+    false,
+  );
+  assert.match(directStateReplacement.stderr, /worker output failed schema validation/);
+
+  const unsupportedDiagnostics = runApply(
+    'approval-output-unsupported-diagnostics',
+    baton({ cursor: 'approval_step' }),
+    { approval: 'approved', diagnostics: { summary: 'wrapper-only approval details' } },
+    false,
+  );
+  assert.match(unsupportedDiagnostics.stderr, /worker output failed schema validation/);
 });
 
 test('apply: next directive exposes target step input state selectors after transition', () => {
@@ -952,6 +1033,10 @@ test('schema validation: retry transition policies require complete bounded-loop
   delete missingOnLimit.workflow.steps.worker_step.next.map.retry.onLimit;
   assert.match(runInspect('retry-policy-missing-on-limit', baton(), false, missingOnLimit).stderr, /workflow failed schema validation/);
 
+  const missingMaxAttempts = structuredClone(schemaWorkflowDoc);
+  delete missingMaxAttempts.workflow.steps.worker_step.next.map.retry.maxAttempts;
+  assert.match(runInspect('retry-policy-missing-max-attempts', baton(), false, missingMaxAttempts).stderr, /workflow failed schema validation/);
+
   const invalidMaxAttempts = structuredClone(schemaWorkflowDoc);
   invalidMaxAttempts.workflow.steps.worker_step.next.map.retry.maxAttempts = 0;
   assert.match(runInspect('retry-policy-invalid-max-attempts', baton(), false, invalidMaxAttempts).stderr, /workflow failed schema validation/);
@@ -965,6 +1050,25 @@ test('schema validation: mapped transitions require selector and non-empty map',
   const emptyMap = structuredClone(schemaWorkflowDoc);
   emptyMap.workflow.steps.worker_step.next.map = {};
   assert.match(runInspect('transition-map-empty-map', baton(), false, emptyMap).stderr, /workflow failed schema validation/);
+});
+
+test('schema validation: mapped transition map must be present object', () => {
+  const missingMap = structuredClone(schemaWorkflowDoc);
+  delete missingMap.workflow.steps.worker_step.next.map;
+  assert.match(runInspect('transition-map-missing-map', baton(), false, missingMap).stderr, /workflow failed schema validation/);
+
+  const arrayMap = structuredClone(schemaWorkflowDoc);
+  arrayMap.workflow.steps.worker_step.next.map = ['approval_step'];
+  assert.match(runInspect('transition-map-array-map', baton(), false, arrayMap).stderr, /workflow failed schema validation/);
+});
+
+test('schema validation: retry transition policies reject unsupported nested fields', () => {
+  const workflowDoc = structuredClone(schemaWorkflowDoc);
+  workflowDoc.workflow.steps.worker_step.next.map.retry.description = 'wrapper-owned retry hint';
+
+  const result = runInspect('retry-policy-unsupported-nested-field', baton(), false, workflowDoc);
+
+  assert.match(result.stderr, /workflow failed schema validation/);
 });
 
 test('schema validation: mapped transition objects reject unsupported control fields', () => {
@@ -985,6 +1089,16 @@ test('schema validation: mapped transition selector must be non-empty', () => {
   assert.match(result.stderr, /workflow failed schema validation/);
 });
 
+test('schema validation: mapped transition selector rejects non-string values', () => {
+  const numericSelector = structuredClone(schemaWorkflowDoc);
+  numericSelector.workflow.steps.worker_step.next.by = 0;
+  assert.match(runInspect('transition-map-numeric-selector', baton(), false, numericSelector).stderr, /workflow failed schema validation/);
+
+  const booleanSelector = structuredClone(schemaWorkflowDoc);
+  booleanSelector.workflow.steps.worker_step.next.by = false;
+  assert.match(runInspect('transition-map-boolean-selector', baton(), false, booleanSelector).stderr, /workflow failed schema validation/);
+});
+
 test('schema validation: transition target strings must be non-empty', () => {
   const emptyDirectTarget = structuredClone(schemaWorkflowDoc);
   emptyDirectTarget.workflow.steps.direct_next_worker.next = '';
@@ -993,6 +1107,16 @@ test('schema validation: transition target strings must be non-empty', () => {
   const emptyMappedTarget = structuredClone(schemaWorkflowDoc);
   emptyMappedTarget.workflow.steps.worker_step.next.map.ready = '';
   assert.match(runInspect('empty-mapped-transition-target', baton(), false, emptyMappedTarget).stderr, /workflow failed schema validation/);
+});
+
+test('schema validation: transition target values reject non-string non-policy shapes', () => {
+  const numericDirectTarget = structuredClone(schemaWorkflowDoc);
+  numericDirectTarget.workflow.steps.direct_next_worker.next = 1;
+  assert.match(runInspect('numeric-direct-transition-target', baton({ cursor: 'direct_next_worker' }), false, numericDirectTarget).stderr, /workflow failed schema validation/);
+
+  const nestedMappedTarget = structuredClone(schemaWorkflowDoc);
+  nestedMappedTarget.workflow.steps.worker_step.next.map.ready = { target: { id: 'approval_step' }, maxAttempts: 2, onLimit: 'blocked' };
+  assert.match(runInspect('nested-mapped-transition-target', baton(), false, nestedMappedTarget).stderr, /workflow failed schema validation/);
 });
 
 test('schema validation: workflow terminal and start target strings must be non-empty', () => {
@@ -1040,6 +1164,24 @@ test('schema validation: input state selectors must be unique non-empty strings'
   const emptyApprovalSelector = structuredClone(schemaWorkflowDoc);
   emptyApprovalSelector.workflow.steps.approval_step.input.state = [''];
   assert.match(runInspect('empty-approval-state-selector', baton({ cursor: 'approval_step' }), false, emptyApprovalSelector).stderr, /workflow failed schema validation/);
+});
+
+test('schema validation: approval input rejects worker-only role field', () => {
+  const workflowDoc = structuredClone(schemaWorkflowDoc);
+  workflowDoc.workflow.steps.approval_step.input.role = 'backend';
+
+  const result = runInspect('approval-input-worker-role', baton({ cursor: 'approval_step' }), false, workflowDoc);
+
+  assert.match(result.stderr, /workflow failed schema validation/);
+});
+
+test('schema validation: approval steps reject worker-only output schema declaration', () => {
+  const workflowDoc = structuredClone(schemaWorkflowDoc);
+  workflowDoc.workflow.steps.approval_step.output = { schema: 'worker-output.json' };
+
+  const result = runInspect('approval-step-worker-output-schema', baton({ cursor: 'approval_step' }), false, workflowDoc);
+
+  assert.match(result.stderr, /workflow failed schema validation/);
 });
 
 test('runtime validation: baton status must match cursor semantics', () => {
@@ -1096,6 +1238,22 @@ test('schema validation: baton retry counters must be non-negative integers', ()
   assert.match(runInspect('baton-negative-retry-attempt', negativeAttempt, false).stderr, /baton failed schema validation/);
 });
 
+test('schema validation: baton rejects wrapper-owned runtime metadata fields', () => {
+  const rootRunMetadata = baton({ run: { id: 'wrapper-run-1' } });
+  assert.match(runInspect('baton-root-run-metadata', rootRunMetadata, false).stderr, /baton failed schema validation/);
+
+  const stateRunMetadata = baton({ state: { artifacts: [], results: [], run: { id: 'wrapper-run-1' } } });
+  assert.match(runInspect('baton-state-run-metadata', stateRunMetadata, false).stderr, /baton failed schema validation/);
+});
+
+test('schema validation: baton rejects wrapper-owned execution trace fields', () => {
+  const persistedDirective = baton({ directive: { action: 'run_worker' } });
+  assert.match(runInspect('baton-root-directive-trace', persistedDirective, false).stderr, /baton failed schema validation/);
+
+  const persistedHistory = baton({ state: { artifacts: [], results: [], history: [{ cursor: 'worker_step', action: 'run_worker' }] } });
+  assert.match(runInspect('baton-state-history-trace', persistedHistory, false).stderr, /baton failed schema validation/);
+});
+
 test('validation: worker and approval transition vocabularies stay distinct', () => {
   const workerUsingApproval = runApply('worker-using-approval', baton(), { approval: 'approved' }, false);
   const approvalUsingOutcome = runApply('approval-using-outcome', baton({ cursor: 'approval_step' }), { outcome: 'approved' }, false);
@@ -1148,6 +1306,11 @@ test('apply: mapped transition value string zero is accepted as a real map key',
   const response = runApply('zero-string-map-value', baton(), output({ outcome: '0' }), true, workflowDoc);
   assert.equal(response.baton.cursor, 'approval_step');
   assert.equal(response.directive.action, 'wait_for_approval');
+});
+
+test('validation: mapped transition values are matched literally without whitespace trimming', () => {
+  const result = runApply('whitespace-padded-map-value', baton(), output({ outcome: ' ready ' }), false);
+  assert.match(result.stderr, /transition value ' ready ' is not allowed from cursor 'worker_step' by 'outcome'/);
 });
 
 test('validation: unknown mapped value and unknown cursor are rejected', () => {
