@@ -24,6 +24,12 @@ const workflowDoc = {
         output: { template: '../../shared/templates/implementation-plan-template.md' },
         next: { by: 'outcome', map: { ready: 'done', blocked: 'blocked' } },
       },
+      consumer_step: {
+        name: 'Consumer step',
+        kind: 'approval',
+        input: { state: ['worker_step'], prompt: 'Use prior worker output.' },
+        next: { by: 'approval', map: { approved: 'done', blocked: 'blocked' } },
+      },
       done: { name: 'Done', kind: 'done' },
       blocked: { name: 'Blocked', kind: 'blocked' },
     },
@@ -65,13 +71,18 @@ function workflowWithSchema(label, schema) {
   return doc;
 }
 
+function runWorkflowCommand(label, args, expectSuccess = true) {
+  const response = expectCliResult(label, runNode(args), expectSuccess);
+  return response;
+}
+
 function runApply(label, batonDoc, workerOutput, expectSuccess = true, doc = workflowDoc) {
   const prefix = safeName(label);
   const batonPath = writeJson(`${prefix}-baton.json`, batonDoc);
   const outputPath = writeJson(`${prefix}-output.json`, workerOutput);
   const wfPath = writeJson(`${prefix}-workflow.json`, doc);
   const before = readFileSync(batonPath, 'utf8');
-  const response = expectCliResult(label, runNode(['develop/scripts/workflow-interpreter.mjs', 'apply', wfPath, batonPath, outputPath]), expectSuccess);
+  const response = runWorkflowCommand(label, ['develop/scripts/workflow-interpreter.mjs', 'apply', wfPath, batonPath, outputPath], expectSuccess);
   assert.equal(readFileSync(batonPath, 'utf8'), before, `check '${label}' mutated baton file during apply`);
   return response;
 }
@@ -100,6 +111,7 @@ test('output.schema: valid structured output passes and is stored by step id', (
   }, true, doc);
 
   assert.equal(response.baton.cursor, 'done');
+  assert.deepEqual(response.baton.state.worker_step.payload, { ok: true });
   assert.deepEqual(response.baton.state.outputs.worker_step.payload, { ok: true });
   assert.equal(response.baton.state.artifacts.at(-1).summary, 'structured');
 });
@@ -116,7 +128,34 @@ test('output.schema: invalid output retries with validation feedback then succee
 
   const response = runApply('output-schema-retry-success', retry.baton, { outcome: 'ready', payload: { ok: true } }, true, doc);
   assert.equal(response.baton.cursor, 'done');
+  assert.deepEqual(response.baton.state.worker_step.payload, { ok: true });
   assert.deepEqual(response.baton.state.outputs.worker_step.payload, { ok: true });
+});
+
+test('output.schema: structured step output is projected by step id into downstream prompt', () => {
+  const doc = workflowWithSchema('structured-output-step-id-projection', structuredSchema);
+  doc.workflow.steps.worker_step.next = { by: 'outcome', map: { ready: 'consumer_step', blocked: 'blocked' } };
+
+  const applyResponse = runApply('output-schema-structured-project-apply', baton(), {
+    outcome: 'ready',
+    artifacts: [{ type: 'packet', summary: 'structured projection artifact' }],
+    payload: { ok: true },
+  }, true, doc);
+
+  assert.equal(applyResponse.baton.cursor, 'consumer_step');
+  const batonPath = writeJson('output-schema-structured-project-baton.json', applyResponse.baton);
+  const workflowPath = writeJson('output-schema-structured-project-workflow.json', doc);
+  const renderResponse = runWorkflowCommand('output-schema-structured-project-render', [
+    'develop/scripts/workflow-interpreter.mjs',
+    'render',
+    workflowPath,
+    batonPath,
+  ]);
+
+  assert.match(renderResponse.compiledPrompt.prompt, /## Projected baton state/);
+  assert.match(renderResponse.compiledPrompt.prompt, /"worker_step"/);
+  assert.match(renderResponse.compiledPrompt.prompt, /"payload"/);
+  assert.match(renderResponse.compiledPrompt.prompt, /"ok": true/);
 });
 
 test('output.schema: invalid JSON retries as validation failure', () => {
@@ -147,7 +186,7 @@ test('output.schema: invalid output exhausts retry limit deterministically', () 
   assert.match(result.stderr, /output schema validation failed for step 'worker_step' after 3 attempts/);
 });
 
-test('output.schema: absent schema preserves previous envelope behavior without storing outputs', () => {
+test('output.schema: absent schema preserves previous envelope behavior without storing outputs mirror', () => {
   const response = runApply('output-schema-absent-unchanged', baton(), {
     outcome: 'ready',
     results: [{ type: 'plain', summary: 'generic worker-output envelope' }],
@@ -155,5 +194,29 @@ test('output.schema: absent schema preserves previous envelope behavior without 
 
   assert.equal(response.baton.cursor, 'done');
   assert.equal(Object.hasOwn(response.baton.state, 'outputs'), false);
+  assert.equal(response.baton.state.worker_step.results.at(-1).summary, 'generic worker-output envelope');
   assert.equal(response.baton.state.results.at(-1).summary, 'generic worker-output envelope');
+});
+
+test('output.schema: non-structured worker output is projected by step id into downstream prompt', () => {
+  const doc = structuredClone(workflowDoc);
+  doc.workflow.steps.worker_step.next = { by: 'outcome', map: { ready: 'consumer_step', blocked: 'blocked' } };
+
+  const applyResponse = runApply('output-schema-plain-project-apply', baton(), {
+    outcome: 'ready',
+    results: [{ type: 'markdown', summary: 'plain markdown result body' }],
+  }, true, doc);
+
+  assert.equal(applyResponse.baton.cursor, 'consumer_step');
+  const batonPath = writeJson('output-schema-plain-project-baton.json', applyResponse.baton);
+  const workflowPath = writeJson('output-schema-plain-project-workflow.json', doc);
+  const renderResponse = runWorkflowCommand('output-schema-plain-project-render', [
+    'develop/scripts/workflow-interpreter.mjs',
+    'render',
+    workflowPath,
+    batonPath,
+  ]);
+
+  assert.match(renderResponse.compiledPrompt.prompt, /"worker_step"/);
+  assert.match(renderResponse.compiledPrompt.prompt, /"plain markdown result body"/);
 });

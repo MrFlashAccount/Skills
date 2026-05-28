@@ -192,7 +192,9 @@ export function applyWorkflowOutput(workflowPath, batonPath, outputPath) {
   const updatedBaton = structuredClone(baton);
   updatedBaton.cursor = targetStepId;
   updatedBaton.status = statusForStep(workflow, targetStepId, targetStep);
-  updatedBaton.state = applyOutputToBatonState(updatedBaton, workerOutput, attempts, cursorStep.output?.schema ? baton.cursor : undefined);
+  updatedBaton.state = applyOutputToBatonState(updatedBaton, workerOutput, attempts, cursorStep.kind === 'worker' ? baton.cursor : undefined, {
+    mirrorToOutputs: Boolean(cursorStep.output?.schema),
+  });
   delete updatedBaton.blocker;
   if (updatedBaton.status === 'blocked' && workerOutput.blocker) updatedBaton.blocker = workerOutput.blocker;
 
