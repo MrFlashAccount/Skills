@@ -1,0 +1,202 @@
+{
+  "title": "DevHarness Planning Draft Output",
+  "type": "object",
+  "required": [
+    "outcome",
+    "implementation_plan",
+    "selected_implementation_steps",
+    "implementation_route",
+    "selected_review_steps",
+    "review_plan"
+  ],
+  "properties": {
+    "outcome": {
+      "enum": [
+        "ready_for_attack",
+        "blocked"
+      ]
+    },
+    "implementation_plan": {
+      "type": "object",
+      "required": [
+        "goal",
+        "workstreams",
+        "definition_of_done",
+        "verification",
+        "rollback"
+      ],
+      "properties": {
+        "goal": {
+          "type": "string",
+          "minLength": 1
+        },
+        "workstreams": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object"
+          }
+        },
+        "definition_of_done": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "verification": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "rollback": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "selected_implementation_steps": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "backend_implementation",
+          "frontend_implementation",
+          "architecture_artifact_update"
+        ]
+      }
+    },
+    "implementation_route": {
+      "enum": [
+        "approved_backend",
+        "approved_frontend",
+        "approved_architecture",
+        "approved_backend_frontend",
+        "approved_backend_architecture",
+        "approved_frontend_architecture",
+        "approved_all"
+      ]
+    },
+    "selected_review_steps": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "architect_review",
+          "backend_review",
+          "frontend_review",
+          "frontend_taste_review",
+          "security_review",
+          "privacy_review",
+          "qa_review"
+        ]
+      }
+    },
+    "review_plan": {
+      "type": "object",
+      "required": [
+        "reviewers"
+      ],
+      "properties": {
+        "reviewers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "step_id",
+              "reason",
+              "surfaces",
+              "required"
+            ],
+            "properties": {
+              "step_id": {
+                "enum": [
+                  "architect_review",
+                  "backend_review",
+                  "frontend_review",
+                  "frontend_taste_review",
+                  "security_review",
+                  "privacy_review",
+                  "qa_review"
+                ]
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1
+              },
+              "surfaces": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact"
+      }
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/result"
+      }
+    },
+    "blocker": {
+      "type": "object",
+      "required": [
+        "summary",
+        "source_step_id",
+        "needed"
+      ],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_step_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "needed": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "risk": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/dev-harness/planning-draft-output"
+}
