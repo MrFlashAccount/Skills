@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "test": "make -C develop test",
-    "validate": "npm test && npm run schema-validation:check-vendor-ajv",
+    "workflow:validate": "node develop/scripts/validate-workflow.mjs develop/dev-harness.workflow.json",
+    "validate": "npm test && npm run workflow:validate && npm run schema-validation:check-vendor-ajv",
     "prepare": "git config core.hooksPath .githooks || true",
     "schema-validation:bundle-vendor-ajv": "node scripts/bundle-schema-validation-vendor-ajv.mjs",
     "schema-validation:check-vendor-ajv": "npm run schema-validation:bundle-vendor-ajv && git diff --exit-code -- shared/scripts/schema-validation/vendor/ajv.mjs && test -z \"$(git status --porcelain -- shared/scripts/schema-validation/vendor/ajv.mjs)\"",
