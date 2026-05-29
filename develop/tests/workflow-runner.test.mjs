@@ -119,6 +119,25 @@ test('runner: continue applies single output and returns terminal done', () => {
   assert.equal(response.baton.state.prepare.results[0].summary, 'prepared');
 });
 
+test('runner: continue reuses saved custom workflow when --workflow is omitted', () => {
+  const runDir = path.join(tempDir, 'custom-workflow-continue');
+  const workflowPath = path.join(tempDir, 'custom-workflow-continue.json');
+  const singleWorkflow = structuredClone(workflowDoc);
+  singleWorkflow.workflow.name = 'custom-workflow-continue';
+  singleWorkflow.workflow.steps.prepare.next = 'done';
+  writeJson(workflowPath, singleWorkflow);
+
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next custom workflow continue');
+  const outputPath = path.join(runDir, 'prepare-result.json');
+  writeJson(outputPath, workerOutput('prepared with saved workflow'));
+  const response = expectRunner(['continue', '--run-dir', runDir, '--output', outputPath], 'continue custom workflow without workflow arg');
+
+  assert.equal(response.status, 'done');
+  assert.equal(response.workflow, path.resolve(workflowPath));
+  assert.equal(response.baton.cursor, 'done');
+  assert.equal(response.baton.state.prepare.results[0].summary, 'prepared with saved workflow');
+});
+
 test('runner: wait_for_approval request accepts request-specific host output JSON', () => {
   const runDir = path.join(tempDir, 'approval-generic-output');
   const workflowPath = path.join(tempDir, 'approval-generic-output-workflow.json');
@@ -171,6 +190,55 @@ test('runner: continue fans out parallel branch requests with separate step ids 
   const loaded = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'branch_a']);
   assert.equal(loaded.status, 0, loaded.stderr);
   assert.match(loaded.stdout, /prepared/);
+});
+
+test('runner: continue accepts mixed run_worker and user-input outputs in one batch', () => {
+  const runDir = path.join(tempDir, 'parallel-mixed-host-actions');
+  const workflowPath = path.join(tempDir, 'parallel-mixed-host-actions.json');
+  const mixedWorkflow = structuredClone(workflowDoc);
+  mixedWorkflow.workflow.steps.prepare.next = ['branch_a', 'choose_path'];
+  mixedWorkflow.workflow.steps.branch_a.next = 'join';
+  mixedWorkflow.workflow.steps.choose_path = {
+    name: 'Choose path',
+    kind: 'approval',
+    input: { prompt: 'Ask for the user choice before joining.' },
+    next: 'join',
+  };
+  mixedWorkflow.workflow.steps.join.input.state = ['branch_a', 'choose_path'];
+  mixedWorkflow.workflow.steps.join.next = 'done';
+  writeJson(workflowPath, mixedWorkflow);
+
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next mixed prepare');
+  const prepareOutput = path.join(runDir, 'prepare-output.json');
+  writeJson(prepareOutput, workerOutput('prepared'));
+  const requests = expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', prepareOutput], 'continue mixed prepare');
+
+  assert.deepEqual(requests.requests.map((request) => [request.id, request.action]), [
+    ['branch_a', 'run_worker'],
+    ['choose_path', 'wait_for_approval'],
+  ]);
+
+  const branchOutput = path.join(runDir, 'branch-a-output.json');
+  const userInputOutput = path.join(runDir, 'choose-path-output.json');
+  writeJson(branchOutput, workerOutput('branch complete'));
+  writeJson(userInputOutput, { choice: 'continue', answer: 'Looks good.' });
+
+  const response = expectRunner([
+    'continue',
+    '--run-dir',
+    runDir,
+    '--workflow',
+    workflowPath,
+    '--output',
+    `branch_a=${branchOutput}`,
+    '--output',
+    `choose_path=${userInputOutput}`,
+  ], 'continue mixed batch');
+
+  assert.equal(response.status, 'needs_host_actions');
+  assert.deepEqual(response.requests.map((request) => request.id), ['join']);
+  assert.equal(response.baton.state.branch_a.results[0].summary, 'branch complete');
+  assert.deepEqual(response.baton.state.choose_path, { choice: 'continue', answer: 'Looks good.' });
 });
 
 test('runner: continue collects parallel outputs and advances to join request', () => {

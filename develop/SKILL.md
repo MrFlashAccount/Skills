@@ -9,8 +9,8 @@ Run workflows by driving the `workflow-runner` request loop from the repository 
 
 ## Variables
 
-- `<run-dir>`: current run directory.
-- `<workflow>`: workflow definition path, when not already stored in the run.
+- `<run-dir>`: current run directory; keep using the same value for the whole run.
+- `<workflow>`: workflow definition path for the initial `next`; same-run `continue` reuses the workflow stored in the run unless you explicitly override it.
 - `<result.json>`: JSON host-output file produced for one host request.
 - `<step-id>`: id of a request/step from `response.requests[]`.
 
@@ -59,6 +59,7 @@ node develop/scripts/workflow-runner.mjs instructions --run-dir <run-dir> --step
 
 - Treat `response.requests[]` as the complete list of required host actions.
 - Execute every request in the list before continuing.
+- Do not run two `workflow-runner continue` commands concurrently for the same `<run-dir>`; collect all current outputs, then continue once.
 - `run_worker` may appear more than once; run those workers in parallel when safe.
 - `wait_for_approval` is also a host request; do not skip it, infer approval, or force it into a fixed approval envelope.
 - User input for `wait_for_approval` may be an approval verdict, an option choice, or free-form text.
