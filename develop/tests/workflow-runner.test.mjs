@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import { once } from 'node:events';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -57,6 +58,38 @@ function writeJson(filePath, value) {
 
 function runRunner(args) {
   return spawnSync(process.execPath, ['develop/scripts/workflow-runner.mjs', ...args], { cwd: root, encoding: 'utf8' });
+}
+
+async function runRunnerAsync(args) {
+  const child = spawn(process.execPath, ['develop/scripts/workflow-runner.mjs', ...args], {
+    cwd: root,
+    encoding: 'utf8',
+  });
+  let stdout = '';
+  let stderr = '';
+  child.stdout.setEncoding('utf8');
+  child.stderr.setEncoding('utf8');
+  child.stdout.on('data', (chunk) => {
+    stdout += chunk;
+  });
+  child.stderr.on('data', (chunk) => {
+    stderr += chunk;
+  });
+  const [status] = await once(child, 'exit');
+  return { status, stdout, stderr };
+}
+
+async function waitForPath(filePath) {
+  const startedAt = Date.now();
+  while (!existsSync(filePath)) {
+    if (Date.now() - startedAt > 2000) throw new Error(`timed out waiting for ${filePath}`);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+}
+
+function makeFifo(filePath) {
+  const result = spawnSync('mkfifo', [filePath], { encoding: 'utf8' });
+  assert.equal(result.status, 0, `mkfifo ${filePath} failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
 }
 
 function expectRunner(args, label) {
@@ -266,6 +299,58 @@ test('runner: continue collects parallel outputs and advances to join request', 
   assert.match(loaded.stdout, /branch_b complete/);
   const baton = JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8'));
   assert.equal(baton.cursor, 'join');
+});
+
+test('runner: continue rejects concurrent attempts for the same run dir', async () => {
+  const runDir = path.join(tempDir, 'concurrent-continue-same-run-dir');
+  const workflowPath = path.join(tempDir, 'concurrent-continue-same-run-dir.json');
+  const singleWorkflow = structuredClone(workflowDoc);
+  singleWorkflow.workflow.steps.prepare.next = 'done';
+  writeJson(workflowPath, singleWorkflow);
+
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next concurrent continue');
+  const outputPath = path.join(runDir, 'prepare-result.json');
+  makeFifo(outputPath);
+
+  const first = runRunnerAsync(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', outputPath]);
+  await waitForPath(path.join(runDir, '.workflow-runner', 'continue.lock'));
+  const second = await runRunnerAsync(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', outputPath]);
+  writeFileSync(outputPath, `${JSON.stringify(workerOutput('prepared once'))}\n`);
+  const firstResult = await first;
+
+  assert.equal(firstResult.status, 0, firstResult.stderr);
+  assert.notEqual(second.status, 0);
+  assert.match(second.stderr, /continue is already in progress/);
+  assert.equal(existsSync(path.join(runDir, '.workflow-runner', 'continue.lock')), false);
+
+  const response = JSON.parse(firstResult.stdout);
+  assert.equal(response.status, 'done');
+  assert.equal(response.baton.state.prepare.results[0].summary, 'prepared once');
+});
+
+test('runner: continue locks only one run dir', async () => {
+  const slowRunDir = path.join(tempDir, 'concurrent-continue-slow-run-dir');
+  const otherRunDir = path.join(tempDir, 'concurrent-continue-other-run-dir');
+  const workflowPath = path.join(tempDir, 'concurrent-continue-different-run-dirs.json');
+  const singleWorkflow = structuredClone(workflowDoc);
+  singleWorkflow.workflow.steps.prepare.next = 'done';
+  writeJson(workflowPath, singleWorkflow);
+
+  expectRunner(['next', '--run-dir', slowRunDir, '--workflow', workflowPath], 'next slow run dir');
+  expectRunner(['next', '--run-dir', otherRunDir, '--workflow', workflowPath], 'next other run dir');
+  const slowOutputPath = path.join(slowRunDir, 'prepare-result.json');
+  makeFifo(slowOutputPath);
+  writeJson(path.join(otherRunDir, 'prepare-result.json'), workerOutput('other'));
+
+  const first = runRunnerAsync(['continue', '--run-dir', slowRunDir, '--workflow', workflowPath, '--output', slowOutputPath]);
+  await waitForPath(path.join(slowRunDir, '.workflow-runner', 'continue.lock'));
+  const other = await runRunnerAsync(['continue', '--run-dir', otherRunDir, '--workflow', workflowPath, '--output', path.join(otherRunDir, 'prepare-result.json')]);
+  writeFileSync(slowOutputPath, `${JSON.stringify(workerOutput('slow'))}\n`);
+  const firstResult = await first;
+
+  assert.equal(firstResult.status, 0, firstResult.stderr);
+  assert.equal(other.status, 0, other.stderr);
+  assert.equal(JSON.parse(other.stdout).baton.state.prepare.results[0].summary, 'other');
 });
 
 test('runner: continue reports missing requested output as an error', () => {

@@ -59,7 +59,7 @@ node develop/scripts/workflow-runner.mjs instructions --run-dir <run-dir> --step
 
 - Treat `response.requests[]` as the complete list of required host actions.
 - Execute every request in the list before continuing.
-- Do not run two `workflow-runner continue` commands concurrently for the same `<run-dir>`; collect all current outputs, then continue once.
+- Do not run two `workflow-runner continue` commands concurrently for the same `<run-dir>`; the runner rejects same-run concurrent continues with a lock error. Collect all current outputs, then continue once.
 - `run_worker` may appear more than once; run those workers in parallel when safe.
 - `wait_for_approval` is also a host request; do not skip it, infer approval, or force it into a fixed approval envelope.
 - User input for `wait_for_approval` may be an approval verdict, an option choice, or free-form text.

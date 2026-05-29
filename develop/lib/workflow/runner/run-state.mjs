@@ -18,6 +18,7 @@ export function resolveRunPaths({ runDir, workflowPath }) {
     runnerDir: join(resolvedRunDir, '.workflow-runner'),
     instructionsDir: join(resolvedRunDir, '.workflow-runner', 'instructions'),
     lastResponsePath: join(resolvedRunDir, '.workflow-runner', 'last-response.json'),
+    continueLockPath: join(resolvedRunDir, '.workflow-runner', 'continue.lock'),
   };
 }
 
@@ -88,6 +89,32 @@ export async function ensureRunFiles(paths) {
 
 export async function pathExists(path) {
   return exists(path);
+}
+
+export async function withContinueRunLock(paths, callback) {
+  await mkdir(paths.runnerDir, { recursive: true });
+  let handle;
+  let acquired = false;
+  try {
+    handle = await open(paths.continueLockPath, 'wx', 0o600);
+    acquired = true;
+    await handle.writeFile(`${JSON.stringify({ pid: process.pid, createdAt: new Date().toISOString() })}\n`, 'utf8');
+    await handle.sync();
+  } catch (error) {
+    if (error?.code === 'EEXIST') {
+      throw new Error(`workflow-runner continue is already in progress for ${paths.runDir}; inspect or remove stale lock ${paths.continueLockPath}`);
+    }
+    if (acquired) await rm(paths.continueLockPath, { force: true });
+    throw error;
+  } finally {
+    if (handle) await handle.close();
+  }
+
+  try {
+    return await callback();
+  } finally {
+    await rm(paths.continueLockPath, { force: true });
+  }
 }
 
 export async function writeJsonAtomic(path, value) {

@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { applyWorkflowOutput, renderWorkflow } from '../interpreter/index.mjs';
 import { assertSafeStepId, instructionPathForStep, responseStatusForInterpreterResponse, toRunnerResponse } from './host-requests.mjs';
-import { appendHistory, ensureRunFiles, pathExists, persistRunnerResponse, readJson, readText, repositoryRoot, resolveRunPaths, writeJsonAtomic, writeTextAtomic } from './run-state.mjs';
+import { appendHistory, ensureRunFiles, pathExists, persistRunnerResponse, readJson, readText, repositoryRoot, resolveRunPaths, withContinueRunLock, writeJsonAtomic, writeTextAtomic } from './run-state.mjs';
 
 async function persistStepInstructions(paths, interpreterResponse) {
   if (responseStatusForInterpreterResponse(interpreterResponse) !== 'needs_host_actions') return;
@@ -94,15 +94,18 @@ async function resolveContinueRunPaths({ runDir, workflowPath }) {
 }
 
 export async function continueRun({ runDir, workflowPath, output, includeDiagnostics = false }) {
-  const paths = await resolveContinueRunPaths({ runDir, workflowPath });
-  await ensureRunFiles(paths);
-  const { outputPath } = await outputPathForCurrentState(paths, normalizeOutputRefs(output));
-  const applied = applyWorkflowOutput(paths.workflowPath, paths.batonPath, outputPath);
-  await writeJsonAtomic(paths.batonPath, applied.baton);
-  await appendHistory(paths, { source: 'workflow-runner-continue', baton: applied.baton, output: outputPath });
+  const lockPaths = resolveRunPaths({ runDir });
+  return withContinueRunLock(lockPaths, async () => {
+    const paths = await resolveContinueRunPaths({ runDir, workflowPath });
+    await ensureRunFiles(paths);
+    const { outputPath } = await outputPathForCurrentState(paths, normalizeOutputRefs(output));
+    const applied = applyWorkflowOutput(paths.workflowPath, paths.batonPath, outputPath);
+    await writeJsonAtomic(paths.batonPath, applied.baton);
+    await appendHistory(paths, { source: 'workflow-runner-continue', baton: applied.baton, output: outputPath });
 
-  const rendered = renderWorkflow(paths.workflowPath, paths.batonPath, { includeDiagnostics, repositoryRoot });
-  return runnerResponseForRendered(paths, rendered, { initialized: false, resumed: true });
+    const rendered = renderWorkflow(paths.workflowPath, paths.batonPath, { includeDiagnostics, repositoryRoot });
+    return runnerResponseForRendered(paths, rendered, { initialized: false, resumed: true });
+  });
 }
 
 export async function loadInstructions({ runDir, stepId }) {
