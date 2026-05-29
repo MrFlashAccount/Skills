@@ -119,6 +119,38 @@ test('runner: continue applies single output and returns terminal done', () => {
   assert.equal(response.baton.state.prepare.results[0].summary, 'prepared');
 });
 
+test('runner: wait_for_approval request accepts request-specific host output JSON', () => {
+  const runDir = path.join(tempDir, 'approval-generic-output');
+  const workflowPath = path.join(tempDir, 'approval-generic-output-workflow.json');
+  const approvalWorkflow = structuredClone(workflowDoc);
+  approvalWorkflow.workflow.start = 'choose_path';
+  approvalWorkflow.workflow.steps = {
+    choose_path: {
+      name: 'Choose path',
+      kind: 'approval',
+      input: { prompt: 'Ask the user to choose option_a, option_b, or free-form blocked reason.' },
+      next: { match: '${{ output.choice }}', cases: { option_a: 'done', option_b: 'join', blocked: 'blocked' } },
+    },
+    join: approvalWorkflow.workflow.steps.join,
+    done: approvalWorkflow.workflow.steps.done,
+    blocked: approvalWorkflow.workflow.steps.blocked,
+  };
+  approvalWorkflow.workflow.steps.join.next = 'done';
+  writeJson(workflowPath, approvalWorkflow);
+
+  const next = expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next approval generic');
+  assert.equal(next.status, 'needs_host_actions');
+  assert.equal(next.requests[0].action, 'wait_for_approval');
+
+  const outputPath = path.join(runDir, 'choose-path-answer.json');
+  writeJson(outputPath, { choice: 'option_a', answer: 'Ship the smaller fix first.' });
+  const response = expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', `choose_path=${outputPath}`], 'continue approval generic');
+
+  assert.equal(response.status, 'done');
+  assert.equal(response.baton.cursor, 'done');
+  assert.deepEqual(response.baton.state.choose_path, { choice: 'option_a', answer: 'Ship the smaller fix first.' });
+});
+
 test('runner: continue fans out parallel branch requests with separate step ids and load commands', () => {
   const runDir = path.join(tempDir, 'parallel');
   const workflowPath = path.join(tempDir, 'parallel-workflow.json');

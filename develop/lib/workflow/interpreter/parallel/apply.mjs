@@ -31,8 +31,8 @@ function assertParallelOutputShape(targets, allOutput) {
 
 function validateOutputKindForParallel(step, output, stepId) {
   if (step.kind === 'approval') {
-    invariant(!('outcome' in output), `approval cursor '${stepId}' must use approval, not outcome`);
-    invariant('approval' in output, `approval cursor '${stepId}' must include string approval`);
+    invariant(!('outcome' in output), `approval cursor '${stepId}' must use host/user output fields, not outcome`);
+    if ('approval' in output) invariant(typeof output.approval === 'string', `approval cursor '${stepId}' field approval must be a string`);
     return;
   }
 
@@ -61,7 +61,7 @@ export function applyParallelOutputs({ workflowPath, workflow, baton, cursorStep
     });
     invariant(!retryResponse, `parallel step '${stepId}' output failed schema validation and cannot be retried inside a parallel group`);
     validateOutputKindForParallel(step, workerOutput, stepId);
-    updatedBaton.state = applyOutputToBatonState(updatedBaton, workerOutput, undefined, step.kind === 'worker' ? stepId : undefined, {
+    updatedBaton.state = applyOutputToBatonState(updatedBaton, workerOutput, undefined, ['worker', 'approval'].includes(step.kind) ? stepId : undefined, {
       mirrorToOutputs: Boolean(step.output?.schema),
     });
     if (workerOutput.blocker) updatedBaton.blocker = workerOutput.blocker;
