@@ -204,7 +204,6 @@
         "name": "Implementation dispatch",
         "kind": "worker",
         "input": {
-          "role": "workflow-dispatch",
           "state": [
             "planning_draft"
           ],
@@ -302,7 +301,6 @@
         "name": "Implementation join",
         "kind": "worker",
         "input": {
-          "role": "workflow-join",
           "state": [
             "planning_draft",
             "outputs"
@@ -325,7 +323,6 @@
         "name": "Review dispatch",
         "kind": "worker",
         "input": {
-          "role": "workflow-dispatch",
           "state": [
             "planning_draft",
             "implementation_join"
@@ -475,7 +472,6 @@
         "name": "Review join",
         "kind": "worker",
         "input": {
-          "role": "workflow-join",
           "state": [
             "planning_draft",
             "implementation_join",
