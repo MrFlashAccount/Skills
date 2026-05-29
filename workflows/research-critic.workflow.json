@@ -12,10 +12,6 @@
         "kind": "worker",
         "input": {
           "role": "researcher",
-          "state": [
-            "artifacts",
-            "results"
-          ],
           "prompt": "Normalize the task input, inspect available evidence, and produce a research packet. Return ready_for_attack when the packet is ready for critic review, needs_input when user answers are required, or blocked when progress is unsafe without external input. If revising after critic feedback or user answers, preserve answered decisions and close only evidence-backed questions."
         },
         "output": {
@@ -36,9 +32,8 @@
         "kind": "approval",
         "input": {
           "state": [
-            "artifacts",
-            "results",
-            "outputs"
+            "research_draft",
+            "research_attack"
           ],
           "prompt": "Ask the user only the blocking research questions from the latest research_draft or research_attack output. Continue with approval approved after the user answer is captured in the approval output; use blocked only when the user cannot or will not provide required input."
         },
@@ -56,9 +51,8 @@
         "input": {
           "role": "critic",
           "state": [
-            "artifacts",
-            "results",
-            "outputs"
+            "research_draft",
+            "ask_research_questions"
           ],
           "prompt": "Attack the latest research_draft packet for weak evidence, unsafe assumptions, missing user input, misclassified blockers, and over-broad candidate approaches. Return approved only when the packet is ready for downstream handoff, needs_revision when a bounded revision should loop through research_draft, needs_input when user answers are required, or blocked for an unsafe stop."
         },
@@ -82,9 +76,8 @@
         "input": {
           "role": "researcher",
           "state": [
-            "artifacts",
-            "results",
-            "outputs"
+            "research_draft",
+            "research_attack"
           ],
           "prompt": "Finalize persistence metadata for the approved research packet. The caller should save concrete worker outputs under the active run directory's outputs/ folder and persist the returned baton/history with the generic persist helper. Return saved after emitting artifact/result references to the saved packet, or blocked if the packet cannot be safely saved."
         },
@@ -105,9 +98,7 @@
         "kind": "done",
         "input": {
           "state": [
-            "artifacts",
-            "results",
-            "outputs"
+            "save_research_packet"
           ],
           "prompt": "Research packet approved and saved."
         }
@@ -117,9 +108,9 @@
         "kind": "blocked",
         "input": {
           "state": [
-            "artifacts",
-            "results",
-            "outputs"
+            "research_draft",
+            "research_attack",
+            "save_research_packet"
           ],
           "prompt": "Research workflow is blocked. Surface the blocker and required input."
         }

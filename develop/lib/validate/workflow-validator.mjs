@@ -7,7 +7,6 @@ import { assertWorkflowSchema, workflowSchemas } from '../workflow/schema-valida
 import { assertTransitionDescriptorTargets, normalizeTransitionNext } from '../workflow/transitions.mjs';
 
 const DYNAMIC_TARGET_UNCHECKED_ROOTS = new Set(['outputs']);
-const SUPPORTED_AGGREGATE_STATE_KEYS = new Set(['artifacts', 'results', 'outputs']);
 const TOP_LEVEL_STATE_SELECTOR = /^[A-Za-z_][A-Za-z0-9_-]*$/;
 const WORKFLOW_NAME = /^[a-z][a-z0-9-]*$/;
 
@@ -39,20 +38,13 @@ function assertWorkflowIdentity(workflow) {
 }
 
 function assertWorkflowInputStateSelectors(workflow) {
-  const aggregateKeys = [...SUPPORTED_AGGREGATE_STATE_KEYS].join(', ');
   for (const [stepId, step] of Object.entries(workflow.steps)) {
     for (const selector of step.input?.state ?? []) {
       if (!TOP_LEVEL_STATE_SELECTOR.test(selector)) {
-        fail(`step '${stepId}' input.state selector '${selector}' is invalid; v1 supports top-level baton state keys only`);
+        fail(`step '${stepId}' input.state selector '${selector}' is invalid; v1 supports top-level workflow step ids only`);
       }
-      if (SUPPORTED_AGGREGATE_STATE_KEYS.has(selector)) continue;
-
-      const sourceStep = workflow.steps[selector];
-      if (!sourceStep) {
-        fail(`step '${stepId}' input.state selector '${selector}' is neither a declared workflow step nor a supported aggregate state key (${aggregateKeys})`);
-      }
-      if (sourceStep.kind !== 'worker') {
-        fail(`step '${stepId}' input.state selector '${selector}' references ${sourceStep.kind} step '${selector}', but only worker step outputs are projected by step id`);
+      if (!workflow.steps[selector]) {
+        fail(`step '${stepId}' input.state selector '${selector}' does not reference a declared workflow step`);
       }
     }
   }

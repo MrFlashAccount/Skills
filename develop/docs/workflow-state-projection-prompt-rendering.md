@@ -89,7 +89,7 @@ Renderer-relevant fields:
 | `step.kind` | all step kinds | Determines directive action outside the renderer and remains available to prompt templates. |
 | `input.template` | all step kinds, optional | Markdown input prompt template to load and render; omitted steps use renderer-owned prompt layering. |
 | `input.prompt` | all step kinds | Inline task instruction appended or substituted by the renderer. |
-| `input.state` | all step kinds | Explicit list of baton `state` keys that may be projected. |
+| `input.state` | all step kinds | Explicit list of workflow step ids whose state may be projected. |
 | `input.role` | worker | Role name resolved from `roles/<name>/`; renderer inlines `ROLE.md` and `RUBRIC.md` into prompt context. |
 | `output.template` | worker | Markdown output contract template to include as strict return-shape instructions. |
 | `output.schema` | worker, optional | Repository-local JSON schema file to inject near the output contract as concise valid-JSON/self-check instructions. |
@@ -98,12 +98,13 @@ Renderer-relevant fields:
 
 ### `input.state`
 
-`input.state` is an allow-list, not a hint. The renderer must project only the listed baton state keys. If `input.state` is absent or empty, no baton state is included.
+`input.state` is an allow-list, not a hint. Entries reference workflow step ids whose state may be projected. If `input.state` is absent or empty, no baton state is included.
 
-V1 selectors are top-level baton state keys only:
+V1 selectors are top-level workflow step ids only:
 
-- valid examples: `artifacts`, `results`, `attempts`;
-- invalid examples: `artifacts[0]`, `artifacts.summary`, `results.*`, `$..summary`.
+- valid examples: `research_draft`, `approve_plan`, `review_join` when those steps exist in the workflow;
+- invalid examples: `artifacts`, `results`, `outputs` unless the workflow declares steps with those exact ids;
+- invalid nested selectors: `research_draft.route`, `artifacts[0]`, `results.*`, `$..summary`.
 
 Nested path selection should not ship in v1. It creates a query language, partial-object privacy questions, ordering traps, and unclear diagnostics. If needed later, add a separate selector grammar after real use cases exist.
 
@@ -190,7 +191,7 @@ projectState({ batonState, selectors }) -> { value, projectedKeys, diagnostics }
 ### Selection
 
 - Only keys named by `selectors` are copied from `baton.state`.
-- Selector order is preserved from `input.state` after schema-level duplicate rejection.
+- Selector order is preserved from `input.state` after schema-level duplicate rejection; selectors are workflow step ids, not aggregate runtime state keys.
 - Absent or empty selectors produce `{}` with no projected keys.
 
 ### Missing-key policy

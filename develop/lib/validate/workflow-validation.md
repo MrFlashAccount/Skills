@@ -41,9 +41,9 @@ The validator checks that:
 
 The validator checks every `input.state` selector:
 
-- selectors must be top-level baton state keys supported by the renderer;
-- aggregate runtime keys are limited to `artifacts`, `results`, and `outputs`;
-- per-step selectors must name declared worker steps because only worker outputs are stored by step id.
+- selectors must be top-level workflow step ids supported by the renderer;
+- selectors must name declared workflow steps;
+- aggregate runtime keys such as `artifacts`, `results`, and `outputs` are not valid unless a workflow step with that exact id exists.
 
 ### 3. Transition targets
 

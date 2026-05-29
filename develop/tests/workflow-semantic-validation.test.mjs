@@ -97,7 +97,7 @@ function genericWorkflowWithWorkerRole(role) {
   };
 }
 
-function syntheticWorkflow(overrides = {}) {
+function syntheticWorkflow(overrides) {
   const doc = {
     workflow: {
       name: 'synthetic-validation-fixture',
@@ -109,7 +109,6 @@ function syntheticWorkflow(overrides = {}) {
         producer: {
           name: 'Producer',
           kind: 'worker',
-          input: { state: ['artifacts', 'results'] },
           output: { template: 'producer.md', schema: 'route-output.schema.json' },
           next: { match: '${{ output.outcome }}', cases: { ready: 'consumer', blocked: 'blocked' } },
         },
@@ -141,12 +140,12 @@ function syntheticWorkflow(overrides = {}) {
           output: { template: 'join.md', schema: 'route-output.schema.json' },
           next: 'done',
         },
-        done: { name: 'Done', kind: 'done', input: { state: ['artifacts', 'results', 'outputs'] } },
-        blocked: { name: 'Blocked', kind: 'blocked', input: { state: ['artifacts', 'results', 'outputs'] } },
+        done: { name: 'Done', kind: 'done', input: { state: ['consumer'] } },
+        blocked: { name: 'Blocked', kind: 'blocked', input: { state: ['producer'] } },
       },
     },
   };
-  return overrides(doc) ?? doc;
+  return overrides?.(doc) ?? doc;
 }
 
 test('workflow semantic validation accepts the checked-in DevHarness workflow', () => {
@@ -200,7 +199,23 @@ test('workflow semantic validation rejects malformed workflow names', () => {
   assertSemanticFailure(doc, /workflow name must be a non-empty lowercase kebab-case identifier/);
 });
 
-test('workflow semantic validation rejects input.state selectors that do not name worker outputs or aggregate keys', () => {
+test('workflow semantic validation accepts input.state selectors that reference declared workflow step ids', () => {
+  assert.deepEqual(validateSynthetic(syntheticWorkflow()), { ok: true, workflow: 'synthetic-validation-fixture', steps: 7 });
+
+  const doc = syntheticWorkflow((draft) => {
+    draft.workflow.steps.approval_gate = {
+      name: 'Approval gate',
+      kind: 'approval',
+      next: { match: '${{ output.approval }}', cases: { approved: 'consumer', blocked: 'blocked' } },
+    };
+    draft.workflow.steps.consumer.input.state = ['approval_gate'];
+    return draft;
+  });
+
+  assert.deepEqual(validateSynthetic(doc), { ok: true, workflow: 'synthetic-validation-fixture', steps: 8 });
+});
+
+test('workflow semantic validation rejects input.state selectors that do not name workflow step ids', () => {
   assertSemanticFailure(
     syntheticWorkflow((draft) => {
       draft.workflow.steps.consumer.input.state = ['missing_step'];
@@ -209,18 +224,16 @@ test('workflow semantic validation rejects input.state selectors that do not nam
     /consumer.*input\.state selector 'missing_step'.*declared workflow step/,
   );
 
+
+
   assertSemanticFailure(
     syntheticWorkflow((draft) => {
-      draft.workflow.steps.approval_gate = {
-        name: 'Approval gate',
-        kind: 'approval',
-        next: { match: '${{ output.approval }}', cases: { approved: 'consumer', blocked: 'blocked' } },
-      };
-      draft.workflow.steps.consumer.input.state = ['approval_gate'];
+      draft.workflow.steps.consumer.input.state = ['artifacts', 'results', 'outputs'];
       return draft;
     }),
-    /consumer.*approval step 'approval_gate'.*only worker step outputs/,
+    /consumer.*input\.state selector 'artifacts'.*declared workflow step/,
   );
+
 });
 
 test('workflow semantic validation rejects unsupported nested input.state selectors', () => {
