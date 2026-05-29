@@ -1,0 +1,62 @@
+{
+  "title": "DevHarness Review Dispatch Output",
+  "type": "object",
+  "required": [
+    "outcome",
+    "verdict"
+  ],
+  "properties": {
+    "outcome": {
+      "const": "ready_for_review"
+    },
+    "verdict": {
+      "type": "object",
+      "required": [
+        "summary",
+        "selected_review_steps"
+      ],
+      "properties": {
+        "summary": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "selected_review_steps": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "architect_review",
+              "backend_review",
+              "frontend_review",
+              "frontend_taste_review",
+              "security_review",
+              "privacy_review",
+              "qa_review"
+            ]
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact"
+      }
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/result"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/dev-harness/review-dispatch-output"
+}

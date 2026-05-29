@@ -5,7 +5,7 @@
     "start": "research_draft",
     "done": "done",
     "blocked": "blocked",
-    "instruction": "Run DevHarness as a deterministic inline workflow. Each worker returns strict JSON matching its output.schema so later steps can project exact fields. Use planning_draft.selected_implementation_steps and planning_draft.selected_review_steps as the authoritative machine-readable branch selections. Dynamic next targets may only reference declared step ids; do not create nested workflows, route-only workflow steps, or arbitrary step ids.",
+    "instruction": "Run DevHarness as a deterministic inline workflow. Each worker returns strict JSON matching its output.schema so later steps can project exact fields. planning_draft is the historical step id for the plan contract; after approve_plan approves it, downstream steps must treat planning_draft.implementation_plan, selected_implementation_steps, implementation_route, selected_review_steps, and review_plan as the final approved plan contract. Approval outputs are approval verdicts only; selected work and reviewers are represented by unique canonical step ids in the approved plan contract. Dynamic next targets may only reference declared step ids; do not create nested workflows, arbitrary step ids, or duplicate same-role implementation workers.",
     "steps": {
       "research_draft": {
         "name": "Research draft",
@@ -135,7 +135,7 @@
         }
       },
       "planning_draft": {
-        "name": "Planning draft",
+        "name": "Planning contract draft",
         "kind": "worker",
         "input": {
           "role": "architect",
@@ -144,7 +144,7 @@
             "architecture_draft",
             "architecture_attack"
           ],
-          "prompt": "Translate approved research and architecture into implementation_plan plus machine-readable branch selections. selected_implementation_steps must contain only implementation steps needed for the plan. implementation_route must exactly match that selected set for approve_plan static routing. selected_review_steps must contain only reviewers needed for the slice. Keep review_plan.reviewers aligned with selected_review_steps. Return ready_for_attack or blocked with blocker.source_step_id = planning_draft."
+          "prompt": "Produce the implementation plan contract for approval from approved research and architecture. The step id remains planning_draft for compatibility, but once approve_plan approves this output, downstream steps must treat it as the final approved plan contract. selected_implementation_steps must contain only unique canonical implementation step ids needed for the plan: backend_implementation, frontend_implementation, architecture_artifact_update. implementation_route must be the normalized route for exactly that unique selected set: backend, frontend, architecture, backend_frontend, backend_architecture, frontend_architecture, or all. Collapse overlapping same-role work into one canonical task; do not create duplicate backend/frontend/architecture workers. If duplicate same-role work cannot be safely collapsed, return blocked with blocker.source_step_id = planning_draft. selected_review_steps must explicitly contain the unique reviewers that must run after implementation; implementation_join must not invent or recompute reviewers. Keep review_plan.reviewers aligned with selected_review_steps. Return ready_for_attack or blocked with blocker.source_step_id = planning_draft."
         },
         "output": {
           "template": "../../shared/templates/implementation-plan-template.md",
@@ -166,7 +166,7 @@
           "state": [
             "planning_draft"
           ],
-          "prompt": "Challenge planning_draft.implementation_plan and its selected_implementation_steps, implementation_route, selected_review_steps, and review_plan for entity coverage, one-owner-per-file-zone, project baseline, architecture artifact manifest, verification/rollback surfaces, sensitive surfaces, request-path/contract touchpoints, and max-detail leaks. Return approved, needs_revision, or blocked. If blocked, set blocker.source_step_id = planning_attack."
+          "prompt": "Challenge the plan contract in planning_draft.implementation_plan plus selected_implementation_steps, implementation_route, selected_review_steps, and review_plan for unique canonical task selection, route/selection consistency, explicit final reviewer selection, no duplicate same-role workers, entity coverage, one-owner-per-file-zone, project baseline, architecture artifact manifest, verification/rollback surfaces, sensitive surfaces, request-path/contract touchpoints, and max-detail leaks. Return approved, needs_revision, or blocked. If selected tasks contain duplicate/overlapping same-role work that cannot collapse to one canonical step, or if reviewers are missing/recomputed outside planning, return blocked with blocker.source_step_id = planning_attack."
         },
         "output": {
           "template": "../../shared/templates/review-verdict-template.md",
@@ -189,38 +189,60 @@
             "planning_draft",
             "planning_attack"
           ],
-          "prompt": "Show one cleaned execution plan to the user and stop until explicit implementation approval. For approved implementation, return approval equal to planning_draft.implementation_route so the static cases run exactly the selected implementation subset. For rejected, return approval rejected. For blocked, return approval blocked with a blocker."
+          "prompt": "Show one cleaned execution plan contract to the user and stop until explicit implementation approval. Return approval approved only for explicit approval, rejected for requested plan changes, or blocked with a blocker. After approval, planning_draft is the final approved plan contract. Do not encode selected implementation roles or reviewers in approval; selected work and reviewers are planning_draft.selected_implementation_steps, planning_draft.implementation_route, and planning_draft.selected_review_steps."
         },
         "next": {
           "match": "${{ output.approval }}",
           "cases": {
-            "approved_backend": [
+            "approved": "implementation_dispatch",
+            "rejected": "planning_draft",
+            "blocked": "blocked"
+          }
+        }
+      },
+      "implementation_dispatch": {
+        "name": "Implementation dispatch",
+        "kind": "worker",
+        "input": {
+          "role": "workflow-dispatch",
+          "state": [
+            "planning_draft"
+          ],
+          "prompt": "Validate that the approved plan contract planning_draft.implementation_route exactly matches the unique canonical planning_draft.selected_implementation_steps and that no duplicate same-role implementation worker is requested. If valid, return outcome equal to planning_draft.implementation_route. If invalid or impossible to collapse safely, return outcome blocked with blocker.source_step_id = implementation_dispatch."
+        },
+        "output": {
+          "template": "../../shared/templates/review-verdict-template.md",
+          "schema": "develop/schemas/dev-harness/implementation-dispatch-output.json"
+        },
+        "next": {
+          "match": "${{ output.outcome }}",
+          "cases": {
+            "backend": [
               "backend_implementation"
             ],
-            "approved_frontend": [
+            "frontend": [
               "frontend_implementation"
             ],
-            "approved_architecture": [
+            "architecture": [
               "architecture_artifact_update"
             ],
-            "approved_backend_frontend": [
+            "backend_frontend": [
               "backend_implementation",
               "frontend_implementation"
             ],
-            "approved_backend_architecture": [
+            "backend_architecture": [
               "backend_implementation",
               "architecture_artifact_update"
             ],
-            "approved_frontend_architecture": [
+            "frontend_architecture": [
               "frontend_implementation",
               "architecture_artifact_update"
             ],
-            "approved_all": [
+            "all": [
               "backend_implementation",
               "frontend_implementation",
               "architecture_artifact_update"
             ],
-            "rejected": "planning_draft",
             "blocked": "blocked"
           }
         }
@@ -234,7 +256,7 @@
             "planning_draft",
             "outputs"
           ],
-          "prompt": "Implement only the backend slice selected in planning_draft.selected_implementation_steps. Read prior exact outputs from outputs by step id; do not rely on artifacts/results globals. Preserve frozen research, architecture, execution plan, and user constraints. Return implemented or blocked with blocker.source_step_id = backend_implementation."
+          "prompt": "Implement only the backend slice selected in the approved plan contract planning_draft.selected_implementation_steps. This workflow supports at most one backend_implementation worker; handle all backend work for the approved plan here and do not spawn duplicate backend workers. Read prior step outputs from projected input.<step_id> fields and input.outputs.<step_id> when present; do not rely on artifacts/results globals. Preserve frozen research, architecture, execution plan, and user constraints. Return implemented or blocked with blocker.source_step_id = backend_implementation."
         },
         "output": {
           "template": "../../shared/templates/implementer-handoff-template.md",
@@ -251,7 +273,7 @@
             "planning_draft",
             "outputs"
           ],
-          "prompt": "Implement only the frontend slice selected in planning_draft.selected_implementation_steps. Read prior exact outputs from outputs by step id; do not rely on artifacts/results globals. Preserve frozen research, architecture, execution plan, and user constraints. Return implemented or blocked with blocker.source_step_id = frontend_implementation."
+          "prompt": "Implement only the frontend slice selected in the approved plan contract planning_draft.selected_implementation_steps. This workflow supports at most one frontend_implementation worker; handle all frontend work for the approved plan here and do not spawn duplicate frontend workers. Read prior step outputs from projected input.<step_id> fields and input.outputs.<step_id> when present; do not rely on artifacts/results globals. Preserve frozen research, architecture, execution plan, and user constraints. Return implemented or blocked with blocker.source_step_id = frontend_implementation."
         },
         "output": {
           "template": "../../shared/templates/implementer-handoff-template.md",
@@ -268,7 +290,7 @@
             "planning_draft",
             "outputs"
           ],
-          "prompt": "Update only approved architecture artifacts or architecture handoff notes selected in planning_draft.selected_implementation_steps. Do not redesign. Read prior exact outputs from outputs by step id. Return implemented or blocked with blocker.source_step_id = architecture_artifact_update."
+          "prompt": "Update only approved architecture artifacts or architecture handoff notes selected in the approved plan contract planning_draft.selected_implementation_steps. This workflow supports at most one architecture_artifact_update worker; collapse all approved architecture artifact work into this step. Do not redesign. Read prior step outputs from projected input.<step_id> fields and input.outputs.<step_id> when present. Return implemented or blocked with blocker.source_step_id = architecture_artifact_update."
         },
         "output": {
           "template": "../../shared/templates/implementer-handoff-template.md",
@@ -280,18 +302,41 @@
         "name": "Implementation join",
         "kind": "worker",
         "input": {
-          "role": "backend",
+          "role": "workflow-join",
           "state": [
             "planning_draft",
             "outputs"
           ],
-          "prompt": "Join exactly the implementation outputs named by planning_draft.selected_implementation_steps from outputs. Confirm each selected branch completed, verification evidence exists, and no branch widened scope. If complete, return outcome ready_for_review and next equal to planning_draft.selected_review_steps. If incomplete, return outcome blocked, next blocked, and blocker.source_step_id = implementation_join."
+          "prompt": "Join exactly the implementation outputs named by the approved plan contract planning_draft.selected_implementation_steps from projected input.<step_id> fields and input.outputs.<step_id> when present. Confirm each selected branch completed, verification evidence exists, and no branch widened scope. Do not choose, invent, or recompute reviewers; reviewers are fixed by planning_draft.selected_review_steps. If complete, return outcome ready_for_review with reviewer_handoff.selected_review_steps copied from planning_draft.selected_review_steps. If incomplete, return outcome blocked with blocker.source_step_id = implementation_join."
         },
         "output": {
           "template": "../../shared/templates/reviewer-handoff-template.md",
           "schema": "develop/schemas/dev-harness/implementation-join-output.json"
         },
-        "next": "${{ output.next }}"
+        "next": {
+          "match": "${{ output.outcome }}",
+          "cases": {
+            "ready_for_review": "review_dispatch",
+            "blocked": "blocked"
+          }
+        }
+      },
+      "review_dispatch": {
+        "name": "Review dispatch",
+        "kind": "worker",
+        "input": {
+          "role": "workflow-dispatch",
+          "state": [
+            "planning_draft",
+            "implementation_join"
+          ],
+          "prompt": "Dispatch reviewers from the final approved plan contract. Do not infer reviewers from implementation_join output. Return outcome ready_for_review and copy planning_draft.selected_review_steps into verdict.selected_review_steps; next is resolved from input.planning_draft.selected_review_steps."
+        },
+        "output": {
+          "template": "../../shared/templates/review-verdict-template.md",
+          "schema": "develop/schemas/dev-harness/review-dispatch-output.json"
+        },
+        "next": "${{ input.planning_draft.selected_review_steps }}"
       },
       "architect_review": {
         "name": "Architect review",
@@ -301,6 +346,7 @@
           "state": [
             "planning_draft",
             "implementation_join",
+            "review_dispatch",
             "outputs"
           ],
           "prompt": "Review implementation against approved architecture decision, ownership seams, dependency direction, compatibility surfaces, and artifact obligations. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = architect_review."
@@ -319,9 +365,10 @@
           "state": [
             "planning_draft",
             "implementation_join",
+            "review_dispatch",
             "outputs"
           ],
-          "prompt": "Review backend correctness, contracts, data flow, validation, failure handling, permissions, rollout safety, observability, and tests for the selected slice. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = backend_review."
+          "prompt": "Review backend correctness, contracts, data flow, validation, failure handling, permissions, rollout safety, observability, and tests for the slice selected by the approved plan contract. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = backend_review."
         },
         "output": {
           "template": "../../shared/templates/review-verdict-template.md",
@@ -337,9 +384,10 @@
           "state": [
             "planning_draft",
             "implementation_join",
+            "review_dispatch",
             "outputs"
           ],
-          "prompt": "Review frontend correctness, data flow, state handling, accessibility-relevant behavior, and tests for the selected slice. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = frontend_review."
+          "prompt": "Review frontend correctness, data flow, state handling, accessibility-relevant behavior, and tests for the slice selected by the approved plan contract. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = frontend_review."
         },
         "output": {
           "template": "../../shared/templates/review-verdict-template.md",
@@ -355,6 +403,7 @@
           "state": [
             "planning_draft",
             "implementation_join",
+            "review_dispatch",
             "outputs"
           ],
           "prompt": "Review visual/product taste, copy fit, interaction polish, and user-facing coherence for frontend-relevant changes. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = frontend_taste_review."
@@ -373,9 +422,10 @@
           "state": [
             "planning_draft",
             "implementation_join",
+            "review_dispatch",
             "outputs"
           ],
-          "prompt": "Review trust boundaries, injection surfaces, secret handling, permission assumptions, and unsafe automation paths for the selected slice. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = security_review."
+          "prompt": "Review trust boundaries, injection surfaces, secret handling, permission assumptions, and unsafe automation paths for the slice selected by the approved plan contract. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = security_review."
         },
         "output": {
           "template": "../../shared/templates/review-verdict-template.md",
@@ -391,9 +441,10 @@
           "state": [
             "planning_draft",
             "implementation_join",
+            "review_dispatch",
             "outputs"
           ],
-          "prompt": "Review data minimization, sensitive content exposure, durable memory/logging risk, and user-context handling for the selected slice. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = privacy_review."
+          "prompt": "Review data minimization, sensitive content exposure, durable memory/logging risk, and user-context handling for the slice selected by the approved plan contract. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = privacy_review."
         },
         "output": {
           "template": "../../shared/templates/review-verdict-template.md",
@@ -409,9 +460,10 @@
           "state": [
             "planning_draft",
             "implementation_join",
+            "review_dispatch",
             "outputs"
           ],
-          "prompt": "Review verification depth, regression risk, edge cases, deterministic runtime behavior, and handoff quality for the selected slice. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = qa_review."
+          "prompt": "Review verification depth, regression risk, edge cases, deterministic runtime behavior, and handoff quality for the slice selected by the approved plan contract. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = qa_review."
         },
         "output": {
           "template": "../../shared/templates/review-verdict-template.md",
@@ -423,13 +475,13 @@
         "name": "Review join",
         "kind": "worker",
         "input": {
-          "role": "critic",
+          "role": "workflow-join",
           "state": [
             "planning_draft",
             "implementation_join",
             "outputs"
           ],
-          "prompt": "Join exactly the review outputs named by planning_draft.selected_review_steps from outputs. If every selected reviewer passed, return outcome passed and next done. If changes are needed, return outcome needs_changes and next equal to the relevant implementation step ids from reviewer required_implementation_steps, not every implementation branch. If review cannot finish safely, return outcome blocked, next blocked, and blocker.source_step_id = review_join."
+          "prompt": "Aggregate exactly the review outputs named by the approved plan contract planning_draft.selected_review_steps from projected input.<step_id> fields and input.outputs.<step_id> when present. This is a join/decision step, not a critique pass. If every selected reviewer passed, return outcome passed and next done. If changes are needed, return outcome needs_changes and next equal to the relevant implementation step ids from reviewer required_implementation_steps, not every implementation branch. If review cannot finish safely, return outcome blocked, next blocked, and blocker.source_step_id = review_join."
         },
         "output": {
           "template": "../../shared/templates/review-verdict-template.md",
@@ -454,7 +506,7 @@
           "state": [
             "outputs"
           ],
-          "prompt": "Workflow blocked. Use the blocker embedded in the exact step output under outputs (blocker.source_step_id identifies the producing step) plus the baton blocker when present. Return the blocker, evidence, risk, and exact next decision or missing input; do not summarize artifacts/results globals."
+          "prompt": "Workflow blocked. Use the blocker embedded in the exact projected step output (blocker.source_step_id identifies the producing step) plus the baton blocker when present. Return the blocker, evidence, risk, and exact next decision or missing input; do not summarize artifacts/results globals."
         }
       }
     }
