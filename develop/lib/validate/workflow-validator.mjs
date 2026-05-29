@@ -168,14 +168,14 @@ function schemaForExpression({ workflow, schemasByStep, stepId, step, expression
   return { schema: schemaForPath(producerSchema, rest), reason: undefined };
 }
 
-function approvalOutputExpressionMayBeUnchecked(step, expression) {
-  return step.kind === 'approval' && expression.root === 'output';
+function approvalOutputExpressionMayBeUnchecked({ schemasByStep, stepId, step, expression }) {
+  return step.kind === 'approval' && expression.root === 'output' && !schemasByStep.has(stepId);
 }
 
 function assertExpressionSchemaAvailable({ workflow, schemasByStep, stepId, step, expression, field }) {
   const resolved = schemaForExpression({ workflow, schemasByStep, stepId, step, expression });
   if (!resolved.schema || resolved.schema.length === 0) {
-    if (approvalOutputExpressionMayBeUnchecked(step, expression)) return undefined;
+    if (approvalOutputExpressionMayBeUnchecked({ schemasByStep, stepId, step, expression })) return undefined;
     fail(`step '${stepId}' ${field} expression ${expression.source} has no schema-covered path (${resolved.reason ?? 'path not found'})`);
   }
   return resolved.schema;

@@ -18,7 +18,7 @@ export function responseForOutputSchemaRetry({ baton, stepId, step, errors, atte
 
 export function invalidJsonOutputRetry({ baton, stepId, step, error }) {
   const attempt = (baton.state?.attempts?.[outputSchemaRetryKey(stepId)] ?? 0) + 1;
-  const errors = `worker output is not valid JSON: ${error.message}`;
+  const errors = `step output is not valid JSON: ${error.message}`;
   if (attempt >= OUTPUT_SCHEMA_MAX_ATTEMPTS) {
     throw new WorkflowInterpreterError(
       `output schema validation failed for step '${stepId}' after ${OUTPUT_SCHEMA_MAX_ATTEMPTS} attempts: ${errors}`,

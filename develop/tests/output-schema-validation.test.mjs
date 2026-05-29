@@ -127,6 +127,57 @@ test('output.schema: valid structured output passes and is stored by step id', (
   assert.equal(response.baton.state.artifacts.at(-1).summary, 'structured');
 });
 
+
+test('output.schema: approval output validates normalized user answer and is stored by step id', () => {
+  const schemaPath = writeJson('approval-choice.schema.json', {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['choice'],
+    properties: {
+      choice: { enum: ['ship', 'revise'] },
+      note: { type: 'string' },
+    },
+    additionalProperties: false,
+  });
+  const doc = structuredClone(workflowDoc);
+  doc.workflow.start = 'consumer_step';
+  doc.workflow.steps.consumer_step.input = { prompt: 'Capture normalized approval answer.' };
+  doc.workflow.steps.consumer_step.output = { schema: path.basename(schemaPath) };
+  doc.workflow.steps.consumer_step.next = { match: '${{ output.choice }}', cases: { ship: 'done', revise: 'worker_step' } };
+
+  const response = runApply('output-schema-approval-valid-stored', baton({ cursor: 'consumer_step' }), {
+    choice: 'ship',
+    note: 'Approved by user.',
+  }, true, doc);
+
+  assert.equal(response.baton.cursor, 'done');
+  assert.deepEqual(response.baton.state.consumer_step, { choice: 'ship', note: 'Approved by user.' });
+  assert.deepEqual(response.baton.state.outputs.consumer_step, { choice: 'ship', note: 'Approved by user.' });
+});
+
+test('output.schema: invalid approval output retries the approval step with schema feedback', () => {
+  const schemaPath = writeJson('approval-retry.schema.json', {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['approval'],
+    properties: {
+      approval: { const: 'approved' },
+    },
+    additionalProperties: false,
+  });
+  const doc = structuredClone(workflowDoc);
+  doc.workflow.start = 'consumer_step';
+  doc.workflow.steps.consumer_step.output = { schema: path.basename(schemaPath) };
+
+  const retry = runApply('output-schema-approval-invalid-retry', baton({ cursor: 'consumer_step' }), { approval: 'rejected' }, true, doc);
+
+  assert.equal(retry.baton.cursor, 'consumer_step');
+  assert.equal(retry.steps[0].action, 'wait_for_approval');
+  assert.equal(retry.baton.state.attempts['consumer_step:output.schema'], 1);
+  assert.match(retry.steps[0].step.input.prompt, /Previous output failed output\.schema validation/);
+  assert.match(retry.steps[0].step.input.prompt, /must be equal to constant/);
+});
+
 test('output.schema: invalid output retries with validation feedback then succeeds', () => {
   const doc = workflowWithSchema('retry-structured-output', structuredSchema);
 

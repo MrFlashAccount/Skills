@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/approval-choice-output",
+  "type": "object",
+  "required": ["choice"],
+  "properties": {
+    "choice": {
+      "enum": ["ship", "revise"],
+      "description": "Normalized user answer for approval routing.",
+      "x-usage": "Use this field only to route the approval gate result."
+    }
+  },
+  "additionalProperties": false
+}

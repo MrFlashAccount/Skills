@@ -46,7 +46,7 @@ When host work is needed, the runner returns:
 }
 ```
 
-The public host request carries only the requested action identity, step identity, and instruction-loader command. Instruction storage paths are private runner state. Output path and filename are wrapper-owned transport details, not runner/interpreter request contract.
+The public host request carries only the requested action identity, step identity, and instruction-loader command. Approval requests may also expose an optional `outputSchema` reference when the workflow step declares `output.schema`; that schema describes the normalized answer JSON expected back from the host. Instruction storage paths are private runner state. Output path and filename are wrapper-owned transport details, not runner/interpreter request contract.
 
 Terminal statuses are:
 
@@ -69,13 +69,15 @@ The artifact content passed back to the runner must still be workflow-compatible
 }
 ```
 
-Approval output:
+Approval output without a declared schema is any host/user JSON object compatible with the approval transition, commonly:
 
 ```json
 {
   "approval": "approved"
 }
 ```
+
+When an approval step declares `output.schema`, the host should capture the user's answer as strict JSON matching that schema. The schema normalizes the answer shape for validation/routing.
 
 Missing host capability is represented as blocked output, not as a transition decision in skill text:
 
