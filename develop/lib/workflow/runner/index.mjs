@@ -84,8 +84,17 @@ async function outputPathForCurrentState(paths, outputRefs = []) {
   return { outputPath: envelopePath, usedEnvelope: true };
 }
 
+async function resolveContinueRunPaths({ runDir, workflowPath }) {
+  if (workflowPath) return resolveRunPaths({ runDir, workflowPath });
+
+  const paths = resolveRunPaths({ runDir });
+  const lastResponse = await readJson(paths.lastResponsePath, 'last runner response');
+  if (typeof lastResponse.workflow !== 'string' || lastResponse.workflow.length === 0) return paths;
+  return resolveRunPaths({ runDir, workflowPath: lastResponse.workflow });
+}
+
 export async function continueRun({ runDir, workflowPath, output, includeDiagnostics = false }) {
-  const paths = resolveRunPaths({ runDir, workflowPath });
+  const paths = await resolveContinueRunPaths({ runDir, workflowPath });
   await ensureRunFiles(paths);
   const { outputPath } = await outputPathForCurrentState(paths, normalizeOutputRefs(output));
   const applied = applyWorkflowOutput(paths.workflowPath, paths.batonPath, outputPath);
