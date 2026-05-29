@@ -6,6 +6,6 @@ test:
 	node --test $(TEST_FILES)
 
 workflow-validate:
-	cd .. && node develop/scripts/validate-workflow.mjs develop/dev-harness.workflow.json
+	cd .. && node develop/scripts/validate-workflow.mjs
 
 validate: test workflow-validate
