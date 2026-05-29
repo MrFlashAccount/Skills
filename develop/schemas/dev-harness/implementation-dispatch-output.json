@@ -1,5 +1,6 @@
 {
   "title": "DevHarness Implementation Dispatch Output",
+  "description": "Output contract that turns the approved plan route into concrete implementation step targets.",
   "type": "object",
   "required": [
     "outcome",
@@ -16,7 +17,9 @@
         "frontend_architecture",
         "all",
         "blocked"
-      ]
+      ],
+      "description": "Machine-readable stage outcome used by workflow routing.",
+      "x-usage": "Downstream next/match logic reads this value; choose only the enum/const value that matches the stage state."
     },
     "verdict": {
       "type": "object",
@@ -31,7 +34,8 @@
           "items": {
             "type": "string",
             "minLength": 1
-          }
+          },
+          "description": "Concise human-readable summary for this contract section."
         },
         "selected_implementation_steps": {
           "type": "array",
@@ -43,10 +47,14 @@
               "frontend_implementation",
               "architecture_artifact_update"
             ]
-          }
+          },
+          "description": "Concrete implementation branch step ids selected for this run.",
+          "x-usage": "Runtime dispatch reads these step ids as the implementation fan-out target."
         }
       },
-      "additionalProperties": true
+      "additionalProperties": true,
+      "description": "Structured decision payload for this gate.",
+      "x-usage": "Downstream prompts use this as the authoritative critique/review result."
     },
     "blocker": {
       "type": "object",
@@ -58,28 +66,35 @@
       "properties": {
         "summary": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Concise human-readable summary for this contract section."
         },
         "source_step_id": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Workflow step id that discovered or owns the blocker."
         },
         "needed": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Specific missing input, decision, permission, or evidence needed to proceed."
         },
         "evidence": {
           "type": "array",
           "items": {
             "type": "string",
             "minLength": 1
-          }
+          },
+          "description": "Evidence references supporting the handoff, verdict, or blocker."
         },
         "risk": {
-          "type": "string"
+          "type": "string",
+          "description": "Residual risk if the blocker or finding is ignored."
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "description": "Blocker details required when the stage cannot produce a usable contract.",
+      "x-usage": "Populate when outcome is blocked so the orchestrator can stop and ask for the missing input or decision."
     }
   },
   "additionalProperties": false,

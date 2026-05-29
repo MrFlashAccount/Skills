@@ -1,5 +1,6 @@
 {
   "title": "DevHarness Implementation Join Output",
+  "description": "Output contract that joins completed implementation branches and hands evidence to reviewers.",
   "type": "object",
   "required": [
     "outcome",
@@ -10,7 +11,9 @@
       "enum": [
         "ready_for_review",
         "blocked"
-      ]
+      ],
+      "description": "Machine-readable stage outcome used by workflow routing.",
+      "x-usage": "Downstream next/match logic reads this value; choose only the enum/const value that matches the stage state."
     },
     "reviewer_handoff": {
       "type": "object",
@@ -23,7 +26,8 @@
       "properties": {
         "summary": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Concise human-readable summary for this contract section."
         },
         "selected_implementation_steps": {
           "type": "array",
@@ -35,7 +39,9 @@
               "frontend_implementation",
               "architecture_artifact_update"
             ]
-          }
+          },
+          "description": "Concrete implementation branch step ids selected for this run.",
+          "x-usage": "Runtime dispatch and join logic use these ids; keep them consistent with implementation_route and required rework."
         },
         "selected_review_steps": {
           "type": "array",
@@ -52,29 +58,37 @@
               "qa_review"
             ]
           },
-          "description": "Must be copied from the approved plan contract planning_draft.selected_review_steps; implementation_join does not choose reviewers."
+          "description": "Must be copied from the approved plan contract planning_draft.selected_review_steps; implementation_join does not choose reviewers.",
+          "x-usage": "Review dispatch reads this copied list as the review fan-out target; do not add reviewers here."
         },
         "evidence": {
           "type": "array",
           "items": {
             "type": "string",
             "minLength": 1
-          }
+          },
+          "description": "Evidence references supporting the handoff, verdict, or blocker."
         }
       },
-      "additionalProperties": true
+      "additionalProperties": true,
+      "description": "Joined implementation evidence handed to selected reviewers.",
+      "x-usage": "Review dispatch and reviewers consume this as the canonical implementation summary and evidence bundle."
     },
     "artifacts": {
       "type": "array",
       "items": {
         "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact"
-      }
+      },
+      "description": "Optional structured artifacts emitted by this stage.",
+      "x-usage": "Use for named files or durable handoff artifacts the orchestrator should preserve."
     },
     "results": {
       "type": "array",
       "items": {
         "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/result"
-      }
+      },
+      "description": "Optional structured result summaries emitted by this stage.",
+      "x-usage": "Use for compact machine-readable evidence or decisions that should remain in baton state."
     },
     "blocker": {
       "type": "object",
@@ -86,28 +100,35 @@
       "properties": {
         "summary": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Concise human-readable summary for this contract section."
         },
         "source_step_id": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Workflow step id that discovered or owns the blocker."
         },
         "needed": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Specific missing input, decision, permission, or evidence needed to proceed."
         },
         "evidence": {
           "type": "array",
           "items": {
             "type": "string",
             "minLength": 1
-          }
+          },
+          "description": "Evidence references supporting the handoff, verdict, or blocker."
         },
         "risk": {
-          "type": "string"
+          "type": "string",
+          "description": "Residual risk if the blocker or finding is ignored."
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "description": "Blocker details required when the stage cannot produce a usable contract.",
+      "x-usage": "Populate when outcome is blocked so the orchestrator can stop and ask for the missing input or decision."
     }
   },
   "additionalProperties": false,

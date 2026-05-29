@@ -1,5 +1,6 @@
 {
   "title": "DevHarness Research Draft Output",
+  "description": "Output contract for the DevHarness research draft packet before critic attack.",
   "type": "object",
   "required": [
     "outcome",
@@ -10,7 +11,9 @@
       "enum": [
         "ready_for_attack",
         "blocked"
-      ]
+      ],
+      "description": "Machine-readable stage outcome used by workflow routing.",
+      "x-usage": "Downstream next/match logic reads this value; choose only the enum/const value that matches the stage state."
     },
     "research_packet": {
       "type": "object",
@@ -29,50 +32,62 @@
           "items": {
             "type": "string",
             "minLength": 1
-          }
+          },
+          "description": "Concise human-readable summary for this contract section."
         },
         "scope": {
-          "type": "object"
+          "type": "object",
+          "description": "Structured description of in-scope and out-of-scope work."
         },
         "constraints": {
           "type": "array",
           "items": {
             "type": "string",
             "minLength": 1
-          }
+          },
+          "description": "Constraints the downstream architecture and planning stages must obey."
         },
         "risks": {
           "type": "array",
           "items": {
             "type": "string",
             "minLength": 1
-          }
+          },
+          "description": "Known risks discovered during research."
         },
         "open_questions": {
           "type": "array",
           "items": {
             "type": "string",
             "minLength": 1
-          }
+          },
+          "description": "Unresolved questions that may block or limit confidence."
         },
         "recommendation": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Researcher recommendation for the next gate or plan."
         }
       },
-      "additionalProperties": true
+      "additionalProperties": true,
+      "description": "Research packet that frames scope, constraints, risks, open questions, and recommendation.",
+      "x-usage": "Attack and planning steps use this as the approved discovery baseline."
     },
     "artifacts": {
       "type": "array",
       "items": {
         "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact"
-      }
+      },
+      "description": "Optional structured artifacts emitted by this stage.",
+      "x-usage": "Use for named files or durable handoff artifacts the orchestrator should preserve."
     },
     "results": {
       "type": "array",
       "items": {
         "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/result"
-      }
+      },
+      "description": "Optional structured result summaries emitted by this stage.",
+      "x-usage": "Use for compact machine-readable evidence or decisions that should remain in baton state."
     },
     "blocker": {
       "type": "object",
@@ -84,28 +99,35 @@
       "properties": {
         "summary": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Concise human-readable summary for this contract section."
         },
         "source_step_id": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Workflow step id that discovered or owns the blocker."
         },
         "needed": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Specific missing input, decision, permission, or evidence needed to proceed."
         },
         "evidence": {
           "type": "array",
           "items": {
             "type": "string",
             "minLength": 1
-          }
+          },
+          "description": "Evidence references supporting the handoff, verdict, or blocker."
         },
         "risk": {
-          "type": "string"
+          "type": "string",
+          "description": "Residual risk if the blocker or finding is ignored."
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "description": "Blocker details required when the stage cannot produce a usable contract.",
+      "x-usage": "Populate when outcome is blocked so the orchestrator can stop and ask for the missing input or decision."
     }
   },
   "additionalProperties": false,

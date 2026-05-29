@@ -1,5 +1,6 @@
 {
   "title": "DevHarness Implementation Output",
+  "description": "Output contract for a DevHarness implementation worker after applying its assigned slice.",
   "type": "object",
   "required": [
     "outcome",
@@ -12,7 +13,9 @@
       "enum": [
         "implemented",
         "blocked"
-      ]
+      ],
+      "description": "Machine-readable stage outcome used by workflow routing.",
+      "x-usage": "Downstream next/match logic reads this value; choose only the enum/const value that matches the stage state."
     },
     "implementation_handoff": {
       "type": "object",
@@ -24,30 +27,37 @@
       "properties": {
         "summary": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Concise human-readable summary for this contract section."
         },
         "covered_contract_rows": {
           "type": "array",
           "items": {
             "type": "object"
-          }
+          },
+          "description": "Plan or contract rows covered by this implementation slice."
         },
         "review_notes": {
           "type": "array",
           "items": {
             "type": "string",
             "minLength": 1
-          }
+          },
+          "description": "Notes or cautions for downstream reviewers."
         }
       },
-      "additionalProperties": true
+      "additionalProperties": true,
+      "description": "Implementation worker handoff describing completed work and review notes.",
+      "x-usage": "Implementation join and reviewers use this as the authoritative worker-produced summary."
     },
     "changed_files": {
       "type": "array",
       "items": {
         "type": "string",
         "minLength": 1
-      }
+      },
+      "description": "Files changed by the implementation worker.",
+      "x-usage": "Reviewers and final reporting use this for focused inspection."
     },
     "verification": {
       "type": "array",
@@ -60,27 +70,35 @@
         "properties": {
           "command": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "description": "Verification command or check that was run."
           },
           "result": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "description": "Result of the verification command or check."
           }
         },
         "additionalProperties": true
-      }
+      },
+      "description": "Required verification commands, checks, or evidence for the slice.",
+      "x-usage": "Implementation and review steps should report these exact checks or explain blockers."
     },
     "artifacts": {
       "type": "array",
       "items": {
         "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact"
-      }
+      },
+      "description": "Optional structured artifacts emitted by this stage.",
+      "x-usage": "Use for named files or durable handoff artifacts the orchestrator should preserve."
     },
     "results": {
       "type": "array",
       "items": {
         "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/result"
-      }
+      },
+      "description": "Optional structured result summaries emitted by this stage.",
+      "x-usage": "Use for compact machine-readable evidence or decisions that should remain in baton state."
     },
     "blocker": {
       "type": "object",
@@ -92,28 +110,35 @@
       "properties": {
         "summary": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Concise human-readable summary for this contract section."
         },
         "source_step_id": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Workflow step id that discovered or owns the blocker."
         },
         "needed": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Specific missing input, decision, permission, or evidence needed to proceed."
         },
         "evidence": {
           "type": "array",
           "items": {
             "type": "string",
             "minLength": 1
-          }
+          },
+          "description": "Evidence references supporting the handoff, verdict, or blocker."
         },
         "risk": {
-          "type": "string"
+          "type": "string",
+          "description": "Residual risk if the blocker or finding is ignored."
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "description": "Blocker details required when the stage cannot produce a usable contract.",
+      "x-usage": "Populate when outcome is blocked so the orchestrator can stop and ask for the missing input or decision."
     }
   },
   "additionalProperties": false,
