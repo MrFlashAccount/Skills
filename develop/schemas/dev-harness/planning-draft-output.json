@@ -72,17 +72,6 @@
         ]
       }
     },
-    "implementation_route": {
-      "enum": [
-        "approved_backend",
-        "approved_frontend",
-        "approved_architecture",
-        "approved_backend_frontend",
-        "approved_backend_architecture",
-        "approved_frontend_architecture",
-        "approved_all"
-      ]
-    },
     "selected_review_steps": {
       "type": "array",
       "minItems": 1,
@@ -145,7 +134,108 @@
               }
             },
             "additionalProperties": false
-          }
+          },
+          "uniqueItems": true,
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "step_id": {
+                    "const": "architect_review"
+                  }
+                },
+                "required": [
+                  "step_id"
+                ]
+              },
+              "maxContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "step_id": {
+                    "const": "backend_review"
+                  }
+                },
+                "required": [
+                  "step_id"
+                ]
+              },
+              "maxContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "step_id": {
+                    "const": "frontend_review"
+                  }
+                },
+                "required": [
+                  "step_id"
+                ]
+              },
+              "maxContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "step_id": {
+                    "const": "frontend_taste_review"
+                  }
+                },
+                "required": [
+                  "step_id"
+                ]
+              },
+              "maxContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "step_id": {
+                    "const": "security_review"
+                  }
+                },
+                "required": [
+                  "step_id"
+                ]
+              },
+              "maxContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "step_id": {
+                    "const": "privacy_review"
+                  }
+                },
+                "required": [
+                  "step_id"
+                ]
+              },
+              "maxContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "step_id": {
+                    "const": "qa_review"
+                  }
+                },
+                "required": [
+                  "step_id"
+                ]
+              },
+              "maxContains": 1
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -194,9 +284,323 @@
         }
       },
       "additionalProperties": false
+    },
+    "implementation_route": {
+      "enum": [
+        "backend",
+        "frontend",
+        "architecture",
+        "backend_frontend",
+        "backend_architecture",
+        "frontend_architecture",
+        "all"
+      ]
     }
   },
   "additionalProperties": false,
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/dev-harness/planning-draft-output"
+  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/dev-harness/planning-draft-output",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "implementation_route": {
+            "const": "backend"
+          }
+        },
+        "required": [
+          "implementation_route"
+        ]
+      },
+      "then": {
+        "properties": {
+          "selected_implementation_steps": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1,
+            "uniqueItems": true,
+            "allOf": [
+              {
+                "contains": {
+                  "const": "backend_implementation"
+                },
+                "minContains": 1,
+                "maxContains": 1
+              }
+            ],
+            "items": {
+              "enum": [
+                "backend_implementation",
+                "frontend_implementation",
+                "architecture_artifact_update"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "implementation_route": {
+            "const": "frontend"
+          }
+        },
+        "required": [
+          "implementation_route"
+        ]
+      },
+      "then": {
+        "properties": {
+          "selected_implementation_steps": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1,
+            "uniqueItems": true,
+            "allOf": [
+              {
+                "contains": {
+                  "const": "frontend_implementation"
+                },
+                "minContains": 1,
+                "maxContains": 1
+              }
+            ],
+            "items": {
+              "enum": [
+                "backend_implementation",
+                "frontend_implementation",
+                "architecture_artifact_update"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "implementation_route": {
+            "const": "architecture"
+          }
+        },
+        "required": [
+          "implementation_route"
+        ]
+      },
+      "then": {
+        "properties": {
+          "selected_implementation_steps": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1,
+            "uniqueItems": true,
+            "allOf": [
+              {
+                "contains": {
+                  "const": "architecture_artifact_update"
+                },
+                "minContains": 1,
+                "maxContains": 1
+              }
+            ],
+            "items": {
+              "enum": [
+                "backend_implementation",
+                "frontend_implementation",
+                "architecture_artifact_update"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "implementation_route": {
+            "const": "backend_frontend"
+          }
+        },
+        "required": [
+          "implementation_route"
+        ]
+      },
+      "then": {
+        "properties": {
+          "selected_implementation_steps": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "uniqueItems": true,
+            "allOf": [
+              {
+                "contains": {
+                  "const": "backend_implementation"
+                },
+                "minContains": 1,
+                "maxContains": 1
+              },
+              {
+                "contains": {
+                  "const": "frontend_implementation"
+                },
+                "minContains": 1,
+                "maxContains": 1
+              }
+            ],
+            "items": {
+              "enum": [
+                "backend_implementation",
+                "frontend_implementation",
+                "architecture_artifact_update"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "implementation_route": {
+            "const": "backend_architecture"
+          }
+        },
+        "required": [
+          "implementation_route"
+        ]
+      },
+      "then": {
+        "properties": {
+          "selected_implementation_steps": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "uniqueItems": true,
+            "allOf": [
+              {
+                "contains": {
+                  "const": "backend_implementation"
+                },
+                "minContains": 1,
+                "maxContains": 1
+              },
+              {
+                "contains": {
+                  "const": "architecture_artifact_update"
+                },
+                "minContains": 1,
+                "maxContains": 1
+              }
+            ],
+            "items": {
+              "enum": [
+                "backend_implementation",
+                "frontend_implementation",
+                "architecture_artifact_update"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "implementation_route": {
+            "const": "frontend_architecture"
+          }
+        },
+        "required": [
+          "implementation_route"
+        ]
+      },
+      "then": {
+        "properties": {
+          "selected_implementation_steps": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "uniqueItems": true,
+            "allOf": [
+              {
+                "contains": {
+                  "const": "frontend_implementation"
+                },
+                "minContains": 1,
+                "maxContains": 1
+              },
+              {
+                "contains": {
+                  "const": "architecture_artifact_update"
+                },
+                "minContains": 1,
+                "maxContains": 1
+              }
+            ],
+            "items": {
+              "enum": [
+                "backend_implementation",
+                "frontend_implementation",
+                "architecture_artifact_update"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "implementation_route": {
+            "const": "all"
+          }
+        },
+        "required": [
+          "implementation_route"
+        ]
+      },
+      "then": {
+        "properties": {
+          "selected_implementation_steps": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 3,
+            "uniqueItems": true,
+            "allOf": [
+              {
+                "contains": {
+                  "const": "backend_implementation"
+                },
+                "minContains": 1,
+                "maxContains": 1
+              },
+              {
+                "contains": {
+                  "const": "frontend_implementation"
+                },
+                "minContains": 1,
+                "maxContains": 1
+              },
+              {
+                "contains": {
+                  "const": "architecture_artifact_update"
+                },
+                "minContains": 1,
+                "maxContains": 1
+              }
+            ],
+            "items": {
+              "enum": [
+                "backend_implementation",
+                "frontend_implementation",
+                "architecture_artifact_update"
+              ]
+            }
+          }
+        }
+      }
+    }
+  ]
 }

@@ -3,8 +3,7 @@
   "type": "object",
   "required": [
     "outcome",
-    "reviewer_handoff",
-    "next"
+    "reviewer_handoff"
   ],
   "properties": {
     "outcome": {
@@ -52,7 +51,8 @@
               "privacy_review",
               "qa_review"
             ]
-          }
+          },
+          "description": "Must be copied from the approved plan contract planning_draft.selected_review_steps; implementation_join does not choose reviewers."
         },
         "evidence": {
           "type": "array",
@@ -63,29 +63,6 @@
         }
       },
       "additionalProperties": true
-    },
-    "next": {
-      "oneOf": [
-        {
-          "const": "blocked"
-        },
-        {
-          "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
-          "items": {
-            "enum": [
-              "architect_review",
-              "backend_review",
-              "frontend_review",
-              "frontend_taste_review",
-              "security_review",
-              "privacy_review",
-              "qa_review"
-            ]
-          }
-        }
-      ]
     },
     "artifacts": {
       "type": "array",

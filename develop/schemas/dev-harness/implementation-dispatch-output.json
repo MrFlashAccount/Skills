@@ -1,0 +1,88 @@
+{
+  "title": "DevHarness Implementation Dispatch Output",
+  "type": "object",
+  "required": [
+    "outcome",
+    "verdict"
+  ],
+  "properties": {
+    "outcome": {
+      "enum": [
+        "backend",
+        "frontend",
+        "architecture",
+        "backend_frontend",
+        "backend_architecture",
+        "frontend_architecture",
+        "all",
+        "blocked"
+      ]
+    },
+    "verdict": {
+      "type": "object",
+      "required": [
+        "summary",
+        "selected_implementation_steps"
+      ],
+      "properties": {
+        "summary": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "selected_implementation_steps": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "backend_implementation",
+              "frontend_implementation",
+              "architecture_artifact_update"
+            ]
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "blocker": {
+      "type": "object",
+      "required": [
+        "summary",
+        "source_step_id",
+        "needed"
+      ],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_step_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "needed": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "risk": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/dev-harness/implementation-dispatch-output"
+}
