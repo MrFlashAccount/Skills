@@ -1,5 +1,6 @@
 {
   "title": "DevHarness Architecture Draft Output",
+  "description": "Output contract for the DevHarness architecture draft gate before critic attack.",
   "type": "object",
   "required": [
     "outcome",
@@ -10,7 +11,9 @@
       "enum": [
         "ready_for_attack",
         "blocked"
-      ]
+      ],
+      "description": "Machine-readable stage outcome used by workflow routing.",
+      "x-usage": "Downstream next/match logic reads this value; choose only the enum/const value that matches the stage state."
     },
     "architecture_contract": {
       "type": "object",
@@ -23,42 +26,56 @@
       "properties": {
         "decision": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Architecture decision or routing conclusion for the scoped change.",
+          "x-usage": "State the selected architecture approach, including whether artifacts are required or deferred."
         },
         "entities": {
           "type": "array",
           "items": {
             "type": "object"
-          }
+          },
+          "description": "Architecture entities, ownership zones, or contract surfaces affected by the task.",
+          "x-usage": "Use for structural handoff; keep implementation details out unless needed to define boundaries."
         },
         "boundaries": {
           "type": "array",
           "items": {
             "type": "string",
             "minLength": 1
-          }
+          },
+          "description": "Boundaries, seams, dependencies, or ownership rules the implementation must respect.",
+          "x-usage": "Downstream planning and review use these to catch scope creep and dependency violations."
         },
         "non_goals": {
           "type": "array",
           "items": {
             "type": "string",
             "minLength": 1
-          }
+          },
+          "description": "Explicitly excluded work for this architecture slice.",
+          "x-usage": "Use to prevent planner and implementers from widening the task."
         }
       },
-      "additionalProperties": true
+      "additionalProperties": true,
+      "description": "Architecture draft contract covering decisions, entities, boundaries, and non-goals for the scoped implementation.",
+      "x-usage": "Planner and attack steps consume this as the authoritative architecture boundary and entity record."
     },
     "artifacts": {
       "type": "array",
       "items": {
         "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact"
-      }
+      },
+      "description": "Optional structured artifacts emitted by this stage.",
+      "x-usage": "Use for named files or durable handoff artifacts the orchestrator should preserve."
     },
     "results": {
       "type": "array",
       "items": {
         "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/result"
-      }
+      },
+      "description": "Optional structured result summaries emitted by this stage.",
+      "x-usage": "Use for compact machine-readable evidence or decisions that should remain in baton state."
     },
     "blocker": {
       "type": "object",
@@ -70,28 +87,35 @@
       "properties": {
         "summary": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Concise human-readable summary for this contract section."
         },
         "source_step_id": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Workflow step id that discovered or owns the blocker."
         },
         "needed": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Specific missing input, decision, permission, or evidence needed to proceed."
         },
         "evidence": {
           "type": "array",
           "items": {
             "type": "string",
             "minLength": 1
-          }
+          },
+          "description": "Evidence references supporting the handoff, verdict, or blocker."
         },
         "risk": {
-          "type": "string"
+          "type": "string",
+          "description": "Residual risk if the blocker or finding is ignored."
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "description": "Blocker details required when the stage cannot produce a usable contract.",
+      "x-usage": "Populate when outcome is blocked so the orchestrator can stop and ask for the missing input or decision."
     }
   },
   "additionalProperties": false,

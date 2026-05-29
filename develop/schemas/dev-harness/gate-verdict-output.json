@@ -1,5 +1,6 @@
 {
   "title": "DevHarness Gate Verdict Output",
+  "description": "Shared DevHarness gate verdict contract for attack and review-style decisions.",
   "type": "object",
   "required": [
     "outcome",
@@ -13,7 +14,9 @@
         "passed",
         "needs_changes",
         "blocked"
-      ]
+      ],
+      "description": "Machine-readable stage outcome used by workflow routing.",
+      "x-usage": "Downstream next/match logic reads this value; choose only the enum/const value that matches the stage state."
     },
     "verdict": {
       "type": "object",
@@ -29,23 +32,30 @@
           "items": {
             "type": "string",
             "minLength": 1
-          }
+          },
+          "description": "Concise human-readable summary for this contract section."
         },
         "evidence_checked": {
           "type": "array",
           "items": {
             "type": "string",
             "minLength": 1
-          }
+          },
+          "description": "Sources, artifacts, commands, or state inspected before issuing the verdict.",
+          "x-usage": "Keep this concrete so downstream revision or review can see what was actually checked."
         },
         "findings": {
           "type": "array",
           "items": {
             "type": "object"
-          }
+          },
+          "description": "Actionable findings, concerns, or reasons behind the verdict.",
+          "x-usage": "Use empty only when the verdict is clean; include enough detail for the next worker to fix or accept the decision."
         }
       },
-      "additionalProperties": true
+      "additionalProperties": true,
+      "description": "Structured decision payload for this gate.",
+      "x-usage": "Revision routing uses this verdict to decide whether the draft can advance or must be revised before another attack."
     },
     "required_implementation_steps": {
       "type": "array",
@@ -56,19 +66,25 @@
           "frontend_implementation",
           "architecture_artifact_update"
         ]
-      }
+      },
+      "description": "Implementation branches that must rerun to address review or gate findings.",
+      "x-usage": "Review join uses this list as the loop target when next is an implementation-step array."
     },
     "artifacts": {
       "type": "array",
       "items": {
         "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact"
-      }
+      },
+      "description": "Optional structured artifacts emitted by this stage.",
+      "x-usage": "Use for named files or durable handoff artifacts the orchestrator should preserve."
     },
     "results": {
       "type": "array",
       "items": {
         "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/result"
-      }
+      },
+      "description": "Optional structured result summaries emitted by this stage.",
+      "x-usage": "Use for compact machine-readable evidence or decisions that should remain in baton state."
     },
     "blocker": {
       "type": "object",
@@ -80,28 +96,35 @@
       "properties": {
         "summary": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Concise human-readable summary for this contract section."
         },
         "source_step_id": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Workflow step id that discovered or owns the blocker."
         },
         "needed": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "Specific missing input, decision, permission, or evidence needed to proceed."
         },
         "evidence": {
           "type": "array",
           "items": {
             "type": "string",
             "minLength": 1
-          }
+          },
+          "description": "Evidence references supporting the handoff, verdict, or blocker."
         },
         "risk": {
-          "type": "string"
+          "type": "string",
+          "description": "Residual risk if the blocker or finding is ignored."
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "description": "Blocker details required when the stage cannot produce a usable contract.",
+      "x-usage": "Populate when outcome is blocked so the orchestrator can stop and ask for the missing input or decision."
     }
   },
   "additionalProperties": false,
