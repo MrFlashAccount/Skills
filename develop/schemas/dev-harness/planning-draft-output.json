@@ -1,6 +1,6 @@
 {
   "title": "DevHarness Planning Draft Output",
-  "description": "Output contract for the DevHarness planning draft that selects implementation and review routes.",
+  "description": "Producer output contract for the DevHarness planning draft that proposes implementation and review routes.",
   "type": "object",
   "required": [
     "outcome",
@@ -16,8 +16,8 @@
         "ready_for_attack",
         "blocked"
       ],
-      "description": "Machine-readable stage outcome used by workflow routing.",
-      "x-usage": "Downstream next/match logic reads this value; choose only the enum/const value that matches the stage state."
+      "description": "Producer must emit the single enum value that reflects the completed stage state; use blocked only when blocker explains the stop condition.",
+      "x-usage": "Treat this as the authoritative workflow state for this output. Do not infer success from other populated fields when this says blocked or needs revision."
     },
     "implementation_plan": {
       "type": "object",
@@ -32,8 +32,8 @@
         "goal": {
           "type": "string",
           "minLength": 1,
-          "description": "Single goal statement for the implementation slice.",
-          "x-usage": "Keep aligned with the approved research and architecture contracts."
+          "description": "Producer must state one implementation goal aligned with the approved research and architecture contracts.",
+          "x-usage": "Use this to check scope alignment. Do not add work outside the listed workstreams and done criteria."
         },
         "workstreams": {
           "type": "array",
@@ -41,8 +41,8 @@
           "items": {
             "type": "object"
           },
-          "description": "Planner-level workstreams or implementation entities to execute.",
-          "x-usage": "Use to split work by backend, frontend, and architecture artifact ownership without patch-level instructions."
+          "description": "Producer must list planner-level workstreams or implementation entities without patch-level instructions.",
+          "x-usage": "Use these to assign ownership and coverage. Do not infer exact code edits, signatures, or patch steps from the wording."
         },
         "definition_of_done": {
           "type": "array",
@@ -51,8 +51,8 @@
             "type": "string",
             "minLength": 1
           },
-          "description": "Acceptance criteria that must be true before implementation can join.",
-          "x-usage": "Reviewers use this to decide whether the implementation satisfied the plan."
+          "description": "Producer must list acceptance criteria required before implementation can join.",
+          "x-usage": "Use these as required acceptance criteria. If any item is unmet, request rework or report a blocker."
         },
         "verification": {
           "type": "array",
@@ -61,19 +61,19 @@
             "type": "string",
             "minLength": 1
           },
-          "description": "Required verification commands, checks, or evidence for the slice.",
-          "x-usage": "Implementation and review steps should report these exact checks or explain blockers."
+          "description": "Producer must list required verification checks or evidence for the slice.",
+          "x-usage": "Use these as the exact checks to request or report, or explain why they are blocked/skipped. Do not treat this list as evidence that checks already ran."
         },
         "rollback": {
           "type": "string",
           "minLength": 1,
-          "description": "Rollback or revert strategy for the implementation slice.",
-          "x-usage": "Use to make recovery explicit before work is merged."
+          "description": "Producer must define the rollback or revert strategy for the implementation slice.",
+          "x-usage": "Use this as the recovery strategy for risk assessment and reporting. Do not execute rollback automatically from this field alone."
         }
       },
       "additionalProperties": true,
-      "description": "Planner-owned implementation contract for the approved scope.",
-      "x-usage": "Implementation workers use this as the source of truth for workstreams, done criteria, verification, and rollback."
+      "description": "Producer must draft the implementation contract for the approved scope: goal, workstreams, done criteria, verification, and rollback.",
+      "x-usage": "Treat this as a proposed implementation contract until an approval/pass outcome freezes it. After approval, do not change it without an approved replacement plan."
     },
     "selected_implementation_steps": {
       "type": "array",
@@ -86,8 +86,8 @@
           "architecture_artifact_update"
         ]
       },
-      "description": "Concrete implementation branch step ids selected for this run.",
-      "x-usage": "Implementation dispatch reads this list to fan out only the approved implementation branches."
+      "description": "Producer must select the concrete implementation branch step ids required by this plan.",
+      "x-usage": "Use this approved list as the exact implementation fan-out target. Do not add branches unless the plan is revised and approved."
     },
     "selected_review_steps": {
       "type": "array",
@@ -104,8 +104,8 @@
           "qa_review"
         ]
       },
-      "description": "Concrete review branch step ids selected by the planning contract.",
-      "x-usage": "Implementation join and review dispatch copy this list to fan out only the planned review branches."
+      "description": "Producer must select the concrete review branch step ids required by this plan.",
+      "x-usage": "Use this approved list as the exact fan-out target for these step ids. Do not add agents unless the plan is revised and approved."
     },
     "review_plan": {
       "type": "object",
@@ -135,13 +135,14 @@
                   "privacy_review",
                   "qa_review"
                 ],
-                "description": "Workflow review step id.",
-                "x-usage": "Must match one of selected_review_steps when this is a reviewer entry."
+                "description": "Producer must set the workflow step id for this reviewer or branch entry.",
+                "x-usage": "Match this against selected_review_steps. Treat a mismatch as a contract error, not an optional suggestion."
               },
               "reason": {
                 "type": "string",
                 "minLength": 1,
-                "description": "Reason this reviewer or step is needed."
+                "description": "Producer must state why this reviewer or workflow step is needed for the scoped work.",
+                "x-usage": "Use this to understand why this step or role was selected. Do not expand the assigned scope beyond the listed surfaces."
               },
               "surfaces": {
                 "type": "array",
@@ -150,11 +151,13 @@
                   "type": "string",
                   "minLength": 1
                 },
-                "description": "Code, contract, docs, data, or UX surfaces this reviewer must inspect."
+                "description": "Producer must list the code, contract, docs, data, or UX surfaces this reviewer must inspect.",
+                "x-usage": "Use these as the exact focus surfaces for the assigned work. Do not assume unlisted surfaces are covered."
               },
               "required": {
                 "type": "boolean",
-                "description": "Whether this reviewer is mandatory for completion."
+                "description": "Producer must mark whether this reviewer is mandatory for completion.",
+                "x-usage": "Treat true as mandatory for completion and false as optional coverage. Do not let this override the selected step list."
               }
             },
             "additionalProperties": false
@@ -260,29 +263,29 @@
               "maxContains": 1
             }
           ],
-          "description": "Reviewer selections with reason, surfaces, and required flag.",
-          "x-usage": "Keep one entry per selected review step so runtime and humans can audit why each reviewer runs."
+          "description": "Producer must include one reviewer entry per selected review step, with reason, inspected surfaces, and whether it is mandatory.",
+          "x-usage": "Match entries against selected_review_steps and use them for coverage. Do not run unlisted agents unless the plan is revised or blocked escalation requires it."
         }
       },
       "additionalProperties": false,
-      "description": "Planner-owned review contract describing required reviewers and surfaces.",
-      "x-usage": "Review dispatch uses this to fan out review work; reviewers use it to understand their required scope."
+      "description": "Producer must draft the review contract describing selected reviewers, reasons, surfaces, and required status.",
+      "x-usage": "Treat this as the proposed review contract until plan approval. After approval, use it as the scope for selected review steps."
     },
     "artifacts": {
       "type": "array",
       "items": {
         "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact"
       },
-      "description": "Optional structured artifacts emitted by this stage.",
-      "x-usage": "Use for named files or durable handoff artifacts the orchestrator should preserve."
+      "description": "Producer may emit named structured artifacts created by this stage when they are part of the handoff.",
+      "x-usage": "Use these only as supporting named artifacts to preserve or pass along. Do not treat them as routing decisions unless another field explicitly references them."
     },
     "results": {
       "type": "array",
       "items": {
         "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/result"
       },
-      "description": "Optional structured result summaries emitted by this stage.",
-      "x-usage": "Use for compact machine-readable evidence or decisions that should remain in baton state."
+      "description": "Producer may emit compact structured results, decisions, or evidence summaries created by this stage.",
+      "x-usage": "Use these as supporting evidence or compact summaries. Do not let them override outcome, selected steps, blockers, or approved contracts."
     },
     "blocker": {
       "type": "object",
@@ -295,17 +298,20 @@
         "summary": {
           "type": "string",
           "minLength": 1,
-          "description": "Concise human-readable summary for this contract section."
+          "description": "Producer must summarize the relevant decision or handoff in concise human-readable form without adding new scope.",
+          "x-usage": "Use this as concise human-readable context only. Do not route, approve, or expand scope from this text."
         },
         "source_step_id": {
           "type": "string",
           "minLength": 1,
-          "description": "Workflow step id that discovered or owns the blocker."
+          "description": "Producer must name the workflow step id that found or owns this blocker or finding.",
+          "x-usage": "Use this to identify the step that found or owns the blocker/finding. Do not treat it as a retry target by itself."
         },
         "needed": {
           "type": "string",
           "minLength": 1,
-          "description": "Specific missing input, decision, permission, or evidence needed to proceed."
+          "description": "Producer must state the exact missing decision, permission, input, or evidence required to proceed.",
+          "x-usage": "Surface this exact missing input, permission, evidence, or decision before proceeding. Do not substitute assumptions for it."
         },
         "evidence": {
           "type": "array",
@@ -313,16 +319,18 @@
             "type": "string",
             "minLength": 1
           },
-          "description": "Evidence references supporting the handoff, verdict, or blocker."
+          "description": "Producer should list concrete evidence references supporting this handoff, verdict, finding, or blocker.",
+          "x-usage": "Use these references to inspect or challenge the claim. Do not assume unreferenced surfaces were checked."
         },
         "risk": {
           "type": "string",
-          "description": "Residual risk if the blocker or finding is ignored."
+          "description": "Producer should describe the residual risk if this blocker or finding is ignored.",
+          "x-usage": "Use this to understand why ignoring the item is unsafe. Treat it as risk context unless paired with a blocked outcome."
         }
       },
       "additionalProperties": false,
-      "description": "Blocker details required when the stage cannot produce a usable contract.",
-      "x-usage": "Populate when outcome is blocked so the orchestrator can stop and ask for the missing input or decision."
+      "description": "Producer must populate this when outcome is blocked, naming the stop reason, owning step, and specific missing input or permission.",
+      "x-usage": "Treat this as a stop condition. Surface the missing input or decision instead of continuing or working around it."
     },
     "implementation_route": {
       "enum": [
@@ -334,8 +342,8 @@
         "frontend_architecture",
         "all"
       ],
-      "description": "Compact route label that corresponds to selected implementation branches.",
-      "x-usage": "Workflow semantic checks and dispatch use this value to fan out the correct implementation steps."
+      "description": "Producer must set the compact route label that exactly corresponds to selected implementation branches.",
+      "x-usage": "Use this for route consistency checks. Treat selected_implementation_steps as the branch-level authority if prose is ambiguous."
     }
   },
   "additionalProperties": false,

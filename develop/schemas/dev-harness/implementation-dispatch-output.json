@@ -1,6 +1,6 @@
 {
   "title": "DevHarness Implementation Dispatch Output",
-  "description": "Output contract that turns the approved plan route into concrete implementation step targets.",
+  "description": "Producer output contract for dispatching selected DevHarness implementation branches.",
   "type": "object",
   "required": [
     "outcome",
@@ -18,8 +18,8 @@
         "all",
         "blocked"
       ],
-      "description": "Machine-readable stage outcome used by workflow routing.",
-      "x-usage": "Downstream next/match logic reads this value; choose only the enum/const value that matches the stage state."
+      "description": "Producer must emit the single enum value that reflects the completed stage state; use blocked only when blocker explains the stop condition.",
+      "x-usage": "Treat this as the authoritative workflow state for this output. Do not infer success from other populated fields when this says blocked or needs revision."
     },
     "verdict": {
       "type": "object",
@@ -35,7 +35,8 @@
             "type": "string",
             "minLength": 1
           },
-          "description": "Concise human-readable summary for this contract section."
+          "description": "Producer must summarize the relevant decision or handoff in concise human-readable form without adding new scope.",
+          "x-usage": "Use this as concise human-readable context only. Do not route, approve, or expand scope from this text."
         },
         "selected_implementation_steps": {
           "type": "array",
@@ -48,13 +49,13 @@
               "architecture_artifact_update"
             ]
           },
-          "description": "Concrete implementation branch step ids selected for this run.",
-          "x-usage": "Runtime dispatch reads these step ids as the implementation fan-out target."
+          "description": "Producer must copy the approved selected implementation branch ids without inventing extra branches.",
+          "x-usage": "Run exactly these implementation steps. Do not infer additional branches from prose, changed files, or plan text."
         }
       },
       "additionalProperties": true,
-      "description": "Structured decision payload for this gate.",
-      "x-usage": "Downstream prompts use this as the authoritative critique/review result."
+      "description": "Producer must echo the selected implementation branch ids being dispatched and any dispatch decision context.",
+      "x-usage": "Use selected_implementation_steps inside this object as the exact implementation fan-out target for this dispatch."
     },
     "blocker": {
       "type": "object",
@@ -67,17 +68,20 @@
         "summary": {
           "type": "string",
           "minLength": 1,
-          "description": "Concise human-readable summary for this contract section."
+          "description": "Producer must summarize the relevant decision or handoff in concise human-readable form without adding new scope.",
+          "x-usage": "Use this as concise human-readable context only. Do not route, approve, or expand scope from this text."
         },
         "source_step_id": {
           "type": "string",
           "minLength": 1,
-          "description": "Workflow step id that discovered or owns the blocker."
+          "description": "Producer must name the workflow step id that found or owns this blocker or finding.",
+          "x-usage": "Use this to identify the step that found or owns the blocker/finding. Do not treat it as a retry target by itself."
         },
         "needed": {
           "type": "string",
           "minLength": 1,
-          "description": "Specific missing input, decision, permission, or evidence needed to proceed."
+          "description": "Producer must state the exact missing decision, permission, input, or evidence required to proceed.",
+          "x-usage": "Surface this exact missing input, permission, evidence, or decision before proceeding. Do not substitute assumptions for it."
         },
         "evidence": {
           "type": "array",
@@ -85,16 +89,18 @@
             "type": "string",
             "minLength": 1
           },
-          "description": "Evidence references supporting the handoff, verdict, or blocker."
+          "description": "Producer should list concrete evidence references supporting this handoff, verdict, finding, or blocker.",
+          "x-usage": "Use these references to inspect or challenge the claim. Do not assume unreferenced surfaces were checked."
         },
         "risk": {
           "type": "string",
-          "description": "Residual risk if the blocker or finding is ignored."
+          "description": "Producer should describe the residual risk if this blocker or finding is ignored.",
+          "x-usage": "Use this to understand why ignoring the item is unsafe. Treat it as risk context unless paired with a blocked outcome."
         }
       },
       "additionalProperties": false,
-      "description": "Blocker details required when the stage cannot produce a usable contract.",
-      "x-usage": "Populate when outcome is blocked so the orchestrator can stop and ask for the missing input or decision."
+      "description": "Producer must populate this when outcome is blocked, naming the stop reason, owning step, and specific missing input or permission.",
+      "x-usage": "Treat this as a stop condition. Surface the missing input or decision instead of continuing or working around it."
     }
   },
   "additionalProperties": false,

@@ -1,6 +1,6 @@
 {
   "title": "DevHarness Architecture Draft Output",
-  "description": "Output contract for the DevHarness architecture draft gate before critic attack.",
+  "description": "Producer output contract for the DevHarness architecture draft gate before critic attack.",
   "type": "object",
   "required": [
     "outcome",
@@ -12,8 +12,8 @@
         "ready_for_attack",
         "blocked"
       ],
-      "description": "Machine-readable stage outcome used by workflow routing.",
-      "x-usage": "Downstream next/match logic reads this value; choose only the enum/const value that matches the stage state."
+      "description": "Producer must emit the single enum value that reflects the completed stage state; use blocked only when blocker explains the stop condition.",
+      "x-usage": "Treat this as the authoritative workflow state for this output. Do not infer success from other populated fields when this says blocked or needs revision."
     },
     "architecture_contract": {
       "type": "object",
@@ -27,16 +27,16 @@
         "decision": {
           "type": "string",
           "minLength": 1,
-          "description": "Architecture decision or routing conclusion for the scoped change.",
-          "x-usage": "State the selected architecture approach, including whether artifacts are required or deferred."
+          "description": "Producer must state the selected architecture approach or routing conclusion, including required or deferred architecture artifacts.",
+          "x-usage": "Treat this as the proposed structural direction. Do not freeze it until the contract receives an approval/pass outcome."
         },
         "entities": {
           "type": "array",
           "items": {
             "type": "object"
           },
-          "description": "Architecture entities, ownership zones, or contract surfaces affected by the task.",
-          "x-usage": "Use for structural handoff; keep implementation details out unless needed to define boundaries."
+          "description": "Producer must list architecture entities, ownership zones, or contract surfaces affected by the scoped task.",
+          "x-usage": "Use these as the structural surfaces that need coverage. Do not infer file-level ownership from vague entity names alone."
         },
         "boundaries": {
           "type": "array",
@@ -44,8 +44,8 @@
             "type": "string",
             "minLength": 1
           },
-          "description": "Boundaries, seams, dependencies, or ownership rules the implementation must respect.",
-          "x-usage": "Downstream planning and review use these to catch scope creep and dependency violations."
+          "description": "Producer must list dependencies, seams, ownership rules, and constraints the implementation must not violate.",
+          "x-usage": "Treat these as constraints for later work unless a newer approved contract changes them. Stop and report if they conflict with the assigned task."
         },
         "non_goals": {
           "type": "array",
@@ -53,29 +53,29 @@
             "type": "string",
             "minLength": 1
           },
-          "description": "Explicitly excluded work for this architecture slice.",
-          "x-usage": "Use to prevent planner and implementers from widening the task."
+          "description": "Producer must list explicit exclusions for this architecture slice.",
+          "x-usage": "Treat these as excluded scope. Do not implement or request work for excluded items unless a newer approved contract changes them."
         }
       },
       "additionalProperties": true,
-      "description": "Architecture draft contract covering decisions, entities, boundaries, and non-goals for the scoped implementation.",
-      "x-usage": "Planner and attack steps consume this as the authoritative architecture boundary and entity record."
+      "description": "Producer must draft the architecture contract for the scoped implementation, covering decisions, entities, boundaries, and non-goals.",
+      "x-usage": "Treat this as a draft structural contract until an approval/pass outcome freezes it. Use it to constrain later work; do not treat embedded implementation detail as edit instructions."
     },
     "artifacts": {
       "type": "array",
       "items": {
         "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact"
       },
-      "description": "Optional structured artifacts emitted by this stage.",
-      "x-usage": "Use for named files or durable handoff artifacts the orchestrator should preserve."
+      "description": "Producer may emit named structured artifacts created by this stage when they are part of the handoff.",
+      "x-usage": "Use these only as supporting named artifacts to preserve or pass along. Do not treat them as routing decisions unless another field explicitly references them."
     },
     "results": {
       "type": "array",
       "items": {
         "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/result"
       },
-      "description": "Optional structured result summaries emitted by this stage.",
-      "x-usage": "Use for compact machine-readable evidence or decisions that should remain in baton state."
+      "description": "Producer may emit compact structured results, decisions, or evidence summaries created by this stage.",
+      "x-usage": "Use these as supporting evidence or compact summaries. Do not let them override outcome, selected steps, blockers, or approved contracts."
     },
     "blocker": {
       "type": "object",
@@ -88,17 +88,20 @@
         "summary": {
           "type": "string",
           "minLength": 1,
-          "description": "Concise human-readable summary for this contract section."
+          "description": "Producer must summarize the relevant decision or handoff in concise human-readable form without adding new scope.",
+          "x-usage": "Use this as concise human-readable context only. Do not route, approve, or expand scope from this text."
         },
         "source_step_id": {
           "type": "string",
           "minLength": 1,
-          "description": "Workflow step id that discovered or owns the blocker."
+          "description": "Producer must name the workflow step id that found or owns this blocker or finding.",
+          "x-usage": "Use this to identify the step that found or owns the blocker/finding. Do not treat it as a retry target by itself."
         },
         "needed": {
           "type": "string",
           "minLength": 1,
-          "description": "Specific missing input, decision, permission, or evidence needed to proceed."
+          "description": "Producer must state the exact missing decision, permission, input, or evidence required to proceed.",
+          "x-usage": "Surface this exact missing input, permission, evidence, or decision before proceeding. Do not substitute assumptions for it."
         },
         "evidence": {
           "type": "array",
@@ -106,16 +109,18 @@
             "type": "string",
             "minLength": 1
           },
-          "description": "Evidence references supporting the handoff, verdict, or blocker."
+          "description": "Producer should list concrete evidence references supporting this handoff, verdict, finding, or blocker.",
+          "x-usage": "Use these references to inspect or challenge the claim. Do not assume unreferenced surfaces were checked."
         },
         "risk": {
           "type": "string",
-          "description": "Residual risk if the blocker or finding is ignored."
+          "description": "Producer should describe the residual risk if this blocker or finding is ignored.",
+          "x-usage": "Use this to understand why ignoring the item is unsafe. Treat it as risk context unless paired with a blocked outcome."
         }
       },
       "additionalProperties": false,
-      "description": "Blocker details required when the stage cannot produce a usable contract.",
-      "x-usage": "Populate when outcome is blocked so the orchestrator can stop and ask for the missing input or decision."
+      "description": "Producer must populate this when outcome is blocked, naming the stop reason, owning step, and specific missing input or permission.",
+      "x-usage": "Treat this as a stop condition. Surface the missing input or decision instead of continuing or working around it."
     }
   },
   "additionalProperties": false,

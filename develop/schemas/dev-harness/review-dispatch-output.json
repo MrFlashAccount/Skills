@@ -1,6 +1,6 @@
 {
   "title": "DevHarness Review Dispatch Output",
-  "description": "Output contract that dispatches review branches selected by the approved planning contract.",
+  "description": "Producer output contract for dispatching selected DevHarness review branches.",
   "type": "object",
   "required": [
     "outcome",
@@ -9,8 +9,8 @@
   "properties": {
     "outcome": {
       "const": "ready_for_review",
-      "description": "Machine-readable stage outcome used by workflow routing.",
-      "x-usage": "Downstream next/match logic reads this value; choose only the enum/const value that matches the stage state."
+      "description": "Producer must emit the single enum value that reflects the completed stage state; use blocked only when blocker explains the stop condition.",
+      "x-usage": "Treat this as the authoritative workflow state for this output. Do not infer success from other populated fields when this says blocked or needs revision."
     },
     "verdict": {
       "type": "object",
@@ -26,7 +26,8 @@
             "type": "string",
             "minLength": 1
           },
-          "description": "Concise human-readable summary for this contract section."
+          "description": "Producer must summarize the relevant decision or handoff in concise human-readable form without adding new scope.",
+          "x-usage": "Use this as concise human-readable context only. Do not route, approve, or expand scope from this text."
         },
         "selected_review_steps": {
           "type": "array",
@@ -43,29 +44,29 @@
               "qa_review"
             ]
           },
-          "description": "Concrete review branch step ids selected by the planning contract.",
-          "x-usage": "Runtime dispatch reads these step ids as the review fan-out target."
+          "description": "Producer must copy the approved selected review branch ids without inventing extra reviewers.",
+          "x-usage": "Run exactly these step ids. Do not infer additional agents from changed files, findings, or prose."
         }
       },
       "additionalProperties": true,
-      "description": "Structured decision payload for this gate.",
-      "x-usage": "Downstream prompts use this as the authoritative critique/review result."
+      "description": "Producer must echo the selected review branch ids being dispatched and any dispatch decision context.",
+      "x-usage": "Use selected_review_steps inside this object as the exact review fan-out target for this dispatch."
     },
     "artifacts": {
       "type": "array",
       "items": {
         "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact"
       },
-      "description": "Optional structured artifacts emitted by this stage.",
-      "x-usage": "Use for named files or durable handoff artifacts the orchestrator should preserve."
+      "description": "Producer may emit named structured artifacts created by this stage when they are part of the handoff.",
+      "x-usage": "Use these only as supporting named artifacts to preserve or pass along. Do not treat them as routing decisions unless another field explicitly references them."
     },
     "results": {
       "type": "array",
       "items": {
         "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/result"
       },
-      "description": "Optional structured result summaries emitted by this stage.",
-      "x-usage": "Use for compact machine-readable evidence or decisions that should remain in baton state."
+      "description": "Producer may emit compact structured results, decisions, or evidence summaries created by this stage.",
+      "x-usage": "Use these as supporting evidence or compact summaries. Do not let them override outcome, selected steps, blockers, or approved contracts."
     }
   },
   "additionalProperties": false,

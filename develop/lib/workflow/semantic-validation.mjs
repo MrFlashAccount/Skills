@@ -28,7 +28,34 @@ function assertWorkflowRootTargets(workflow) {
   if (blockedStep.kind !== 'blocked') fail(`workflow blocked target '${workflow.blocked}' must be a blocked step`);
 }
 
-function validateOutputSchemaDocument(schema, schemaRef, workflow, workflowPath, repositoryRoot) {
+function isDevHarnessOutputSchema(schemaRef, schema) {
+  return (typeof schemaRef === 'string' && schemaRef.includes('/schemas/dev-harness/'))
+    || (typeof schema?.$id === 'string' && schema.$id.includes('/schemas/workflow/dev-harness/'));
+}
+
+function collectFieldAnnotationWarnings(schema, schemaRef, warnings, pathSegments = []) {
+  if (!schema || typeof schema !== 'object' || Array.isArray(schema)) return;
+
+  const hasFieldNote = typeof schema.description === 'string' || typeof schema['x-usage'] === 'string';
+  if (hasFieldNote && pathSegments.length > 0 && typeof schema.description === 'string' && typeof schema['x-usage'] !== 'string') {
+    warnings.push(`output.schema '${schemaRef}' field '${fieldPath(...pathSegments)}' has description but no x-usage consumer guidance`);
+  }
+
+  if (schema.properties && typeof schema.properties === 'object') {
+    for (const [propertyName, propertySchema] of Object.entries(schema.properties)) {
+      if (propertyName === 'x-usage') continue;
+      collectFieldAnnotationWarnings(propertySchema, schemaRef, warnings, [...pathSegments, propertyName]);
+    }
+  }
+  if (schema.$defs && typeof schema.$defs === 'object') {
+    for (const [defName, defSchema] of Object.entries(schema.$defs)) {
+      collectFieldAnnotationWarnings(defSchema, schemaRef, warnings, [...pathSegments, '$defs', defName]);
+    }
+  }
+  if (schema.items) collectFieldAnnotationWarnings(schema.items, schemaRef, warnings, [...pathSegments, 'items']);
+}
+
+function validateOutputSchemaDocument(schema, schemaRef, workflow, workflowPath, repositoryRoot, warnings) {
   let validation;
   try {
     validation = validateJsonSchema(schema, {}, { schemas: workflowSchemas });
@@ -37,9 +64,10 @@ function validateOutputSchemaDocument(schema, schemaRef, workflow, workflowPath,
   }
   // Validation result is irrelevant here: compiling the schema is the check.
   void validation;
+  if (isDevHarnessOutputSchema(schemaRef, schema)) collectFieldAnnotationWarnings(schema, schemaRef, warnings);
 }
 
-function loadStepOutputSchemas({ workflow, workflowPath, repositoryRoot }) {
+function loadStepOutputSchemas({ workflow, workflowPath, repositoryRoot, warnings }) {
   const schemasByStep = new Map();
   for (const [stepId, step] of Object.entries(workflow.steps)) {
     const schemaRef = step.output?.schema;
@@ -51,7 +79,7 @@ function loadStepOutputSchemas({ workflow, workflowPath, repositoryRoot }) {
       if (error instanceof WorkflowInterpreterError) fail(`step '${stepId}' ${error.message}`);
       throw error;
     }
-    validateOutputSchemaDocument(schema, schemaRef, workflow, workflowPath, repositoryRoot);
+    validateOutputSchemaDocument(schema, schemaRef, workflow, workflowPath, repositoryRoot, warnings);
     schemasByStep.set(stepId, schema);
   }
   return schemasByStep;
@@ -200,9 +228,12 @@ export function validateWorkflowDocument(workflowDoc, { workflowPath = 'workflow
   assertWorkflowSchema(workflowDoc);
   const workflow = workflowDoc.workflow;
   assertWorkflowRootTargets(workflow);
-  const schemasByStep = loadStepOutputSchemas({ workflow, workflowPath, repositoryRoot });
+  const warnings = [];
+  const schemasByStep = loadStepOutputSchemas({ workflow, workflowPath, repositoryRoot, warnings });
   assertTransitionSemantics(workflow, schemasByStep);
-  return { ok: true, workflow: workflow.name, steps: Object.keys(workflow.steps).length };
+  const result = { ok: true, workflow: workflow.name, steps: Object.keys(workflow.steps).length };
+  if (warnings.length > 0) result.warnings = warnings;
+  return result;
 }
 
 export function validateWorkflowFile(workflowPath, options = {}) {
