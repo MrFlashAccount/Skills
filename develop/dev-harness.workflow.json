@@ -38,7 +38,7 @@
         },
         "output": {
           "template": "../../shared/templates/review-verdict-template.md",
-          "schema": "develop/schemas/dev-harness/gate-verdict-output.json"
+          "schema": "develop/schemas/dev-harness/gate-attack-verdict-output.json"
         },
         "next": {
           "match": "${{ output.outcome }}",
@@ -104,7 +104,7 @@
         },
         "output": {
           "template": "../../shared/templates/review-verdict-template.md",
-          "schema": "develop/schemas/dev-harness/gate-verdict-output.json"
+          "schema": "develop/schemas/dev-harness/gate-attack-verdict-output.json"
         },
         "next": {
           "match": "${{ output.outcome }}",
@@ -170,7 +170,7 @@
         },
         "output": {
           "template": "../../shared/templates/review-verdict-template.md",
-          "schema": "develop/schemas/dev-harness/gate-verdict-output.json"
+          "schema": "develop/schemas/dev-harness/gate-attack-verdict-output.json"
         },
         "next": {
           "match": "${{ output.outcome }}",
@@ -353,7 +353,7 @@
         },
         "output": {
           "template": "../../shared/templates/review-verdict-template.md",
-          "schema": "develop/schemas/dev-harness/gate-verdict-output.json"
+          "schema": "develop/schemas/dev-harness/gate-review-verdict-output.json"
         },
         "next": "review_join"
       },
@@ -372,7 +372,7 @@
         },
         "output": {
           "template": "../../shared/templates/review-verdict-template.md",
-          "schema": "develop/schemas/dev-harness/gate-verdict-output.json"
+          "schema": "develop/schemas/dev-harness/gate-review-verdict-output.json"
         },
         "next": "review_join"
       },
@@ -391,7 +391,7 @@
         },
         "output": {
           "template": "../../shared/templates/review-verdict-template.md",
-          "schema": "develop/schemas/dev-harness/gate-verdict-output.json"
+          "schema": "develop/schemas/dev-harness/gate-review-verdict-output.json"
         },
         "next": "review_join"
       },
@@ -410,7 +410,7 @@
         },
         "output": {
           "template": "../../shared/templates/review-verdict-template.md",
-          "schema": "develop/schemas/dev-harness/gate-verdict-output.json"
+          "schema": "develop/schemas/dev-harness/gate-review-verdict-output.json"
         },
         "next": "review_join"
       },
@@ -429,7 +429,7 @@
         },
         "output": {
           "template": "../../shared/templates/review-verdict-template.md",
-          "schema": "develop/schemas/dev-harness/gate-verdict-output.json"
+          "schema": "develop/schemas/dev-harness/gate-review-verdict-output.json"
         },
         "next": "review_join"
       },
@@ -448,7 +448,7 @@
         },
         "output": {
           "template": "../../shared/templates/review-verdict-template.md",
-          "schema": "develop/schemas/dev-harness/gate-verdict-output.json"
+          "schema": "develop/schemas/dev-harness/gate-review-verdict-output.json"
         },
         "next": "review_join"
       },
@@ -467,7 +467,7 @@
         },
         "output": {
           "template": "../../shared/templates/review-verdict-template.md",
-          "schema": "develop/schemas/dev-harness/gate-verdict-output.json"
+          "schema": "develop/schemas/dev-harness/gate-review-verdict-output.json"
         },
         "next": "review_join"
       },

@@ -1,0 +1,151 @@
+{
+  "title": "DevHarness Review Join Output",
+  "type": "object",
+  "required": [
+    "outcome",
+    "verdict",
+    "next"
+  ],
+  "properties": {
+    "outcome": {
+      "enum": [
+        "passed",
+        "needs_changes",
+        "blocked"
+      ]
+    },
+    "verdict": {
+      "type": "object",
+      "required": [
+        "summary",
+        "selected_review_steps",
+        "failed_review_steps",
+        "required_implementation_steps"
+      ],
+      "properties": {
+        "summary": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "selected_review_steps": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "architect_review",
+              "backend_review",
+              "frontend_review",
+              "frontend_taste_review",
+              "security_review",
+              "privacy_review",
+              "qa_review"
+            ]
+          }
+        },
+        "failed_review_steps": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "architect_review",
+              "backend_review",
+              "frontend_review",
+              "frontend_taste_review",
+              "security_review",
+              "privacy_review",
+              "qa_review"
+            ]
+          }
+        },
+        "required_implementation_steps": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "backend_implementation",
+              "frontend_implementation",
+              "architecture_artifact_update"
+            ]
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "next": {
+      "oneOf": [
+        {
+          "enum": [
+            "done",
+            "blocked",
+            "unknown_step"
+          ]
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "backend_implementation",
+              "frontend_implementation",
+              "architecture_artifact_update"
+            ]
+          }
+        }
+      ]
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact"
+      }
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/result"
+      }
+    },
+    "blocker": {
+      "type": "object",
+      "required": [
+        "summary",
+        "source_step_id",
+        "needed"
+      ],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_step_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "needed": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "risk": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/dev-harness/review-join-output"
+}
