@@ -17,8 +17,8 @@ function requireObject(value, name) {
 
 function validateOutputKind(step, output, stepId) {
   if (step.kind === 'approval') {
-    invariant(!('outcome' in output), `approval cursor '${stepId}' must use approval, not outcome`);
-    invariant('approval' in output, `approval cursor '${stepId}' must include string approval`);
+    invariant(!('outcome' in output), `approval cursor '${stepId}' must use host/user output fields, not outcome`);
+    if ('approval' in output) invariant(typeof output.approval === 'string', `approval cursor '${stepId}' field approval must be a string`);
     return;
   }
 
