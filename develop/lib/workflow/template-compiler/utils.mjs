@@ -20,15 +20,20 @@ export function isInside(child, parent) {
   return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
 }
 
-export function safeReadLocalFile({ fileRef, fieldName, kind, bases, repositoryRoot, missingMessage }) {
+export function safeReadLocalFile({ fileRef, fieldName, kind, bases, repositoryRoot, missingMessage, allowedRoots }) {
   assertRelativeLocalRef(fileRef, fieldName, kind);
   const root = realpathSync(repositoryRoot);
+  const confinementRoots = (allowedRoots?.length ? allowedRoots : [root]).map((allowedRoot) => realpathSync(allowedRoot));
   const attempted = [];
+
+  function isInsideAllowed(candidate) {
+    return confinementRoots.some((allowedRoot) => isInside(candidate, allowedRoot));
+  }
 
   for (const base of bases) {
     const candidate = path.resolve(base, fileRef);
     attempted.push(candidate);
-    if (!isInside(candidate, root)) {
+    if (!isInsideAllowed(candidate)) {
       throw new WorkflowInterpreterError(
         `workflow prompt render failed: ${fieldName} ${kind} escapes repository root: ${fileRef}`,
       );
@@ -39,7 +44,7 @@ export function safeReadLocalFile({ fileRef, fieldName, kind, bases, repositoryR
     } catch {
       continue;
     }
-    if (!isInside(realCandidate, root)) {
+    if (!isInsideAllowed(realCandidate)) {
       throw new WorkflowInterpreterError(
         `workflow prompt render failed: ${fieldName} ${kind} escapes repository root: ${fileRef}`,
       );
@@ -54,8 +59,8 @@ export function safeReadTemplate({ templateRef, fieldName, bases, repositoryRoot
   return safeReadLocalFile({ fileRef: templateRef, fieldName, kind: 'template', bases, repositoryRoot, missingMessage });
 }
 
-export function safeReadSchema({ schemaRef, fieldName, bases, repositoryRoot }) {
-  return safeReadLocalFile({ fileRef: schemaRef, fieldName, kind: 'schema', bases, repositoryRoot });
+export function safeReadSchema({ schemaRef, fieldName, bases, repositoryRoot, allowedRoots }) {
+  return safeReadLocalFile({ fileRef: schemaRef, fieldName, kind: 'schema', bases, repositoryRoot, allowedRoots });
 }
 
 export function workflowSkillBase({ workflow, repositoryRoot }) {

@@ -1,12 +1,20 @@
+import path from 'node:path';
 import { safeReadSchema, safeReadTemplate, section, trimStable, workflowSkillBase } from '../utils.mjs';
 import { WorkflowInterpreterError } from '../../errors.mjs';
 
-function outputBases({ workflow, repositoryRoot }) {
+function outputBases({ workflow, workflowPath, repositoryRoot }) {
   const bases = [];
   const skillBase = workflowSkillBase({ workflow, repositoryRoot });
   if (skillBase) bases.push(skillBase);
   bases.push(repositoryRoot);
+  if (workflowPath) bases.push(path.dirname(path.resolve(workflowPath)));
   return bases;
+}
+
+function outputAllowedRoots({ workflowPath, repositoryRoot }) {
+  const roots = [repositoryRoot];
+  if (workflowPath) roots.push(path.dirname(path.resolve(workflowPath)));
+  return roots;
 }
 
 export function readOutputTemplate({ workflow, step, repositoryRoot }) {
@@ -26,10 +34,16 @@ function parseOutputSchemaContent(schemaRef, content) {
   }
 }
 
-export function readOutputSchema({ workflow, step, repositoryRoot }) {
+export function readOutputSchema({ workflow, workflowPath, step, repositoryRoot }) {
   const schemaRef = step.output?.schema;
   if (!schemaRef) return { content: '', metadataPath: undefined, schema: undefined };
-  const resolved = safeReadSchema({ schemaRef, fieldName: 'output', bases: outputBases({ workflow, repositoryRoot }), repositoryRoot });
+  const resolved = safeReadSchema({
+    schemaRef,
+    fieldName: 'output',
+    bases: outputBases({ workflow, workflowPath, repositoryRoot }),
+    repositoryRoot,
+    allowedRoots: outputAllowedRoots({ workflowPath, repositoryRoot }),
+  });
   const schema = parseOutputSchemaContent(schemaRef, resolved.content);
   return { content: JSON.stringify(schema, null, 2), metadataPath: schemaRef, schema };
 }

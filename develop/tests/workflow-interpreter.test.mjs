@@ -942,13 +942,14 @@ test('schema validation: approval input rejects worker-only role field', () => {
   assert.match(result.stderr, /workflow failed schema validation/);
 });
 
-test('schema validation: approval steps reject worker-only output schema declaration', () => {
+test('schema validation: approval steps accept optional output schema declaration', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
   workflowDoc.workflow.steps.approval_step.output = { schema: 'worker-output.json' };
 
-  const result = runInspect('approval-step-worker-output-schema', baton({ cursor: 'approval_step' }), false, workflowDoc);
+  const response = runInspect('approval-step-output-schema', baton({ cursor: 'approval_step' }), true, workflowDoc);
 
-  assert.match(result.stderr, /workflow failed schema validation/);
+  assert.equal(response.steps[0].action, 'wait_for_approval');
+  assert.equal(response.steps[0].step.output.schema, 'worker-output.json');
 });
 
 test('runtime validation: baton status must match cursor semantics', () => {

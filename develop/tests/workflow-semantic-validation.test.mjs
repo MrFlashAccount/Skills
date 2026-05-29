@@ -84,3 +84,29 @@ test('workflow semantic validation rejects unreachable match cases not present i
 
   assertSemanticFailure(doc, /research_draft.*unreachable case 'unreachable'/);
 });
+
+
+test('workflow semantic validation uses approval output.schema for output match cases when declared', () => {
+  const doc = {
+    workflow: {
+      name: 'approval-schema-routing-fixture',
+      version: 1,
+      start: 'approve',
+      done: 'done',
+      blocked: 'blocked',
+      steps: {
+        approve: {
+          name: 'Approve',
+          kind: 'approval',
+          input: { prompt: 'Choose ship or revise.' },
+          output: { schema: 'develop/tests/fixtures/approval-choice-output.schema.json' },
+          next: { match: '${{ output.choice }}', cases: { ship: 'done' } },
+        },
+        done: { name: 'Done', kind: 'done' },
+        blocked: { name: 'Blocked', kind: 'blocked' },
+      },
+    },
+  };
+
+  assertSemanticFailure(doc, /approve.*next\.cases is missing schema-declared case 'revise'/);
+});

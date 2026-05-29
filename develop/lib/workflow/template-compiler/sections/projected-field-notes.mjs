@@ -4,7 +4,7 @@ function stringNote(value) {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : '';
 }
 
-export function projectedFieldNotes({ workflow, projectedState, projectedKeys, repositoryRoot, readOutputSchema }) {
+export function projectedFieldNotes({ workflow, workflowPath, projectedState, projectedKeys, repositoryRoot, readOutputSchema }) {
   const lines = [];
 
   for (const key of projectedKeys) {
@@ -12,7 +12,7 @@ export function projectedFieldNotes({ workflow, projectedState, projectedKeys, r
     if (!producerStep?.output?.schema) continue;
     let schema;
     try {
-      schema = readOutputSchema({ workflow, step: producerStep, repositoryRoot }).schema;
+      schema = readOutputSchema({ workflow, workflowPath, step: producerStep, repositoryRoot }).schema;
     } catch (error) {
       if (!(error instanceof WorkflowInterpreterError) || !error.message.includes('missing output schema')) throw error;
       continue;

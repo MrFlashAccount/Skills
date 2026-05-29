@@ -203,6 +203,40 @@ test('runner: wait_for_approval request accepts request-specific host output JSO
   assert.deepEqual(response.baton.state.choose_path, { choice: 'option_a', answer: 'Ship the smaller fix first.' });
 });
 
+
+test('runner: approval request exposes optional output schema reference', () => {
+  const runDir = path.join(tempDir, 'approval-output-schema-request');
+  const workflowPath = path.join(tempDir, 'approval-output-schema-request-workflow.json');
+  const schemaPath = path.join(tempDir, 'approval-output-schema-request.schema.json');
+  writeJson(schemaPath, {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['choice'],
+    properties: { choice: { enum: ['approved', 'blocked'] } },
+    additionalProperties: false,
+  });
+  const approvalWorkflow = structuredClone(workflowDoc);
+  approvalWorkflow.workflow.start = 'choose_path';
+  approvalWorkflow.workflow.steps = {
+    choose_path: {
+      name: 'Choose path',
+      kind: 'approval',
+      input: { prompt: 'Ask the user whether to approve or block.' },
+      output: { schema: path.basename(schemaPath) },
+      next: { match: '${{ output.choice }}', cases: { approved: 'done', blocked: 'blocked' } },
+    },
+    done: approvalWorkflow.workflow.steps.done,
+    blocked: approvalWorkflow.workflow.steps.blocked,
+  };
+  writeJson(workflowPath, approvalWorkflow);
+
+  const response = expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next approval output schema request');
+
+  assert.equal(response.status, 'needs_host_actions');
+  assert.equal(response.requests[0].action, 'wait_for_approval');
+  assert.equal(response.requests[0].outputSchema, path.basename(schemaPath));
+});
+
 test('runner: continue fans out parallel branch requests with separate step ids and load commands', () => {
   const runDir = path.join(tempDir, 'parallel');
   const workflowPath = path.join(tempDir, 'parallel-workflow.json');

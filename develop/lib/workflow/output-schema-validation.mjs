@@ -75,7 +75,7 @@ export function outputSchemaRetryKey(stepId) {
 export function validationRetryPrompt({ errors, attempt, maxAttempts = OUTPUT_SCHEMA_MAX_ATTEMPTS }) {
   return [
     `Previous output failed output.schema validation (attempt ${attempt}/${maxAttempts}).`,
-    'Return strict JSON matching the declared output.schema and keep the worker-output routing fields required by the workflow.',
+    'Return strict JSON matching the declared output.schema and keep the routing fields required by the workflow.',
     `Validation errors: ${errors}`,
   ].join('\n');
 }

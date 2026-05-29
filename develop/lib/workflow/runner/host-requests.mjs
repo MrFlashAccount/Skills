@@ -36,12 +36,16 @@ export function buildHostRequests(interpreterResponse, { runDir }) {
 
   return interpreterResponse.steps
     .filter((step) => !TERMINAL_ACTIONS.has(step.action))
-    .map((step) => ({
-      id: step.id,
-      stepId: step.id,
-      action: step.action,
-      loadInstructionsCommand: loadInstructionsCommandForStep(runDir, step.id),
-    }));
+    .map((step) => {
+      const request = {
+        id: step.id,
+        stepId: step.id,
+        action: step.action,
+        loadInstructionsCommand: loadInstructionsCommandForStep(runDir, step.id),
+      };
+      if (step.action === 'wait_for_approval' && step.step?.output?.schema) request.outputSchema = step.step.output.schema;
+      return request;
+    });
 }
 
 export function toRunnerResponse(interpreterResponse, options) {
