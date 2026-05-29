@@ -7,7 +7,7 @@ import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const tempDir = mkdtempSync(path.join(tmpdir(), 'dev-harness-start-'));
+const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-start-'));
 const helperPath = path.join(root, 'develop/scripts/start-run.mjs');
 
 const fixtureWorkflowPath = path.join(tempDir, 'fixture.workflow.json');
