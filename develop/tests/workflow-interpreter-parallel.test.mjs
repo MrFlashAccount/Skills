@@ -188,7 +188,7 @@ test('runtime: parallel step outputs write separate state and advance to explici
 
 test('e2e: wrapper can render parallel branch prompts, collect branch outputs, and render join state', () => {
   const workflowDoc = structuredClone(parallelWorkflowDoc);
-  workflowDoc.workflow.name = 'dev-harness';
+  workflowDoc.workflow.name = 'parallel-render-spec';
   workflowDoc.workflow.steps.branch_a.input.state = ['prepare'];
   workflowDoc.workflow.steps.branch_b.input.state = ['prepare'];
 
