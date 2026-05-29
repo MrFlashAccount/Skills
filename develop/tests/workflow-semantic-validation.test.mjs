@@ -24,6 +24,17 @@ test('workflow semantic validation accepts the checked-in DevHarness workflow', 
   assert.deepEqual(validate(workflowDoc), { ok: true, workflow: 'dev-harness', steps: Object.keys(workflowDoc.workflow.steps).length });
 });
 
+test('workflow semantic validation warns when DevHarness described fields lack x-usage', () => {
+  const doc = structuredClone(workflowDoc);
+  doc.workflow.steps.research_draft.output.schema = 'develop/tests/fixtures/research-draft-missing-x-usage.schema.json';
+
+  const result = validate(doc);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.warnings.length, 1);
+  assert.match(result.warnings[0], /research_packet\.scope.*no x-usage/);
+});
+
 test('workflow semantic validation rejects schema-declared dynamic targets that are not workflow steps', () => {
   const doc = structuredClone(workflowDoc);
   doc.workflow.steps.review_join.output.schema = 'develop/tests/fixtures/review-join-output-unknown-target.schema.json';

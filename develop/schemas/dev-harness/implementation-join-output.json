@@ -1,6 +1,6 @@
 {
   "title": "DevHarness Implementation Join Output",
-  "description": "Output contract that joins completed implementation branches and hands evidence to reviewers.",
+  "description": "Producer output contract for joining implementation branch outputs before review dispatch.",
   "type": "object",
   "required": [
     "outcome",
@@ -12,8 +12,8 @@
         "ready_for_review",
         "blocked"
       ],
-      "description": "Machine-readable stage outcome used by workflow routing.",
-      "x-usage": "Downstream next/match logic reads this value; choose only the enum/const value that matches the stage state."
+      "description": "Producer must emit the single enum value that reflects the completed stage state; use blocked only when blocker explains the stop condition.",
+      "x-usage": "Treat this as the authoritative workflow state for this output. Do not infer success from other populated fields when this says blocked or needs revision."
     },
     "reviewer_handoff": {
       "type": "object",
@@ -27,7 +27,8 @@
         "summary": {
           "type": "string",
           "minLength": 1,
-          "description": "Concise human-readable summary for this contract section."
+          "description": "Producer must summarize the relevant decision or handoff in concise human-readable form without adding new scope.",
+          "x-usage": "Use this as concise human-readable context only. Do not route, approve, or expand scope from this text."
         },
         "selected_implementation_steps": {
           "type": "array",
@@ -40,8 +41,8 @@
               "architecture_artifact_update"
             ]
           },
-          "description": "Concrete implementation branch step ids selected for this run.",
-          "x-usage": "Runtime dispatch and join logic use these ids; keep them consistent with implementation_route and required rework."
+          "description": "Producer must list the implementation branches represented in the joined handoff.",
+          "x-usage": "Use this to verify which implementation branches are represented. Do not assume missing branches are complete."
         },
         "selected_review_steps": {
           "type": "array",
@@ -58,8 +59,8 @@
               "qa_review"
             ]
           },
-          "description": "Must be copied from the approved plan contract planning_draft.selected_review_steps; implementation_join does not choose reviewers.",
-          "x-usage": "Review dispatch reads this copied list as the review fan-out target; do not add reviewers here."
+          "description": "Producer must copy selected review branch ids from the approved planning contract without choosing new reviewers.",
+          "x-usage": "Use exactly this copied list for the next fan-out. Do not add agents here unless a newer approved plan changes the list."
         },
         "evidence": {
           "type": "array",
@@ -67,28 +68,29 @@
             "type": "string",
             "minLength": 1
           },
-          "description": "Evidence references supporting the handoff, verdict, or blocker."
+          "description": "Producer should list concrete evidence references supporting this handoff, verdict, finding, or blocker.",
+          "x-usage": "Use these references to inspect or challenge the claim. Do not assume unreferenced surfaces were checked."
         }
       },
       "additionalProperties": true,
-      "description": "Joined implementation evidence handed to selected reviewers.",
-      "x-usage": "Review dispatch and reviewers consume this as the canonical implementation summary and evidence bundle."
+      "description": "Producer must aggregate completed implementation branch outputs into a reviewer-ready handoff with evidence and planned review selection.",
+      "x-usage": "Treat this as the joined implementation evidence bundle. Do not treat it as approval that the implementation is correct."
     },
     "artifacts": {
       "type": "array",
       "items": {
         "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact"
       },
-      "description": "Optional structured artifacts emitted by this stage.",
-      "x-usage": "Use for named files or durable handoff artifacts the orchestrator should preserve."
+      "description": "Producer may emit named structured artifacts created by this stage when they are part of the handoff.",
+      "x-usage": "Use these only as supporting named artifacts to preserve or pass along. Do not treat them as routing decisions unless another field explicitly references them."
     },
     "results": {
       "type": "array",
       "items": {
         "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/result"
       },
-      "description": "Optional structured result summaries emitted by this stage.",
-      "x-usage": "Use for compact machine-readable evidence or decisions that should remain in baton state."
+      "description": "Producer may emit compact structured results, decisions, or evidence summaries created by this stage.",
+      "x-usage": "Use these as supporting evidence or compact summaries. Do not let them override outcome, selected steps, blockers, or approved contracts."
     },
     "blocker": {
       "type": "object",
@@ -101,17 +103,20 @@
         "summary": {
           "type": "string",
           "minLength": 1,
-          "description": "Concise human-readable summary for this contract section."
+          "description": "Producer must summarize the relevant decision or handoff in concise human-readable form without adding new scope.",
+          "x-usage": "Use this as concise human-readable context only. Do not route, approve, or expand scope from this text."
         },
         "source_step_id": {
           "type": "string",
           "minLength": 1,
-          "description": "Workflow step id that discovered or owns the blocker."
+          "description": "Producer must name the workflow step id that found or owns this blocker or finding.",
+          "x-usage": "Use this to identify the step that found or owns the blocker/finding. Do not treat it as a retry target by itself."
         },
         "needed": {
           "type": "string",
           "minLength": 1,
-          "description": "Specific missing input, decision, permission, or evidence needed to proceed."
+          "description": "Producer must state the exact missing decision, permission, input, or evidence required to proceed.",
+          "x-usage": "Surface this exact missing input, permission, evidence, or decision before proceeding. Do not substitute assumptions for it."
         },
         "evidence": {
           "type": "array",
@@ -119,16 +124,18 @@
             "type": "string",
             "minLength": 1
           },
-          "description": "Evidence references supporting the handoff, verdict, or blocker."
+          "description": "Producer should list concrete evidence references supporting this handoff, verdict, finding, or blocker.",
+          "x-usage": "Use these references to inspect or challenge the claim. Do not assume unreferenced surfaces were checked."
         },
         "risk": {
           "type": "string",
-          "description": "Residual risk if the blocker or finding is ignored."
+          "description": "Producer should describe the residual risk if this blocker or finding is ignored.",
+          "x-usage": "Use this to understand why ignoring the item is unsafe. Treat it as risk context unless paired with a blocked outcome."
         }
       },
       "additionalProperties": false,
-      "description": "Blocker details required when the stage cannot produce a usable contract.",
-      "x-usage": "Populate when outcome is blocked so the orchestrator can stop and ask for the missing input or decision."
+      "description": "Producer must populate this when outcome is blocked, naming the stop reason, owning step, and specific missing input or permission.",
+      "x-usage": "Treat this as a stop condition. Surface the missing input or decision instead of continuing or working around it."
     }
   },
   "additionalProperties": false,

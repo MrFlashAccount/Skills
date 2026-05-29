@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/dev-harness/reviewer-selection-output",
   "title": "DevHarness Reviewer Selection Output",
-  "description": "Worker output envelope for DevHarness stages that must declare reviewer selection state without triggering runtime routing or fan-out.",
+  "description": "Producer output contract for declaring reviewer selection state without triggering runtime fan-out.",
   "type": "object",
   "required": [
     "outcome",
@@ -12,29 +12,29 @@
     "outcome": {
       "type": "string",
       "minLength": 1,
-      "description": "Machine-readable stage outcome used by workflow routing.",
-      "x-usage": "Downstream next/match logic reads this value; choose only the enum/const value that matches the stage state."
+      "description": "Producer must emit the single enum or const value that reflects the completed stage state; use blocked only when blocker explains the stop condition.",
+      "x-usage": "Treat this as the authoritative workflow state for this output. Do not infer success from other populated fields when this says blocked or needs revision."
     },
     "artifacts": {
       "type": "array",
       "items": {
         "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact"
       },
-      "description": "Optional structured artifacts emitted by this stage.",
-      "x-usage": "Use for named files or durable handoff artifacts the orchestrator should preserve."
+      "description": "Producer may emit named structured artifacts created by this stage when they are part of the handoff.",
+      "x-usage": "Use these only as supporting named artifacts to preserve or pass along. Do not treat them as routing decisions unless another field explicitly references them."
     },
     "results": {
       "type": "array",
       "items": {
         "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/result"
       },
-      "description": "Optional structured result summaries emitted by this stage.",
-      "x-usage": "Use for compact machine-readable evidence or decisions that should remain in baton state."
+      "description": "Producer may emit compact structured results, decisions, or evidence summaries created by this stage.",
+      "x-usage": "Use these as supporting evidence or compact summaries. Do not let them override outcome, selected steps, blockers, or approved contracts."
     },
     "blocker": {
       "type": "object",
-      "description": "Blocker details required when the stage cannot produce a usable contract.",
-      "x-usage": "Populate when outcome is blocked so the orchestrator can stop and ask for the missing input or decision."
+      "description": "Producer must populate this when outcome is blocked, naming the stop reason, owning step, and specific missing input or permission.",
+      "x-usage": "Treat this as a stop condition. Surface the missing input or decision instead of continuing or working around it."
     },
     "review_plan": {
       "type": "object",
@@ -48,13 +48,13 @@
           "items": {
             "$ref": "#/$defs/reviewer"
           },
-          "description": "Reviewer selections with reason, surfaces, and required flag.",
-          "x-usage": "Keep one entry per selected review step so runtime and humans can audit why each reviewer runs."
+          "description": "Producer must include one reviewer entry per selected review step, with reason, inspected surfaces, and required flag.",
+          "x-usage": "Use these entries as selection evidence. Do not treat them as proof that the listed work has run."
         }
       },
       "additionalProperties": false,
-      "description": "Planner-owned review contract describing required reviewers and surfaces.",
-      "x-usage": "Review dispatch uses this to fan out review work; reviewers use it to understand their required scope."
+      "description": "Producer must declare or draft the review contract describing selected reviewers, reasons, surfaces, and required status.",
+      "x-usage": "Use this as selection state only. Do not fan out work unless a dispatch step provides an approved selected_review_steps list."
     }
   },
   "additionalProperties": false,
@@ -86,7 +86,8 @@
         "reason": {
           "type": "string",
           "minLength": 1,
-          "description": "Reason this reviewer or step is needed."
+          "description": "Producer must state why this reviewer or workflow step is needed for the scoped work.",
+          "x-usage": "Use this to understand why this step or role was selected. Do not expand the assigned scope beyond the listed surfaces."
         },
         "surfaces": {
           "type": "array",
@@ -95,11 +96,13 @@
             "type": "string",
             "minLength": 1
           },
-          "description": "Code, contract, docs, data, or UX surfaces this reviewer must inspect."
+          "description": "Producer must list the code, contract, docs, data, or UX surfaces this reviewer must inspect.",
+          "x-usage": "Use these as the exact focus surfaces for the assigned work. Do not assume unlisted surfaces are covered."
         },
         "required": {
           "type": "boolean",
-          "description": "Whether this reviewer is mandatory for completion."
+          "description": "Producer must mark whether this reviewer is mandatory for completion.",
+          "x-usage": "Treat true as mandatory for completion and false as optional coverage. Do not let this override the selected step list."
         }
       },
       "additionalProperties": false

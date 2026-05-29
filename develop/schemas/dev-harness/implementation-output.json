@@ -1,6 +1,6 @@
 {
   "title": "DevHarness Implementation Output",
-  "description": "Output contract for a DevHarness implementation worker after applying its assigned slice.",
+  "description": "Producer output contract for a DevHarness implementation worker after applying its assigned slice.",
   "type": "object",
   "required": [
     "outcome",
@@ -14,8 +14,8 @@
         "implemented",
         "blocked"
       ],
-      "description": "Machine-readable stage outcome used by workflow routing.",
-      "x-usage": "Downstream next/match logic reads this value; choose only the enum/const value that matches the stage state."
+      "description": "Producer must emit the single enum value that reflects the completed stage state; use blocked only when blocker explains the stop condition.",
+      "x-usage": "Treat this as the authoritative workflow state for this output. Do not infer success from other populated fields when this says blocked or needs revision."
     },
     "implementation_handoff": {
       "type": "object",
@@ -28,14 +28,16 @@
         "summary": {
           "type": "string",
           "minLength": 1,
-          "description": "Concise human-readable summary for this contract section."
+          "description": "Producer must summarize the relevant decision or handoff in concise human-readable form without adding new scope.",
+          "x-usage": "Use this as concise human-readable context only. Do not route, approve, or expand scope from this text."
         },
         "covered_contract_rows": {
           "type": "array",
           "items": {
             "type": "object"
           },
-          "description": "Plan or contract rows covered by this implementation slice."
+          "description": "Producer must identify the plan or contract rows this slice claims to cover.",
+          "x-usage": "Compare these coverage claims against the approved contract. Do not treat them as independent approval."
         },
         "review_notes": {
           "type": "array",
@@ -43,12 +45,13 @@
             "type": "string",
             "minLength": 1
           },
-          "description": "Notes or cautions for downstream reviewers."
+          "description": "Producer must list cautions, assumptions, or focus areas created during implementation.",
+          "x-usage": "Use these notes as focus areas for the next agent. Do not treat them as blockers unless outcome or findings make them blocking."
         }
       },
       "additionalProperties": true,
-      "description": "Implementation worker handoff describing completed work and review notes.",
-      "x-usage": "Implementation join and reviewers use this as the authoritative worker-produced summary."
+      "description": "Producer must describe the completed implementation slice, covered contract rows, and reviewer notes.",
+      "x-usage": "Treat this as the worker-reported implementation evidence, not approval. Verify claims against changed files and checks before accepting them."
     },
     "changed_files": {
       "type": "array",
@@ -56,8 +59,8 @@
         "type": "string",
         "minLength": 1
       },
-      "description": "Files changed by the implementation worker.",
-      "x-usage": "Reviewers and final reporting use this for focused inspection."
+      "description": "Producer must list repository-relative files changed by this implementation worker.",
+      "x-usage": "Use this for focused file inspection and final reporting. Do not assume unchanged files were inspected or safe."
     },
     "verification": {
       "type": "array",
@@ -71,34 +74,36 @@
           "command": {
             "type": "string",
             "minLength": 1,
-            "description": "Verification command or check that was run."
+            "description": "Producer must record the command or manual check name exactly enough to reproduce or understand it.",
+            "x-usage": "Use this to reproduce or audit the check. Do not treat it as proof of success without the paired result."
           },
           "result": {
             "type": "string",
             "minLength": 1,
-            "description": "Result of the verification command or check."
+            "description": "Producer must record the observed result, including failures, skips, or blockers.",
+            "x-usage": "Treat this as the observed check result, including failures or skips. Do not mark the check as passing unless this says it passed."
           }
         },
         "additionalProperties": true
       },
-      "description": "Required verification commands, checks, or evidence for the slice.",
-      "x-usage": "Implementation and review steps should report these exact checks or explain blockers."
+      "description": "Producer must list verification commands or checks run for this slice and their results.",
+      "x-usage": "Compare these checks against the required verification. Treat missing, skipped, or failed checks as unresolved until explained or fixed."
     },
     "artifacts": {
       "type": "array",
       "items": {
         "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact"
       },
-      "description": "Optional structured artifacts emitted by this stage.",
-      "x-usage": "Use for named files or durable handoff artifacts the orchestrator should preserve."
+      "description": "Producer may emit named structured artifacts created by this stage when they are part of the handoff.",
+      "x-usage": "Use these only as supporting named artifacts to preserve or pass along. Do not treat them as routing decisions unless another field explicitly references them."
     },
     "results": {
       "type": "array",
       "items": {
         "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/result"
       },
-      "description": "Optional structured result summaries emitted by this stage.",
-      "x-usage": "Use for compact machine-readable evidence or decisions that should remain in baton state."
+      "description": "Producer may emit compact structured results, decisions, or evidence summaries created by this stage.",
+      "x-usage": "Use these as supporting evidence or compact summaries. Do not let them override outcome, selected steps, blockers, or approved contracts."
     },
     "blocker": {
       "type": "object",
@@ -111,17 +116,20 @@
         "summary": {
           "type": "string",
           "minLength": 1,
-          "description": "Concise human-readable summary for this contract section."
+          "description": "Producer must summarize the relevant decision or handoff in concise human-readable form without adding new scope.",
+          "x-usage": "Use this as concise human-readable context only. Do not route, approve, or expand scope from this text."
         },
         "source_step_id": {
           "type": "string",
           "minLength": 1,
-          "description": "Workflow step id that discovered or owns the blocker."
+          "description": "Producer must name the workflow step id that found or owns this blocker or finding.",
+          "x-usage": "Use this to identify the step that found or owns the blocker/finding. Do not treat it as a retry target by itself."
         },
         "needed": {
           "type": "string",
           "minLength": 1,
-          "description": "Specific missing input, decision, permission, or evidence needed to proceed."
+          "description": "Producer must state the exact missing decision, permission, input, or evidence required to proceed.",
+          "x-usage": "Surface this exact missing input, permission, evidence, or decision before proceeding. Do not substitute assumptions for it."
         },
         "evidence": {
           "type": "array",
@@ -129,16 +137,18 @@
             "type": "string",
             "minLength": 1
           },
-          "description": "Evidence references supporting the handoff, verdict, or blocker."
+          "description": "Producer should list concrete evidence references supporting this handoff, verdict, finding, or blocker.",
+          "x-usage": "Use these references to inspect or challenge the claim. Do not assume unreferenced surfaces were checked."
         },
         "risk": {
           "type": "string",
-          "description": "Residual risk if the blocker or finding is ignored."
+          "description": "Producer should describe the residual risk if this blocker or finding is ignored.",
+          "x-usage": "Use this to understand why ignoring the item is unsafe. Treat it as risk context unless paired with a blocked outcome."
         }
       },
       "additionalProperties": false,
-      "description": "Blocker details required when the stage cannot produce a usable contract.",
-      "x-usage": "Populate when outcome is blocked so the orchestrator can stop and ask for the missing input or decision."
+      "description": "Producer must populate this when outcome is blocked, naming the stop reason, owning step, and specific missing input or permission.",
+      "x-usage": "Treat this as a stop condition. Surface the missing input or decision instead of continuing or working around it."
     }
   },
   "additionalProperties": false,

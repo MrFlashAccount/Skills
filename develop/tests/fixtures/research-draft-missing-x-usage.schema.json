@@ -1,27 +1,29 @@
 {
-  "title": "DevHarness Gate Review Verdict Output",
-  "description": "Producer output contract for DevHarness review gates that pass, request changes, or block implemented work.",
+  "title": "DevHarness Research Draft Output",
+  "description": "Producer output contract for the DevHarness research draft gate before critic attack.",
   "type": "object",
   "required": [
     "outcome",
-    "verdict"
+    "research_packet"
   ],
   "properties": {
     "outcome": {
       "enum": [
-        "passed",
-        "needs_changes",
+        "ready_for_attack",
         "blocked"
       ],
       "description": "Producer must emit the single enum value that reflects the completed stage state; use blocked only when blocker explains the stop condition.",
       "x-usage": "Treat this as the authoritative workflow state for this output. Do not infer success from other populated fields when this says blocked or needs revision."
     },
-    "verdict": {
+    "research_packet": {
       "type": "object",
       "required": [
         "summary",
-        "evidence_checked",
-        "findings"
+        "scope",
+        "constraints",
+        "risks",
+        "open_questions",
+        "recommendation"
       ],
       "properties": {
         "summary": {
@@ -34,40 +36,47 @@
           "description": "Producer must summarize the relevant decision or handoff in concise human-readable form without adding new scope.",
           "x-usage": "Use this as concise human-readable context only. Do not route, approve, or expand scope from this text."
         },
-        "evidence_checked": {
+        "scope": {
+          "type": "object",
+          "description": "Producer must describe the task scope, including in-scope and out-of-scope boundaries discovered during research."
+        },
+        "constraints": {
           "type": "array",
           "items": {
             "type": "string",
             "minLength": 1
           },
-          "description": "Producer must list the concrete sources, artifacts, commands, or state inspected before issuing the verdict.",
-          "x-usage": "Use this as the list of sources actually checked before the verdict. Do not assume any unlisted source or surface was checked."
+          "description": "Producer must list discovered constraints that apply to later architecture and planning stages.",
+          "x-usage": "Carry these constraints into later work unless a newer approved contract explicitly supersedes them."
         },
-        "findings": {
+        "risks": {
           "type": "array",
           "items": {
-            "type": "object"
+            "type": "string",
+            "minLength": 1
           },
-          "description": "Producer must list actionable findings, concerns, or reasons behind the verdict; leave empty only for a clean pass.",
-          "x-usage": "Treat these as the actionable reasons behind the verdict. Apply them when the outcome requires rework; do not use them to add unplanned scope."
+          "description": "Producer must list known risks discovered during research with enough specificity for later gate evaluation.",
+          "x-usage": "Use these as risk inputs for decisions and handoffs. Do not treat a risk as blocking unless outcome, open questions, or policy makes it blocking."
+        },
+        "open_questions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Producer must list unresolved questions that may block progress or lower confidence.",
+          "x-usage": "Resolve or explicitly accept these before relying on the research as final. Do not infer answers from the recommendation."
+        },
+        "recommendation": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Producer must state the researcher recommendation for the next gate, approval decision, or plan direction.",
+          "x-usage": "Treat this as advisory research judgment. Do not let it approve implementation, freeze scope, or override constraints/blockers."
         }
       },
       "additionalProperties": true,
-      "description": "Producer must emit the review decision payload, including summary, checked evidence, and findings supporting pass, rework, or block.",
-      "x-usage": "Use this with outcome as the authoritative decision. Pass only on passed, send changes only on needs_changes, and stop on blocked."
-    },
-    "required_implementation_steps": {
-      "type": "array",
-      "uniqueItems": true,
-      "items": {
-        "enum": [
-          "backend_implementation",
-          "frontend_implementation",
-          "architecture_artifact_update"
-        ]
-      },
-      "description": "Producer must list implementation branch ids that must rerun when review requires rework.",
-      "x-usage": "Use only these branch ids when rerunning implementation for required changes. Do not add branches from prose alone."
+      "description": "Producer must provide the discovery packet for the task, including scope, constraints, risks, open questions, and recommendation.",
+      "x-usage": "Treat this as the discovery baseline only after the required approval/pass outcome. Use it for scope and evidence; do not treat it as permission to implement."
     },
     "artifacts": {
       "type": "array",
@@ -133,5 +142,5 @@
   },
   "additionalProperties": false,
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/dev-harness/gate-review-verdict-output"
+  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/dev-harness/research-draft-output"
 }
