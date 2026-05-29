@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import test, { after } from 'node:test';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import workflowDoc from '../dev-harness.workflow.json' with { type: 'json' };
@@ -7,18 +9,70 @@ import { WorkflowInterpreterError } from '../lib/workflow/errors.mjs';
 import { validateWorkflowDocument } from '../lib/validate/workflow-validator.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-semantic-validation-'));
 
 function validate(doc) {
   return validateWorkflowDocument(doc, { workflowPath: path.join(REPO_ROOT, 'develop/dev-harness.workflow.json'), repositoryRoot: REPO_ROOT });
 }
 
+function validateSynthetic(doc) {
+  return validateWorkflowDocument(doc, { workflowPath: path.join(tempDir, 'workflow.json'), repositoryRoot: REPO_ROOT });
+}
+
 function assertSemanticFailure(doc, pattern) {
-  assert.throws(() => validate(doc), (error) => {
+  assert.throws(() => validateSynthetic(doc), (error) => {
     assert.equal(error instanceof WorkflowInterpreterError, true);
     assert.match(error.message, pattern);
     return true;
   });
 }
+
+after(() => rmSync(tempDir, { recursive: true, force: true }));
+
+function writeSchema(name, schema) {
+  writeFileSync(path.join(tempDir, name), `${JSON.stringify(schema, null, 2)}\n`);
+}
+
+const routeSchema = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  required: ['outcome', 'route', 'next_steps'],
+  properties: {
+    outcome: { enum: ['ready', 'blocked'] },
+    route: { enum: ['review', 'blocked'] },
+    next_steps: {
+      type: 'array',
+      minItems: 1,
+      uniqueItems: true,
+      items: { enum: ['branch_a', 'branch_b'] },
+    },
+  },
+  additionalProperties: false,
+};
+
+writeSchema('route-output.schema.json', routeSchema);
+writeSchema('bad-array-output.schema.json', {
+  ...routeSchema,
+  properties: {
+    ...routeSchema.properties,
+    next_steps: {
+      type: 'array',
+      items: { enum: ['branch_a', 'branch_b'] },
+    },
+  },
+});
+writeSchema('unknown-array-target-output.schema.json', {
+  ...routeSchema,
+  properties: {
+    ...routeSchema.properties,
+    next_steps: {
+      type: 'array',
+      minItems: 1,
+      uniqueItems: true,
+      items: { enum: ['branch_a', 'missing_branch'] },
+    },
+  },
+});
 
 function genericWorkflowWithWorkerRole(role) {
   return {
@@ -43,6 +97,58 @@ function genericWorkflowWithWorkerRole(role) {
   };
 }
 
+function syntheticWorkflow(overrides = {}) {
+  const doc = {
+    workflow: {
+      name: 'synthetic-validation-fixture',
+      version: 1,
+      start: 'producer',
+      done: 'done',
+      blocked: 'blocked',
+      steps: {
+        producer: {
+          name: 'Producer',
+          kind: 'worker',
+          input: { state: ['artifacts', 'results'] },
+          output: { template: 'producer.md', schema: 'route-output.schema.json' },
+          next: { match: '${{ output.outcome }}', cases: { ready: 'consumer', blocked: 'blocked' } },
+        },
+        consumer: {
+          name: 'Consumer',
+          kind: 'worker',
+          input: { state: ['producer'] },
+          output: { template: 'consumer.md', schema: 'route-output.schema.json' },
+          next: 'done',
+        },
+        branch_a: {
+          name: 'Branch A',
+          kind: 'worker',
+          input: { state: ['producer'] },
+          output: { template: 'branch-a.md', schema: 'route-output.schema.json' },
+          next: 'join',
+        },
+        branch_b: {
+          name: 'Branch B',
+          kind: 'worker',
+          input: { state: ['producer'] },
+          output: { template: 'branch-b.md', schema: 'route-output.schema.json' },
+          next: 'join',
+        },
+        join: {
+          name: 'Join',
+          kind: 'worker',
+          input: { state: ['producer', 'branch_a', 'branch_b'] },
+          output: { template: 'join.md', schema: 'route-output.schema.json' },
+          next: 'done',
+        },
+        done: { name: 'Done', kind: 'done', input: { state: ['artifacts', 'results', 'outputs'] } },
+        blocked: { name: 'Blocked', kind: 'blocked', input: { state: ['artifacts', 'results', 'outputs'] } },
+      },
+    },
+  };
+  return overrides(doc) ?? doc;
+}
+
 test('workflow semantic validation accepts the checked-in DevHarness workflow', () => {
   assert.deepEqual(validate(workflowDoc), { ok: true, workflow: 'dev-harness', steps: Object.keys(workflowDoc.workflow.steps).length });
 });
@@ -50,7 +156,7 @@ test('workflow semantic validation accepts the checked-in DevHarness workflow', 
 test('workflow semantic validation rejects invalid worker roles in generic workflows', () => {
   const doc = genericWorkflowWithWorkerRole('missing-workflow-role');
 
-  assertSemanticFailure(doc, /step 'worker_step' input\.role 'missing-workflow-role' is not an allowed role/);
+  assert.throws(() => validate(doc), /step 'worker_step' input\.role 'missing-workflow-role' is not an allowed role/);
 });
 
 test('workflow semantic validation warns when DevHarness described fields lack x-usage', () => {
@@ -82,5 +188,88 @@ test('workflow semantic validation rejects unreachable match cases not present i
   const doc = structuredClone(workflowDoc);
   doc.workflow.steps.research_draft.next.cases.unreachable = 'blocked';
 
-  assertSemanticFailure(doc, /research_draft.*unreachable case 'unreachable'/);
+  assert.throws(() => validate(doc), /research_draft.*unreachable case 'unreachable'/);
+});
+
+test('workflow semantic validation rejects malformed workflow names', () => {
+  const doc = syntheticWorkflow((draft) => {
+    draft.workflow.name = '../not-a-workflow-name';
+    return draft;
+  });
+
+  assertSemanticFailure(doc, /workflow name must be a non-empty lowercase kebab-case identifier/);
+});
+
+test('workflow semantic validation rejects input.state selectors that do not name worker outputs or aggregate keys', () => {
+  assertSemanticFailure(
+    syntheticWorkflow((draft) => {
+      draft.workflow.steps.consumer.input.state = ['missing_step'];
+      return draft;
+    }),
+    /consumer.*input\.state selector 'missing_step'.*declared workflow step/,
+  );
+
+  assertSemanticFailure(
+    syntheticWorkflow((draft) => {
+      draft.workflow.steps.approval_gate = {
+        name: 'Approval gate',
+        kind: 'approval',
+        next: { match: '${{ output.approval }}', cases: { approved: 'consumer', blocked: 'blocked' } },
+      };
+      draft.workflow.steps.consumer.input.state = ['approval_gate'];
+      return draft;
+    }),
+    /consumer.*approval step 'approval_gate'.*only worker step outputs/,
+  );
+});
+
+test('workflow semantic validation rejects unsupported nested input.state selectors', () => {
+  assertSemanticFailure(
+    syntheticWorkflow((draft) => {
+      draft.workflow.steps.consumer.input.state = ['producer.route'];
+      return draft;
+    }),
+    /consumer.*input\.state selector 'producer\.route' is invalid/,
+  );
+});
+
+test('workflow semantic validation rejects projected input expressions with unknown schema fields', () => {
+  assertSemanticFailure(
+    syntheticWorkflow((draft) => {
+      draft.workflow.steps.consumer.next = { match: '${{ input.producer.missing_route }}', cases: { review: 'done', blocked: 'blocked' } };
+      return draft;
+    }),
+    /consumer.*input\.producer\.missing_route.*no schema-covered path/,
+  );
+});
+
+test('workflow semantic validation rejects unsafe dynamic array target schemas', () => {
+  assertSemanticFailure(
+    syntheticWorkflow((draft) => {
+      draft.workflow.steps.producer.next = '${{ output.next_steps }}';
+      draft.workflow.steps.producer.output.schema = 'bad-array-output.schema.json';
+      return draft;
+    }),
+    /producer.*output\.next_steps.*array target schema must declare minItems >= 1/,
+  );
+
+  assertSemanticFailure(
+    syntheticWorkflow((draft) => {
+      draft.workflow.steps.producer.next = '${{ output.next_steps }}';
+      draft.workflow.steps.producer.output.schema = 'unknown-array-target-output.schema.json';
+      return draft;
+    }),
+    /producer.*output\.next_steps.*target not found: missing_branch/,
+  );
+});
+
+test('workflow semantic validation rejects dynamic array target schemas with invalid join shape', () => {
+  assertSemanticFailure(
+    syntheticWorkflow((draft) => {
+      draft.workflow.steps.producer.next = '${{ output.next_steps }}';
+      draft.workflow.steps.branch_b.next = 'done';
+      return draft;
+    }),
+    /producer.*output\.next_steps.*parallel branch targets must share one explicit join step/,
+  );
 });

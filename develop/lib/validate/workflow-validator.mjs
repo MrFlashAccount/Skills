@@ -7,6 +7,9 @@ import { assertWorkflowSchema, workflowSchemas } from '../workflow/schema-valida
 import { assertTransitionDescriptorTargets, normalizeTransitionNext } from '../workflow/transitions.mjs';
 
 const DYNAMIC_TARGET_UNCHECKED_ROOTS = new Set(['outputs']);
+const SUPPORTED_AGGREGATE_STATE_KEYS = new Set(['artifacts', 'results', 'outputs']);
+const TOP_LEVEL_STATE_SELECTOR = /^[A-Za-z_][A-Za-z0-9_-]*$/;
+const WORKFLOW_NAME = /^[a-z][a-z0-9-]*$/;
 
 function fail(message) {
   throw new WorkflowInterpreterError(`workflow semantic validation failed: ${message}`);
@@ -27,6 +30,32 @@ function assertWorkflowRootTargets(workflow) {
   const blockedStep = workflow.steps[workflow.blocked];
   if (!blockedStep) fail(`workflow blocked target not found: ${workflow.blocked}`);
   if (blockedStep.kind !== 'blocked') fail(`workflow blocked target '${workflow.blocked}' must be a blocked step`);
+}
+
+function assertWorkflowIdentity(workflow) {
+  if (typeof workflow.name !== 'string' || !WORKFLOW_NAME.test(workflow.name)) {
+    fail(`workflow name must be a non-empty lowercase kebab-case identifier: ${JSON.stringify(workflow.name)}`);
+  }
+}
+
+function assertWorkflowInputStateSelectors(workflow) {
+  const aggregateKeys = [...SUPPORTED_AGGREGATE_STATE_KEYS].join(', ');
+  for (const [stepId, step] of Object.entries(workflow.steps)) {
+    for (const selector of step.input?.state ?? []) {
+      if (!TOP_LEVEL_STATE_SELECTOR.test(selector)) {
+        fail(`step '${stepId}' input.state selector '${selector}' is invalid; v1 supports top-level baton state keys only`);
+      }
+      if (SUPPORTED_AGGREGATE_STATE_KEYS.has(selector)) continue;
+
+      const sourceStep = workflow.steps[selector];
+      if (!sourceStep) {
+        fail(`step '${stepId}' input.state selector '${selector}' is neither a declared workflow step nor a supported aggregate state key (${aggregateKeys})`);
+      }
+      if (sourceStep.kind !== 'worker') {
+        fail(`step '${stepId}' input.state selector '${selector}' references ${sourceStep.kind} step '${selector}', but only worker step outputs are projected by step id`);
+      }
+    }
+  }
 }
 
 function assertWorkflowStepRoles(workflow, repositoryRoot) {
@@ -141,12 +170,15 @@ function collectStringValues(schema, values = new Set()) {
 function possibleStringTargetsForSchema(schema) {
   const directValues = collectStringValues(schema);
   const itemValues = new Set();
+  const arraySchemas = [];
   for (const candidate of schemaVariants(schema)) {
-    if (candidate.type === 'array' || candidate.items) collectStringValues(candidate.items, itemValues);
+    if (candidate.type === 'array' || candidate.items) {
+      arraySchemas.push(candidate);
+      collectStringValues(candidate.items, itemValues);
+    }
   }
 
-  const possible = new Set([...directValues, ...itemValues]);
-  return { possible };
+  return { directValues, itemValues, arraySchemas, possible: new Set([...directValues, ...itemValues]) };
 }
 
 function schemaForExpression({ workflow, schemasByStep, stepId, step, expression }) {
@@ -187,13 +219,33 @@ function assertDynamicTargetSchema({ workflow, schemasByStep, stepId, step, expr
   const aggregate = schemas.reduce((acc, schema) => {
     const next = possibleStringTargetsForSchema(schema);
     for (const value of next.possible) acc.possible.add(value);
+    for (const value of next.directValues) acc.directValues.add(value);
+    for (const value of next.itemValues) acc.itemValues.add(value);
+    acc.arraySchemas.push(...next.arraySchemas);
     return acc;
-  }, { possible: new Set() });
+  }, { possible: new Set(), directValues: new Set(), itemValues: new Set(), arraySchemas: [] });
 
   if (aggregate.possible.size === 0) fail(`step '${stepId}' ${field} expression ${expression.source} must resolve from a string enum/const or array item enum/const schema`);
 
-  for (const target of aggregate.possible) {
+  for (const target of aggregate.directValues) {
     if (!Object.hasOwn(workflow.steps, target)) fail(`step '${stepId}' ${field} expression ${expression.source} schema allows unknown target '${target}'`);
+  }
+  if (aggregate.itemValues.size === 0) return;
+
+  for (const arraySchema of aggregate.arraySchemas) {
+    if (arraySchema.minItems === undefined || arraySchema.minItems < 1) {
+      fail(`step '${stepId}' ${field} expression ${expression.source} array target schema must declare minItems >= 1`);
+    }
+    if (arraySchema.uniqueItems !== true) {
+      fail(`step '${stepId}' ${field} expression ${expression.source} array target schema must declare uniqueItems: true`);
+    }
+  }
+
+  try {
+    assertTransitionDescriptorTargets(workflow, stepId, { kind: 'static-parallel', targets: [...aggregate.itemValues] });
+  } catch (error) {
+    if (error instanceof WorkflowInterpreterError) fail(`step '${stepId}' ${field} expression ${expression.source} array target schema is not a valid parallel fan-out: ${error.message}`);
+    throw error;
   }
 }
 
@@ -247,7 +299,9 @@ function assertTransitionSemantics(workflow, schemasByStep) {
 export function validateWorkflowDocument(workflowDoc, { workflowPath = 'workflow.json', repositoryRoot = process.cwd() } = {}) {
   assertWorkflowSchema(workflowDoc);
   const workflow = workflowDoc.workflow;
+  assertWorkflowIdentity(workflow);
   assertWorkflowRootTargets(workflow);
+  assertWorkflowInputStateSelectors(workflow);
   assertWorkflowStepRoles(workflow, repositoryRoot);
   const warnings = [];
   const schemasByStep = loadStepOutputSchemas({ workflow, workflowPath, repositoryRoot, warnings });
