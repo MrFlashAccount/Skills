@@ -2,6 +2,7 @@ import { validateJsonSchema } from 'schema-validation';
 import { WorkflowInterpreterError } from '../workflow/errors.mjs';
 import { readJson } from '../workflow/json-io.mjs';
 import { readOutputSchema } from '../workflow/output-schema-validation.mjs';
+import { assertRoleDirectoryName, listAllowedWorkflowRoles } from '../workflow/roles.mjs';
 import { assertWorkflowSchema, workflowSchemas } from '../workflow/schema-validation.mjs';
 import { assertTransitionDescriptorTargets, normalizeTransitionNext } from '../workflow/transitions.mjs';
 
@@ -26,6 +27,25 @@ function assertWorkflowRootTargets(workflow) {
   const blockedStep = workflow.steps[workflow.blocked];
   if (!blockedStep) fail(`workflow blocked target not found: ${workflow.blocked}`);
   if (blockedStep.kind !== 'blocked') fail(`workflow blocked target '${workflow.blocked}' must be a blocked step`);
+}
+
+function assertWorkflowStepRoles(workflow, repositoryRoot) {
+  const allowedRoles = new Set(listAllowedWorkflowRoles({ repositoryRoot }));
+  for (const [stepId, step] of Object.entries(workflow.steps)) {
+    if (step.kind !== 'worker') continue;
+    const role = step.input?.role;
+    if (!role) continue;
+    try {
+      assertRoleDirectoryName(role);
+    } catch (error) {
+      if (error instanceof WorkflowInterpreterError) fail(`step '${stepId}' ${error.message.replace(/^workflow role validation failed: /, '')}`);
+      throw error;
+    }
+    if (!allowedRoles.has(role)) {
+      const expected = [...allowedRoles].join(', ');
+      fail(`step '${stepId}' input.role '${role}' is not an allowed role${expected ? `; expected one of: ${expected}` : ''}`);
+    }
+  }
 }
 
 function isDevHarnessOutputSchema(schemaRef, schema) {
@@ -228,6 +248,7 @@ export function validateWorkflowDocument(workflowDoc, { workflowPath = 'workflow
   assertWorkflowSchema(workflowDoc);
   const workflow = workflowDoc.workflow;
   assertWorkflowRootTargets(workflow);
+  assertWorkflowStepRoles(workflow, repositoryRoot);
   const warnings = [];
   const schemasByStep = loadStepOutputSchemas({ workflow, workflowPath, repositoryRoot, warnings });
   assertTransitionSemantics(workflow, schemasByStep);

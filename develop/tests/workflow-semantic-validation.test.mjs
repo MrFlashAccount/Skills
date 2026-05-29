@@ -20,8 +20,37 @@ function assertSemanticFailure(doc, pattern) {
   });
 }
 
+function genericWorkflowWithWorkerRole(role) {
+  return {
+    workflow: {
+      name: 'generic-role-validation-fixture',
+      version: 1,
+      start: 'worker_step',
+      done: 'done',
+      blocked: 'blocked',
+      steps: {
+        worker_step: {
+          name: 'Worker step',
+          kind: 'worker',
+          input: { role, prompt: 'Run worker.' },
+          output: { template: 'worker.md' },
+          next: 'done',
+        },
+        done: { name: 'Done', kind: 'done' },
+        blocked: { name: 'Blocked', kind: 'blocked' },
+      },
+    },
+  };
+}
+
 test('workflow semantic validation accepts the checked-in DevHarness workflow', () => {
   assert.deepEqual(validate(workflowDoc), { ok: true, workflow: 'dev-harness', steps: Object.keys(workflowDoc.workflow.steps).length });
+});
+
+test('workflow semantic validation rejects invalid worker roles in generic workflows', () => {
+  const doc = genericWorkflowWithWorkerRole('missing-workflow-role');
+
+  assertSemanticFailure(doc, /step 'worker_step' input\.role 'missing-workflow-role' is not an allowed role/);
 });
 
 test('workflow semantic validation warns when DevHarness described fields lack x-usage', () => {
