@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import workflowDoc from '../dev-harness.workflow.json' with { type: 'json' };
 import { WorkflowInterpreterError } from '../lib/workflow/errors.mjs';
-import { validateWorkflowDocument } from '../lib/workflow/semantic-validation.mjs';
+import { validateWorkflowDocument } from '../lib/validate/workflow-validator.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 

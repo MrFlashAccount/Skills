@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { WorkflowInterpreterError } from '../lib/workflow/errors.mjs';
-import { validateWorkflowFile } from '../lib/workflow/semantic-validation.mjs';
+import { validateWorkflowFile } from '../lib/validate/workflow-validator.mjs';
 
 function fail(message) {
   console.error(`validate-workflow: ${message}`);
