@@ -49,7 +49,7 @@ In scope for #89:
 Current files already establish these contracts:
 
 - `workflows/dev-harness/workflow.json` declares worker and approval steps with `input.state`, optional `input.template`, optional `input.prompt`, optional worker `input.role`, and worker `output.template`.
-- `develop/lib/schemas/workflow.json` prefers flat workflow documents (`name`, `version`, `start`, `done`, `blocked`, `steps` at the JSON root), still accepts the legacy `{ "workflow": { ... } }` wrapper for compatibility, rejects step-level extension fields, and allows workflow-scoped extensions only.
+- `develop/lib/schemas/workflow.json` requires flat workflow documents (`name`, `version`, `start`, `done`, `blocked`, `steps` at the JSON root), rejects wrapped workflow documents, rejects step-level extension fields, and allows workflow-scoped extensions only.
 - `develop/lib/workflow/interpreter/index.mjs` chooses the current `step`, validates transition targets, applies output, and returns the unified `{ baton, steps[] }` response for `inspect`/`apply`; `render` keeps compiled prompts inside the deterministic runner layer without making host requests carry full prompt text.
 - `develop/lib/workflow/executable-steps.mjs` exposes step entries shaped as `{ id, action, step }` before rendering prompts.
 - `develop/lib/workflow/projection.mjs` projects only explicit top-level `input.state` selectors, skips selectors that are valid workflow step ids but absent from the current `baton.state`, and rejects nested selectors.

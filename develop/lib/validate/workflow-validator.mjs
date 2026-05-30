@@ -4,7 +4,7 @@ import { readJson } from '../workflow/json-io.mjs';
 import { RESERVED_STEP_IDS, assertProjectableStateSelector, isReservedStateKey } from '../workflow/state-keys.mjs';
 import { readOutputSchema } from '../workflow/output-schema-validation.mjs';
 import { assertRoleDirectoryName, listAllowedWorkflowRoles } from '../workflow/roles.mjs';
-import { assertWorkflowSchema, workflowFromDocument, workflowSchemas } from '../workflow/schema-validation.mjs';
+import { assertWorkflowSchema, workflowSchemas } from '../workflow/schema-validation.mjs';
 import { assertTransitionDescriptorTargets, normalizeTransitionNext } from '../workflow/transitions.mjs';
 
 const WORKFLOW_NAME = /^[a-z][a-z0-9-]*$/;
@@ -301,7 +301,7 @@ function assertTransitionSemantics(workflow, schemasByStep) {
 
 export function validateWorkflowDocument(workflowDoc, { workflowPath = 'workflow.json', repositoryRoot = process.cwd() } = {}) {
   assertWorkflowSchema(workflowDoc);
-  const workflow = workflowFromDocument(workflowDoc);
+  const workflow = workflowDoc;
   assertWorkflowIdentity(workflow);
   assertWorkflowStepIds(workflow);
   assertWorkflowRootTargets(workflow);

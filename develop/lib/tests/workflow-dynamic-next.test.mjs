@@ -42,7 +42,6 @@ function outputContract() {
 
 function workflow(next = '${{ output.next }}') {
   return {
-    workflow: {
       name: 'dynamic-next-spec',
       version: 1,
       start: 'selector',
@@ -63,7 +62,7 @@ function workflow(next = '${{ output.next }}') {
         done: { name: 'Done', kind: 'done', input: { prompt: 'Done.' } },
         blocked: { name: 'Blocked', kind: 'blocked', input: { prompt: 'Blocked.' } },
       },
-    },
+
   };
 }
 
@@ -160,7 +159,7 @@ test('dynamic input projected state path routes correctly', () => {
 
 test('dynamic input path not projected errors deterministically', () => {
   const workflowDoc = workflow('${{ input.planning_draft.selected_reviewers }}');
-  workflowDoc.workflow.steps.selector.input.state = [];
+  workflowDoc.steps.selector.input.state = [];
   const result = runApply('input-not-projected', baton(), { outcome: 'ready' }, false, workflowDoc);
   assert.match(result.stderr, /could not resolve missing path 'input.planning_draft'/);
 });
@@ -199,21 +198,21 @@ test('dynamic next rejects unknown target, empty arrays, and duplicate ids', () 
 
 test('dynamic parallel next enforces join-shape validation', () => {
   const nestedWorkflow = workflow('${{ output.selected_steps }}');
-  nestedWorkflow.workflow.steps.review_a.next = ['join'];
+  nestedWorkflow.steps.review_a.next = ['join'];
   assert.match(
     runApply('dynamic-nested-parallel-target', baton(), { outcome: 'ready', selected_steps: ['review_a', 'review_b'] }, false, nestedWorkflow).stderr,
     /parallel branch target 'review_a' cannot start nested parallel steps/,
   );
 
   const matchCasesBranchWorkflow = workflow('${{ output.selected_steps }}');
-  matchCasesBranchWorkflow.workflow.steps.review_a.next = { match: '${{ output.outcome }}', cases: { ready: 'join' } };
+  matchCasesBranchWorkflow.steps.review_a.next = { match: '${{ output.outcome }}', cases: { ready: 'join' } };
   assert.match(
     runApply('dynamic-match-cases-branch-target', baton(), { outcome: 'ready', selected_steps: ['review_a', 'review_b'] }, false, matchCasesBranchWorkflow).stderr,
     /parallel branch target 'review_a' must use a string next to an explicit join step/,
   );
 
   const splitJoinWorkflow = workflow('${{ output.selected_steps }}');
-  splitJoinWorkflow.workflow.steps.review_b.next = 'done';
+  splitJoinWorkflow.steps.review_b.next = 'done';
   assert.match(
     runApply('dynamic-split-join-targets', baton(), { outcome: 'ready', selected_steps: ['review_a', 'review_b'] }, false, splitJoinWorkflow).stderr,
     /parallel branch targets must share one explicit join step/,

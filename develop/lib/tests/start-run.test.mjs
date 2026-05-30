@@ -10,9 +10,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../.
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-start-'));
 const helperPath = path.join(root, 'develop/lib/bin/start-run.mjs');
 
-const fixtureWorkflowPath = path.join(tempDir, 'fixture.workflow.json');
+const fixtureWorkflowPath = path.join(tempDir, 'fixture.json');
 const fixtureWorkflowDoc = {
-  workflow: {
     name: 'start-run-fixture',
     version: 1,
     start: 'worker_step',
@@ -29,7 +28,7 @@ const fixtureWorkflowDoc = {
       done: { name: 'Done', kind: 'done', input: { prompt: 'Finished.' } },
       blocked: { name: 'Blocked', kind: 'blocked', input: { prompt: 'Blocked.' } },
     },
-  },
+
 };
 writeFileSync(fixtureWorkflowPath, `${JSON.stringify(fixtureWorkflowDoc, null, 2)}
 `);

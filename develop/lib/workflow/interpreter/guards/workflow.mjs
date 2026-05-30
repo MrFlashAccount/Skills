@@ -2,7 +2,7 @@ import { invariant } from '../../errors.mjs';
 import { statusForStep } from '../../model.mjs';
 import { readJson } from '../../json-io.mjs';
 import { assertNoReservedWorkflowStepIds } from '../../reserved-state.mjs';
-import { assertBatonSchema, assertWorkflowSchema, workflowFromDocument } from '../../schema-validation.mjs';
+import { assertBatonSchema, assertWorkflowSchema } from '../../schema-validation.mjs';
 import { assertProjectableStateSelector, isReservedStateKey, RESERVED_STEP_IDS } from '../../state-keys.mjs';
 import { assertTransitionDescriptorTargets, normalizeTransitionNext } from '../../transitions.mjs';
 
@@ -10,7 +10,7 @@ function assertLoadedWorkflowAndBaton(workflowDoc, baton, workflowPath) {
   assertWorkflowSchema(workflowDoc);
   assertBatonSchema(baton);
 
-  const workflow = workflowFromDocument(workflowDoc);
+  const workflow = workflowDoc;
   assertNoReservedWorkflowStepIds(workflow);
   assertWorkflowRootTargets(workflow);
   assertWorkflowRuntimeStateBoundary(workflow);

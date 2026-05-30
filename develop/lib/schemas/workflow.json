@@ -2,24 +2,8 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/workflow",
   "title": "Workflow Document",
-  "description": "Workflow documents use the flat workflow root as the current format. The legacy { \"workflow\": { ... } } wrapper remains accepted for compatibility.",
-  "oneOf": [
-    {
-      "$ref": "#/$defs/workflow"
-    },
-    {
-      "type": "object",
-      "required": [
-        "workflow"
-      ],
-      "properties": {
-        "workflow": {
-          "$ref": "#/$defs/workflow"
-        }
-      },
-      "additionalProperties": false
-    }
-  ],
+  "description": "Workflow documents use the flat workflow root: name, version, start, done, blocked, and steps are defined at the JSON root.",
+  "$ref": "#/$defs/workflow",
   "$defs": {
     "step": {
       "description": "Canonical target workflow step shape.",
@@ -286,6 +270,11 @@
         "blocked",
         "steps"
       ],
+      "not": {
+        "required": [
+          "workflow"
+        ]
+      },
       "properties": {
         "name": {
           "type": "string"

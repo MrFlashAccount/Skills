@@ -22,7 +22,6 @@ function outputContract(name = 'worker') {
 }
 
 const schemaWorkflowDoc = {
-  workflow: {
     name: 'schema-spec',
     version: 1,
     start: 'worker_step',
@@ -52,7 +51,7 @@ const schemaWorkflowDoc = {
       done: { name: 'Done', kind: 'done', input: { prompt: 'Finished.' } },
       blocked: { name: 'Blocked', kind: 'blocked', input: { prompt: 'Blocked.' } },
     },
-  },
+
 };
 
 const emptyState = { artifacts: [], results: [] };
@@ -164,10 +163,10 @@ function renderFixture(overrides = {}) {
   const workflowPath = writeJson(`${safeName(overrides.label ?? 'render')}-workflow.json`, overrides.workflowDoc ?? schemaWorkflowDoc);
   return renderWorkflowPrompt({
     workflowPath,
-    workflow: overrides.workflow ?? schemaWorkflowDoc.workflow,
+    workflow: overrides.workflow ?? schemaWorkflowDoc,
     baton: overrides.batonDoc ?? baton(),
     stepId: overrides.stepId ?? 'approval_step',
-    step: overrides.step ?? schemaWorkflowDoc.workflow.steps.approval_step,
+    step: overrides.step ?? schemaWorkflowDoc.steps.approval_step,
     repositoryRoot: overrides.repositoryRoot ?? tempDir,
     templateBaseDir: overrides.templateBaseDir,
     includeDiagnostics: overrides.includeDiagnostics,
@@ -240,7 +239,7 @@ test('prompt renderer: appends role output and state sections in fixed compiled 
     step,
     batonDoc: baton({ state: { artifacts: [], results: [], worker_step: { outcome: 'ready', summary: 'done' } } }),
     workflow: {
-      ...schemaWorkflowDoc.workflow,
+      ...schemaWorkflowDoc,
       instruction: 'Use the deterministic workflow renderer.',
     },
   });
@@ -361,7 +360,7 @@ test('prompt renderer: does not render empty user prompt even when render contex
 test('prompt renderer: renders provided startup user prompt for worker selected after control steps', () => {
   const rawPrompt = 'Use the original startup task after approval.';
   const workflow = {
-    ...schemaWorkflowDoc.workflow,
+    ...schemaWorkflowDoc,
     start: 'approval_step',
   };
   const step = {
@@ -414,9 +413,9 @@ test('prompt renderer: does not infer user prompt eligibility from baton by defa
 
 test('prompt renderer: initial parallel workers put user prompt on first worker in response order only', () => {
   const workflow = {
-    ...schemaWorkflowDoc.workflow,
+    ...schemaWorkflowDoc,
     steps: {
-      ...schemaWorkflowDoc.workflow.steps,
+      ...schemaWorkflowDoc.steps,
       branch_a: {
         name: 'Branch A',
         kind: 'worker',
@@ -435,7 +434,7 @@ test('prompt renderer: initial parallel workers put user prompt on first worker 
   };
   const rawPrompt = 'Only the first current worker sees this.';
   const rendered = renderStepPrompts({
-    workflowPath: writeJson('initial-parallel-user-prompt-workflow.json', { workflow }),
+    workflowPath: writeJson('initial-parallel-user-prompt-workflow.json', workflow),
     workflow,
     baton: baton({ user_prompt: rawPrompt, user_prompt_target: 'branch_b' }),
     steps: [
@@ -454,9 +453,9 @@ test('prompt renderer: initial parallel workers put user prompt on first worker 
 
 test('prompt renderer: mixed current approval and worker gives user prompt only to worker', () => {
   const workflow = {
-    ...schemaWorkflowDoc.workflow,
+    ...schemaWorkflowDoc,
     steps: {
-      ...schemaWorkflowDoc.workflow.steps,
+      ...schemaWorkflowDoc.steps,
       current_gate: {
         name: 'Current gate',
         kind: 'approval',
@@ -474,7 +473,7 @@ test('prompt renderer: mixed current approval and worker gives user prompt only 
   };
   const rawPrompt = 'Worker gets startup prompt after a same-batch gate.';
   const rendered = renderStepPrompts({
-    workflowPath: writeJson('mixed-current-user-prompt-workflow.json', { workflow }),
+    workflowPath: writeJson('mixed-current-user-prompt-workflow.json', workflow),
     workflow,
     baton: baton({ user_prompt: rawPrompt, user_prompt_target: 'current_worker' }),
     steps: [
@@ -795,7 +794,7 @@ test('prompt renderer: template root confinement rejects symlink escapes and ext
 
 test('CLI render: runtime guard rejects reserved aggregate state selectors', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc.workflow.steps.approval_step.input.state = ['artifacts'];
+  workflowDoc.steps.approval_step.input.state = ['artifacts'];
   const workflowPath = writeJson('runtime-reserved-render-workflow.json', workflowDoc);
   const batonPath = writeJson('runtime-reserved-render-baton.json', baton({ cursor: 'approval_step', status: 'running', state: { artifacts: [{ type: 'packet', summary: 'leaked' }], results: [] } }));
 
@@ -810,8 +809,8 @@ test('CLI render: fixture returns compiledPrompt and does not mutate baton', () 
   writeFileSync(path.join(tempDir, 'worker.md'), '# Worker template\n');
   writeFileSync(path.resolve(tempDir, '..', outputTemplateRef), '## Required return\nUse this contract.\n');
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  delete workflowDoc.workflow.steps.worker_step.input.role;
-  workflowDoc.workflow.steps.worker_step.output = { template: outputTemplateRef };
+  delete workflowDoc.steps.worker_step.input.role;
+  workflowDoc.steps.worker_step.output = { template: outputTemplateRef };
   const workflowPath = writeJson('fixture-render-workflow.json', workflowDoc);
   const batonPath = writeJson('fixture-render-baton.json', baton({ state: { artifacts: [], results: [], worker_step: { outcome: 'ready', summary: 'ready' } } }));
   const before = readFileSync(batonPath, 'utf8');

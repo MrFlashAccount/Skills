@@ -12,7 +12,6 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../.
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-runner-check-'));
 
 const workflowDoc = {
-  workflow: {
     name: 'runner-check',
     version: 1,
     start: 'prepare',
@@ -50,7 +49,7 @@ const workflowDoc = {
       done: { name: 'Done', kind: 'done', input: { prompt: 'Finished.' } },
       blocked: { name: 'Blocked', kind: 'blocked', input: { prompt: 'Blocked.' } },
     },
-  },
+
 };
 
 function writeJson(filePath, value) {
@@ -109,7 +108,7 @@ test('runner: next returns a single host action request with load command only',
   const runDir = path.join(tempDir, 'single');
   const workflowPath = path.join(tempDir, 'single-workflow.json');
   const singleWorkflow = structuredClone(workflowDoc);
-  singleWorkflow.workflow.steps.prepare.next = 'done';
+  singleWorkflow.steps.prepare.next = 'done';
   writeJson(workflowPath, singleWorkflow);
 
   const response = expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next single');
@@ -139,12 +138,12 @@ test('runner: next rejects workflow whose first worker id is reserved baton stat
   const runDir = path.join(tempDir, 'reserved-first-worker');
   const workflowPath = path.join(tempDir, 'reserved-first-worker-workflow.json');
   const reservedWorkflow = structuredClone(workflowDoc);
-  reservedWorkflow.workflow.start = 'artifacts';
-  reservedWorkflow.workflow.steps.artifacts = {
-    ...reservedWorkflow.workflow.steps.prepare,
+  reservedWorkflow.start = 'artifacts';
+  reservedWorkflow.steps.artifacts = {
+    ...reservedWorkflow.steps.prepare,
     name: 'Reserved first worker',
   };
-  delete reservedWorkflow.workflow.steps.prepare;
+  delete reservedWorkflow.steps.prepare;
   writeJson(workflowPath, reservedWorkflow);
 
   const result = runRunner(['next', '--run-dir', runDir, '--workflow', workflowPath, '--user-prompt', 'must not be skipped']);
@@ -195,8 +194,8 @@ test('runner: resumed next is read-only for baton after user prompt marker is pe
   const runDir = path.join(tempDir, 'user-prompt-next-read-only-after-marker');
   const workflowPath = path.join(tempDir, 'user-prompt-next-read-only-after-marker.json');
   const singleWorkflow = structuredClone(workflowDoc);
-  singleWorkflow.workflow.steps.prepare.next = 'branch_a';
-  singleWorkflow.workflow.steps.branch_a.next = 'done';
+  singleWorkflow.steps.prepare.next = 'branch_a';
+  singleWorkflow.steps.branch_a.next = 'done';
   writeJson(workflowPath, singleWorkflow);
 
   expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath, '--user-prompt', 'marker must not be rolled back'], 'next before marker');
@@ -282,15 +281,15 @@ test('runner: user prompt is included in first worker when workflow starts with 
   const runDir = path.join(tempDir, 'user-prompt-control-start');
   const workflowPath = path.join(tempDir, 'user-prompt-control-start-workflow.json');
   const approvalFirstWorkflow = structuredClone(workflowDoc);
-  approvalFirstWorkflow.workflow.start = 'gate';
-  approvalFirstWorkflow.workflow.steps = {
+  approvalFirstWorkflow.start = 'gate';
+  approvalFirstWorkflow.steps = {
     gate: {
       name: 'Gate',
       kind: 'approval',
       input: { prompt: 'Approve startup task.' },
       next: { match: '${{ output.approval }}', cases: { approved: 'prepare', retry: 'prepare' } },
     },
-    ...approvalFirstWorkflow.workflow.steps,
+    ...approvalFirstWorkflow.steps,
   };
   writeJson(workflowPath, approvalFirstWorkflow);
   const rawPrompt = 'Raw task must reach first worker after approval.';
@@ -322,15 +321,15 @@ test('runner: startup prompt target rejects match-cases with worker and terminal
   const runDir = path.join(tempDir, 'user-prompt-match-terminal-rejected');
   const workflowPath = path.join(tempDir, 'user-prompt-match-terminal-rejected.json');
   const approvalFirstWorkflow = structuredClone(workflowDoc);
-  approvalFirstWorkflow.workflow.start = 'gate';
-  approvalFirstWorkflow.workflow.steps = {
+  approvalFirstWorkflow.start = 'gate';
+  approvalFirstWorkflow.steps = {
     gate: {
       name: 'Gate',
       kind: 'approval',
       input: { prompt: 'Approve startup task.' },
       next: { match: '${{ output.approval }}', cases: { approved: 'prepare', blocked: 'blocked' } },
     },
-    ...approvalFirstWorkflow.workflow.steps,
+    ...approvalFirstWorkflow.steps,
   };
   writeJson(workflowPath, approvalFirstWorkflow);
 
@@ -344,22 +343,22 @@ test('runner: startup prompt target rejects a selected match-cases branch that n
   const runDir = path.join(tempDir, 'user-prompt-match-selected-target-missing');
   const workflowPath = path.join(tempDir, 'user-prompt-match-selected-target-missing.json');
   const approvalFirstWorkflow = structuredClone(workflowDoc);
-  approvalFirstWorkflow.workflow.start = 'gate';
-  approvalFirstWorkflow.workflow.steps = {
+  approvalFirstWorkflow.start = 'gate';
+  approvalFirstWorkflow.steps = {
     gate: {
       name: 'Gate',
       kind: 'approval',
       input: { prompt: 'Choose startup route.' },
       next: { match: '${{ output.choice }}', cases: { approved: 'prepare', retry: 'prepare' } },
     },
-    ...approvalFirstWorkflow.workflow.steps,
+    ...approvalFirstWorkflow.steps,
   };
   writeJson(workflowPath, approvalFirstWorkflow);
 
   const initial = expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath, '--user-prompt', 'Prompt must reach prepare.'], 'next stable match-cases');
   assert.equal(initial.baton.user_prompt_target, 'prepare');
 
-  approvalFirstWorkflow.workflow.steps.gate.next = { match: '${{ output.choice }}', cases: { approved: 'done', retry: 'prepare' } };
+  approvalFirstWorkflow.steps.gate.next = { match: '${{ output.choice }}', cases: { approved: 'done', retry: 'prepare' } };
   writeJson(workflowPath, approvalFirstWorkflow);
   const approvalOutput = path.join(runDir, 'gate-output.json');
   writeJson(approvalOutput, { choice: 'approved' });
@@ -373,23 +372,23 @@ test('runner: startup prompt target rejects dynamic fanout before prompt selecti
   const runDir = path.join(tempDir, 'user-prompt-dynamic-fanout-rejected');
   const workflowPath = path.join(tempDir, 'user-prompt-dynamic-fanout-rejected.json');
   const approvalWorkflow = structuredClone(workflowDoc);
-  approvalWorkflow.workflow.start = 'choose_path';
-  approvalWorkflow.workflow.steps = {
+  approvalWorkflow.start = 'choose_path';
+  approvalWorkflow.steps = {
     choose_path: {
       name: 'Choose path',
       kind: 'approval',
       input: { prompt: 'Ask whether to fan out.' },
       next: ['branch_a', '${{ output.extra_branch }}'],
     },
-    branch_a: approvalWorkflow.workflow.steps.branch_a,
-    branch_b: approvalWorkflow.workflow.steps.branch_b,
-    join: approvalWorkflow.workflow.steps.join,
-    done: approvalWorkflow.workflow.steps.done,
-    blocked: approvalWorkflow.workflow.steps.blocked,
+    branch_a: approvalWorkflow.steps.branch_a,
+    branch_b: approvalWorkflow.steps.branch_b,
+    join: approvalWorkflow.steps.join,
+    done: approvalWorkflow.steps.done,
+    blocked: approvalWorkflow.steps.blocked,
   };
-  approvalWorkflow.workflow.steps.branch_a.input.state = ['choose_path'];
-  approvalWorkflow.workflow.steps.branch_b.input.state = ['choose_path'];
-  approvalWorkflow.workflow.steps.join.next = 'done';
+  approvalWorkflow.steps.branch_a.input.state = ['choose_path'];
+  approvalWorkflow.steps.branch_b.input.state = ['choose_path'];
+  approvalWorkflow.steps.join.next = 'done';
   writeJson(workflowPath, approvalWorkflow);
 
   const result = runRunner(['next', '--run-dir', runDir, '--workflow', workflowPath, '--user-prompt', 'Prompt must not pick a drift-prone fanout target.']);
@@ -415,8 +414,8 @@ test('runner: persisted user prompt injection marker survives workflow drift on 
   const runDir = path.join(tempDir, 'user-prompt-workflow-drift');
   const workflowPath = path.join(tempDir, 'user-prompt-workflow-drift.json');
   const driftWorkflow = structuredClone(workflowDoc);
-  driftWorkflow.workflow.steps.prepare.next = 'branch_a';
-  driftWorkflow.workflow.steps.branch_a.next = 'done';
+  driftWorkflow.steps.prepare.next = 'branch_a';
+  driftWorkflow.steps.branch_a.next = 'done';
   writeJson(workflowPath, driftWorkflow);
   const rawPrompt = 'Do not inject twice after workflow drift.';
 
@@ -425,10 +424,10 @@ test('runner: persisted user prompt injection marker survives workflow drift on 
   writeJson(prepareOutput, workerOutput('prepared before drift'));
   expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', prepareOutput], 'continue before workflow drift');
 
-  delete driftWorkflow.workflow.steps.prepare;
-  driftWorkflow.workflow.start = 'branch_a';
-  driftWorkflow.workflow.steps.branch_a.input.state = [];
-  driftWorkflow.workflow.steps.branch_b.input.state = [];
+  delete driftWorkflow.steps.prepare;
+  driftWorkflow.start = 'branch_a';
+  driftWorkflow.steps.branch_a.input.state = [];
+  driftWorkflow.steps.branch_b.input.state = [];
   writeJson(workflowPath, driftWorkflow);
   const resumed = expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'rerender after workflow drift');
   assert.equal(resumed.baton.user_prompt_injected, true);
@@ -443,7 +442,7 @@ test('runner: continue applies single output and returns terminal done', () => {
   const runDir = path.join(tempDir, 'single-continue');
   const workflowPath = path.join(tempDir, 'single-continue-workflow.json');
   const singleWorkflow = structuredClone(workflowDoc);
-  singleWorkflow.workflow.steps.prepare.next = 'done';
+  singleWorkflow.steps.prepare.next = 'done';
   writeJson(workflowPath, singleWorkflow);
 
   expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next single continue');
@@ -461,8 +460,8 @@ test('runner: continue reuses saved custom workflow when --workflow is omitted',
   const runDir = path.join(tempDir, 'custom-workflow-continue');
   const workflowPath = path.join(tempDir, 'custom-workflow-continue.json');
   const singleWorkflow = structuredClone(workflowDoc);
-  singleWorkflow.workflow.name = 'custom-workflow-continue';
-  singleWorkflow.workflow.steps.prepare.next = 'done';
+  singleWorkflow.name = 'custom-workflow-continue';
+  singleWorkflow.steps.prepare.next = 'done';
   writeJson(workflowPath, singleWorkflow);
 
   expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next custom workflow continue');
@@ -480,20 +479,20 @@ test('runner: wait_for_approval request accepts request-specific host output JSO
   const runDir = path.join(tempDir, 'approval-generic-output');
   const workflowPath = path.join(tempDir, 'approval-generic-output-workflow.json');
   const approvalWorkflow = structuredClone(workflowDoc);
-  approvalWorkflow.workflow.start = 'choose_path';
-  approvalWorkflow.workflow.steps = {
+  approvalWorkflow.start = 'choose_path';
+  approvalWorkflow.steps = {
     choose_path: {
       name: 'Choose path',
       kind: 'approval',
       input: { prompt: 'Ask the user to choose option_a, option_b, or free-form blocked reason.' },
       next: { match: '${{ output.choice }}', cases: { option_a: 'done', option_b: 'join', blocked: 'blocked' } },
     },
-    join: approvalWorkflow.workflow.steps.join,
-    done: approvalWorkflow.workflow.steps.done,
-    blocked: approvalWorkflow.workflow.steps.blocked,
+    join: approvalWorkflow.steps.join,
+    done: approvalWorkflow.steps.done,
+    blocked: approvalWorkflow.steps.blocked,
   };
-  approvalWorkflow.workflow.steps.join.input.state = [];
-  approvalWorkflow.workflow.steps.join.next = 'done';
+  approvalWorkflow.steps.join.input.state = [];
+  approvalWorkflow.steps.join.next = 'done';
   writeJson(workflowPath, approvalWorkflow);
 
   const next = expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next approval generic');
@@ -513,20 +512,20 @@ test('runner: single approval request with opaque id still applies output by ste
   const runDir = path.join(tempDir, 'approval-opaque-request-id');
   const workflowPath = path.join(tempDir, 'approval-opaque-request-id-workflow.json');
   const approvalWorkflow = structuredClone(workflowDoc);
-  approvalWorkflow.workflow.start = 'choose_path';
-  approvalWorkflow.workflow.steps = {
+  approvalWorkflow.start = 'choose_path';
+  approvalWorkflow.steps = {
     choose_path: {
       name: 'Choose path',
       kind: 'approval',
       input: { prompt: 'Ask the user to choose option_a or option_b.' },
       next: { match: '${{ output.choice }}', cases: { option_a: 'done', option_b: 'join' } },
     },
-    join: approvalWorkflow.workflow.steps.join,
-    done: approvalWorkflow.workflow.steps.done,
-    blocked: approvalWorkflow.workflow.steps.blocked,
+    join: approvalWorkflow.steps.join,
+    done: approvalWorkflow.steps.done,
+    blocked: approvalWorkflow.steps.blocked,
   };
-  approvalWorkflow.workflow.steps.join.input.state = [];
-  approvalWorkflow.workflow.steps.join.next = 'done';
+  approvalWorkflow.steps.join.input.state = [];
+  approvalWorkflow.steps.join.next = 'done';
   writeJson(workflowPath, approvalWorkflow);
 
   const next = expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next opaque approval');
@@ -558,8 +557,8 @@ test('runner: approval request exposes optional output schema reference', () => 
     additionalProperties: false,
   });
   const approvalWorkflow = structuredClone(workflowDoc);
-  approvalWorkflow.workflow.start = 'choose_path';
-  approvalWorkflow.workflow.steps = {
+  approvalWorkflow.start = 'choose_path';
+  approvalWorkflow.steps = {
     choose_path: {
       name: 'Choose path',
       kind: 'approval',
@@ -567,8 +566,8 @@ test('runner: approval request exposes optional output schema reference', () => 
       output: { schema: path.basename(schemaPath) },
       next: { match: '${{ output.choice }}', cases: { approved: 'done', blocked: 'blocked' } },
     },
-    done: approvalWorkflow.workflow.steps.done,
-    blocked: approvalWorkflow.workflow.steps.blocked,
+    done: approvalWorkflow.steps.done,
+    blocked: approvalWorkflow.steps.blocked,
   };
   writeJson(workflowPath, approvalWorkflow);
 
@@ -594,8 +593,8 @@ test('runner: typed approval retry preserves validation feedback in instructions
     additionalProperties: false,
   });
   const approvalWorkflow = structuredClone(workflowDoc);
-  approvalWorkflow.workflow.start = 'choose_path';
-  approvalWorkflow.workflow.steps = {
+  approvalWorkflow.start = 'choose_path';
+  approvalWorkflow.steps = {
     choose_path: {
       name: 'Choose path',
       kind: 'approval',
@@ -603,8 +602,8 @@ test('runner: typed approval retry preserves validation feedback in instructions
       output: { schema: path.basename(schemaPath) },
       next: { match: '${{ output.choice }}', cases: { approved: 'done', blocked: 'blocked' } },
     },
-    done: approvalWorkflow.workflow.steps.done,
-    blocked: approvalWorkflow.workflow.steps.blocked,
+    done: approvalWorkflow.steps.done,
+    blocked: approvalWorkflow.steps.blocked,
   };
   writeJson(workflowPath, approvalWorkflow);
 
@@ -644,8 +643,8 @@ test('runner: typed approval static parallel next preserves approval output in s
     additionalProperties: false,
   });
   const approvalWorkflow = structuredClone(workflowDoc);
-  approvalWorkflow.workflow.start = 'choose_path';
-  approvalWorkflow.workflow.steps = {
+  approvalWorkflow.start = 'choose_path';
+  approvalWorkflow.steps = {
     choose_path: {
       name: 'Choose path',
       kind: 'approval',
@@ -653,15 +652,15 @@ test('runner: typed approval static parallel next preserves approval output in s
       output: { schema: path.basename(schemaPath) },
       next: ['branch_a', 'branch_b'],
     },
-    branch_a: approvalWorkflow.workflow.steps.branch_a,
-    branch_b: approvalWorkflow.workflow.steps.branch_b,
-    join: approvalWorkflow.workflow.steps.join,
-    done: approvalWorkflow.workflow.steps.done,
-    blocked: approvalWorkflow.workflow.steps.blocked,
+    branch_a: approvalWorkflow.steps.branch_a,
+    branch_b: approvalWorkflow.steps.branch_b,
+    join: approvalWorkflow.steps.join,
+    done: approvalWorkflow.steps.done,
+    blocked: approvalWorkflow.steps.blocked,
   };
-  approvalWorkflow.workflow.steps.branch_a.input.state = ['choose_path'];
-  approvalWorkflow.workflow.steps.branch_b.input.state = ['choose_path'];
-  approvalWorkflow.workflow.steps.join.next = 'done';
+  approvalWorkflow.steps.branch_a.input.state = ['choose_path'];
+  approvalWorkflow.steps.branch_b.input.state = ['choose_path'];
+  approvalWorkflow.steps.join.next = 'done';
   writeJson(workflowPath, approvalWorkflow);
 
   expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next approval static parallel');
@@ -684,23 +683,23 @@ test('runner: generic approval static parallel next preserves approval output in
   const runDir = path.join(tempDir, 'approval-generic-static-parallel');
   const workflowPath = path.join(tempDir, 'approval-generic-static-parallel-workflow.json');
   const approvalWorkflow = structuredClone(workflowDoc);
-  approvalWorkflow.workflow.start = 'choose_path';
-  approvalWorkflow.workflow.steps = {
+  approvalWorkflow.start = 'choose_path';
+  approvalWorkflow.steps = {
     choose_path: {
       name: 'Choose path',
       kind: 'approval',
       input: { prompt: 'Ask the user whether to fan out.' },
       next: ['branch_a', 'branch_b'],
     },
-    branch_a: approvalWorkflow.workflow.steps.branch_a,
-    branch_b: approvalWorkflow.workflow.steps.branch_b,
-    join: approvalWorkflow.workflow.steps.join,
-    done: approvalWorkflow.workflow.steps.done,
-    blocked: approvalWorkflow.workflow.steps.blocked,
+    branch_a: approvalWorkflow.steps.branch_a,
+    branch_b: approvalWorkflow.steps.branch_b,
+    join: approvalWorkflow.steps.join,
+    done: approvalWorkflow.steps.done,
+    blocked: approvalWorkflow.steps.blocked,
   };
-  approvalWorkflow.workflow.steps.branch_a.input.state = ['choose_path'];
-  approvalWorkflow.workflow.steps.branch_b.input.state = ['choose_path'];
-  approvalWorkflow.workflow.steps.join.next = 'done';
+  approvalWorkflow.steps.branch_a.input.state = ['choose_path'];
+  approvalWorkflow.steps.branch_b.input.state = ['choose_path'];
+  approvalWorkflow.steps.join.next = 'done';
   writeJson(workflowPath, approvalWorkflow);
 
   expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next generic approval static parallel');
@@ -722,30 +721,30 @@ test('runner: selected startup prompt target survives static parallel workflow o
   const runDir = path.join(tempDir, 'user-prompt-static-parallel-target-drift');
   const workflowPath = path.join(tempDir, 'user-prompt-static-parallel-target-drift.json');
   const approvalWorkflow = structuredClone(workflowDoc);
-  approvalWorkflow.workflow.start = 'choose_path';
-  approvalWorkflow.workflow.steps = {
+  approvalWorkflow.start = 'choose_path';
+  approvalWorkflow.steps = {
     choose_path: {
       name: 'Choose path',
       kind: 'approval',
       input: { prompt: 'Ask whether to fan out.' },
       next: ['branch_a', 'branch_b'],
     },
-    branch_a: approvalWorkflow.workflow.steps.branch_a,
-    branch_b: approvalWorkflow.workflow.steps.branch_b,
-    join: approvalWorkflow.workflow.steps.join,
-    done: approvalWorkflow.workflow.steps.done,
-    blocked: approvalWorkflow.workflow.steps.blocked,
+    branch_a: approvalWorkflow.steps.branch_a,
+    branch_b: approvalWorkflow.steps.branch_b,
+    join: approvalWorkflow.steps.join,
+    done: approvalWorkflow.steps.done,
+    blocked: approvalWorkflow.steps.blocked,
   };
-  approvalWorkflow.workflow.steps.branch_a.input.state = ['choose_path'];
-  approvalWorkflow.workflow.steps.branch_b.input.state = ['choose_path'];
-  approvalWorkflow.workflow.steps.join.next = 'done';
+  approvalWorkflow.steps.branch_a.input.state = ['choose_path'];
+  approvalWorkflow.steps.branch_b.input.state = ['choose_path'];
+  approvalWorkflow.steps.join.next = 'done';
   writeJson(workflowPath, approvalWorkflow);
   const rawPrompt = 'Prompt must stay with originally selected branch.';
 
   const initial = expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath, '--user-prompt', rawPrompt], 'next approval before static fanout');
   assert.equal(initial.baton.user_prompt_target, 'branch_a');
 
-  approvalWorkflow.workflow.steps.choose_path.next = ['branch_b', 'branch_a'];
+  approvalWorkflow.steps.choose_path.next = ['branch_b', 'branch_a'];
   writeJson(workflowPath, approvalWorkflow);
   const approvalOutput = path.join(runDir, 'choose-path-output.json');
   writeJson(approvalOutput, { approval: 'approved' });
@@ -770,8 +769,8 @@ test('runner: startup prompt static fanout selects renderable worker instead of 
   const runDir = path.join(tempDir, 'user-prompt-static-fanout-control-branch');
   const workflowPath = path.join(tempDir, 'user-prompt-static-fanout-control-branch.json');
   const fanoutWorkflow = structuredClone(workflowDoc);
-  fanoutWorkflow.workflow.start = 'choose_path';
-  fanoutWorkflow.workflow.steps = {
+  fanoutWorkflow.start = 'choose_path';
+  fanoutWorkflow.steps = {
     choose_path: {
       name: 'Choose path',
       kind: 'approval',
@@ -785,16 +784,16 @@ test('runner: startup prompt static fanout selects renderable worker instead of 
       next: 'join',
     },
     work_b: {
-      ...fanoutWorkflow.workflow.steps.branch_b,
+      ...fanoutWorkflow.steps.branch_b,
       next: 'join',
     },
-    join: fanoutWorkflow.workflow.steps.join,
-    done: fanoutWorkflow.workflow.steps.done,
-    blocked: fanoutWorkflow.workflow.steps.blocked,
+    join: fanoutWorkflow.steps.join,
+    done: fanoutWorkflow.steps.done,
+    blocked: fanoutWorkflow.steps.blocked,
   };
-  fanoutWorkflow.workflow.steps.work_b.input.state = ['choose_path'];
-  fanoutWorkflow.workflow.steps.join.input.state = ['approval_before_worker', 'work_b'];
-  fanoutWorkflow.workflow.steps.join.next = 'done';
+  fanoutWorkflow.steps.work_b.input.state = ['choose_path'];
+  fanoutWorkflow.steps.join.input.state = ['approval_before_worker', 'work_b'];
+  fanoutWorkflow.steps.join.next = 'done';
   writeJson(workflowPath, fanoutWorkflow);
   const rawPrompt = 'Prompt belongs to the worker visible in the first fanout response.';
 
@@ -820,31 +819,31 @@ test('runner: startup prompt target removal before first output fails loudly ins
   const runDir = path.join(tempDir, 'user-prompt-static-parallel-target-removed');
   const workflowPath = path.join(tempDir, 'user-prompt-static-parallel-target-removed.json');
   const approvalWorkflow = structuredClone(workflowDoc);
-  approvalWorkflow.workflow.start = 'choose_path';
-  approvalWorkflow.workflow.steps = {
+  approvalWorkflow.start = 'choose_path';
+  approvalWorkflow.steps = {
     choose_path: {
       name: 'Choose path',
       kind: 'approval',
       input: { prompt: 'Ask whether to fan out.' },
       next: ['branch_a', 'branch_b'],
     },
-    branch_a: approvalWorkflow.workflow.steps.branch_a,
-    branch_b: approvalWorkflow.workflow.steps.branch_b,
-    join: approvalWorkflow.workflow.steps.join,
-    done: approvalWorkflow.workflow.steps.done,
-    blocked: approvalWorkflow.workflow.steps.blocked,
+    branch_a: approvalWorkflow.steps.branch_a,
+    branch_b: approvalWorkflow.steps.branch_b,
+    join: approvalWorkflow.steps.join,
+    done: approvalWorkflow.steps.done,
+    blocked: approvalWorkflow.steps.blocked,
   };
-  approvalWorkflow.workflow.steps.branch_a.input.state = ['choose_path'];
-  approvalWorkflow.workflow.steps.branch_b.input.state = ['choose_path'];
+  approvalWorkflow.steps.branch_a.input.state = ['choose_path'];
+  approvalWorkflow.steps.branch_b.input.state = ['choose_path'];
   writeJson(workflowPath, approvalWorkflow);
 
   const initial = expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath, '--user-prompt', 'Prompt must not disappear.'], 'next approval before target removal');
   assert.equal(initial.baton.user_prompt_target, 'branch_a');
 
-  delete approvalWorkflow.workflow.steps.branch_a;
-  approvalWorkflow.workflow.steps.choose_path.next = ['branch_b'];
-  approvalWorkflow.workflow.steps.branch_b.next = 'done';
-  approvalWorkflow.workflow.steps.join.input.state = ['branch_b'];
+  delete approvalWorkflow.steps.branch_a;
+  approvalWorkflow.steps.choose_path.next = ['branch_b'];
+  approvalWorkflow.steps.branch_b.next = 'done';
+  approvalWorkflow.steps.join.input.state = ['branch_b'];
   writeJson(workflowPath, approvalWorkflow);
   const approvalOutput = path.join(runDir, 'choose-path-output-removed.json');
   writeJson(approvalOutput, { approval: 'approved' });
@@ -858,23 +857,23 @@ test('runner: untyped approval static parallel applies branch outputs and persis
   const runDir = path.join(tempDir, 'approval-untyped-static-parallel-branch-output');
   const workflowPath = path.join(tempDir, 'approval-untyped-static-parallel-branch-output.json');
   const approvalWorkflow = structuredClone(workflowDoc);
-  approvalWorkflow.workflow.start = 'choose_path';
-  approvalWorkflow.workflow.steps = {
+  approvalWorkflow.start = 'choose_path';
+  approvalWorkflow.steps = {
     choose_path: {
       name: 'Choose path',
       kind: 'approval',
       input: { prompt: 'Ask whether to fan out.' },
       next: ['branch_a', 'branch_b'],
     },
-    branch_a: approvalWorkflow.workflow.steps.branch_a,
-    branch_b: approvalWorkflow.workflow.steps.branch_b,
-    join: approvalWorkflow.workflow.steps.join,
-    done: approvalWorkflow.workflow.steps.done,
-    blocked: approvalWorkflow.workflow.steps.blocked,
+    branch_a: approvalWorkflow.steps.branch_a,
+    branch_b: approvalWorkflow.steps.branch_b,
+    join: approvalWorkflow.steps.join,
+    done: approvalWorkflow.steps.done,
+    blocked: approvalWorkflow.steps.blocked,
   };
-  approvalWorkflow.workflow.steps.branch_a.input.state = ['choose_path'];
-  approvalWorkflow.workflow.steps.branch_b.input.state = ['choose_path'];
-  approvalWorkflow.workflow.steps.join.next = 'done';
+  approvalWorkflow.steps.branch_a.input.state = ['choose_path'];
+  approvalWorkflow.steps.branch_b.input.state = ['choose_path'];
+  approvalWorkflow.steps.join.next = 'done';
   writeJson(workflowPath, approvalWorkflow);
   const rawPrompt = 'Prompt marker should persist exactly once.';
 
@@ -936,16 +935,16 @@ test('runner: continue accepts mixed run_worker and user-input outputs in one ba
   const runDir = path.join(tempDir, 'parallel-mixed-host-actions');
   const workflowPath = path.join(tempDir, 'parallel-mixed-host-actions.json');
   const mixedWorkflow = structuredClone(workflowDoc);
-  mixedWorkflow.workflow.steps.prepare.next = ['branch_a', 'choose_path'];
-  mixedWorkflow.workflow.steps.branch_a.next = 'join';
-  mixedWorkflow.workflow.steps.choose_path = {
+  mixedWorkflow.steps.prepare.next = ['branch_a', 'choose_path'];
+  mixedWorkflow.steps.branch_a.next = 'join';
+  mixedWorkflow.steps.choose_path = {
     name: 'Choose path',
     kind: 'approval',
     input: { prompt: 'Ask for the user choice before joining.' },
     next: 'join',
   };
-  mixedWorkflow.workflow.steps.join.input.state = ['branch_a', 'choose_path'];
-  mixedWorkflow.workflow.steps.join.next = 'done';
+  mixedWorkflow.steps.join.input.state = ['branch_a', 'choose_path'];
+  mixedWorkflow.steps.join.next = 'done';
   writeJson(workflowPath, mixedWorkflow);
 
   expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next mixed prepare');
@@ -1025,10 +1024,10 @@ test('runner: dynamic parallel with one branch still applies branch output as pa
     additionalProperties: false,
   });
   const dynamicWorkflow = structuredClone(workflowDoc);
-  dynamicWorkflow.workflow.steps.prepare.output.schema = path.basename(schemaPath);
-  dynamicWorkflow.workflow.steps.prepare.next = '${{ output.selected_steps }}';
-  delete dynamicWorkflow.workflow.steps.branch_b;
-  dynamicWorkflow.workflow.steps.join.input.state = ['branch_a'];
+  dynamicWorkflow.steps.prepare.output.schema = path.basename(schemaPath);
+  dynamicWorkflow.steps.prepare.next = '${{ output.selected_steps }}';
+  delete dynamicWorkflow.steps.branch_b;
+  dynamicWorkflow.steps.join.input.state = ['branch_a'];
   writeJson(workflowPath, dynamicWorkflow);
 
   expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next dynamic single branch setup');
@@ -1053,9 +1052,9 @@ test('runner: static parallel with one branch still applies branch output as par
   const runDir = path.join(tempDir, 'static-single-branch-parallel');
   const workflowPath = path.join(tempDir, 'static-single-branch-parallel-workflow.json');
   const staticWorkflow = structuredClone(workflowDoc);
-  staticWorkflow.workflow.steps.prepare.next = ['branch_a'];
-  delete staticWorkflow.workflow.steps.branch_b;
-  staticWorkflow.workflow.steps.join.input.state = ['branch_a'];
+  staticWorkflow.steps.prepare.next = ['branch_a'];
+  delete staticWorkflow.steps.branch_b;
+  staticWorkflow.steps.join.input.state = ['branch_a'];
   writeJson(workflowPath, staticWorkflow);
 
   expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next static single branch setup');
@@ -1080,7 +1079,7 @@ test('runner: continue rejects concurrent attempts for the same run dir', async 
   const runDir = path.join(tempDir, 'concurrent-continue-same-run-dir');
   const workflowPath = path.join(tempDir, 'concurrent-continue-same-run-dir.json');
   const singleWorkflow = structuredClone(workflowDoc);
-  singleWorkflow.workflow.steps.prepare.next = 'done';
+  singleWorkflow.steps.prepare.next = 'done';
   writeJson(workflowPath, singleWorkflow);
 
   expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next concurrent continue');
@@ -1108,7 +1107,7 @@ test('runner: continue locks only one run dir', async () => {
   const otherRunDir = path.join(tempDir, 'concurrent-continue-other-run-dir');
   const workflowPath = path.join(tempDir, 'concurrent-continue-different-run-dirs.json');
   const singleWorkflow = structuredClone(workflowDoc);
-  singleWorkflow.workflow.steps.prepare.next = 'done';
+  singleWorkflow.steps.prepare.next = 'done';
   writeJson(workflowPath, singleWorkflow);
 
   expectRunner(['next', '--run-dir', slowRunDir, '--workflow', workflowPath], 'next slow run dir');
@@ -1132,7 +1131,7 @@ test('runner: continue reports missing requested output as an error', () => {
   const runDir = path.join(tempDir, 'missing-output');
   const workflowPath = path.join(tempDir, 'missing-output-workflow.json');
   const singleWorkflow = structuredClone(workflowDoc);
-  singleWorkflow.workflow.steps.prepare.next = 'done';
+  singleWorkflow.steps.prepare.next = 'done';
   writeJson(workflowPath, singleWorkflow);
 
   expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next missing');
@@ -1146,8 +1145,8 @@ test('runner: continue does not persist applied output when next render fails', 
   const runDir = path.join(tempDir, 'render-failure-no-advance');
   const workflowPath = path.join(tempDir, 'render-failure-no-advance-workflow.json');
   const renderFailureWorkflow = structuredClone(workflowDoc);
-  renderFailureWorkflow.workflow.steps.prepare.next = 'bad_render';
-  renderFailureWorkflow.workflow.steps.bad_render = {
+  renderFailureWorkflow.steps.prepare.next = 'bad_render';
+  renderFailureWorkflow.steps.bad_render = {
     name: 'Bad Render',
     kind: 'worker',
     input: {
@@ -1184,7 +1183,7 @@ test('runner: parallel continue does not create durable envelope when next rende
   const runDir = path.join(tempDir, 'parallel-render-failure-no-envelope');
   const workflowPath = path.join(tempDir, 'parallel-render-failure-no-envelope-workflow.json');
   const renderFailureWorkflow = structuredClone(workflowDoc);
-  renderFailureWorkflow.workflow.steps.join.input.template = 'missing-join-template.md';
+  renderFailureWorkflow.steps.join.input.template = 'missing-join-template.md';
   writeJson(workflowPath, renderFailureWorkflow);
 
   expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next parallel render failure setup');
@@ -1224,8 +1223,8 @@ test('runner: continue recovers from post-render durable commit failure without 
     const runDir = path.join(tempDir, `durable-commit-${failurePoint}-failure`);
     const workflowPath = path.join(tempDir, `durable-commit-${failurePoint}-failure-workflow.json`);
     const singleWorkflow = structuredClone(workflowDoc);
-    singleWorkflow.workflow.steps.prepare.next = 'join';
-    singleWorkflow.workflow.steps.join.input.state = ['prepare'];
+    singleWorkflow.steps.prepare.next = 'join';
+    singleWorkflow.steps.join.input.state = ['prepare'];
     writeJson(workflowPath, singleWorkflow);
 
     expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], `next durable commit ${failurePoint} failure setup`);
@@ -1270,7 +1269,7 @@ test('runner: instructions rejects unknown, unsafe, and missing instructions', (
   const runDir = path.join(tempDir, 'instructions-errors');
   const workflowPath = path.join(tempDir, 'instructions-errors-workflow.json');
   const singleWorkflow = structuredClone(workflowDoc);
-  singleWorkflow.workflow.steps.prepare.next = 'done';
+  singleWorkflow.steps.prepare.next = 'done';
   writeJson(workflowPath, singleWorkflow);
 
   expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next instructions errors');

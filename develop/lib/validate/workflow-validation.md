@@ -28,7 +28,7 @@ make -C develop validate
 
 The validator first checks the workflow document with the workflow JSON Schema. This catches malformed workflow structure before semantic checks run.
 
-Flat workflow documents are the preferred/current format: the JSON root directly contains `name`, `version`, `start`, `done`, `blocked`, `steps`, and optional metadata such as `description` or `triggers`. The legacy `{ "workflow": { ... } }` wrapper is still accepted as a compatibility input, but checked-in workflow files should stay flat.
+Workflow documents must be flat: the JSON root directly contains `name`, `version`, `start`, `done`, `blocked`, `steps`, and optional metadata such as `description` or `triggers`. Wrapped workflow documents are invalid and are rejected before semantic checks run.
 
 Workflow-level `instruction` / `instructions` remains an optional runtime prompt capability. Do not use it for generic orchestration notes or registry metadata because it is injected into every step prompt; use metadata fields such as `description`/`triggers` or move only genuinely step-specific guidance into the relevant step `input.prompt`.
 
