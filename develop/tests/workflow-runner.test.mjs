@@ -134,6 +134,47 @@ test('runner: next returns a single host action request with load command only',
   assert.equal(existsSync(path.join(runDir, 'baton.json')), true);
 });
 
+
+test('runner: user prompt is stored, included only in initial worker instructions, and preserved on continue', () => {
+  const runDir = path.join(tempDir, 'user-prompt-runtime');
+  const workflowPath = path.join(tempDir, 'user-prompt-runtime-workflow.json');
+  writeJson(workflowPath, workflowDoc);
+  const rawPrompt = 'Raw startup task text.\nPreserve me exactly.';
+
+  const first = expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath, '--user-prompt', rawPrompt], 'next with user prompt');
+  assert.equal(first.baton.user_prompt, rawPrompt);
+  assert.equal(JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8')).user_prompt, rawPrompt);
+
+  const initialInstructions = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'prepare']);
+  assert.equal(initialInstructions.status, 0, initialInstructions.stderr);
+  assert.match(initialInstructions.stdout, /## User prompt/);
+  assert.equal(initialInstructions.stdout.includes(rawPrompt), true);
+
+  const prepareOutput = path.join(runDir, 'prepare-output.json');
+  writeJson(prepareOutput, workerOutput('prepared'));
+  const nextResponse = expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', prepareOutput], 'continue with user prompt');
+  assert.equal(nextResponse.baton.user_prompt, rawPrompt);
+  assert.equal(JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8')).user_prompt, rawPrompt);
+
+  const laterInstructions = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'branch_a']);
+  assert.equal(laterInstructions.status, 0, laterInstructions.stderr);
+  assert.doesNotMatch(laterInstructions.stdout, /## User prompt/);
+  assert.equal(laterInstructions.stdout.includes(rawPrompt), false);
+});
+
+test('runner: next resumes existing baton without overwriting user prompt', () => {
+  const runDir = path.join(tempDir, 'user-prompt-resume');
+  const workflowPath = path.join(tempDir, 'user-prompt-resume-workflow.json');
+  writeJson(workflowPath, workflowDoc);
+
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath, '--user-prompt', 'original raw prompt'], 'next original user prompt');
+  const response = expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath, '--user-prompt', 'replacement raw prompt'], 'resume with replacement user prompt');
+
+  assert.equal(response.resumed, true);
+  assert.equal(response.baton.user_prompt, 'original raw prompt');
+  assert.equal(JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8')).user_prompt, 'original raw prompt');
+});
+
 test('runner: continue applies single output and returns terminal done', () => {
   const runDir = path.join(tempDir, 'single-continue');
   const workflowPath = path.join(tempDir, 'single-continue-workflow.json');

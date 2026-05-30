@@ -252,6 +252,54 @@ test('prompt renderer: appends role output state and task sections in fixed comp
 
 
 
+
+test('prompt renderer: initial worker includes raw top-level user prompt', () => {
+  const rawPrompt = 'Fix the bug as reported.\nDo not infer GitHub context.';
+  const step = {
+    name: 'Worker step',
+    kind: 'worker',
+    input: { prompt: 'Do the task.' },
+    output: { template: 'output.md' },
+    next: 'approval_step',
+  };
+
+  const compiled = renderFixture({
+    label: 'render-initial-user-prompt',
+    stepId: 'worker_step',
+    step,
+    batonDoc: baton({ user_prompt: rawPrompt }),
+  });
+
+  assert.ok(compiled.prompt.includes(`## User prompt\n\n${rawPrompt}\n`));
+  assertMarkersInOrder(compiled.prompt, [
+    '## Workflow step prompt',
+    'Do the task.',
+    '## User prompt',
+    rawPrompt,
+    '## Final reminder',
+  ]);
+});
+
+test('prompt renderer: later worker omits raw top-level user prompt by default', () => {
+  const step = {
+    name: 'Direct next worker',
+    kind: 'worker',
+    input: { state: ['results'] },
+    output: { template: 'output.md' },
+    next: 'done',
+  };
+
+  const compiled = renderFixture({
+    label: 'render-later-user-prompt',
+    stepId: 'direct_next_worker',
+    step,
+    batonDoc: baton({ cursor: 'direct_next_worker', user_prompt: 'Do not leak me.', state: { artifacts: [], results: [] } }),
+  });
+
+  assert.doesNotMatch(compiled.prompt, /## User prompt/);
+  assert.doesNotMatch(compiled.prompt, /Do not leak me\./);
+});
+
 test('prompt renderer: resolves input.role and inlines ROLE.md and RUBRIC.md', () => {
   writeRoleMaterial('custom-backend', {
     roleBody: '# Custom Role\n\nBackend role instructions.\n',

@@ -25,9 +25,9 @@ async function runnerResponseForRendered(paths, rendered, { initialized, resumed
   return response;
 }
 
-export async function next({ runDir, workflowPath, includeDiagnostics = false }) {
+export async function next({ runDir, workflowPath, includeDiagnostics = false, userPrompt } = {}) {
   const paths = resolveRunPaths({ runDir, workflowPath });
-  const runState = await ensureRunFiles(paths);
+  const runState = await ensureRunFiles(paths, { userPrompt });
   const rendered = renderWorkflow(paths.workflowPath, paths.batonPath, { includeDiagnostics, repositoryRoot });
   return runnerResponseForRendered(paths, rendered, {
     initialized: runState.initialized,

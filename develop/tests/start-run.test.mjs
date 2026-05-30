@@ -80,6 +80,45 @@ test('start-run creates run dir, initializes baton/history, and returns steps', 
   assert.equal(readFileSync(path.join(runDir, 'history.md'), 'utf8'), '');
 });
 
+
+test('start-run stores raw user prompt on new baton only', () => {
+  const runDir = path.join(tempDir, 'new-run-user-prompt');
+  const rawPrompt = 'Fix issue #123 exactly as reported.\nKeep scope tight.';
+  const result = runStart(['--run-dir', runDir, '--user-prompt', rawPrompt]);
+  const status = parseSuccess('new run with user prompt', result);
+
+  assert.equal(status.initialized, true);
+  assert.equal(status.response.baton.user_prompt, rawPrompt);
+  assert.equal(JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8')).user_prompt, rawPrompt);
+});
+
+test('start-run user prompt file stores exact content', () => {
+  const runDir = path.join(tempDir, 'new-run-user-prompt-file');
+  const promptPath = path.join(tempDir, 'raw-user-prompt.txt');
+  const rawPrompt = 'Line one from file.\nLine two stays raw.\n';
+  writeFileSync(promptPath, rawPrompt);
+
+  const result = runStart(['--run-dir', runDir, '--user-prompt-file', promptPath]);
+  const status = parseSuccess('new run with user prompt file', result);
+
+  assert.equal(status.response.baton.user_prompt, rawPrompt);
+});
+
+test('start-run resumes existing baton without overwriting user prompt', () => {
+  const runDir = path.join(tempDir, 'resume-run-user-prompt');
+  rmSync(runDir, { recursive: true, force: true });
+  const original = baton({ user_prompt: 'original prompt' });
+  writeJson(path.join(runDir, 'baton.json'), original);
+  const beforeBaton = readFileSync(path.join(runDir, 'baton.json'), 'utf8');
+
+  const result = runStart(['--run-dir', runDir, '--user-prompt', 'replacement prompt']);
+  const status = parseSuccess('resume run user prompt', result);
+
+  assert.equal(status.resumed, true);
+  assert.equal(status.response.baton.user_prompt, 'original prompt');
+  assert.equal(readFileSync(path.join(runDir, 'baton.json'), 'utf8'), beforeBaton);
+});
+
 test('start-run resumes existing baton without overwriting it', () => {
   const runDir = path.join(tempDir, 'resume-run');
   rmSync(runDir, { recursive: true, force: true });

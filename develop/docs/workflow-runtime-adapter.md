@@ -20,12 +20,18 @@ The host adapter is thin. It executes requests with whatever capabilities the en
 ## Runner commands
 
 ```bash
-node develop/scripts/workflow-runner.mjs next --run-dir <run-dir> [--workflow <workflow.json>]
+node develop/scripts/workflow-runner.mjs next --run-dir <run-dir> [--workflow <workflow.json>] [--user-prompt <text> | --user-prompt-file <path>]
 node develop/scripts/workflow-runner.mjs continue --run-dir <run-dir> --output <worker-output.json> [--output <step-id=worker-output.json> ...] [--workflow <workflow.json>]
 node develop/scripts/workflow-runner.mjs instructions --run-dir <run-dir> --step-id <id>
 ```
 
 `next` creates the run files if needed and returns the current host work. `continue` applies host-provided artifact paths from the previous host requests, persists the new baton, and returns the next host work. `instructions` prints only the compiled instructions for one current requested step and fails for unknown, unsafe, or missing step instructions.
+
+### Startup user prompt
+
+When starting a new run, `next` may receive the raw startup user prompt with `--user-prompt` or `--user-prompt-file`. The runner stores it once as top-level `baton.user_prompt`. Existing runs are resumed as-is: later `next` calls do not overwrite `baton.user_prompt`, and `continue` preserves it while advancing the baton.
+
+The prompt renderer implicitly adds a `## User prompt` section only for the initial worker request at `workflow.start`. Later steps do not receive this section unless the workflow explicitly carries derived context through normal state/output paths.
 
 ## Host request response
 

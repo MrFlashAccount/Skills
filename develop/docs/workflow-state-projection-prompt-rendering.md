@@ -288,8 +288,9 @@ After that top layer, the renderer always concatenates fixed sections in this or
 3. `## Output contract` if `output.template` exists;
 4. `## Projected baton state` if `input.state` selected anything;
 5. `## Workflow step prompt` if `input.prompt` exists;
-6. `## Concrete user task` from workflow-level user task fields;
-7. final reminder when an output contract exists.
+6. `## User prompt` from top-level `baton.user_prompt`, only for the initial worker step at `workflow.start`;
+7. `## Concrete user task` from workflow-level user task fields;
+8. final reminder when an output contract exists.
 
 This keeps the output contract high for primacy, places context before the executable step/user request, and keeps a short output-contract reminder at the bottom for recency. It intentionally does not preserve compatibility with older placeholder templates.
 

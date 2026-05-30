@@ -22,13 +22,19 @@ function parseCliArgs(argv) {
       options: {
         'run-dir': { type: 'string' },
         workflow: { type: 'string' },
+        'user-prompt': { type: 'string' },
+        'user-prompt-file': { type: 'string' },
       },
       strict: true,
       allowPositionals: false,
     }).values;
   } catch (error) {
-    fail(`${error.message}\nusage: node scripts/start-run.mjs --run-dir <dir> [--workflow <workflow.json>]`);
+    fail(`${error.message}\nusage: node scripts/start-run.mjs --run-dir <dir> [--workflow <workflow.json>] [--user-prompt <text> | --user-prompt-file <path>]`);
   }
+}
+
+function assertUserPromptArgs(values) {
+  if (values['user-prompt'] !== undefined && values['user-prompt-file']) fail('provide only one of --user-prompt or --user-prompt-file');
 }
 
 function requireString(value, name) {
@@ -81,7 +87,13 @@ async function createFileIfMissing(path, content) {
   }
 }
 
-async function initializeRunFiles(runDir, workflowPath) {
+async function resolveUserPrompt(values) {
+  if (values['user-prompt'] !== undefined) return values['user-prompt'];
+  if (values['user-prompt-file']) return readFile(values['user-prompt-file'], 'utf8');
+  return undefined;
+}
+
+async function initializeRunFiles(runDir, workflowPath, { userPrompt } = {}) {
   await mkdir(runDir, { recursive: true });
 
   const batonPath = join(runDir, 'baton.json');
@@ -95,6 +107,7 @@ async function initializeRunFiles(runDir, workflowPath) {
       status: 'running',
       state: { artifacts: [], results: [] },
     };
+    if (typeof userPrompt === 'string') initialBaton.user_prompt = userPrompt;
     await writeFile(batonPath, `${JSON.stringify(initialBaton, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
   }
 
@@ -121,11 +134,13 @@ function inspectWorkflow(workflowPath, batonPath) {
 }
 
 const values = parseCliArgs(process.argv.slice(2));
+assertUserPromptArgs(values);
 const runDir = requireString(values['run-dir'], '--run-dir');
 const workflowPath = resolve(values.workflow ?? defaultWorkflowPath);
 const resolvedRunDir = resolve(runDir);
 
-const { batonPath, historyPath, resumed } = await initializeRunFiles(resolvedRunDir, workflowPath);
+const userPrompt = await resolveUserPrompt(values);
+const { batonPath, historyPath, resumed } = await initializeRunFiles(resolvedRunDir, workflowPath, { userPrompt });
 const response = inspectWorkflow(workflowPath, batonPath);
 
 console.log(JSON.stringify({

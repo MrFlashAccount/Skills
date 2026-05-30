@@ -67,7 +67,7 @@ function workflowStart(workflowDoc, workflowPath) {
   return start;
 }
 
-export async function ensureRunFiles(paths) {
+export async function ensureRunFiles(paths, { userPrompt } = {}) {
   await mkdir(paths.runDir, { recursive: true });
   await mkdir(paths.runnerDir, { recursive: true });
   await mkdir(paths.instructionsDir, { recursive: true });
@@ -80,6 +80,7 @@ export async function ensureRunFiles(paths) {
       status: 'running',
       state: { artifacts: [], results: [] },
     };
+    if (typeof userPrompt === 'string') initialBaton.user_prompt = userPrompt;
     await writeFile(paths.batonPath, `${JSON.stringify(initialBaton, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
   }
 

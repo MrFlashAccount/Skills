@@ -62,6 +62,10 @@
       },
       "additionalProperties": false
     },
+    "user_prompt": {
+      "description": "Raw run-level startup user prompt captured when the workflow run is initialized. Immutable after start/resume.",
+      "type": "string"
+    },
     "blocker": {
       "type": "object"
     },
