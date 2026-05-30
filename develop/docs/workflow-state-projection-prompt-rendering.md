@@ -1,11 +1,11 @@
-# Workflow State Projection + Prompt Rendering Proposal
+# Workflow State Projection + Prompt Rendering Contract
 
 ## Status
 
-- Slice: #89 State Projection + Prompt Rendering
-- State: implemented in PR #94 for the generic workflow interpreter
+- PR: #108 research workflow JSON contract updates
+- State: implemented for the generic workflow interpreter
 - Scope boundary: generic workflow interpreter; no DevHarness-specific runtime semantics
-- Implementation status: `render` CLI mode, state projection, prompt rendering, renderer-owned default prompt layering, and deterministic tests are present in this slice
+- Implementation status: `render` CLI mode, state projection, prompt rendering, renderer-owned default prompt layering, output schema validation, and deterministic tests are present
 
 ## Problem
 
@@ -52,7 +52,7 @@ Current files already establish these contracts:
 - `develop/schemas/workflow.json` rejects step-level extension fields and allows workflow-scoped extensions only.
 - `develop/lib/workflow/interpreter/index.mjs` chooses the current `step`, validates transition targets, applies output, and returns `{ baton, directive }` for `inspect`/`apply`; `render` adds `compiledPrompt` without changing those existing response shapes.
 - `develop/lib/workflow/directive.mjs` exposes `{ id, action, step }` without rendering prompts.
-- `develop/lib/workflow/projection.mjs` projects only explicit top-level `input.state` keys and fails on missing or nested selectors.
+- `develop/lib/workflow/projection.mjs` projects only explicit top-level `input.state` selectors, skips selectors that are valid workflow step ids but absent from the current `baton.state`, and rejects nested selectors.
 - `develop/lib/workflow/prompt-renderer.mjs` loads local markdown templates, assembles fallback prompts, appends omitted role/output/state/step-prompt/user-task/reminder sections in the compiled layer order, and returns prompt metadata plus opt-in diagnostics.
 - `develop/lib/workflow/state.mjs` applies worker/approval output to baton state after the worker returns.
 - `shared/templates/README.md` says shared templates are output templates and do not define orchestration or worker spawning.
@@ -71,7 +71,7 @@ Use the existing step vocabulary and keep the field names simple:
   "kind": "worker",
   "input": {
     "role": "researcher",
-    "state": ["artifacts", "results"],
+    "state": ["research_draft", "implementation_plan"],
     "prompt": "Read task context..."
   },
   "output": {
@@ -154,7 +154,7 @@ Renderer behavior:
 - resolve role files from `roles/<input.role>/ROLE.md` and `roles/<input.role>/RUBRIC.md` under the repository root;
 - inline both files into the fixed `## Role material` section, with deterministic `<!-- role material: ... -->` source comments;
 - append a `## Role material` section when `input.role` is present; input templates do not consume role variables;
-- fail hard with a deterministic `WorkflowInterpreterError` when either required role material file is missing or escapes the repository root;
+- fail with a deterministic `WorkflowInterpreterError` when either required role material file is missing or escapes the repository root;
 - do not infer capabilities, map roles to subagent agents, or make role required for worker steps unless a separate schema decision is approved.
 
 ### Compiled prompt result shape
@@ -168,7 +168,7 @@ Add a renderer-level result shape that can be embedded in a future directive or 
     "outputTemplate": "../../shared/templates/research-packet-template.md",
     "outputSchema": "schemas/research-output.schema.json",
     "roleMaterial": ["roles/researcher/ROLE.md", "roles/researcher/RUBRIC.md"],
-    "projectedStateKeys": ["artifacts", "results"]
+    "projectedStateKeys": ["research_draft", "implementation_plan"]
   }
 }
 ```
@@ -221,8 +221,8 @@ State projection inserted into prompts should be serialized as fenced JSON:
 
 ```json
 {
-  "artifacts": [],
-  "results": []
+  "research_draft": { "summary": "..." },
+  "implementation_plan": { "status": "ready" }
 }
 ```
 ````
@@ -346,7 +346,7 @@ Output shape:
 
 ```json
 {
-  "baton": { "cursor": "research", "status": "running", "state": { "artifacts": [], "results": [] } },
+  "baton": { "cursor": "review", "status": "running", "state": { "research_draft": { }, "implementation_plan": { } } },
   "directive": { "id": "research", "action": "run_worker", "step": { } },
   "compiledPrompt": { "prompt": "...", "metadata": { } }
 }
