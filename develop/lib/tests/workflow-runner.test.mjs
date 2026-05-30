@@ -6,9 +6,9 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { next as runnerNext } from '../lib/workflow/runner/index.mjs';
+import { next as runnerNext } from '../workflow/runner/index.mjs';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-runner-check-'));
 
 const workflowDoc = {
@@ -58,11 +58,11 @@ function writeJson(filePath, value) {
 }
 
 function runRunner(args, options = {}) {
-  return spawnSync(process.execPath, ['develop/scripts/workflow-runner.mjs', ...args], { cwd: root, encoding: 'utf8', env: { ...process.env, ...(options.env ?? {}) } });
+  return spawnSync(process.execPath, ['develop/lib/bin/workflow-runner.mjs', ...args], { cwd: root, encoding: 'utf8', env: { ...process.env, ...(options.env ?? {}) } });
 }
 
 async function runRunnerAsync(args) {
-  const child = spawn(process.execPath, ['develop/scripts/workflow-runner.mjs', ...args], {
+  const child = spawn(process.execPath, ['develop/lib/bin/workflow-runner.mjs', ...args], {
     cwd: root,
     encoding: 'utf8',
   });
@@ -275,7 +275,7 @@ test('runner: CLI resume ignores deleted startup user prompt file and preserves 
 test('runner: non-next modes reject empty user prompt file option', () => {
   const result = runRunner(['instructions', '--run-dir', path.join(tempDir, 'unsupported-user-prompt-file'), '--step-id', 'prepare', '--user-prompt-file', '']);
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /usage: node scripts\/workflow-runner\.mjs/);
+  assert.match(result.stderr, /usage: node develop\/lib\/bin\/workflow-runner\.mjs/);
 });
 
 test('runner: user prompt is included in first worker when workflow starts with approval step', () => {

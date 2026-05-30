@@ -19,19 +19,19 @@ Run workflows by driving the `workflow-runner` request loop from the repository 
 Start or resume a run from the repo root:
 
 ```bash
-node develop/scripts/workflow-runner.mjs next --run-dir <run-dir> --workflow <workflow>
+node develop/lib/bin/workflow-runner.mjs next --run-dir <run-dir> --workflow <workflow>
 ```
 
 Continue after host request outputs are ready:
 
 ```bash
-node develop/scripts/workflow-runner.mjs continue --run-dir <run-dir> --output <result.json>
+node develop/lib/bin/workflow-runner.mjs continue --run-dir <run-dir> --output <result.json>
 ```
 
 For multiple request outputs, name every output:
 
 ```bash
-node develop/scripts/workflow-runner.mjs continue --run-dir <run-dir> \
+node develop/lib/bin/workflow-runner.mjs continue --run-dir <run-dir> \
   --output <step-id>=<result.json> \
   --output <step-id>=<result.json>
 ```
@@ -39,7 +39,7 @@ node develop/scripts/workflow-runner.mjs continue --run-dir <run-dir> \
 Load instructions for one request:
 
 ```bash
-node develop/scripts/workflow-runner.mjs instructions --run-dir <run-dir> --step-id <step-id>
+node develop/lib/bin/workflow-runner.mjs instructions --run-dir <run-dir> --step-id <step-id>
 ```
 
 ## Request loop

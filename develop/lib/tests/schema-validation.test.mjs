@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { validateJsonSchema } from 'schema-validation';
-import { assertBatonSchema, reviewerSelectionOutputSchema, workflowSchemas } from '../lib/workflow/schema-validation.mjs';
+import { assertBatonSchema, reviewerSelectionOutputSchema, workflowSchemas } from '../workflow/schema-validation.mjs';
 
 test('generic JSON Schema helper validates workflow schema documents at runtime', () => {
   const valid = {

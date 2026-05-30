@@ -145,7 +145,7 @@ If a skill needs reusable instructions that are not a runnable skill:
 - `npm test` runs the repo test suite.
 - `npm run schema-validation:bundle-vendor-ajv` rebuilds the committed `shared/scripts/schema-validation/vendor/ajv.mjs` bundle.
 - `npm run schema-validation:check-vendor-ajv` rebuilds that vendor bundle and fails if the committed file is stale.
-- `npm run workflow:validate` runs deterministic semantic validation for `develop/dev-harness.workflow.json`.
+- `npm run workflow:validate` runs deterministic semantic validation for `workflows/dev-harness/workflow.json`.
 - `npm run validate` runs tests, workflow semantic validation, and the schema-validation vendor bundle freshness check.
 
 Fresh clones can use the committed schema-validation library dist artifact directly; normal users do not need to build it after cloning. Maintainer checks and the pre-commit hook regenerate it when source changes.

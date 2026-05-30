@@ -21,7 +21,7 @@ export function instructionPathForStep(instructionsDir, stepId) {
 
 export function loadInstructionsCommandForStep(runDir, stepId) {
   assertSafeStepId(stepId);
-  return `node develop/scripts/workflow-runner.mjs instructions --run-dir ${shellQuote(runDir)} --step-id ${shellQuote(stepId)}`;
+  return `node develop/lib/bin/workflow-runner.mjs instructions --run-dir ${shellQuote(runDir)} --step-id ${shellQuote(stepId)}`;
 }
 
 export function responseStatusForInterpreterResponse(interpreterResponse) {

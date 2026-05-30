@@ -5,11 +5,11 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { WorkflowInterpreterError } from '../lib/workflow/errors.mjs';
-import { renderWorkflowPrompt } from '../lib/workflow/prompt-renderer.mjs';
-import { validateAgainstOutputSchema } from '../lib/workflow/output-schema-validation.mjs';
+import { WorkflowInterpreterError } from '../workflow/errors.mjs';
+import { renderWorkflowPrompt } from '../workflow/prompt-renderer.mjs';
+import { validateAgainstOutputSchema } from '../workflow/output-schema-validation.mjs';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-output-schema-check-'));
 
 const workflowDoc = {
@@ -95,7 +95,7 @@ function runApply(label, batonDoc, workerOutput, expectSuccess = true, doc = wor
   const outputPath = writeJson(`${prefix}-output.json`, workerOutput);
   const wfPath = writeJson(`${prefix}-workflow.json`, doc);
   const before = readFileSync(batonPath, 'utf8');
-  const response = runWorkflowCommand(label, ['develop/scripts/workflow-interpreter.mjs', 'apply', wfPath, batonPath, outputPath], expectSuccess);
+  const response = runWorkflowCommand(label, ['develop/lib/bin/workflow-interpreter.mjs', 'apply', wfPath, batonPath, outputPath], expectSuccess);
   assert.equal(readFileSync(batonPath, 'utf8'), before, `check '${label}' mutated baton file during apply`);
   return response;
 }
@@ -273,7 +273,7 @@ test('output.schema: structured step output is projected by step id into downstr
   const batonPath = writeJson('output-schema-structured-project-baton.json', applyResponse.baton);
   const workflowPath = writeJson('output-schema-structured-project-workflow.json', doc);
   const renderResponse = runWorkflowCommand('output-schema-structured-project-render', [
-    'develop/scripts/workflow-interpreter.mjs',
+    'develop/lib/bin/workflow-interpreter.mjs',
     'render',
     workflowPath,
     batonPath,
@@ -398,7 +398,7 @@ test('output.schema: non-structured worker output is projected by step id into d
   const batonPath = writeJson('output-schema-plain-project-baton.json', applyResponse.baton);
   const workflowPath = writeJson('output-schema-plain-project-workflow.json', doc);
   const renderResponse = runWorkflowCommand('output-schema-plain-project-render', [
-    'develop/scripts/workflow-interpreter.mjs',
+    'develop/lib/bin/workflow-interpreter.mjs',
     'render',
     workflowPath,
     batonPath,

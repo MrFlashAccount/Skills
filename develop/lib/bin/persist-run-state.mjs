@@ -2,8 +2,8 @@
 import { mkdir, open, readFile, rename, rm } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { WorkflowInterpreterError } from '../lib/workflow/errors.mjs';
-import { assertBatonSchema, assertResponseSchema } from '../lib/workflow/schema-validation.mjs';
+import { WorkflowInterpreterError } from '../workflow/errors.mjs';
+import { assertBatonSchema, assertResponseSchema } from '../workflow/schema-validation.mjs';
 
 function fail(message) {
   console.error(`persist-run-state: ${message}`);
@@ -25,7 +25,7 @@ function parseCliArgs(argv) {
       allowPositionals: false,
     }).values;
   } catch (error) {
-    fail(`${error.message}\nusage: node scripts/persist-run-state.mjs --run-dir <dir> (--response <workflow-interpreter-response.json> | --baton <new-baton.json>) [--output <worker-output-path>] [--decision <text>]`);
+    fail(`${error.message}\nusage: node develop/lib/bin/persist-run-state.mjs --run-dir <dir> (--response <workflow-interpreter-response.json> | --baton <new-baton.json>) [--output <worker-output-path>] [--decision <text>]`);
   }
 }
 
