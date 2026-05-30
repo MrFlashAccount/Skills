@@ -25,16 +25,14 @@ export function inspectWorkflow(workflowPath, batonPath) {
   return responseFor(baton, baton.cursor, prepared.step, workflow, { parallelTargets: prepared.parallelTargets });
 }
 
-export function renderWorkflow(workflowPath, batonPath, options = {}) {
-  const { workflow, baton, cursorStep } = loadWorkflowAndBaton(workflowPath, batonPath);
-  const prepared = preparedParallelStep({ workflow, baton, cursorStep });
-  const response = responseFor(baton, baton.cursor, prepared.step, workflow, { parallelTargets: prepared.parallelTargets });
+export function renderInterpreterResponse(workflowPath, batonPath, response, options = {}) {
+  const { workflow } = loadWorkflowAndBaton(workflowPath, batonPath);
   const rendered = {
     ...response,
     steps: renderStepPrompts({
       workflowPath,
       workflow,
-      baton,
+      baton: response.baton,
       steps: response.steps,
       repositoryRoot: options.repositoryRoot,
       templateBaseDir: options.templateBaseDir,
@@ -43,4 +41,11 @@ export function renderWorkflow(workflowPath, batonPath, options = {}) {
   };
   assertResponseSchema(rendered);
   return rendered;
+}
+
+export function renderWorkflow(workflowPath, batonPath, options = {}) {
+  const { workflow, baton, cursorStep } = loadWorkflowAndBaton(workflowPath, batonPath);
+  const prepared = preparedParallelStep({ workflow, baton, cursorStep });
+  const response = responseFor(baton, baton.cursor, prepared.step, workflow, { parallelTargets: prepared.parallelTargets });
+  return renderInterpreterResponse(workflowPath, batonPath, response, options);
 }

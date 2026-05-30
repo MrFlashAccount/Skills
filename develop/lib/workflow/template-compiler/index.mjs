@@ -35,11 +35,11 @@ export function renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, st
   const input = step.input ?? {};
   const selectors = input.state ?? [];
   const projection = projectState({ batonState: baton.state ?? {}, selectors, stepId });
-  const stateBlock = projectedStateBlock({ workflow, projection, repositoryRoot: root, readOutputSchema });
+  const stateBlock = projectedStateBlock({ workflow, workflowPath, projection, repositoryRoot: root, readOutputSchema });
   const inputTemplate = readInputTemplate({ workflowPath, workflow, input, repositoryRoot: root, templateBaseDir });
   const inputRole = readInputRole({ input, repositoryRoot: root });
   const outputTemplate = readOutputTemplate({ workflow, step, repositoryRoot: root });
-  const outputSchema = readOutputSchema({ workflow, step, repositoryRoot: root });
+  const outputSchema = readOutputSchema({ workflow, workflowPath, step, repositoryRoot: root });
   const outputContract = outputContractSection(outputTemplate.content, outputTemplate.metadataPath, outputSchema.content, outputSchema.metadataPath);
   const workflowInstructionBlock = workflowInstruction({ workflow });
   const finalReminder = finalOutputReminder(outputContract);

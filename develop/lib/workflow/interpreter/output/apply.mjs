@@ -56,7 +56,15 @@ export function applyWorkflowOutput(workflowPath, batonPath, outputPath) {
   if (retryResponse) return retryResponse;
 
   if (staticParallelNext) {
-    return prepareParallelBranch({ workflow, baton, stepId: baton.cursor, step: cursorStep, output: workerOutput, attempts: undefined });
+    return prepareParallelBranch({
+      workflow,
+      baton,
+      stepId: baton.cursor,
+      step: cursorStep,
+      output: workerOutput,
+      attempts: undefined,
+      storeStepOutput: cursorStep.kind === 'approval' && Boolean(cursorStep.output?.schema),
+    });
   }
 
   return applyNextTransition({ workflow, baton, cursorStep, workerOutput });
