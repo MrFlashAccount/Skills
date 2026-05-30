@@ -158,6 +158,40 @@ test('output.schema: workflow-package schema ref resolves consistently for valid
 });
 
 
+test('output.schema: CLI apply rejects workflow schema refs escaping repository root', () => {
+  const repoDir = path.join(tempDir, 'cli-apply-schema-boundary-repo');
+  const workflowDir = path.join(repoDir, 'workflows', 'demo');
+  const outsideDir = path.join(tempDir, 'cli-apply-schema-boundary-outside');
+  mkdirSync(workflowDir, { recursive: true });
+  mkdirSync(outsideDir, { recursive: true });
+  const schemaPath = path.join(outsideDir, 'escape.schema.json');
+  writeFileSync(path.join(workflowDir, 'output.md'), '## Output contract\nReturn markdown.\n');
+  writeFileSync(schemaPath, JSON.stringify({
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome'],
+    properties: { outcome: { const: 'ready' } },
+    additionalProperties: false,
+  }));
+
+  const doc = structuredClone(workflowDoc);
+  doc.steps.worker_step.output = { template: 'output.md', schema: path.relative(workflowDir, schemaPath) };
+  const workflowPath = path.join(workflowDir, 'workflow.json');
+  const batonPath = path.join(workflowDir, 'baton.json');
+  const outputPath = path.join(workflowDir, 'output.json');
+  writeFileSync(workflowPath, `${JSON.stringify(doc, null, 2)}
+`);
+  writeFileSync(batonPath, `${JSON.stringify(baton(), null, 2)}
+`);
+  writeFileSync(outputPath, `${JSON.stringify({ outcome: 'ready' }, null, 2)}
+`);
+
+  const result = runNode(['develop/lib/bin/workflow-interpreter.mjs', 'apply', workflowPath, batonPath, outputPath]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /output schema escapes repository root/);
+});
+
 test('output.schema: invalid JSON Schema throws controlled workflow error', () => {
   const doc = workflowWithSchema('invalid-json-schema-controlled-error', {
     $schema: 'https://json-schema.org/draft/2020-12/schema',
@@ -242,6 +276,29 @@ test('output.schema: invalid approval output retries the approval step with sche
   assert.equal(retry.baton.state.attempts['consumer_step:output.schema'], 1);
   assert.match(retry.steps[0].step.input.prompt, /Previous output failed output\.schema validation/);
   assert.match(retry.steps[0].step.input.prompt, /must be equal to constant/);
+});
+
+test('output.schema: reserved aggregate fields must keep array envelope shape', () => {
+  const doc = workflowWithSchema('reserved-artifacts-object', {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome', 'artifacts'],
+    properties: {
+      outcome: { const: 'ready' },
+      artifacts: { type: 'object', required: ['payload'], properties: { payload: { const: true } }, additionalProperties: false },
+    },
+    additionalProperties: false,
+  });
+
+  const retry = runApply('output-schema-reserved-artifacts-object', baton(), {
+    outcome: 'ready',
+    artifacts: { payload: true },
+  }, true, doc);
+
+  assert.equal(retry.baton.cursor, 'worker_step');
+  assert.equal(retry.steps[0].action, 'run_worker');
+  assert.equal(retry.baton.state.attempts['worker_step:output.schema'], 1);
+  assert.match(retry.steps[0].step.input.prompt, /\/artifacts must be array/);
 });
 
 test('output.schema: invalid output retries with validation feedback then succeeds', () => {

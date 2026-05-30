@@ -299,14 +299,14 @@ function assertTransitionSemantics(workflow, schemasByStep) {
   }
 }
 
-export function validateWorkflowDocument(workflowDoc, { workflowPath = 'workflow.json', repositoryRoot = process.cwd() } = {}) {
+export function validateWorkflowDocument(workflowDoc, { workflowPath = 'workflow.json', repositoryRoot } = {}) {
   assertWorkflowSchema(workflowDoc);
   const workflow = workflowDoc;
   assertWorkflowIdentity(workflow);
   assertWorkflowStepIds(workflow);
   assertWorkflowRootTargets(workflow);
   assertWorkflowInputStateSelectors(workflow);
-  assertWorkflowStepRoles(workflow, repositoryRoot);
+  assertWorkflowStepRoles(workflow, repositoryRoot ?? process.cwd());
   const warnings = [];
   const schemasByStep = loadStepOutputSchemas({ workflow, workflowPath, repositoryRoot, warnings });
   assertTransitionSemantics(workflow, schemasByStep);

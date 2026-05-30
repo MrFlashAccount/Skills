@@ -43,7 +43,7 @@ function validateOutputKindForParallel(step, output, stepId) {
   }
 }
 
-export function applyParallelOutputs({ workflowPath, workflow, baton, cursorStep, outputPath, allOutput, targets: resolvedTargets }) {
+export function applyParallelOutputs({ workflowPath, workflow, baton, cursorStep, outputPath, allOutput, targets: resolvedTargets, repositoryRoot }) {
   const targets = parallelTargetsForStep(cursorStep, resolvedTargets);
   assertParallelOutputShape(targets, allOutput ?? readJson(outputPath, 'parallel output'));
   const parallelOutput = allOutput ?? readJson(outputPath, 'parallel output');
@@ -66,6 +66,7 @@ export function applyParallelOutputs({ workflowPath, workflow, baton, cursorStep
       stepId,
       step,
       workerOutput: rawOutput,
+      repositoryRoot,
     });
     invariant(!retryResponse, `parallel step '${stepId}' output failed schema validation and cannot be retried inside a parallel group`);
     validateOutputKindForParallel(step, workerOutput, stepId);

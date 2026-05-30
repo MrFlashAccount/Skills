@@ -1,6 +1,7 @@
 import { readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { WorkflowInterpreterError } from './errors.mjs';
+import { isInside } from './path-utils.mjs';
 
 export function workflowResourceBase({ workflowPath }) {
   return path.dirname(path.resolve(workflowPath));
@@ -15,14 +16,26 @@ export function assertWorkflowFileRef({ fileRef, fieldName, kind, messagePrefix 
   }
 }
 
-export function resolveWorkflowFileRef({ workflowPath, fileRef, fieldName = 'file', kind = 'file', messagePrefix = 'workflow file resolution failed', missingMessage }) {
+export function resolveWorkflowFileRef({ workflowPath, fileRef, fieldName = 'file', kind = 'file', messagePrefix = 'workflow file resolution failed', missingMessage, repositoryRoot }) {
   assertWorkflowFileRef({ fileRef, fieldName, kind, messagePrefix });
-  const candidate = path.resolve(workflowResourceBase({ workflowPath }), fileRef);
+  const base = workflowResourceBase({ workflowPath });
+  const candidate = path.resolve(base, fileRef);
+  let root;
+  if (repositoryRoot) {
+    const repositoryRealpath = realpathSync(repositoryRoot);
+    const workflowBaseRealpath = realpathSync(base);
+    root = isInside(workflowBaseRealpath, repositoryRealpath) ? repositoryRealpath : workflowBaseRealpath;
+  }
+  let resolvedPath;
   try {
-    return realpathSync(candidate);
+    resolvedPath = realpathSync(candidate);
   } catch {
     throw new WorkflowInterpreterError(missingMessage ?? `${messagePrefix}: missing ${fieldName} ${kind} '${fileRef}'`);
   }
+  if (root && !isInside(resolvedPath, root)) {
+    throw new WorkflowInterpreterError(`${messagePrefix}: ${fieldName} ${kind} escapes repository root: ${fileRef}`);
+  }
+  return resolvedPath;
 }
 
 export function readWorkflowFileRef(options) {

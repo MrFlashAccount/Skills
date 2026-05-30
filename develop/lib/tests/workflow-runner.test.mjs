@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
@@ -1008,6 +1008,29 @@ test('runner: continue collects parallel outputs and advances to join request', 
   assert.equal(baton.cursor, 'join');
 });
 
+test('runner: continue rejects one unnamed output for multiple parallel branches', () => {
+  const runDir = path.join(tempDir, 'parallel-unnamed-output-rejected');
+  const workflowPath = path.join(tempDir, 'parallel-unnamed-output-rejected-workflow.json');
+  writeJson(workflowPath, workflowDoc);
+
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next parallel unnamed setup');
+  const prepareOutput = path.join(runDir, 'prepare-output.json');
+  writeJson(prepareOutput, workerOutput('prepared'));
+  const branches = expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', prepareOutput], 'continue prepare unnamed setup');
+  assert.deepEqual(branches.requests.map((request) => request.id), ['branch_a', 'branch_b']);
+
+  const sharedOutput = path.join(runDir, 'shared-output.json');
+  writeJson(sharedOutput, workerOutput('same output must not fan out'));
+  const result = runRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', sharedOutput]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /parallel host outputs must use --output <step-id>=<path> for each requested step/);
+  const baton = JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8'));
+  assert.equal(baton.cursor, 'prepare');
+  assert.equal(Object.hasOwn(baton.state, 'branch_a'), false);
+  assert.equal(Object.hasOwn(baton.state, 'branch_b'), false);
+});
+
 test('runner: dynamic parallel with one branch still applies branch output as parallel envelope', () => {
   const runDir = path.join(tempDir, 'dynamic-single-branch-parallel');
   const workflowPath = path.join(tempDir, 'dynamic-single-branch-parallel-workflow.json');
@@ -1264,6 +1287,61 @@ test('runner: continue recovers from post-render durable commit failure without 
     assert.equal(baton.state.prepare.results[0].summary, `prepared after durable ${failurePoint} retry`);
     assert.match(readFileSync(path.join(runDir, 'history.md'), 'utf8'), /prepare-result\.json/);
   }
+});
+
+test('runner: durable commit recovery rejects instruction paths outside instructions dir', () => {
+  const runDir = path.join(tempDir, 'durable-commit-instruction-escape');
+  const workflowPath = path.join(tempDir, 'durable-commit-instruction-escape-workflow.json');
+  const singleWorkflow = structuredClone(workflowDoc);
+  singleWorkflow.steps.prepare.next = 'done';
+  writeJson(workflowPath, singleWorkflow);
+
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next durable instruction escape setup');
+  const victimPath = path.join(tempDir, 'durable-commit-victim.txt');
+  rmSync(victimPath, { force: true });
+  const durableCommitPath = path.join(runDir, '.workflow-runner', 'durable-commit.json');
+  writeJson(durableCommitPath, {
+    version: 1,
+    response: JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8')),
+    instructions: [{ path: victimPath, content: 'pwned\n' }],
+    historyText: '',
+  });
+
+  const result = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'prepare']);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /durable workflow commit instruction path escapes instructions dir/);
+  assert.equal(existsSync(victimPath), false);
+});
+
+test('runner: durable commit recovery rejects symlinked instruction paths outside instructions dir', () => {
+  const runDir = path.join(tempDir, 'durable-commit-instruction-symlink-escape');
+  const workflowPath = path.join(tempDir, 'durable-commit-instruction-symlink-escape-workflow.json');
+  const singleWorkflow = structuredClone(workflowDoc);
+  singleWorkflow.steps.prepare.next = 'done';
+  writeJson(workflowPath, singleWorkflow);
+
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next durable instruction symlink escape setup');
+  const outsideDir = path.join(tempDir, 'durable-commit-symlink-outside');
+  mkdirSync(outsideDir, { recursive: true });
+  const linkPath = path.join(runDir, '.workflow-runner', 'instructions', 'link');
+  rmSync(linkPath, { recursive: true, force: true });
+  symlinkSync(outsideDir, linkPath, 'dir');
+  const victimPath = path.join(outsideDir, 'pwned.md');
+  rmSync(victimPath, { force: true });
+  const durableCommitPath = path.join(runDir, '.workflow-runner', 'durable-commit.json');
+  writeJson(durableCommitPath, {
+    version: 1,
+    response: JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8')),
+    instructions: [{ path: path.join(linkPath, 'pwned.md'), content: 'pwned\n' }],
+    historyText: '',
+  });
+
+  const result = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'prepare']);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /durable workflow commit instruction path escapes instructions dir/);
+  assert.equal(existsSync(victimPath), false);
 });
 
 test('runner: instructions rejects unknown, unsafe, and missing instructions', () => {

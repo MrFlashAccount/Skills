@@ -1,18 +1,26 @@
 import { constants } from 'node:fs';
-import { access, mkdir, open, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, open, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startupUserPromptTarget } from '../user-prompt.mjs';
+import { isInside } from '../path-utils.mjs';
 
 const runnerDir = dirname(fileURLToPath(import.meta.url));
 export const repositoryRoot = resolve(runnerDir, '../../../..');
 export const defaultWorkflowPath = join(repositoryRoot, 'workflows/dev-harness/workflow.json');
 
+function repositoryRootForWorkflow(workflowPath) {
+  const resolvedWorkflowPath = resolve(workflowPath);
+  return isInside(resolvedWorkflowPath, repositoryRoot) ? repositoryRoot : dirname(resolvedWorkflowPath);
+}
+
 export function resolveRunPaths({ runDir, workflowPath }) {
   const resolvedRunDir = resolve(runDir);
+  const resolvedWorkflowPath = resolve(workflowPath ?? defaultWorkflowPath);
   return {
     runDir: resolvedRunDir,
-    workflowPath: resolve(workflowPath ?? defaultWorkflowPath),
+    workflowPath: resolvedWorkflowPath,
+    repositoryRoot: repositoryRootForWorkflow(resolvedWorkflowPath),
     batonPath: join(resolvedRunDir, 'baton.json'),
     historyPath: join(resolvedRunDir, 'history.md'),
     runnerDir: join(resolvedRunDir, '.workflow-runner'),
@@ -193,6 +201,31 @@ async function writeInstructionFiles(instructions) {
   for (const instruction of instructions ?? []) await writeTextAtomic(instruction.path, instruction.content);
 }
 
+async function nearestExistingParent(path) {
+  let current = path;
+  for (;;) {
+    if (await exists(current)) return current;
+    const parent = dirname(current);
+    if (parent === current) return current;
+    current = parent;
+  }
+}
+
+async function validateInstructionCommit(paths, instructions) {
+  const instructionsDir = resolve(paths.instructionsDir);
+  const instructionsDirRealpath = await realpath(instructionsDir);
+  for (const instruction of instructions ?? []) {
+    if (!instruction || typeof instruction !== 'object' || Array.isArray(instruction)) throw new Error('invalid durable workflow commit instruction entry');
+    if (typeof instruction.path !== 'string' || instruction.path.length === 0) throw new Error('invalid durable workflow commit instruction path');
+    if (typeof instruction.content !== 'string') throw new Error('invalid durable workflow commit instruction content');
+    const targetPath = resolve(instruction.path);
+    if (!isInside(targetPath, instructionsDir)) throw new Error(`durable workflow commit instruction path escapes instructions dir: ${instruction.path}`);
+    const existingParent = await nearestExistingParent(dirname(targetPath));
+    const existingParentRealpath = await realpath(existingParent);
+    if (!isInside(existingParentRealpath, instructionsDirRealpath)) throw new Error(`durable workflow commit instruction path escapes instructions dir: ${instruction.path}`);
+  }
+}
+
 async function readTextIfExists(path) {
   try {
     return { exists: true, content: await readFile(path, 'utf8') };
@@ -229,6 +262,7 @@ export async function recoverDurableCommit(paths) {
   if (!(await exists(paths.durableCommitPath))) return false;
   const commit = await readJson(paths.durableCommitPath, 'pending durable workflow commit');
   if (commit?.version !== 1) throw new Error(`unsupported durable workflow commit version in ${paths.durableCommitPath}`);
+  await validateInstructionCommit(paths, commit.instructions);
 
   const before = await snapshotDurableTargets(paths, commit.instructions);
   try {
