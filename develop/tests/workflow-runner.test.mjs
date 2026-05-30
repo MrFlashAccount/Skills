@@ -134,6 +134,23 @@ test('runner: next returns a single host action request with load command only',
   assert.equal(existsSync(path.join(runDir, 'baton.json')), true);
 });
 
+test('runner: next rejects workflow whose first worker id is reserved baton state bookkeeping', () => {
+  const runDir = path.join(tempDir, 'reserved-first-worker');
+  const workflowPath = path.join(tempDir, 'reserved-first-worker-workflow.json');
+  const reservedWorkflow = structuredClone(workflowDoc);
+  reservedWorkflow.workflow.start = 'artifacts';
+  reservedWorkflow.workflow.steps.artifacts = {
+    ...reservedWorkflow.workflow.steps.prepare,
+    name: 'Reserved first worker',
+  };
+  delete reservedWorkflow.workflow.steps.prepare;
+  writeJson(workflowPath, reservedWorkflow);
+
+  const result = runRunner(['next', '--run-dir', runDir, '--workflow', workflowPath, '--user-prompt', 'must not be skipped']);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /workflow step id 'artifacts' is reserved for baton state bookkeeping/);
+});
 
 test('runner: user prompt is stored, included only in initial worker instructions, and preserved on continue', () => {
   const runDir = path.join(tempDir, 'user-prompt-runtime');

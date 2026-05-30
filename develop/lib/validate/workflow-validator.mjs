@@ -3,11 +3,11 @@ import { WorkflowInterpreterError } from '../workflow/errors.mjs';
 import { readJson } from '../workflow/json-io.mjs';
 import { readOutputSchema } from '../workflow/output-schema-validation.mjs';
 import { assertRoleDirectoryName, listAllowedWorkflowRoles } from '../workflow/roles.mjs';
+import { assertNoReservedWorkflowStepIds } from '../workflow/reserved-state.mjs';
 import { assertWorkflowSchema, workflowSchemas } from '../workflow/schema-validation.mjs';
 import { assertTransitionDescriptorTargets, normalizeTransitionNext } from '../workflow/transitions.mjs';
 
 const DYNAMIC_TARGET_UNCHECKED_ROOTS = new Set(['outputs']);
-const RESERVED_BATON_STATE_STEP_IDS = new Set(['artifacts', 'results', 'outputs', 'attempts']);
 
 function fail(message) {
   throw new WorkflowInterpreterError(`workflow semantic validation failed: ${message}`);
@@ -31,10 +31,11 @@ function assertWorkflowRootTargets(workflow) {
 }
 
 function assertWorkflowReservedStepIds(workflow) {
-  for (const stepId of Object.keys(workflow.steps)) {
-    if (RESERVED_BATON_STATE_STEP_IDS.has(stepId)) {
-      fail(`workflow step id '${stepId}' is reserved for baton state bookkeeping`);
-    }
+  try {
+    assertNoReservedWorkflowStepIds(workflow);
+  } catch (error) {
+    if (error instanceof WorkflowInterpreterError) fail(error.message);
+    throw error;
   }
 }
 
