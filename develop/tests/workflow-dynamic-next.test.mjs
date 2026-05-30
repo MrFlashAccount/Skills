@@ -56,6 +56,7 @@ function workflow(next = '${{ output.next }}') {
           output: outputContract(),
           next,
         },
+        planning_draft: { name: 'Planning draft', kind: 'worker', input: {}, output: outputContract(), next: 'selector' },
         review_a: { name: 'Review A', kind: 'worker', input: {}, output: outputContract(), next: 'join' },
         review_b: { name: 'Review B', kind: 'worker', input: {}, output: outputContract(), next: 'join' },
         join: { name: 'Join', kind: 'worker', input: {}, output: outputContract(), next: 'done' },

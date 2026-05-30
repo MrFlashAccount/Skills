@@ -1,22 +1,20 @@
-import { join } from 'node:path';
 import { applyWorkflowOutput, renderInterpreterResponse, renderWorkflow } from '../interpreter/index.mjs';
-import { assertSafeStepId, instructionPathForStep, responseStatusForInterpreterResponse, toRunnerResponse } from './host-requests.mjs';
 import { resolveStartupUserPrompt } from '../user-prompt.mjs';
-import { appendHistory, ensureRunFiles, pathExists, persistRunnerResponse, readJson, readText, repositoryRoot, resolveRunPaths, withContinueRunLock, writeJsonAtomic, writeTextAtomic } from './run-state.mjs';
+import { assertSafeStepId, instructionPathForStep, responseStatusForInterpreterResponse, toRunnerResponse } from './host-requests.mjs';
+import { commitDurableRunState, ensureRunFiles, pathExists, readJson, readText, recoverDurableCommit, repositoryRoot, resolveRunPaths, withContinueRunLock } from './run-state.mjs';
 
-async function persistStepInstructions(paths, interpreterResponse) {
-  if (responseStatusForInterpreterResponse(interpreterResponse) !== 'needs_host_actions') return;
+function stepInstructionsFor(paths, interpreterResponse) {
+  if (responseStatusForInterpreterResponse(interpreterResponse) !== 'needs_host_actions') return [];
 
-  for (const step of interpreterResponse.steps ?? []) {
+  return (interpreterResponse.steps ?? []).map((step) => {
     if (!step.compiledPrompt?.prompt) throw new Error(`missing compiled instructions for workflow step '${step.id}'`);
-    await writeTextAtomic(instructionPathForStep(paths.instructionsDir, step.id), step.compiledPrompt.prompt);
-  }
+    return { path: instructionPathForStep(paths.instructionsDir, step.id), content: step.compiledPrompt.prompt };
+  });
 }
 
 async function runnerResponseForRendered(paths, rendered, { initialized, resumed }) {
-  await persistStepInstructions(paths, rendered);
   const workflowDoc = await readJson(paths.workflowPath, 'workflow');
-  const response = {
+  return {
     ...toRunnerResponse(rendered, {
       runDir: paths.runDir,
       workflow: workflowDoc.workflow,
@@ -28,7 +26,17 @@ async function runnerResponseForRendered(paths, rendered, { initialized, resumed
     initialized,
     resumed,
   };
-  await persistRunnerResponse(paths, response);
+}
+
+async function persistNextRunnerResponse(paths, rendered, runState) {
+  const response = await runnerResponseForRendered(paths, rendered, runState);
+  await commitDurableRunState(paths, {
+    response,
+    baton: response.baton,
+    instructions: stepInstructionsFor(paths, rendered),
+    history: { source: 'workflow-runner', baton: response.baton, requests: response.requests },
+    writeBaton: runState.initialized,
+  });
   return response;
 }
 
@@ -36,8 +44,9 @@ export async function next({ runDir, workflowPath, includeDiagnostics = false, u
   const paths = resolveRunPaths({ runDir, workflowPath });
   const startupUserPrompt = (await pathExists(paths.batonPath)) ? undefined : await resolveStartupUserPrompt({ userPrompt, userPromptFile });
   const runState = await ensureRunFiles(paths, { userPrompt: startupUserPrompt });
+  await recoverDurableCommit(paths);
   const rendered = renderWorkflow(paths.workflowPath, paths.batonPath, { includeDiagnostics, repositoryRoot });
-  return runnerResponseForRendered(paths, rendered, {
+  return persistNextRunnerResponse(paths, rendered, {
     initialized: runState.initialized,
     resumed: runState.resumed,
   });
@@ -70,32 +79,43 @@ function outputPathForRequest(request, outputRefs) {
   throw new Error('parallel host outputs must use --output <step-id>=<path> for each requested step');
 }
 
-async function outputPathForCurrentState(paths, outputRefs = []) {
+async function outputForCurrentState(paths, outputRefs = []) {
+  await recoverDurableCommit(paths);
   const lastResponse = await readJson(paths.lastResponsePath, 'last runner response');
   if (lastResponse.status !== 'needs_host_actions') throw new Error(`last runner response is '${lastResponse.status}', not needs_host_actions`);
 
   const missing = [];
-  const pathsByStep = new Map();
-  for (const request of lastResponse.requests ?? []) {
+  const requests = lastResponse.requests ?? [];
+  const pathsByRequestId = new Map();
+  for (const request of requests) {
     const outputPath = outputPathForRequest(request, outputRefs);
-    pathsByStep.set(request.id, outputPath);
+    pathsByRequestId.set(request.id, outputPath);
     if (!(await pathExists(outputPath))) missing.push(outputPath);
   }
   if (missing.length > 0) throw new Error(`missing host output: ${missing.join(', ')}`);
 
-  if ((lastResponse.requests ?? []).length === 1) return { outputPath: pathsByStep.get(lastResponse.requests[0].id), usedEnvelope: false };
+  const stepIdForRequest = (request) => request.stepId ?? request.id;
+  const isPreparedParallelContinuation = requests.some((request) => stepIdForRequest(request) !== lastResponse.baton?.cursor);
+  if (requests.length === 1 && !isPreparedParallelContinuation) {
+    return { outputPath: pathsByRequestId.get(requests[0].id), outputValue: undefined, historyOutput: pathsByRequestId.get(requests[0].id) };
+  }
 
   const steps = {};
-  for (const request of lastResponse.requests) steps[request.id] = await readJson(pathsByStep.get(request.id), `host output ${request.id}`);
-  const envelopePath = join(paths.runnerDir, 'parallel-output.json');
-  await writeJsonAtomic(envelopePath, { steps });
-  return { outputPath: envelopePath, usedEnvelope: true };
+  const historyOutput = [];
+  for (const request of requests) {
+    const outputPath = pathsByRequestId.get(request.id);
+    const stepId = stepIdForRequest(request);
+    steps[stepId] = await readJson(outputPath, `host output ${stepId}`);
+    historyOutput.push(`${stepId}=${outputPath}`);
+  }
+  return { outputPath: '<parallel host outputs>', outputValue: { steps }, historyOutput: historyOutput.join(', ') };
 }
 
 async function resolveContinueRunPaths({ runDir, workflowPath }) {
   if (workflowPath) return resolveRunPaths({ runDir, workflowPath });
 
   const paths = resolveRunPaths({ runDir });
+  await recoverDurableCommit(paths);
   const lastResponse = await readJson(paths.lastResponsePath, 'last runner response');
   if (typeof lastResponse.workflow !== 'string' || lastResponse.workflow.length === 0) return paths;
   return resolveRunPaths({ runDir, workflowPath: lastResponse.workflow });
@@ -106,19 +126,26 @@ export async function continueRun({ runDir, workflowPath, output, includeDiagnos
   return withContinueRunLock(lockPaths, async () => {
     const paths = await resolveContinueRunPaths({ runDir, workflowPath });
     await ensureRunFiles(paths);
-    const { outputPath } = await outputPathForCurrentState(paths, normalizeOutputRefs(output));
-    const applied = applyWorkflowOutput(paths.workflowPath, paths.batonPath, outputPath);
-    await writeJsonAtomic(paths.batonPath, applied.baton);
-    await appendHistory(paths, { source: 'workflow-runner-continue', baton: applied.baton, output: outputPath });
-
+    await recoverDurableCommit(paths);
+    const { outputPath, outputValue, historyOutput } = await outputForCurrentState(paths, normalizeOutputRefs(output));
+    const applied = applyWorkflowOutput(paths.workflowPath, paths.batonPath, outputPath, outputValue);
     const rendered = renderInterpreterResponse(paths.workflowPath, paths.batonPath, applied, { includeDiagnostics, repositoryRoot });
-    return runnerResponseForRendered(paths, rendered, { initialized: false, resumed: true });
+
+    const response = await runnerResponseForRendered(paths, rendered, { initialized: false, resumed: true });
+    await commitDurableRunState(paths, {
+      response,
+      baton: applied.baton,
+      instructions: stepInstructionsFor(paths, rendered),
+      history: { source: 'workflow-runner-continue', baton: applied.baton, output: historyOutput, requests: response.requests },
+    });
+    return response;
   });
 }
 
 export async function loadInstructions({ runDir, stepId }) {
   assertSafeStepId(stepId);
   const paths = resolveRunPaths({ runDir });
+  await recoverDurableCommit(paths);
   const lastResponse = await readJson(paths.lastResponsePath, 'last runner response');
   const request = (lastResponse.requests ?? []).find((candidate) => candidate.stepId === stepId || candidate.id === stepId);
   if (lastResponse.status !== 'needs_host_actions' || !request) throw new Error(`unknown current workflow step id: ${stepId}`);

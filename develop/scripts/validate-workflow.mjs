@@ -7,11 +7,14 @@ function fail(message) {
   process.exit(1);
 }
 
-const [workflowPath = 'develop/dev-harness.workflow.json'] = process.argv.slice(2);
+const workflowPaths = process.argv.slice(2);
+if (workflowPaths.length === 0) {
+  workflowPaths.push('develop/dev-harness.workflow.json', 'workflows/research-critic.workflow.json');
+}
 
 try {
-  const result = validateWorkflowFile(workflowPath);
-  console.log(JSON.stringify(result, null, 2));
+  const results = workflowPaths.map((workflowPath) => validateWorkflowFile(workflowPath));
+  console.log(JSON.stringify(results.length === 1 ? results[0] : results, null, 2));
 } catch (error) {
   if (error instanceof WorkflowInterpreterError) fail(error.message);
   throw error;

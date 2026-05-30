@@ -1,13 +1,13 @@
 import { validateJsonSchema } from 'schema-validation';
 import { WorkflowInterpreterError } from '../workflow/errors.mjs';
 import { readJson } from '../workflow/json-io.mjs';
+import { RESERVED_STEP_IDS, assertProjectableStateSelector, isReservedStateKey } from '../workflow/state-keys.mjs';
 import { readOutputSchema } from '../workflow/output-schema-validation.mjs';
 import { assertRoleDirectoryName, listAllowedWorkflowRoles } from '../workflow/roles.mjs';
-import { assertNoReservedWorkflowStepIds } from '../workflow/reserved-state.mjs';
 import { assertWorkflowSchema, workflowSchemas } from '../workflow/schema-validation.mjs';
 import { assertTransitionDescriptorTargets, normalizeTransitionNext } from '../workflow/transitions.mjs';
 
-const DYNAMIC_TARGET_UNCHECKED_ROOTS = new Set(['outputs']);
+const WORKFLOW_NAME = /^[a-z][a-z0-9-]*$/;
 
 function fail(message) {
   throw new WorkflowInterpreterError(`workflow semantic validation failed: ${message}`);
@@ -30,12 +30,36 @@ function assertWorkflowRootTargets(workflow) {
   if (blockedStep.kind !== 'blocked') fail(`workflow blocked target '${workflow.blocked}' must be a blocked step`);
 }
 
-function assertWorkflowReservedStepIds(workflow) {
-  try {
-    assertNoReservedWorkflowStepIds(workflow);
-  } catch (error) {
-    if (error instanceof WorkflowInterpreterError) fail(error.message);
-    throw error;
+function assertWorkflowIdentity(workflow) {
+  if (typeof workflow.name !== 'string' || !WORKFLOW_NAME.test(workflow.name)) {
+    fail(`workflow name must be a non-empty lowercase kebab-case identifier: ${JSON.stringify(workflow.name)}`);
+  }
+}
+
+function assertWorkflowStepIds(workflow) {
+  for (const stepId of Object.keys(workflow.steps)) {
+    if (isReservedStateKey(stepId)) {
+      fail(`workflow step id '${stepId}' is reserved for runtime aggregate state; reserved ids: ${RESERVED_STEP_IDS.join(', ')}`);
+    }
+  }
+}
+
+function assertWorkflowInputStateSelectors(workflow) {
+  for (const [stepId, step] of Object.entries(workflow.steps)) {
+    for (const selector of step.input?.state ?? []) {
+      try {
+        assertProjectableStateSelector(selector, { stepId, errorPrefix: 'workflow semantic validation failed' });
+      } catch (error) {
+        if (!(error instanceof WorkflowInterpreterError)) throw error;
+        if (!/top-level workflow step ids only/.test(error.message)) {
+          fail(`step '${stepId}' input.state selector '${selector}' is reserved for runtime aggregate state and cannot reference workflow steps`);
+        }
+        fail(`step '${stepId}' input.state selector '${selector}' is invalid; v1 supports top-level workflow step ids only`);
+      }
+      if (!Object.hasOwn(workflow.steps, selector)) {
+        fail(`step '${stepId}' input.state selector '${selector}' does not reference a declared workflow step`);
+      }
+    }
   }
 }
 
@@ -151,12 +175,15 @@ function collectStringValues(schema, values = new Set()) {
 function possibleStringTargetsForSchema(schema) {
   const directValues = collectStringValues(schema);
   const itemValues = new Set();
+  const arraySchemas = [];
   for (const candidate of schemaVariants(schema)) {
-    if (candidate.type === 'array' || candidate.items) collectStringValues(candidate.items, itemValues);
+    if (candidate.type === 'array' || candidate.items) {
+      arraySchemas.push(candidate);
+      collectStringValues(candidate.items, itemValues);
+    }
   }
 
-  const possible = new Set([...directValues, ...itemValues]);
-  return { possible };
+  return { directValues, itemValues, arraySchemas, possible: new Set([...directValues, ...itemValues]) };
 }
 
 function schemaForExpression({ workflow, schemasByStep, stepId, step, expression }) {
@@ -167,10 +194,8 @@ function schemaForExpression({ workflow, schemasByStep, stepId, step, expression
   }
 
   const [stateKey, ...rest] = expression.path;
-  if (DYNAMIC_TARGET_UNCHECKED_ROOTS.has(stateKey)) {
-    return { schema: undefined, reason: `input.${stateKey} is aggregate runtime state` };
-  }
-  if (!step.input?.state?.includes(stateKey)) {
+  const projectedState = step.input?.state ?? [];
+  if (!projectedState.includes(stateKey)) {
     return { schema: undefined, reason: `step '${stepId}' does not project input state '${stateKey}' for ${expression.source}` };
   }
   const producerSchema = schemasByStep.get(stateKey);
@@ -197,13 +222,33 @@ function assertDynamicTargetSchema({ workflow, schemasByStep, stepId, step, expr
   const aggregate = schemas.reduce((acc, schema) => {
     const next = possibleStringTargetsForSchema(schema);
     for (const value of next.possible) acc.possible.add(value);
+    for (const value of next.directValues) acc.directValues.add(value);
+    for (const value of next.itemValues) acc.itemValues.add(value);
+    acc.arraySchemas.push(...next.arraySchemas);
     return acc;
-  }, { possible: new Set() });
+  }, { possible: new Set(), directValues: new Set(), itemValues: new Set(), arraySchemas: [] });
 
   if (aggregate.possible.size === 0) fail(`step '${stepId}' ${field} expression ${expression.source} must resolve from a string enum/const or array item enum/const schema`);
 
-  for (const target of aggregate.possible) {
+  for (const target of aggregate.directValues) {
     if (!Object.hasOwn(workflow.steps, target)) fail(`step '${stepId}' ${field} expression ${expression.source} schema allows unknown target '${target}'`);
+  }
+  if (aggregate.itemValues.size === 0) return;
+
+  for (const arraySchema of aggregate.arraySchemas) {
+    if (arraySchema.minItems === undefined || arraySchema.minItems < 1) {
+      fail(`step '${stepId}' ${field} expression ${expression.source} array target schema must declare minItems >= 1`);
+    }
+    if (arraySchema.uniqueItems !== true) {
+      fail(`step '${stepId}' ${field} expression ${expression.source} array target schema must declare uniqueItems: true`);
+    }
+  }
+
+  try {
+    assertTransitionDescriptorTargets(workflow, stepId, { kind: 'static-parallel', targets: [...aggregate.itemValues] });
+  } catch (error) {
+    if (error instanceof WorkflowInterpreterError) fail(`step '${stepId}' ${field} expression ${expression.source} array target schema is not a valid parallel fan-out: ${error.message}`);
+    throw error;
   }
 }
 
@@ -257,8 +302,10 @@ function assertTransitionSemantics(workflow, schemasByStep) {
 export function validateWorkflowDocument(workflowDoc, { workflowPath = 'workflow.json', repositoryRoot = process.cwd() } = {}) {
   assertWorkflowSchema(workflowDoc);
   const workflow = workflowDoc.workflow;
+  assertWorkflowIdentity(workflow);
+  assertWorkflowStepIds(workflow);
   assertWorkflowRootTargets(workflow);
-  assertWorkflowReservedStepIds(workflow);
+  assertWorkflowInputStateSelectors(workflow);
   assertWorkflowStepRoles(workflow, repositoryRoot);
   const warnings = [];
   const schemasByStep = loadStepOutputSchemas({ workflow, workflowPath, repositoryRoot, warnings });

@@ -32,9 +32,19 @@ The validator first checks the workflow document with the workflow JSON Schema. 
 
 The validator checks that:
 
+- `workflow.name` is a non-empty lowercase kebab-case identifier.
 - `workflow.start` names a declared step.
 - `workflow.done` names a declared step with `kind: "done"`.
 - `workflow.blocked` names a declared step with `kind: "blocked"`.
+
+### 2a. Step ids and projected state selectors
+
+The validator checks workflow step ids and every `input.state` selector:
+
+- declared step ids must not be reserved runtime aggregate state keys: `artifacts`, `results`, `outputs`, or `attempts`;
+- selectors must be top-level workflow step ids supported by the renderer;
+- selectors must name declared workflow steps;
+- reserved runtime aggregate state keys are always banned as workflow step ids and projected state selectors.
 
 ### 3. Transition targets
 
@@ -43,6 +53,7 @@ The validator checks static and dynamic transition declarations:
 - static `next` targets must name declared steps;
 - every `next.match/cases` target must name a declared step;
 - dynamic direct `next` expressions must be schema-covered when they come from worker output or projected input state;
+- dynamic array target schemas must declare `minItems >= 1`, `uniqueItems: true`, and valid parallel fan-out/join targets;
 - parallel transition items are checked with the same target rules.
 
 ### 4. Output schema availability and compile checks

@@ -1,11 +1,11 @@
-# Workflow State Projection + Prompt Rendering Proposal
+# Workflow State Projection + Prompt Rendering Contract
 
 ## Status
 
-- Slice: #89 State Projection + Prompt Rendering
-- State: implemented in PR #94 for the generic workflow interpreter
+- PR: #108 research workflow JSON contract updates
+- State: implemented for the generic workflow interpreter
 - Scope boundary: generic workflow interpreter; no DevHarness-specific runtime semantics
-- Implementation status: `render` CLI mode, state projection, prompt rendering, renderer-owned default prompt layering, and deterministic tests are present in this slice
+- Implementation status: `render` CLI mode, state projection, prompt rendering, renderer-owned default prompt layering, output schema validation, and deterministic tests are present
 
 ## Problem
 
@@ -52,7 +52,7 @@ Current files already establish these contracts:
 - `develop/schemas/workflow.json` rejects step-level extension fields and allows workflow-scoped extensions only.
 - `develop/lib/workflow/interpreter/index.mjs` chooses the current `step`, validates transition targets, applies output, and returns the unified `{ baton, steps[] }` response for `inspect`/`apply`; `render` keeps compiled prompts inside the deterministic runner layer without making host requests carry full prompt text.
 - `develop/lib/workflow/executable-steps.mjs` exposes step entries shaped as `{ id, action, step }` before rendering prompts.
-- `develop/lib/workflow/projection.mjs` projects only explicit top-level `input.state` keys and fails on missing or nested selectors.
+- `develop/lib/workflow/projection.mjs` projects only explicit top-level `input.state` selectors, skips selectors that are valid workflow step ids but absent from the current `baton.state`, and rejects nested selectors.
 - `develop/lib/workflow/prompt-renderer.mjs` loads local markdown templates, assembles fallback prompts, appends omitted role/output/state/step-prompt/user-prompt/reminder sections in the compiled layer order, and returns prompt metadata plus opt-in diagnostics.
 - `develop/lib/workflow/state.mjs` applies worker/approval output to baton state after the worker returns.
 - `shared/templates/README.md` says shared templates are output templates and do not define orchestration or worker spawning.
@@ -71,7 +71,7 @@ Use the existing step vocabulary and keep the field names simple:
   "kind": "worker",
   "input": {
     "role": "researcher",
-    "state": ["artifacts", "results"],
+    "state": ["research_draft", "implementation_plan"],
     "prompt": "Read task context..."
   },
   "output": {
@@ -89,7 +89,7 @@ Renderer-relevant fields:
 | `step.kind` | all step kinds | Determines directive action outside the renderer and remains available to prompt templates. |
 | `input.template` | all step kinds, optional | Markdown input prompt template to load and render; omitted steps use renderer-owned prompt layering. |
 | `input.prompt` | all step kinds | Inline task instruction appended or substituted by the renderer. |
-| `input.state` | all step kinds | Explicit list of baton `state` keys that may be projected. |
+| `input.state` | all step kinds | Explicit list of workflow step ids whose state may be projected. |
 | `input.role` | worker | Role name resolved from `roles/<name>/`; renderer inlines `ROLE.md` and `RUBRIC.md` into prompt context. |
 | `output.template` | worker | Markdown output contract template to include as strict return-shape instructions. |
 | `output.schema` | worker, optional | Repository-local JSON schema file to inject near the output contract as concise valid-JSON/self-check instructions. |
@@ -99,12 +99,13 @@ Renderer-relevant fields:
 
 ### `input.state`
 
-`input.state` is an allow-list, not a hint. The renderer must project only the listed baton state keys. If `input.state` is absent or empty, no baton state is included.
+`input.state` is an allow-list, not a hint. Entries reference workflow step ids whose state may be projected. If `input.state` is absent or empty, no baton state is included.
 
-V1 selectors are top-level baton state keys only:
+V1 selectors are top-level workflow step ids only:
 
-- valid examples: `artifacts`, `results`, `attempts`;
-- invalid examples: `artifacts[0]`, `artifacts.summary`, `results.*`, `$..summary`.
+- valid examples: `research_draft`, `approve_plan`, `review_join` when those steps exist in the workflow;
+- invalid examples: `artifacts`, `results`, `outputs`, `attempts`; reserved runtime aggregate ids are always banned as workflow step ids and projected state selectors;
+- invalid nested selectors: `research_draft.route`, `artifacts[0]`, `results.*`, `$..summary`.
 
 Nested path selection should not ship in v1. It creates a query language, partial-object privacy questions, ordering traps, and unclear diagnostics. If needed later, add a separate selector grammar after real use cases exist.
 
@@ -154,7 +155,7 @@ Renderer behavior:
 - resolve role files from `roles/<input.role>/ROLE.md` and `roles/<input.role>/RUBRIC.md` under the repository root;
 - inline both files into the fixed `## Role material` section, with deterministic `<!-- role material: ... -->` source comments;
 - append a `## Role material` section when `input.role` is present; input templates do not consume role variables;
-- fail hard with a deterministic `WorkflowInterpreterError` when either required role material file is missing or escapes the repository root;
+- fail with a deterministic `WorkflowInterpreterError` when either required role material file is missing or escapes the repository root;
 - do not infer capabilities, map roles to subagent agents, or make role required for worker steps unless a separate schema decision is approved.
 
 ### Compiled prompt result shape
@@ -168,7 +169,7 @@ Add a renderer-level result shape that can be embedded in a future directive or 
     "outputTemplate": "../../shared/templates/research-packet-template.md",
     "outputSchema": "schemas/research-output.schema.json",
     "roleMaterial": ["roles/researcher/ROLE.md", "roles/researcher/RUBRIC.md"],
-    "projectedStateKeys": ["artifacts", "results"]
+    "projectedStateKeys": ["research_draft", "implementation_plan"]
   }
 }
 ```
@@ -191,35 +192,25 @@ projectState({ batonState, selectors }) -> { value, projectedKeys, diagnostics }
 ### Selection
 
 - Only keys named by `selectors` are copied from `baton.state`.
-- Selector order is preserved from `input.state` after schema-level duplicate rejection.
+- Selector order is preserved from `input.state` after schema-level duplicate rejection; selectors are workflow step ids, not aggregate runtime state keys.
 - Absent or empty selectors produce `{}` with no projected keys.
 
 ### Missing-key policy
 
-Default v1 policy: fail hard when a selected key is absent from `baton.state`.
+Default v1 policy: `input.state` selectors are strict against declared workflow step ids during semantic validation, but optional relative to the current `baton.state` at prompt-render time.
 
-Rationale: `input.state` is an explicit contract. A typo such as `artifact` should not produce a deceptively valid prompt.
+Rationale: branch/join steps may project every semantically valid branch output while only some branches have actually run in the current baton. Typos such as `artifact` are still rejected by workflow semantic validation because selectors must reference declared workflow step ids.
 
-Error shape should identify:
-
-- `stepId`;
-- selector;
-- available top-level baton state keys.
-
-Example message:
-
-```text
-workflow prompt render failed: step 'research' selected missing baton state key 'artifact'; available keys: artifacts, results
-```
+When a selected step id is absent from `baton.state`, projection skips it and continues with the selectors that are present.
 
 ### Nested path policy
 
-Reject nested selectors in v1. A selector is valid only when it matches one top-level key exactly. Suggested validation regex: `/^[A-Za-z_][A-Za-z0-9_-]*$/` plus actual key existence.
+Reject nested selectors in v1. A selector is valid only when it matches one declared workflow step id exactly. Suggested validation regex: `/^[A-Za-z_][A-Za-z0-9_-]*$/` plus actual key existence.
 
 Rejected selector examples should produce clear diagnostics:
 
 ```text
-workflow prompt render failed: step 'research' uses unsupported state selector 'artifacts.0'; v1 supports top-level baton state keys only
+workflow prompt render failed: step 'research' uses unsupported state selector 'artifacts.0'; v1 supports top-level workflow step ids only
 ```
 
 ### Serialization
@@ -231,8 +222,8 @@ State projection inserted into prompts should be serialized as fenced JSON:
 
 ```json
 {
-  "artifacts": [],
-  "results": []
+  "research_draft": { "summary": "..." },
+  "implementation_plan": { "status": "ready" }
 }
 ```
 ````
@@ -356,7 +347,7 @@ Output shape:
 
 ```json
 {
-  "baton": { "cursor": "research", "status": "running", "state": { "artifacts": [], "results": [] } },
+  "baton": { "cursor": "review", "status": "running", "state": { "research_draft": { }, "implementation_plan": { } } },
   "directive": { "id": "research", "action": "run_worker", "step": { } },
   "compiledPrompt": { "prompt": "...", "metadata": { } }
 }
@@ -376,7 +367,6 @@ Hard errors:
 
 - workflow/baton schema validation failure;
 - cursor/status inconsistency;
-- selected missing baton state key;
 - nested or unsupported state selector;
 - missing `input.template` when declared;
 - missing `output.template` when declared;
@@ -391,7 +381,7 @@ Non-errors:
 - absent `input.state`: emit no state section;
 - absent `output.template` on approval/done/blocked steps.
 
-Diagnostics are machine-readable in compiled results only when rendering succeeds with non-fatal notices and the caller opts in, for example CLI `render --diagnostics`. The current non-fatal diagnostic is `default_prompt_used`, emitted when a step has no `input.template` and the renderer assembles the deterministic fallback prompt. Most v1 conditions still fail hard rather than continue with a risky prompt.
+Diagnostics are machine-readable in compiled results only when rendering succeeds with non-fatal notices and the caller opts in, for example CLI `render --diagnostics`. The current non-fatal diagnostic is `default_prompt_used`, emitted when a step has no `input.template` and the renderer assembles the deterministic fallback prompt. Missing selected step outputs are normal branch/join state and are skipped without diagnostics.
 
 ## Test plan
 
@@ -401,7 +391,7 @@ Unit tests:
 
 - `projectState` includes only explicit keys.
 - `projectState` preserves selector order.
-- `projectState` rejects missing keys.
+- `projectState` skips selected step ids that are absent from the current baton state.
 - `projectState` rejects nested selectors.
 - `projectState` serializes stable fenced JSON.
 - `renderWorkflowPrompt` renders default prompt when no input template exists.

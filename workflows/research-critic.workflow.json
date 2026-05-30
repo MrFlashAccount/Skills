@@ -1,0 +1,180 @@
+{
+  "workflow": {
+    "name": "research-critic",
+    "version": 1,
+    "start": "research_draft",
+    "done": "done",
+    "blocked": "blocked",
+    "instruction": "Run a reusable Researcher A / Researcher B critic loop. Keep this workflow neutral and reusable across callers. Use the run directory convention from the generic workflow interpreter: baton.json and history.md at --run-dir, worker/approval outputs under --run-dir/outputs when persisted by the caller.",
+    "steps": {
+      "research_draft": {
+        "name": "Research draft",
+        "kind": "worker",
+        "input": {
+          "role": "researcher",
+          "prompt": "Normalize the task input, inspect available evidence, and produce a research packet. Return ready_for_attack when the packet is ready for critic review, needs_input when user answers are required, or blocked when progress is unsafe without external input. If revising after critic feedback or user answers, preserve answered decisions and close only evidence-backed questions."
+        },
+        "output": {
+          "template": "shared/templates/research-packet-template.md",
+          "schema": "schemas/research-critic/research-draft-output.json"
+        },
+        "next": {
+          "match": "${{ output.outcome }}",
+          "cases": {
+            "ready_for_attack": "research_attack",
+            "needs_input": "ask_research_questions",
+            "blocked": "blocked"
+          }
+        }
+      },
+      "ask_research_questions": {
+        "name": "Ask research questions",
+        "kind": "approval",
+        "input": {
+          "state": [
+            "research_draft",
+            "research_answered_draft",
+            "research_revision",
+            "research_attack"
+          ],
+          "prompt": "Ask the user only the blocking research questions from the latest available draft-producing output and latest research_attack output. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Continue with approval approved after the user answer is captured in the approval output; use blocked only when the user cannot or will not provide required input."
+        },
+        "next": {
+          "match": "${{ output.approval }}",
+          "cases": {
+            "approved": "research_answered_draft",
+            "blocked": "blocked"
+          }
+        }
+      },
+      "research_answered_draft": {
+        "name": "Research answered draft",
+        "kind": "worker",
+        "input": {
+          "role": "researcher",
+          "state": [
+            "research_draft",
+            "ask_research_questions",
+            "research_attack"
+          ],
+          "prompt": "Revise the research packet using the approved user answers from ask_research_questions and any critic feedback if present. Preserve answered decisions and close only evidence-backed questions. Return ready_for_attack when the packet is ready for critic review, needs_input when more user answers are required, or blocked when progress is unsafe without external input."
+        },
+        "output": {
+          "template": "shared/templates/research-packet-template.md",
+          "schema": "schemas/research-critic/research-draft-output.json"
+        },
+        "next": {
+          "match": "${{ output.outcome }}",
+          "cases": {
+            "ready_for_attack": "research_attack",
+            "needs_input": "ask_research_questions",
+            "blocked": "blocked"
+          }
+        }
+      },
+      "research_attack": {
+        "name": "Research attack",
+        "kind": "worker",
+        "input": {
+          "role": "critic",
+          "state": [
+            "research_draft",
+            "research_answered_draft",
+            "research_revision"
+          ],
+          "prompt": "Attack the latest available research packet for weak evidence, unsafe assumptions, missing user input, misclassified blockers, and over-broad candidate approaches. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Return approved only when the packet is ready for downstream handoff, needs_revision when a bounded revision should loop through a fresh draft-producing output, needs_input when user answers are required, or blocked for an unsafe stop."
+        },
+        "output": {
+          "template": "shared/templates/review-verdict-template.md",
+          "schema": "schemas/research-critic/research-attack-output.json"
+        },
+        "next": {
+          "match": "${{ output.outcome }}",
+          "cases": {
+            "approved": "save_research_packet",
+            "needs_revision": "research_revision",
+            "needs_input": "ask_research_questions",
+            "blocked": "blocked"
+          }
+        }
+      },
+      "research_revision": {
+        "name": "Research revision",
+        "kind": "worker",
+        "input": {
+          "role": "researcher",
+          "state": [
+            "research_draft",
+            "research_answered_draft",
+            "research_revision",
+            "research_attack",
+            "ask_research_questions"
+          ],
+          "prompt": "Revise the latest available research packet using the latest research_attack verdict and any approved user answers. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Preserve answered decisions, address each bounded critic finding, and return ready_for_attack when the packet is ready for another critic review, needs_input when user answers are required, or blocked when progress is unsafe without external input."
+        },
+        "output": {
+          "template": "shared/templates/research-packet-template.md",
+          "schema": "schemas/research-critic/research-draft-output.json"
+        },
+        "next": {
+          "match": "${{ output.outcome }}",
+          "cases": {
+            "ready_for_attack": "research_attack",
+            "needs_input": "ask_research_questions",
+            "blocked": "blocked"
+          }
+        }
+      },
+      "save_research_packet": {
+        "name": "Save research packet",
+        "kind": "worker",
+        "input": {
+          "role": "researcher",
+          "state": [
+            "research_draft",
+            "research_answered_draft",
+            "research_revision",
+            "research_attack"
+          ],
+          "prompt": "Finalize persistence metadata for the approved research packet using the latest approved research packet and latest research_attack verdict. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. The caller should save concrete worker outputs under the active run directory's outputs/ folder and persist the returned baton/history with the generic persist helper. Return saved after emitting artifact/result references to the saved packet, or blocked if the packet cannot be safely saved."
+        },
+        "output": {
+          "template": "shared/templates/research-save-metadata-template.md",
+          "schema": "schemas/research-critic/save-research-packet-output.json"
+        },
+        "next": {
+          "match": "${{ output.outcome }}",
+          "cases": {
+            "saved": "done",
+            "blocked": "blocked"
+          }
+        }
+      },
+      "done": {
+        "name": "Done",
+        "kind": "done",
+        "input": {
+          "state": [
+            "save_research_packet"
+          ],
+          "prompt": "Research packet approved and saved."
+        }
+      },
+      "blocked": {
+        "name": "Blocked",
+        "kind": "blocked",
+        "input": {
+          "state": [
+            "research_draft",
+            "ask_research_questions",
+            "research_answered_draft",
+            "research_attack",
+            "research_revision",
+            "save_research_packet"
+          ],
+          "prompt": "Research workflow is blocked. Surface the blocker and required input."
+        }
+      }
+    }
+  }
+}

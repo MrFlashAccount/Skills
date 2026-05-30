@@ -32,20 +32,20 @@ const schemaWorkflowDoc = {
       worker_step: {
         name: 'Worker step',
         kind: 'worker',
-        input: { template: 'worker.md', role: 'backend', state: ['artifacts'], prompt: 'Run worker.' },
+        input: { template: 'worker.md', role: 'backend', state: ['worker_step'], prompt: 'Run worker.' },
         output: outputContract(),
         next: { match: '${{ output.outcome }}', cases: { ready: 'approval_step', retry: 'worker_step', blocked: 'blocked' } },
       },
       approval_step: {
         name: 'Approval step',
         kind: 'approval',
-        input: { state: ['artifacts'], prompt: 'Approve.' },
+        input: { state: ['worker_step'], prompt: 'Approve.' },
         next: { match: '${{ output.approval }}', cases: { approved: 'direct_next_worker', rejected: 'worker_step', blocked: 'blocked' } },
       },
       direct_next_worker: {
         name: 'Direct next worker',
         kind: 'worker',
-        input: { template: 'direct.md', state: ['results'] },
+        input: { template: 'direct.md', state: ['approval_step'] },
         output: outputContract(),
         next: 'done',
       },
@@ -126,24 +126,38 @@ test('state projection: projects explicit top-level keys in selector order', () 
 });
 
 test('state projection: absent selectors project empty object', () => {
-  const projected = projectState({ stepId: 'worker_step', batonState: { artifacts: ['hidden'] } });
+  const projected = projectState({ stepId: 'worker_step', batonState: { worker_step: ['hidden'] } });
 
   assert.deepEqual(projected.value, {});
   assert.deepEqual(projected.projectedKeys, []);
 });
 
-test('state projection: missing key fails hard with step selector and available keys', () => {
-  assert.throws(
-    () => projectState({ stepId: 'research', batonState: { artifacts: [], results: [] }, selectors: ['artifact'] }),
-    /step 'research' selected missing baton state key 'artifact'; available keys: artifacts, results/,
-  );
+test('state projection: skips valid selectors that are absent from the current baton state', () => {
+  const projected = projectState({
+    stepId: 'join',
+    batonState: { required: { ok: true }, selected_branch: { done: true } },
+    selectors: ['required', 'selected_branch', 'unselected_branch'],
+  });
+
+  assert.deepEqual(projected.value, { required: { ok: true }, selected_branch: { done: true } });
+  assert.deepEqual(projected.projectedKeys, ['required', 'selected_branch']);
+  assert.deepEqual(projected.diagnostics, []);
 });
 
 test('state projection: nested selectors are rejected', () => {
   assert.throws(
-    () => projectState({ stepId: 'research', batonState: { artifacts: [] }, selectors: ['artifacts.0'] }),
-    /unsupported state selector 'artifacts\.0'.*top-level baton state keys only/,
+    () => projectState({ stepId: 'research', batonState: { worker_step: [] }, selectors: ['worker_step.0'] }),
+    /unsupported state selector 'worker_step\.0'.*top-level workflow step ids only/,
   );
+});
+
+test('state projection: reserved runtime aggregate selectors are rejected even when present in baton state', () => {
+  for (const selector of ['artifacts', 'results', 'outputs', 'attempts']) {
+    assert.throws(
+      () => projectState({ stepId: 'research', batonState: { [selector]: [{ type: 'packet', summary: 'leaked' }] }, selectors: [selector] }),
+      new RegExp(`reserved state selector '${selector}'.*runtime aggregate state`),
+    );
+  }
 });
 
 function renderFixture(overrides = {}) {
@@ -162,8 +176,8 @@ function renderFixture(overrides = {}) {
 }
 
 test('prompt renderer: default prompt includes task projected state and deterministic newline formatting without diagnostics by default', () => {
-  const step = { name: 'Approval step', kind: 'approval', input: { state: ['artifacts'], prompt: 'Approve.' }, next: 'done' };
-  const compiled = renderFixture({ label: 'render-default', step, batonDoc: baton({ cursor: 'approval_step', state: { artifacts: [{ id: 'a' }], results: [] } }) });
+  const step = { name: 'Approval step', kind: 'approval', input: { state: ['worker_step'], prompt: 'Approve.' }, next: 'done' };
+  const compiled = renderFixture({ label: 'render-default', step, batonDoc: baton({ cursor: 'approval_step', state: { artifacts: [], results: [], worker_step: [{ id: 'a' }], approval_step: [] } }) });
 
   assert.equal(Object.hasOwn(compiled, 'stepId'), false);
   assert.equal(Object.hasOwn(compiled, 'action'), false);
@@ -171,7 +185,7 @@ test('prompt renderer: default prompt includes task projected state and determin
   assert.equal(Object.hasOwn(compiled, 'name'), false);
   assert.match(compiled.prompt, /^# Approval step\n/);
   assertMarkersInOrder(compiled.prompt, [
-    '## Projected baton state\n\n```json\n{\n  "artifacts": [',
+    '## Projected baton state\n\n```json\n{\n  "worker_step": [',
     '## Workflow step prompt',
     'Approve.',
   ]);
@@ -180,7 +194,7 @@ test('prompt renderer: default prompt includes task projected state and determin
 });
 
 test('prompt renderer: default prompt diagnostics are opt-in', () => {
-  const step = { name: 'Approval step', kind: 'approval', input: { state: ['artifacts'], prompt: 'Approve.' }, next: 'done' };
+  const step = { name: 'Approval step', kind: 'approval', input: { state: ['worker_step'], prompt: 'Approve.' }, next: 'done' };
   const compiled = renderFixture({ label: 'render-default-diagnostics', step, includeDiagnostics: true });
 
   assert.deepEqual(compiled.diagnostics, [
@@ -215,7 +229,7 @@ test('prompt renderer: appends role output and state sections in fixed compiled 
   const step = {
     name: 'Worker step',
     kind: 'worker',
-    input: { template: 'minimal-template.md', role: 'backend', state: ['artifacts'], prompt: 'Do the task.' },
+    input: { template: 'minimal-template.md', role: 'backend', state: ['worker_step'], prompt: 'Do the task.' },
     output: { template: 'minimal-output.md' },
     next: 'done',
   };
@@ -224,6 +238,7 @@ test('prompt renderer: appends role output and state sections in fixed compiled 
     label: 'render-append',
     stepId: 'worker_step',
     step,
+    batonDoc: baton({ state: { artifacts: [], results: [], worker_step: { outcome: 'ready', summary: 'done' } } }),
     workflow: {
       ...schemaWorkflowDoc.workflow,
       instruction: 'Use the deterministic workflow renderer.',
@@ -377,7 +392,7 @@ test('prompt renderer: does not infer user prompt eligibility from baton by defa
   const step = {
     name: 'Direct next worker',
     kind: 'worker',
-    input: { state: ['results'] },
+    input: { state: ['worker_step'] },
     output: { template: 'output.md' },
     next: 'done',
   };
@@ -778,6 +793,18 @@ test('prompt renderer: template root confinement rejects symlink escapes and ext
   }
 });
 
+test('CLI render: runtime guard rejects reserved aggregate state selectors', () => {
+  const workflowDoc = structuredClone(schemaWorkflowDoc);
+  workflowDoc.workflow.steps.approval_step.input.state = ['artifacts'];
+  const workflowPath = writeJson('runtime-reserved-render-workflow.json', workflowDoc);
+  const batonPath = writeJson('runtime-reserved-render-baton.json', baton({ cursor: 'approval_step', status: 'running', state: { artifacts: [{ type: 'packet', summary: 'leaked' }], results: [] } }));
+
+  const result = runNode(['develop/scripts/workflow-interpreter.mjs', 'render', workflowPath, batonPath]);
+  const response = expectCliResult('runtime-reserved-render', result, false);
+
+  assert.match(response.stderr, /reserved state selector 'artifacts'.*runtime aggregate state/);
+});
+
 test('CLI render: fixture returns compiledPrompt and does not mutate baton', () => {
   const outputTemplateRef = `${path.basename(tempDir)}-worker-output.md`;
   writeFileSync(path.join(tempDir, 'worker.md'), '# Worker template\n');
@@ -786,7 +813,7 @@ test('CLI render: fixture returns compiledPrompt and does not mutate baton', () 
   delete workflowDoc.workflow.steps.worker_step.input.role;
   workflowDoc.workflow.steps.worker_step.output = { template: outputTemplateRef };
   const workflowPath = writeJson('fixture-render-workflow.json', workflowDoc);
-  const batonPath = writeJson('fixture-render-baton.json', baton({ state: { artifacts: [{ type: 'packet', summary: 'ready' }], results: [] } }));
+  const batonPath = writeJson('fixture-render-baton.json', baton({ state: { artifacts: [], results: [], worker_step: { outcome: 'ready', summary: 'ready' } } }));
   const before = readFileSync(batonPath, 'utf8');
 
   const result = runNode(['develop/scripts/workflow-interpreter.mjs', 'render', workflowPath, batonPath]);
@@ -799,7 +826,7 @@ test('CLI render: fixture returns compiledPrompt and does not mutate baton', () 
   assert.equal(Object.hasOwn(response.steps[0].compiledPrompt, 'kind'), false);
   assert.equal(Object.hasOwn(response.steps[0].compiledPrompt, 'name'), false);
   assert.equal(response.steps[0].compiledPrompt.metadata.outputTemplate, outputTemplateRef);
-  assert.deepEqual(response.steps[0].compiledPrompt.metadata.projectedStateKeys, ['artifacts']);
+  assert.deepEqual(response.steps[0].compiledPrompt.metadata.projectedStateKeys, ['worker_step']);
   assert.equal(Object.hasOwn(response.steps[0].compiledPrompt, 'diagnostics'), false);
   assertMarkersInOrder(response.steps[0].compiledPrompt.prompt, [
     '# Worker template',

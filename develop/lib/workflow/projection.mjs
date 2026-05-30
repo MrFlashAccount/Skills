@@ -1,38 +1,20 @@
-import { WorkflowInterpreterError } from './errors.mjs';
-
-const TOP_LEVEL_SELECTOR = /^[A-Za-z_][A-Za-z0-9_-]*$/;
-
-function formatAvailableKeys(batonState = {}) {
-  const keys = Object.keys(batonState);
-  return keys.length > 0 ? keys.join(', ') : '(none)';
-}
+import { assertProjectableStateSelector } from './state-keys.mjs';
 
 export function projectState({ batonState = {}, selectors = [], stepId = '' } = {}) {
-  if (!Array.isArray(selectors) || selectors.length === 0) {
-    return { value: {}, projectedKeys: [], diagnostics: [] };
-  }
-
   const value = {};
   const projectedKeys = [];
+  const diagnostics = [];
 
-  for (const selector of selectors) {
-    if (typeof selector !== 'string' || !TOP_LEVEL_SELECTOR.test(selector)) {
-      throw new WorkflowInterpreterError(
-        `workflow prompt render failed: step '${stepId}' uses unsupported state selector '${selector}'; v1 supports top-level baton state keys only`,
-      );
-    }
+  for (const selector of selectors ?? []) {
+    assertProjectableStateSelector(selector, { stepId });
 
-    if (!Object.hasOwn(batonState, selector)) {
-      throw new WorkflowInterpreterError(
-        `workflow prompt render failed: step '${stepId}' selected missing baton state key '${selector}'; available keys: ${formatAvailableKeys(batonState)}`,
-      );
-    }
+    if (!Object.hasOwn(batonState, selector)) continue;
 
     value[selector] = structuredClone(batonState[selector]);
     projectedKeys.push(selector);
   }
 
-  return { value, projectedKeys, diagnostics: [] };
+  return { value, projectedKeys, diagnostics };
 }
 
 export function fencedJson(value) {

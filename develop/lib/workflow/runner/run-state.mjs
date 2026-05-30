@@ -20,6 +20,7 @@ export function resolveRunPaths({ runDir, workflowPath }) {
     instructionsDir: join(resolvedRunDir, '.workflow-runner', 'instructions'),
     lastResponsePath: join(resolvedRunDir, '.workflow-runner', 'last-response.json'),
     continueLockPath: join(resolvedRunDir, '.workflow-runner', 'continue.lock'),
+    durableCommitPath: join(resolvedRunDir, '.workflow-runner', 'durable-commit.json'),
   };
 }
 
@@ -169,7 +170,7 @@ export async function readText(path, name) {
   }
 }
 
-export async function appendHistory(paths, { source, baton, requests, output }) {
+function historyEntry({ source, baton, requests, output }) {
   const lines = [
     `## ${new Date().toISOString()}`,
     '',
@@ -180,10 +181,93 @@ export async function appendHistory(paths, { source, baton, requests, output }) 
   if (output) lines.push(`- output: ${output}`);
   if (baton.blocker) lines.push(`- blocker: ${JSON.stringify(baton.blocker).replace(/\s+/g, ' ').trim()}`);
   lines.push('', '');
+  return lines.join('\n');
+}
 
+function maybeFailDurableCommitAfter(action) {
+  if (process.env.WORKFLOW_RUNNER_FAIL_DURABLE_COMMIT_AFTER === action) {
+    throw new Error(`injected durable commit failure after ${action}`);
+  }
+}
+
+async function writeInstructionFiles(instructions) {
+  for (const instruction of instructions ?? []) await writeTextAtomic(instruction.path, instruction.content);
+}
+
+async function readTextIfExists(path) {
+  try {
+    return { exists: true, content: await readFile(path, 'utf8') };
+  } catch (error) {
+    if (error?.code === 'ENOENT') return { exists: false, content: undefined };
+    throw error;
+  }
+}
+
+async function restoreTextSnapshot(path, snapshot) {
+  if (snapshot.exists) await writeTextAtomic(path, snapshot.content);
+  else await rm(path, { force: true });
+}
+
+async function snapshotDurableTargets(paths, instructions) {
+  const instructionSnapshots = new Map();
+  for (const instruction of instructions ?? []) instructionSnapshots.set(instruction.path, await readTextIfExists(instruction.path));
+  return {
+    instructions: instructionSnapshots,
+    history: await readTextIfExists(paths.historyPath),
+    baton: await readTextIfExists(paths.batonPath),
+    lastResponse: await readTextIfExists(paths.lastResponsePath),
+  };
+}
+
+async function restoreDurableTargets(paths, snapshot) {
+  for (const [instructionPath, instructionSnapshot] of snapshot.instructions.entries()) await restoreTextSnapshot(instructionPath, instructionSnapshot);
+  await restoreTextSnapshot(paths.historyPath, snapshot.history);
+  await restoreTextSnapshot(paths.batonPath, snapshot.baton);
+  await restoreTextSnapshot(paths.lastResponsePath, snapshot.lastResponse);
+}
+
+export async function recoverDurableCommit(paths) {
+  if (!(await exists(paths.durableCommitPath))) return false;
+  const commit = await readJson(paths.durableCommitPath, 'pending durable workflow commit');
+  if (commit?.version !== 1) throw new Error(`unsupported durable workflow commit version in ${paths.durableCommitPath}`);
+
+  const before = await snapshotDurableTargets(paths, commit.instructions);
+  try {
+    await writeInstructionFiles(commit.instructions);
+    maybeFailDurableCommitAfter('instructions');
+    if (typeof commit.historyText === 'string') await writeTextAtomic(paths.historyPath, commit.historyText);
+    maybeFailDurableCommitAfter('history');
+    if (Object.hasOwn(commit, 'baton')) await writeJsonAtomic(paths.batonPath, commit.baton);
+    maybeFailDurableCommitAfter('baton');
+    await writeJsonAtomic(paths.lastResponsePath, commit.response);
+    maybeFailDurableCommitAfter('last-response');
+    await rm(paths.durableCommitPath, { force: true });
+    return true;
+  } catch (error) {
+    await restoreDurableTargets(paths, before);
+    throw error;
+  }
+}
+
+export async function commitDurableRunState(paths, { response, baton, instructions = [], history, writeBaton = true }) {
+  const historyBefore = await readText(paths.historyPath, 'workflow history');
+  const commit = {
+    version: 1,
+    createdAt: new Date().toISOString(),
+    response,
+    instructions,
+    historyText: `${historyBefore}${historyEntry(history)}`,
+  };
+  if (writeBaton) commit.baton = baton;
+  await writeJsonAtomic(paths.durableCommitPath, commit);
+  maybeFailDurableCommitAfter('pending');
+  await recoverDurableCommit(paths);
+}
+
+export async function appendHistory(paths, entry) {
   const handle = await open(paths.historyPath, 'a', 0o600);
   try {
-    await handle.writeFile(lines.join('\n'), 'utf8');
+    await handle.writeFile(historyEntry(entry), 'utf8');
     await handle.sync();
   } finally {
     await handle.close();
