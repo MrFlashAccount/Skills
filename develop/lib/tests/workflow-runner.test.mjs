@@ -1344,6 +1344,92 @@ test('runner: durable commit recovery rejects symlinked instruction paths outsid
   assert.equal(existsSync(victimPath), false);
 });
 
+
+test('runner: durable commit recovery rejects symlinked instructions dir', () => {
+  const runDir = path.join(tempDir, 'durable-commit-instructions-dir-symlink-escape');
+  const workflowPath = path.join(tempDir, 'durable-commit-instructions-dir-symlink-escape-workflow.json');
+  const singleWorkflow = structuredClone(workflowDoc);
+  singleWorkflow.steps.prepare.next = 'done';
+  writeJson(workflowPath, singleWorkflow);
+
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next durable instructions dir symlink escape setup');
+  const outsideDir = path.join(tempDir, 'durable-commit-instructions-dir-outside');
+  mkdirSync(outsideDir, { recursive: true });
+  const instructionsDir = path.join(runDir, '.workflow-runner', 'instructions');
+  rmSync(instructionsDir, { recursive: true, force: true });
+  symlinkSync(outsideDir, instructionsDir, 'dir');
+  const durableCommitPath = path.join(runDir, '.workflow-runner', 'durable-commit.json');
+  writeJson(durableCommitPath, {
+    version: 1,
+    response: JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8')),
+    instructions: [{ path: path.join(instructionsDir, 'prepare.md'), content: 'pwned\n' }],
+    historyText: '',
+  });
+
+  const result = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'prepare']);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /durable workflow commit instructions dir is unsafe/);
+  assert.equal(existsSync(path.join(outsideDir, 'prepare.md')), false);
+});
+
+test('runner: durable commit recovery rejects existing symlink instruction file rollback', () => {
+  const runDir = path.join(tempDir, 'durable-commit-instruction-file-symlink-escape');
+  const workflowPath = path.join(tempDir, 'durable-commit-instruction-file-symlink-escape-workflow.json');
+  const singleWorkflow = structuredClone(workflowDoc);
+  singleWorkflow.steps.prepare.next = 'done';
+  writeJson(workflowPath, singleWorkflow);
+
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next durable instruction file symlink escape setup');
+  const outsideSecret = path.join(tempDir, 'durable-commit-outside-secret.txt');
+  writeFileSync(outsideSecret, 'outside secret must not be copied\n');
+  const instructionPath = path.join(runDir, '.workflow-runner', 'instructions', 'prepare.md');
+  rmSync(instructionPath, { force: true });
+  symlinkSync(outsideSecret, instructionPath, 'file');
+  const durableCommitPath = path.join(runDir, '.workflow-runner', 'durable-commit.json');
+  writeJson(durableCommitPath, {
+    version: 1,
+    response: JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8')),
+    instructions: [{ path: instructionPath, content: 'new instructions\n' }],
+    historyText: '',
+  });
+
+  const result = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'prepare'], {
+    env: { WORKFLOW_RUNNER_FAIL_DURABLE_COMMIT_AFTER: 'instructions' },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /durable workflow commit instruction path escapes instructions dir/);
+  assert.equal(readFileSync(outsideSecret, 'utf8'), 'outside secret must not be copied\n');
+});
+
+
+test('runner: next resolves external workflow package shared resources from repo boundary', () => {
+  const repoDir = path.join(tempDir, 'external-runner-shared-repo');
+  const workflowDir = path.join(repoDir, 'workflows', 'demo');
+  const sharedDir = path.join(repoDir, 'shared');
+  mkdirSync(workflowDir, { recursive: true });
+  mkdirSync(sharedDir, { recursive: true });
+  writeFileSync(path.join(workflowDir, 'output.md'), '## Output contract\nReturn markdown.\n');
+  writeFileSync(path.join(sharedDir, 'shared.schema.json'), JSON.stringify({
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome'],
+    properties: { outcome: { const: 'ready' } },
+    additionalProperties: false,
+  }));
+  const doc = structuredClone(workflowDoc);
+  doc.steps.prepare.next = 'done';
+  doc.steps.prepare.output = { template: 'output.md', schema: '../../shared/shared.schema.json' };
+  writeJson(path.join(workflowDir, 'workflow.json'), doc);
+
+  const result = runRunner(['next', '--run-dir', path.join(tempDir, 'external-runner-shared-run'), '--workflow', path.join(workflowDir, 'workflow.json')]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const response = JSON.parse(result.stdout);
+  assert.equal(response.requests[0].stepId, 'prepare');
+});
+
 test('runner: instructions rejects unknown, unsafe, and missing instructions', () => {
   const runDir = path.join(tempDir, 'instructions-errors');
   const workflowPath = path.join(tempDir, 'instructions-errors-workflow.json');

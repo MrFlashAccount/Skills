@@ -1,10 +1,10 @@
-import path from 'node:path';
 import { finalOutputReminder, outputContractSection, readOutputSchema, readOutputTemplate } from './sections/output-contract.mjs';
 import { projectedStateBlock } from './sections/projected-state.mjs';
 import { projectState } from '../projection.mjs';
 import { normalizeRepositoryRoot, section, trimStable } from './utils.mjs';
 import { readInputRole } from './sections/role.mjs';
 import { assertNoUnsupportedPlaceholders, defaultPrompt, readInputTemplate } from './sections/template.mjs';
+import { defaultRepositoryRootForWorkflow } from '../resource-resolver.mjs';
 
 function firstNonEmptyString(candidates) {
   const value = candidates.find((candidate) => typeof candidate === 'string' && candidate.trim().length > 0);
@@ -31,7 +31,7 @@ function assembleFixedPrompt({ promptLayer, templatePath, workflowInstructionBlo
 }
 
 export function renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, step, repositoryRoot, templateBaseDir, includeDiagnostics = false, userPrompt } = {}) {
-  const root = normalizeRepositoryRoot(repositoryRoot ?? path.resolve(path.dirname(path.resolve(workflowPath)), '..'));
+  const root = normalizeRepositoryRoot(repositoryRoot ?? defaultRepositoryRootForWorkflow(workflowPath));
   const input = step.input ?? {};
   const selectors = input.state ?? [];
   const projection = projectState({ batonState: baton.state ?? {}, selectors, stepId });

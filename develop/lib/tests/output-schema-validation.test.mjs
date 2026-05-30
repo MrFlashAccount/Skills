@@ -192,6 +192,91 @@ test('output.schema: CLI apply rejects workflow schema refs escaping repository 
   assert.match(result.stderr, /output schema escapes repository root/);
 });
 
+
+test('output.schema: CLI apply allows workflow-relative traversal to repo shared resources', () => {
+  const repoDir = path.join(tempDir, 'cli-apply-schema-shared-repo');
+  const workflowDir = path.join(repoDir, 'workflows', 'demo');
+  const sharedDir = path.join(repoDir, 'shared');
+  mkdirSync(workflowDir, { recursive: true });
+  mkdirSync(sharedDir, { recursive: true });
+  writeFileSync(path.join(workflowDir, 'output.md'), '## Output contract\nReturn markdown.\n');
+  writeFileSync(path.join(sharedDir, 'shared.schema.json'), JSON.stringify({
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome'],
+    properties: { outcome: { const: 'ready' } },
+    additionalProperties: false,
+  }));
+
+  const doc = structuredClone(workflowDoc);
+  doc.steps.worker_step.output = { template: 'output.md', schema: '../../shared/shared.schema.json' };
+  const workflowPath = path.join(workflowDir, 'workflow.json');
+  const batonPath = path.join(workflowDir, 'baton.json');
+  const outputPath = path.join(workflowDir, 'output.json');
+  writeFileSync(workflowPath, `${JSON.stringify(doc, null, 2)}\n`);
+  writeFileSync(batonPath, `${JSON.stringify(baton(), null, 2)}\n`);
+  writeFileSync(outputPath, `${JSON.stringify({ outcome: 'ready' }, null, 2)}\n`);
+
+  const result = runNode(['develop/lib/bin/workflow-interpreter.mjs', 'apply', workflowPath, batonPath, outputPath]);
+
+  assert.equal(result.status, 0, result.stderr);
+});
+
+test('output.schema: CLI apply rejects root-level workflow refs escaping workflow directory', () => {
+  const repoDir = path.join(tempDir, 'cli-apply-schema-root-boundary-repo');
+  const outsideDir = path.join(tempDir, 'cli-apply-schema-root-boundary-outside');
+  mkdirSync(repoDir, { recursive: true });
+  mkdirSync(outsideDir, { recursive: true });
+  writeFileSync(path.join(repoDir, 'output.md'), '## Output contract\nReturn markdown.\n');
+  writeFileSync(path.join(outsideDir, 'escape.schema.json'), JSON.stringify({
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome'],
+    properties: { outcome: { const: 'ready' } },
+    additionalProperties: false,
+  }));
+
+  const doc = structuredClone(workflowDoc);
+  doc.steps.worker_step.output = { template: 'output.md', schema: '../cli-apply-schema-root-boundary-outside/escape.schema.json' };
+  const workflowPath = path.join(repoDir, 'workflow.json');
+  const batonPath = path.join(repoDir, 'baton.json');
+  const outputPath = path.join(repoDir, 'output.json');
+  writeFileSync(workflowPath, `${JSON.stringify(doc, null, 2)}\n`);
+  writeFileSync(batonPath, `${JSON.stringify(baton(), null, 2)}\n`);
+  writeFileSync(outputPath, `${JSON.stringify({ outcome: 'ready' }, null, 2)}\n`);
+
+  const result = runNode(['develop/lib/bin/workflow-interpreter.mjs', 'apply', workflowPath, batonPath, outputPath]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /output schema escapes repository root/);
+});
+
+test('output.schema: validate-workflow rejects schema refs escaping default repository root', () => {
+  const repoDir = path.join(tempDir, 'validate-workflow-schema-boundary-repo');
+  const workflowDir = path.join(repoDir, 'workflows', 'demo');
+  const outsideDir = path.join(tempDir, 'validate-workflow-schema-boundary-outside');
+  mkdirSync(workflowDir, { recursive: true });
+  mkdirSync(outsideDir, { recursive: true });
+  writeFileSync(path.join(workflowDir, 'output.md'), '## Output contract\nReturn markdown.\n');
+  writeFileSync(path.join(outsideDir, 'escape.schema.json'), JSON.stringify({
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome'],
+    properties: { outcome: { const: 'ready' } },
+    additionalProperties: false,
+  }));
+
+  const doc = structuredClone(workflowDoc);
+  doc.steps.worker_step.output = { template: 'output.md', schema: path.relative(workflowDir, path.join(outsideDir, 'escape.schema.json')) };
+  const workflowPath = path.join(workflowDir, 'workflow.json');
+  writeFileSync(workflowPath, `${JSON.stringify(doc, null, 2)}\n`);
+
+  const result = runNode(['develop/lib/bin/validate-workflow.mjs', workflowPath]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /output schema escapes repository root/);
+});
+
 test('output.schema: invalid JSON Schema throws controlled workflow error', () => {
   const doc = workflowWithSchema('invalid-json-schema-controlled-error', {
     $schema: 'https://json-schema.org/draft/2020-12/schema',

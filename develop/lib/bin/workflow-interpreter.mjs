@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { validateWorkflowInterpreterCliArgs } from '../workflow/cli-args-validation.mjs';
+import { defaultRepositoryRootForWorkflow } from '../workflow/resource-resolver.mjs';
 import { WorkflowInterpreterError } from '../workflow/errors.mjs';
 import { applyWorkflowOutput, inspectWorkflow, renderWorkflow } from '../workflow/interpreter/index.mjs';
 
@@ -30,10 +30,6 @@ function emit(response) {
   console.log(JSON.stringify(response, null, 2));
 }
 
-function defaultRepositoryRoot(workflowPath) {
-  return path.resolve(path.dirname(path.resolve(workflowPath)), '..');
-}
-
 const DEFAULT_USAGE = 'usage: node develop/lib/bin/workflow-interpreter.mjs inspect <workflow.json> <baton.json> | render [--diagnostics] <workflow.json> <baton.json> | apply <workflow.json> <baton.json> <worker-output.json>';
 
 const USAGE_BY_MODE = {
@@ -44,8 +40,8 @@ const USAGE_BY_MODE = {
 
 const COMMANDS = {
   inspect: ({ workflowPath, batonPath }) => inspectWorkflow(workflowPath, batonPath),
-  render: ({ workflowPath, batonPath, includeDiagnostics }) => renderWorkflow(workflowPath, batonPath, { includeDiagnostics, repositoryRoot: defaultRepositoryRoot(workflowPath) }),
-  apply: ({ workflowPath, batonPath, outputPath }) => applyWorkflowOutput(workflowPath, batonPath, outputPath, undefined, { repositoryRoot: defaultRepositoryRoot(workflowPath) }),
+  render: ({ workflowPath, batonPath, includeDiagnostics }) => renderWorkflow(workflowPath, batonPath, { includeDiagnostics, repositoryRoot: defaultRepositoryRootForWorkflow(workflowPath) }),
+  apply: ({ workflowPath, batonPath, outputPath }) => applyWorkflowOutput(workflowPath, batonPath, outputPath, undefined, { repositoryRoot: defaultRepositoryRootForWorkflow(workflowPath) }),
 };
 
 function usageForArgs(args) {

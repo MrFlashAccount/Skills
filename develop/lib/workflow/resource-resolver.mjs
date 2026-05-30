@@ -7,6 +7,14 @@ export function workflowResourceBase({ workflowPath }) {
   return path.dirname(path.resolve(workflowPath));
 }
 
+export function defaultRepositoryRootForWorkflow(workflowPath) {
+  const workflowDir = workflowResourceBase({ workflowPath });
+  const parentDir = path.dirname(workflowDir);
+  if (path.basename(workflowDir) === 'workflows') return parentDir;
+  if (path.basename(parentDir) === 'workflows') return path.dirname(parentDir);
+  return workflowDir;
+}
+
 export function assertWorkflowFileRef({ fileRef, fieldName, kind, messagePrefix }) {
   if (typeof fileRef !== 'string' || fileRef.length === 0) {
     throw new WorkflowInterpreterError(`${messagePrefix}: ${fieldName} ${kind} reference is empty`);
@@ -20,12 +28,10 @@ export function resolveWorkflowFileRef({ workflowPath, fileRef, fieldName = 'fil
   assertWorkflowFileRef({ fileRef, fieldName, kind, messagePrefix });
   const base = workflowResourceBase({ workflowPath });
   const candidate = path.resolve(base, fileRef);
-  let root;
-  if (repositoryRoot) {
-    const repositoryRealpath = realpathSync(repositoryRoot);
-    const workflowBaseRealpath = realpathSync(base);
-    root = isInside(workflowBaseRealpath, repositoryRealpath) ? repositoryRealpath : workflowBaseRealpath;
-  }
+  const boundaryRoot = repositoryRoot ?? defaultRepositoryRootForWorkflow(workflowPath);
+  const repositoryRealpath = realpathSync(boundaryRoot);
+  const workflowBaseRealpath = realpathSync(base);
+  const root = isInside(workflowBaseRealpath, repositoryRealpath) ? repositoryRealpath : workflowBaseRealpath;
   let resolvedPath;
   try {
     resolvedPath = realpathSync(candidate);

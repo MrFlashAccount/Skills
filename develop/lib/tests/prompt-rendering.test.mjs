@@ -719,6 +719,40 @@ test('workflow resource refs resolve from the workflow package directory after p
 
 
 
+
+test('prompt renderer: default repository boundary allows workflow package shared schema refs', () => {
+  const repoDir = path.join(tempDir, 'default-render-shared-repo');
+  const workflowDir = path.join(repoDir, 'workflows', 'demo');
+  const sharedDir = path.join(repoDir, 'shared');
+  mkdirSync(workflowDir, { recursive: true });
+  mkdirSync(sharedDir, { recursive: true });
+  writeFileSync(path.join(workflowDir, 'output.md'), '## Output contract\nReturn markdown.\n');
+  writeFileSync(path.join(workflowDir, 'worker.md'), '# Worker\n');
+  writeFileSync(path.join(sharedDir, 'shared.schema.json'), JSON.stringify({
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome'],
+    properties: { outcome: { const: 'ready' } },
+    additionalProperties: false,
+  }));
+  const workflowPath = path.join(workflowDir, 'workflow.json');
+  const doc = structuredClone(schemaWorkflowDoc);
+  doc.steps.worker_step.input = { prompt: 'Run worker.' };
+  doc.steps.worker_step.output = { template: 'output.md', schema: '../../shared/shared.schema.json' };
+  writeFileSync(workflowPath, `${JSON.stringify(doc, null, 2)}\n`);
+
+  const rendered = renderWorkflowPrompt({
+    workflowPath,
+    workflow: doc,
+    baton: baton(),
+    stepId: 'worker_step',
+    step: doc.steps.worker_step,
+  });
+
+  assert.match(rendered.prompt, /Return valid JSON matching this schema/);
+  assert.match(rendered.prompt, /"outcome"/);
+});
+
 test('prompt renderer: shared template refs are explicit and reusable across workflow packages', () => {
   const repoDir = path.join(tempDir, 'shared-template-repo');
   const sharedTemplateDir = path.join(repoDir, 'shared', 'templates');

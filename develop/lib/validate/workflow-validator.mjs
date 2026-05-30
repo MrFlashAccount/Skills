@@ -3,6 +3,7 @@ import { WorkflowInterpreterError } from '../workflow/errors.mjs';
 import { readJson } from '../workflow/json-io.mjs';
 import { RESERVED_STEP_IDS, assertProjectableStateSelector, isReservedStateKey } from '../workflow/state-keys.mjs';
 import { readOutputSchema } from '../workflow/output-schema-validation.mjs';
+import { defaultRepositoryRootForWorkflow } from '../workflow/resource-resolver.mjs';
 import { assertRoleDirectoryName, listAllowedWorkflowRoles } from '../workflow/roles.mjs';
 import { assertWorkflowSchema, workflowSchemas } from '../workflow/schema-validation.mjs';
 import { assertTransitionDescriptorTargets, normalizeTransitionNext } from '../workflow/transitions.mjs';
@@ -317,5 +318,9 @@ export function validateWorkflowDocument(workflowDoc, { workflowPath = 'workflow
 
 export function validateWorkflowFile(workflowPath, options = {}) {
   const workflowDoc = readJson(workflowPath, 'workflow');
-  return validateWorkflowDocument(workflowDoc, { ...options, workflowPath });
+  return validateWorkflowDocument(workflowDoc, {
+    repositoryRoot: defaultRepositoryRootForWorkflow(workflowPath),
+    ...options,
+    workflowPath,
+  });
 }
