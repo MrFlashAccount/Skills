@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["outcome", "ticket", "results"],
+  "properties": {
+    "outcome": { "const": "ready" },
+    "ticket": { "type": "string", "minLength": 3 },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "summary"],
+        "properties": {
+          "type": { "type": "string" },
+          "summary": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "artifacts": { "type": "array" }
+  },
+  "additionalProperties": true
+}

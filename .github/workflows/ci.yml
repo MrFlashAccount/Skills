@@ -16,4 +16,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run validate
+      - name: Validate existing tests and workflows
+        run: npm run validate
+      - name: Workflow E2E fixture tests
+        run: npm run test:workflow-e2e
