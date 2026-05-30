@@ -1,0 +1,229 @@
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import test, { after } from 'node:test';
+import { fileURLToPath } from 'node:url';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
+const fixturesDir = path.join(root, 'develop/lib/tests/E2E/fixtures');
+const outputsDir = path.join(fixturesDir, 'outputs');
+const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-e2e-fixtures-'));
+let runCounter = 0;
+
+function fixture(name) {
+  return path.join(fixturesDir, name);
+}
+
+function output(name) {
+  return path.join(outputsDir, name);
+}
+
+function runDir(label) {
+  runCounter += 1;
+  return path.join(tempDir, `${runCounter}-${label}`);
+}
+
+function runRunner(args) {
+  return spawnSync(process.execPath, ['develop/lib/bin/workflow-runner.mjs', ...args], {
+    cwd: root,
+    encoding: 'utf8',
+  });
+}
+
+function expectRunner(args, label) {
+  const result = runRunner(args);
+  assert.equal(result.status, 0, `${label} failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+  return JSON.parse(result.stdout);
+}
+
+function expectRunnerFailure(args, label) {
+  const result = runRunner(args);
+  assert.notEqual(result.status, 0, `${label} unexpectedly succeeded\nstdout:\n${result.stdout}`);
+  return result;
+}
+
+function next(run, workflow, extra = []) {
+  return expectRunner(['next', '--run-dir', run, '--workflow', workflow, ...extra], `next ${path.basename(workflow)}`);
+}
+
+function continueWith(run, workflow, refs, label = 'continue') {
+  const normalized = Array.isArray(refs) ? refs : [refs];
+  return expectRunner(['continue', '--run-dir', run, '--workflow', workflow, ...normalized.flatMap((ref) => ['--output', ref])], label);
+}
+
+function instructions(run, stepId) {
+  const result = runRunner(['instructions', '--run-dir', run, '--step-id', stepId]);
+  assert.equal(result.status, 0, result.stderr);
+  return result.stdout;
+}
+
+function readBaton(run) {
+  return JSON.parse(readFileSync(path.join(run, 'baton.json'), 'utf8'));
+}
+
+function readHistory(run) {
+  return readFileSync(path.join(run, 'history.md'), 'utf8');
+}
+
+after(() => rmSync(tempDir, { recursive: true, force: true }));
+
+test('E2E fixture: long happy path loops through review revision and preserves latest state', () => {
+  const workflow = fixture('long-revision.workflow.json');
+  const run = runDir('long-revision');
+
+  const first = next(run, workflow);
+  assert.equal(first.status, 'needs_host_actions');
+  assert.deepEqual(first.requests.map((request) => request.id), ['plan']);
+  assert.match(instructions(run, 'plan'), /# Plan/);
+
+  const planned = continueWith(run, workflow, output('plan-ready.json'), 'continue plan');
+  assert.equal(planned.baton.cursor, 'approval_gate');
+  assert.equal(planned.requests[0].action, 'wait_for_approval');
+  assert.equal(planned.baton.state.plan.artifacts[0].summary, 'plan v1');
+
+  const approved = continueWith(run, workflow, output('approval-approved.json'), 'continue approval');
+  assert.equal(approved.baton.cursor, 'implement');
+  assert.equal(approved.baton.state.approval_gate.approval, 'approved');
+  assert.match(instructions(run, 'implement'), /"approval_gate"/);
+
+  assert.equal(continueWith(run, workflow, output('implement-v1.json'), 'continue implementation v1').baton.cursor, 'review');
+  const revision = continueWith(run, workflow, output('review-retry.json'), 'continue review retry');
+  assert.equal(revision.baton.cursor, 'implement');
+  assert.equal(revision.baton.state.review.results[0].summary, 'needs revision');
+
+  assert.equal(continueWith(run, workflow, output('implement-v2.json'), 'continue implementation v2').baton.cursor, 'review');
+  const done = continueWith(run, workflow, output('review-ready.json'), 'continue review ready');
+  assert.equal(done.status, 'done');
+  assert.equal(done.baton.cursor, 'done');
+  assert.equal(done.baton.state.implement.results[0].summary, 'implementation v2');
+  assert.equal(done.baton.state.results.at(-1).summary, 'accepted');
+  assert.match(readHistory(run), /id=review action=run_worker/);
+});
+
+test('E2E fixture: match route covers retry loop and blocked terminal variant', () => {
+  const workflow = fixture('route-retry-blocked.workflow.json');
+  const retryRun = runDir('route-retry');
+
+  assert.deepEqual(next(retryRun, workflow).requests.map((request) => request.id), ['triage']);
+  const retry = continueWith(retryRun, workflow, output('triage-retry.json'), 'continue triage retry');
+  assert.equal(retry.status, 'needs_host_actions');
+  assert.equal(retry.baton.cursor, 'triage');
+  assert.equal(retry.baton.state.triage.results[0].summary, 'needs another pass');
+
+  const ready = continueWith(retryRun, workflow, output('triage-ready.json'), 'continue triage ready');
+  assert.equal(ready.baton.cursor, 'resolve');
+  assert.match(instructions(retryRun, 'resolve'), /ready for resolution/);
+  const done = continueWith(retryRun, workflow, output('worker-ready.json'), 'continue resolve ready');
+  assert.equal(done.status, 'done');
+
+  const blockedRun = runDir('route-blocked');
+  next(blockedRun, workflow);
+  const blocked = continueWith(blockedRun, workflow, output('triage-blocked.json'), 'continue triage blocked');
+  assert.equal(blocked.status, 'blocked');
+  assert.equal(blocked.baton.cursor, 'blocked');
+  assert.deepEqual(blocked.baton.blocker, { reason: 'missing decision' });
+  assert.match(readHistory(blockedRun), /blocker: \{"reason":"missing decision"\}/);
+});
+
+test('E2E fixture: mixed static and match fanout requires named branch outputs and exposes join state', () => {
+  const workflow = fixture('parallel-mixed.workflow.json');
+  const run = runDir('parallel-mixed');
+
+  next(run, workflow);
+  const branched = continueWith(run, workflow, output('parallel-prepare-ready.json'), 'continue prepare fanout');
+  assert.equal(branched.status, 'needs_host_actions');
+  assert.equal(branched.baton.cursor, 'prepare');
+  assert.deepEqual(branched.requests.map((request) => request.id), ['lint', 'build']);
+  assert.equal(branched.baton.state.prepare.results[0].summary, 'fanout ready');
+  assert.match(instructions(run, 'lint'), /fanout ready/);
+
+  const joined = continueWith(run, workflow, [
+    `lint=${output('lint-ready.json')}`,
+    `build=${output('build-ready.json')}`,
+  ], 'continue named branches');
+  assert.equal(joined.baton.cursor, 'join');
+  assert.equal(joined.baton.state.lint.results[0].summary, 'lint clean');
+  assert.equal(joined.baton.state.build.results[0].summary, 'build green');
+  const joinInstructions = instructions(run, 'join');
+  assert.match(joinInstructions, /lint clean/);
+  assert.match(joinInstructions, /build green/);
+
+  const done = continueWith(run, workflow, output('join-ready.json'), 'continue join');
+  assert.equal(done.status, 'done');
+  assert.match(readHistory(run), /output: lint=.*lint-ready\.json, build=.*build-ready\.json/);
+
+  const unnamedRun = runDir('parallel-unnamed-output');
+  next(unnamedRun, workflow);
+  continueWith(unnamedRun, workflow, output('parallel-prepare-ready.json'), 'continue unnamed setup');
+  const unnamed = expectRunnerFailure(['continue', '--run-dir', unnamedRun, '--workflow', workflow, '--output', output('lint-ready.json')], 'unnamed parallel output');
+  assert.match(unnamed.stderr, /parallel host outputs must use --output <step-id>=<path>/);
+});
+
+test('E2E fixture: output schema retries preserve baton attempts, then valid output advances', () => {
+  const workflow = fixture('schema-retry.workflow.json');
+  const run = runDir('schema-retry');
+
+  next(run, workflow);
+  const retry = continueWith(run, workflow, output('schema-invalid.json'), 'continue invalid schema once');
+  assert.equal(retry.status, 'needs_host_actions');
+  assert.equal(retry.baton.cursor, 'schema_worker');
+  assert.equal(retry.baton.state.attempts['schema_worker:output.schema'], 1);
+  assert.match(instructions(run, 'schema_worker'), /Previous output failed output\.schema validation/);
+  assert.match(instructions(run, 'schema_worker'), /must be equal to constant/);
+
+  const valid = continueWith(run, workflow, output('schema-valid.json'), 'continue valid schema');
+  assert.equal(valid.status, 'done');
+  assert.equal(valid.baton.state.schema_worker.ticket, 'TCK-123');
+  assert.equal(valid.baton.state.attempts['schema_worker:output.schema'], 1);
+
+  const failureRun = runDir('schema-failure');
+  next(failureRun, workflow);
+  continueWith(failureRun, workflow, output('schema-invalid.json'), 'schema failure attempt one');
+  continueWith(failureRun, workflow, output('schema-invalid.json'), 'schema failure attempt two');
+  const failed = expectRunnerFailure(['continue', '--run-dir', failureRun, '--workflow', workflow, '--output', output('schema-invalid.json')], 'schema failure attempt three');
+  assert.match(failed.stderr, /output schema validation failed for step 'schema_worker' after 3 attempts/);
+  assert.equal(readBaton(failureRun).state.attempts['schema_worker:output.schema'], 2);
+});
+
+test('E2E fixture: approval-first workflow preserves startup prompt for first worker only through fanout and final approval', () => {
+  const workflow = fixture('approval-first-fanout.workflow.json');
+  const run = runDir('approval-first');
+  const userPrompt = 'Original startup request. Preserve this only for prepare.';
+
+  const intake = next(run, workflow, ['--user-prompt', userPrompt]);
+  assert.equal(intake.requests[0].id, 'intake_approval');
+  assert.equal(intake.baton.user_prompt, userPrompt);
+  assert.equal(intake.baton.user_prompt_target, 'prepare');
+  assert.doesNotMatch(instructions(run, 'intake_approval'), /Original startup request/);
+
+  const preparedRequest = continueWith(run, workflow, output('approval-approved.json'), 'continue intake approval');
+  assert.equal(preparedRequest.baton.cursor, 'prepare');
+  const prepareInstructions = instructions(run, 'prepare');
+  assert.match(prepareInstructions, /## User prompt/);
+  assert.match(prepareInstructions, /Original startup request/);
+
+  const fanout = continueWith(run, workflow, output('parallel-prepare-ready.json'), 'continue prepare to fanout');
+  assert.equal(fanout.baton.user_prompt_injected, true);
+  assert.deepEqual(fanout.requests.map((request) => request.id), ['branch_a', 'branch_b']);
+  assert.doesNotMatch(instructions(run, 'branch_a'), /Original startup request/);
+  assert.doesNotMatch(instructions(run, 'branch_b'), /Original startup request/);
+
+  const joinedRequest = continueWith(run, workflow, [
+    `branch_a=${output('lint-ready.json')}`,
+    `branch_b=${output('build-ready.json')}`,
+  ], 'continue approval-first branches');
+  assert.equal(joinedRequest.baton.cursor, 'join');
+  assert.doesNotMatch(instructions(run, 'join'), /Original startup request/);
+
+  const finalApproval = continueWith(run, workflow, output('join-ready.json'), 'continue approval-first join');
+  assert.equal(finalApproval.baton.cursor, 'final_approval');
+  assert.equal(finalApproval.requests[0].action, 'wait_for_approval');
+  assert.match(instructions(run, 'final_approval'), /joined cleanly/);
+
+  const done = continueWith(run, workflow, output('approval-approved.json'), 'continue final approval');
+  assert.equal(done.status, 'done');
+  assert.equal(done.baton.user_prompt, userPrompt);
+  assert.equal(done.baton.user_prompt_injected, true);
+});

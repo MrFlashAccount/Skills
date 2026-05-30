@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "test": "make -C develop test",
+    "test:workflow-e2e": "make -C develop test-workflow-e2e",
     "workflow:validate": "node develop/lib/bin/validate-workflow.mjs",
     "validate": "npm test && npm run workflow:validate && npm run schema-validation:check-vendor-ajv",
     "prepare": "git config core.hooksPath .githooks || true",

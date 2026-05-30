@@ -1,0 +1,25 @@
+{
+  "name": "fixture-route-retry-blocked",
+  "version": 1,
+  "start": "triage",
+  "done": "done",
+  "blocked": "blocked",
+  "steps": {
+    "triage": {
+      "name": "Triage",
+      "kind": "worker",
+      "input": { "prompt": "Classify the request." },
+      "output": { "template": "output.md" },
+      "next": { "match": "${{ output.outcome }}", "cases": { "ready": "resolve", "retry": "triage", "blocked": "blocked" } }
+    },
+    "resolve": {
+      "name": "Resolve",
+      "kind": "worker",
+      "input": { "state": ["triage"], "prompt": "Resolve ready request." },
+      "output": { "template": "output.md" },
+      "next": "done"
+    },
+    "done": { "name": "Done", "kind": "done", "input": { "prompt": "Finished." } },
+    "blocked": { "name": "Blocked", "kind": "blocked", "input": { "prompt": "Blocked." } }
+  }
+}
