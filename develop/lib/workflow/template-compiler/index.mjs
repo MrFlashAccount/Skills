@@ -24,7 +24,7 @@ function assembleFixedPrompt({ promptLayer, templatePath, workflowInstructionBlo
   if (outputContract) parts.push(outputContract.trimEnd());
   if (stateBlock) parts.push(section('Projected baton state', stateBlock).trimEnd());
   if (inlinePrompt) parts.push(section('Workflow step prompt', inlinePrompt.trim()));
-  if (typeof userPrompt === 'string') parts.push(section('User prompt', userPrompt));
+  if (typeof userPrompt === 'string' && userPrompt.trim().length > 0) parts.push(section('User prompt', userPrompt));
   if (finalReminder) parts.push(finalReminder.trimEnd());
 
   return `${parts.filter(Boolean).join('\n\n')}\n`;

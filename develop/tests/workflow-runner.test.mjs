@@ -162,6 +162,26 @@ test('runner: user prompt is stored, included only in initial worker instruction
   assert.equal(laterInstructions.stdout.includes(rawPrompt), false);
 });
 
+test('runner: next rejects empty or conflicting user prompt inputs', () => {
+  const workflowPath = path.join(tempDir, 'user-prompt-negative-workflow.json');
+  writeJson(workflowPath, workflowDoc);
+
+  const emptyArg = runRunner(['next', '--run-dir', path.join(tempDir, 'empty-user-prompt-next'), '--workflow', workflowPath, '--user-prompt', '']);
+  assert.notEqual(emptyArg.status, 0);
+  assert.match(emptyArg.stderr, /--user-prompt must not be empty or whitespace-only/);
+
+  const promptPath = path.join(tempDir, 'empty-user-prompt-next-file.txt');
+  writeFileSync(promptPath, '  \n');
+  const emptyFile = runRunner(['next', '--run-dir', path.join(tempDir, 'empty-user-prompt-file-next'), '--workflow', workflowPath, '--user-prompt-file', promptPath]);
+  assert.notEqual(emptyFile.status, 0);
+  assert.match(emptyFile.stderr, /--user-prompt-file must not be empty or whitespace-only/);
+
+  writeFileSync(promptPath, 'from file');
+  const conflicting = runRunner(['next', '--run-dir', path.join(tempDir, 'conflicting-user-prompt-next'), '--workflow', workflowPath, '--user-prompt', 'from arg', '--user-prompt-file', promptPath]);
+  assert.notEqual(conflicting.status, 0);
+  assert.match(conflicting.stderr, /provide only one of --user-prompt or --user-prompt-file/);
+});
+
 test('runner: user prompt is included in first worker when workflow starts with approval step', () => {
   const runDir = path.join(tempDir, 'user-prompt-control-start');
   const workflowPath = path.join(tempDir, 'user-prompt-control-start-workflow.json');

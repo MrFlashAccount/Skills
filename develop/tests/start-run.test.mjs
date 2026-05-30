@@ -104,6 +104,27 @@ test('start-run user prompt file stores exact content', () => {
   assert.equal(status.response.baton.user_prompt, rawPrompt);
 });
 
+test('start-run rejects empty or whitespace-only user prompt inputs', () => {
+  const emptyArg = runStart(['--run-dir', path.join(tempDir, 'empty-user-prompt'), '--user-prompt', '']);
+  assert.notEqual(emptyArg.status, 0);
+  assert.match(emptyArg.stderr, /--user-prompt must not be empty or whitespace-only/);
+
+  const promptPath = path.join(tempDir, 'empty-user-prompt-file.txt');
+  writeFileSync(promptPath, '  \n\t');
+  const emptyFile = runStart(['--run-dir', path.join(tempDir, 'empty-user-prompt-file-run'), '--user-prompt-file', promptPath]);
+  assert.notEqual(emptyFile.status, 0);
+  assert.match(emptyFile.stderr, /--user-prompt-file must not be empty or whitespace-only/);
+});
+
+test('start-run rejects simultaneous user prompt sources', () => {
+  const promptPath = path.join(tempDir, 'conflicting-user-prompt-file.txt');
+  writeFileSync(promptPath, 'from file');
+  const result = runStart(['--run-dir', path.join(tempDir, 'conflicting-user-prompt'), '--user-prompt', 'from arg', '--user-prompt-file', promptPath]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /provide only one of --user-prompt or --user-prompt-file/);
+});
+
 test('start-run resumes existing baton without overwriting user prompt', () => {
   const runDir = path.join(tempDir, 'resume-run-user-prompt');
   rmSync(runDir, { recursive: true, force: true });

@@ -7,6 +7,7 @@ import { assertWorkflowSchema, workflowSchemas } from '../workflow/schema-valida
 import { assertTransitionDescriptorTargets, normalizeTransitionNext } from '../workflow/transitions.mjs';
 
 const DYNAMIC_TARGET_UNCHECKED_ROOTS = new Set(['outputs']);
+const RESERVED_BATON_STATE_STEP_IDS = new Set(['artifacts', 'results', 'outputs', 'attempts']);
 
 function fail(message) {
   throw new WorkflowInterpreterError(`workflow semantic validation failed: ${message}`);
@@ -27,6 +28,14 @@ function assertWorkflowRootTargets(workflow) {
   const blockedStep = workflow.steps[workflow.blocked];
   if (!blockedStep) fail(`workflow blocked target not found: ${workflow.blocked}`);
   if (blockedStep.kind !== 'blocked') fail(`workflow blocked target '${workflow.blocked}' must be a blocked step`);
+}
+
+function assertWorkflowReservedStepIds(workflow) {
+  for (const stepId of Object.keys(workflow.steps)) {
+    if (RESERVED_BATON_STATE_STEP_IDS.has(stepId)) {
+      fail(`workflow step id '${stepId}' is reserved for baton state bookkeeping`);
+    }
+  }
 }
 
 function assertWorkflowStepRoles(workflow, repositoryRoot) {
@@ -248,6 +257,7 @@ export function validateWorkflowDocument(workflowDoc, { workflowPath = 'workflow
   assertWorkflowSchema(workflowDoc);
   const workflow = workflowDoc.workflow;
   assertWorkflowRootTargets(workflow);
+  assertWorkflowReservedStepIds(workflow);
   assertWorkflowStepRoles(workflow, repositoryRoot);
   const warnings = [];
   const schemasByStep = loadStepOutputSchemas({ workflow, workflowPath, repositoryRoot, warnings });

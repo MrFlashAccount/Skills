@@ -6,6 +6,7 @@ import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { projectState } from '../lib/workflow/projection.mjs';
+import { renderStepPrompts } from '../lib/workflow/interpreter/index.mjs';
 import { renderWorkflowPrompt } from '../lib/workflow/prompt-renderer.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -279,6 +280,26 @@ test('prompt renderer: renders raw user prompt only when render context provides
   ]);
 });
 
+test('prompt renderer: does not render empty user prompt even when render context provides it', () => {
+  const step = {
+    name: 'Worker step',
+    kind: 'worker',
+    input: { prompt: 'Do the task.' },
+    output: { template: 'output.md' },
+    next: 'done',
+  };
+
+  const compiled = renderFixture({
+    label: 'render-empty-user-prompt',
+    stepId: 'worker_step',
+    step,
+    batonDoc: baton({ user_prompt: '  \n' }),
+    userPrompt: '  \n',
+  });
+
+  assert.doesNotMatch(compiled.prompt, /## User prompt/);
+});
+
 test('prompt renderer: renders provided startup user prompt for worker selected after control steps', () => {
   const rawPrompt = 'Use the original startup task after approval.';
   const workflow = {
@@ -331,6 +352,84 @@ test('prompt renderer: does not infer user prompt eligibility from baton by defa
 
   assert.doesNotMatch(compiled.prompt, /## User prompt/);
   assert.doesNotMatch(compiled.prompt, /Do not leak me\./);
+});
+
+test('prompt renderer: initial parallel workers put user prompt on first worker in response order only', () => {
+  const workflow = {
+    ...schemaWorkflowDoc.workflow,
+    steps: {
+      ...schemaWorkflowDoc.workflow.steps,
+      branch_a: {
+        name: 'Branch A',
+        kind: 'worker',
+        input: { prompt: 'Run branch A.' },
+        output: { template: 'output.md' },
+        next: 'done',
+      },
+      branch_b: {
+        name: 'Branch B',
+        kind: 'worker',
+        input: { prompt: 'Run branch B.' },
+        output: { template: 'output.md' },
+        next: 'done',
+      },
+    },
+  };
+  const rawPrompt = 'Only the first current worker sees this.';
+  const rendered = renderStepPrompts({
+    workflowPath: writeJson('initial-parallel-user-prompt-workflow.json', { workflow }),
+    workflow,
+    baton: baton({ user_prompt: rawPrompt }),
+    steps: [
+      { id: 'branch_b', action: 'run_worker', step: workflow.steps.branch_b },
+      { id: 'branch_a', action: 'run_worker', step: workflow.steps.branch_a },
+    ],
+    repositoryRoot: tempDir,
+  });
+
+  assert.deepEqual(rendered.map((entry) => entry.id), ['branch_b', 'branch_a']);
+  assert.match(rendered[0].compiledPrompt.prompt, /## User prompt/);
+  assert.equal(rendered[0].compiledPrompt.prompt.includes(rawPrompt), true);
+  assert.doesNotMatch(rendered[1].compiledPrompt.prompt, /## User prompt/);
+  assert.equal(rendered[1].compiledPrompt.prompt.includes(rawPrompt), false);
+});
+
+test('prompt renderer: mixed current approval and worker gives user prompt only to worker', () => {
+  const workflow = {
+    ...schemaWorkflowDoc.workflow,
+    steps: {
+      ...schemaWorkflowDoc.workflow.steps,
+      current_gate: {
+        name: 'Current gate',
+        kind: 'approval',
+        input: { prompt: 'Ask for approval.' },
+        next: 'done',
+      },
+      current_worker: {
+        name: 'Current worker',
+        kind: 'worker',
+        input: { prompt: 'Run current worker.' },
+        output: { template: 'output.md' },
+        next: 'done',
+      },
+    },
+  };
+  const rawPrompt = 'Worker gets startup prompt after a same-batch gate.';
+  const rendered = renderStepPrompts({
+    workflowPath: writeJson('mixed-current-user-prompt-workflow.json', { workflow }),
+    workflow,
+    baton: baton({ user_prompt: rawPrompt }),
+    steps: [
+      { id: 'current_gate', action: 'wait_for_approval', step: workflow.steps.current_gate },
+      { id: 'current_worker', action: 'run_worker', step: workflow.steps.current_worker },
+    ],
+    repositoryRoot: tempDir,
+  });
+
+  assert.doesNotMatch(rendered[0].compiledPrompt.prompt, /## User prompt/);
+  assert.equal(rendered[0].compiledPrompt.prompt.includes(rawPrompt), false);
+  assert.match(rendered[1].compiledPrompt.prompt, /## User prompt/);
+  assert.equal(rendered[1].compiledPrompt.prompt.includes(rawPrompt), true);
 });
 
 test('prompt renderer: resolves input.role and inlines ROLE.md and RUBRIC.md', () => {
