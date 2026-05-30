@@ -33,9 +33,11 @@
         "input": {
           "state": [
             "research_draft",
+            "research_answered_draft",
+            "research_revision",
             "research_attack"
           ],
-          "prompt": "Ask the user only the blocking research questions from the latest research_draft or research_attack output. Continue with approval approved after the user answer is captured in the approval output; use blocked only when the user cannot or will not provide required input."
+          "prompt": "Ask the user only the blocking research questions from the latest available draft-producing output and latest research_attack output. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Continue with approval approved after the user answer is captured in the approval output; use blocked only when the user cannot or will not provide required input."
         },
         "next": {
           "match": "${{ output.approval }}",
@@ -76,9 +78,11 @@
         "input": {
           "role": "critic",
           "state": [
-            "research_draft"
+            "research_draft",
+            "research_answered_draft",
+            "research_revision"
           ],
-          "prompt": "Attack the latest research_draft packet for weak evidence, unsafe assumptions, missing user input, misclassified blockers, and over-broad candidate approaches. Return approved only when the packet is ready for downstream handoff, needs_revision when a bounded revision should loop through research_draft, needs_input when user answers are required, or blocked for an unsafe stop."
+          "prompt": "Attack the latest available research packet for weak evidence, unsafe assumptions, missing user input, misclassified blockers, and over-broad candidate approaches. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Return approved only when the packet is ready for downstream handoff, needs_revision when a bounded revision should loop through a fresh draft-producing output, needs_input when user answers are required, or blocked for an unsafe stop."
         },
         "output": {
           "template": "shared/templates/review-verdict-template.md",
@@ -126,9 +130,11 @@
           "role": "researcher",
           "state": [
             "research_draft",
+            "research_answered_draft",
+            "research_revision",
             "research_attack"
           ],
-          "prompt": "Finalize persistence metadata for the approved research packet. The caller should save concrete worker outputs under the active run directory's outputs/ folder and persist the returned baton/history with the generic persist helper. Return saved after emitting artifact/result references to the saved packet, or blocked if the packet cannot be safely saved."
+          "prompt": "Finalize persistence metadata for the approved research packet using the latest approved research packet and latest research_attack verdict. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. The caller should save concrete worker outputs under the active run directory's outputs/ folder and persist the returned baton/history with the generic persist helper. Return saved after emitting artifact/result references to the saved packet, or blocked if the packet cannot be safely saved."
         },
         "output": {
           "template": "shared/templates/research-packet-template.md",

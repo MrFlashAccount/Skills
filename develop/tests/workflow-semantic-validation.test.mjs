@@ -234,16 +234,30 @@ test('workflow semantic validation rejects input.state selectors that do not nam
     /consumer.*input\.state selector 'missing_step'.*declared workflow step/,
   );
 
-
-
   assertSemanticFailure(
     syntheticWorkflow((draft) => {
       draft.workflow.steps.consumer.input.state = ['artifacts', 'results', 'outputs'];
       return draft;
     }),
-    /consumer.*input\.state selector 'artifacts'.*declared workflow step/,
+    /consumer.*input\.state selector 'artifacts'.*reserved for runtime aggregate state/,
   );
+});
 
+test('workflow semantic validation rejects declared step ids reserved for aggregate runtime state', () => {
+  for (const reservedStepId of ['artifacts', 'results', 'outputs', 'attempts']) {
+    assertSemanticFailure(
+      syntheticWorkflow((draft) => {
+        draft.workflow.steps[reservedStepId] = {
+          name: `Reserved ${reservedStepId}`,
+          kind: 'worker',
+          output: { template: `${reservedStepId}.md`, schema: 'route-output.schema.json' },
+          next: 'done',
+        };
+        return draft;
+      }),
+      new RegExp(`workflow step id '${reservedStepId}'.*reserved for runtime aggregate state`),
+    );
+  }
 });
 
 test('workflow semantic validation rejects unsupported nested input.state selectors', () => {

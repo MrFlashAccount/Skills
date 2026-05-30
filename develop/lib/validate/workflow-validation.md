@@ -37,13 +37,14 @@ The validator checks that:
 - `workflow.done` names a declared step with `kind: "done"`.
 - `workflow.blocked` names a declared step with `kind: "blocked"`.
 
-### 2a. Projected state selectors
+### 2a. Step ids and projected state selectors
 
-The validator checks every `input.state` selector:
+The validator checks workflow step ids and every `input.state` selector:
 
+- declared step ids must not be reserved runtime aggregate state keys: `artifacts`, `results`, `outputs`, or `attempts`;
 - selectors must be top-level workflow step ids supported by the renderer;
 - selectors must name declared workflow steps;
-- aggregate runtime keys such as `artifacts`, `results`, and `outputs` are not valid unless a workflow step with that exact id exists.
+- reserved runtime aggregate state keys are always banned as workflow step ids and projected state selectors.
 
 ### 3. Transition targets
 

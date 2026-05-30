@@ -1,6 +1,7 @@
 import { validateJsonSchema } from 'schema-validation';
 import { WorkflowInterpreterError } from '../workflow/errors.mjs';
 import { readJson } from '../workflow/json-io.mjs';
+import { RESERVED_STEP_IDS, isReservedStateKey } from '../workflow/state-keys.mjs';
 import { readOutputSchema } from '../workflow/output-schema-validation.mjs';
 import { assertRoleDirectoryName, listAllowedWorkflowRoles } from '../workflow/roles.mjs';
 import { assertWorkflowSchema, workflowSchemas } from '../workflow/schema-validation.mjs';
@@ -37,11 +38,22 @@ function assertWorkflowIdentity(workflow) {
   }
 }
 
+function assertWorkflowStepIds(workflow) {
+  for (const stepId of Object.keys(workflow.steps)) {
+    if (isReservedStateKey(stepId)) {
+      fail(`workflow step id '${stepId}' is reserved for runtime aggregate state; reserved ids: ${RESERVED_STEP_IDS.join(', ')}`);
+    }
+  }
+}
+
 function assertWorkflowInputStateSelectors(workflow) {
   for (const [stepId, step] of Object.entries(workflow.steps)) {
     for (const selector of step.input?.state ?? []) {
       if (!TOP_LEVEL_STATE_SELECTOR.test(selector)) {
         fail(`step '${stepId}' input.state selector '${selector}' is invalid; v1 supports top-level workflow step ids only`);
+      }
+      if (isReservedStateKey(selector)) {
+        fail(`step '${stepId}' input.state selector '${selector}' is reserved for runtime aggregate state and cannot reference workflow steps`);
       }
       if (!workflow.steps[selector]) {
         fail(`step '${stepId}' input.state selector '${selector}' does not reference a declared workflow step`);
@@ -293,6 +305,7 @@ export function validateWorkflowDocument(workflowDoc, { workflowPath = 'workflow
   assertWorkflowSchema(workflowDoc);
   const workflow = workflowDoc.workflow;
   assertWorkflowIdentity(workflow);
+  assertWorkflowStepIds(workflow);
   assertWorkflowRootTargets(workflow);
   assertWorkflowInputStateSelectors(workflow);
   assertWorkflowStepRoles(workflow, repositoryRoot);
