@@ -85,6 +85,10 @@
     "user_prompt_injected": {
       "description": "Interpreter/runner marker set after the selected startup-prompt worker output has been applied. Prevents reinjection after completion/resume or workflow drift while allowing repeated renders of the same uncompleted worker to preserve the prompt.",
       "type": "boolean"
+    },
+    "user_prompt_target": {
+      "description": "Interpreter-owned selected startup worker step id that receives baton.user_prompt before any worker output exists. Stable across resume and workflow order drift.",
+      "type": "string"
     }
   },
   "additionalProperties": false,

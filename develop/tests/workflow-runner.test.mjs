@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
@@ -189,6 +189,28 @@ test('runner: user prompt is stored, included only in initial worker instruction
   assert.equal(laterInstructions.status, 0, laterInstructions.stderr);
   assert.doesNotMatch(laterInstructions.stdout, /## User prompt/);
   assert.equal(laterInstructions.stdout.includes(rawPrompt), false);
+});
+
+test('runner: resumed next is read-only for baton after user prompt marker is persisted', () => {
+  const runDir = path.join(tempDir, 'user-prompt-next-read-only-after-marker');
+  const workflowPath = path.join(tempDir, 'user-prompt-next-read-only-after-marker.json');
+  const singleWorkflow = structuredClone(workflowDoc);
+  singleWorkflow.workflow.steps.prepare.next = 'branch_a';
+  singleWorkflow.workflow.steps.branch_a.next = 'done';
+  writeJson(workflowPath, singleWorkflow);
+
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath, '--user-prompt', 'marker must not be rolled back'], 'next before marker');
+  const prepareOutput = path.join(runDir, 'prepare-output.json');
+  writeJson(prepareOutput, workerOutput('prepared'));
+  expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', prepareOutput], 'continue marker');
+
+  const batonPath = path.join(runDir, 'baton.json');
+  const before = statSync(batonPath, { bigint: true }).mtimeNs;
+  const resumed = expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'resumed next after marker');
+  const after = statSync(batonPath, { bigint: true }).mtimeNs;
+
+  assert.equal(resumed.baton.user_prompt_injected, true);
+  assert.equal(after, before);
 });
 
 test('runner: next rejects empty or conflicting user prompt inputs', () => {
@@ -538,6 +560,108 @@ test('runner: typed approval static parallel next preserves approval output in s
   const branchAInstructions = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'branch_a']);
   assert.equal(branchAInstructions.status, 0, branchAInstructions.stderr);
   assert.match(branchAInstructions.stdout, /Fan out now\./);
+});
+
+test('runner: selected startup prompt target survives static parallel workflow order drift before output', () => {
+  const runDir = path.join(tempDir, 'user-prompt-static-parallel-target-drift');
+  const workflowPath = path.join(tempDir, 'user-prompt-static-parallel-target-drift.json');
+  const approvalWorkflow = structuredClone(workflowDoc);
+  approvalWorkflow.workflow.start = 'choose_path';
+  approvalWorkflow.workflow.steps = {
+    choose_path: {
+      name: 'Choose path',
+      kind: 'approval',
+      input: { prompt: 'Ask whether to fan out.' },
+      next: ['branch_a', 'branch_b'],
+    },
+    branch_a: approvalWorkflow.workflow.steps.branch_a,
+    branch_b: approvalWorkflow.workflow.steps.branch_b,
+    join: approvalWorkflow.workflow.steps.join,
+    done: approvalWorkflow.workflow.steps.done,
+    blocked: approvalWorkflow.workflow.steps.blocked,
+  };
+  approvalWorkflow.workflow.steps.branch_a.input.state = ['choose_path'];
+  approvalWorkflow.workflow.steps.branch_b.input.state = ['choose_path'];
+  approvalWorkflow.workflow.steps.join.next = 'done';
+  writeJson(workflowPath, approvalWorkflow);
+  const rawPrompt = 'Prompt must stay with originally selected branch.';
+
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath, '--user-prompt', rawPrompt], 'next approval before static fanout');
+  const approvalOutput = path.join(runDir, 'choose-path-output.json');
+  writeJson(approvalOutput, { approval: 'approved' });
+  const fanout = expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', `choose_path=${approvalOutput}`], 'continue approval static fanout');
+  assert.equal(fanout.baton.user_prompt_target, 'branch_a');
+
+  approvalWorkflow.workflow.steps.choose_path.next = ['branch_b', 'branch_a'];
+  writeJson(workflowPath, approvalWorkflow);
+  const rerendered = expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next after static fanout drift');
+  assert.deepEqual(rerendered.requests.map((request) => request.id), ['branch_b', 'branch_a']);
+
+  const branchAInstructions = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'branch_a']);
+  assert.equal(branchAInstructions.status, 0, branchAInstructions.stderr);
+  assert.match(branchAInstructions.stdout, /## User prompt/);
+  assert.equal(branchAInstructions.stdout.includes(rawPrompt), true);
+
+  const branchBInstructions = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'branch_b']);
+  assert.equal(branchBInstructions.status, 0, branchBInstructions.stderr);
+  assert.doesNotMatch(branchBInstructions.stdout, /## User prompt/);
+  assert.equal(branchBInstructions.stdout.includes(rawPrompt), false);
+});
+
+test('runner: untyped approval static parallel applies branch outputs and persists prompt marker once', () => {
+  const runDir = path.join(tempDir, 'approval-untyped-static-parallel-branch-output');
+  const workflowPath = path.join(tempDir, 'approval-untyped-static-parallel-branch-output.json');
+  const approvalWorkflow = structuredClone(workflowDoc);
+  approvalWorkflow.workflow.start = 'choose_path';
+  approvalWorkflow.workflow.steps = {
+    choose_path: {
+      name: 'Choose path',
+      kind: 'approval',
+      input: { prompt: 'Ask whether to fan out.' },
+      next: ['branch_a', 'branch_b'],
+    },
+    branch_a: approvalWorkflow.workflow.steps.branch_a,
+    branch_b: approvalWorkflow.workflow.steps.branch_b,
+    join: approvalWorkflow.workflow.steps.join,
+    done: approvalWorkflow.workflow.steps.done,
+    blocked: approvalWorkflow.workflow.steps.blocked,
+  };
+  approvalWorkflow.workflow.steps.branch_a.input.state = ['choose_path'];
+  approvalWorkflow.workflow.steps.branch_b.input.state = ['choose_path'];
+  approvalWorkflow.workflow.steps.join.next = 'done';
+  writeJson(workflowPath, approvalWorkflow);
+  const rawPrompt = 'Prompt marker should persist exactly once.';
+
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath, '--user-prompt', rawPrompt], 'next approval untyped static parallel');
+  const approvalOutput = path.join(runDir, 'choose-path-output.json');
+  writeJson(approvalOutput, { approval: 'approved', note: 'Fan out.' });
+  const fanout = expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', `choose_path=${approvalOutput}`], 'continue approval untyped static parallel');
+  assert.deepEqual(fanout.requests.map((request) => request.id), ['branch_a', 'branch_b']);
+  assert.deepEqual(fanout.baton.state.choose_path, { approval: 'approved', note: 'Fan out.' });
+  assert.equal(fanout.baton.user_prompt_injected, undefined);
+
+  const branchAOutput = path.join(runDir, 'branch-a-output.json');
+  const branchBOutput = path.join(runDir, 'branch-b-output.json');
+  writeJson(branchAOutput, workerOutput('branch a complete'));
+  writeJson(branchBOutput, workerOutput('branch b complete'));
+  const joined = expectRunner([
+    'continue',
+    '--run-dir',
+    runDir,
+    '--workflow',
+    workflowPath,
+    '--output',
+    `branch_a=${branchAOutput}`,
+    '--output',
+    `branch_b=${branchBOutput}`,
+  ], 'continue untyped approval branch outputs');
+
+  assert.equal(joined.status, 'needs_host_actions');
+  assert.deepEqual(joined.requests.map((request) => request.id), ['join']);
+  assert.equal(joined.baton.cursor, 'join');
+  assert.equal(joined.baton.user_prompt_injected, true);
+  assert.equal(JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8')).user_prompt_injected, true);
+  assert.equal(JSON.stringify(joined.baton).match(/user_prompt_injected/g).length, 1);
 });
 
 test('runner: continue fans out parallel branch requests with separate step ids and load commands', () => {

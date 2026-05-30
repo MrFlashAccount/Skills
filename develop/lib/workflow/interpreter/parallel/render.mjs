@@ -2,10 +2,10 @@ import { applyOutputToBatonState } from '../../state.mjs';
 import { renderWorkflowPrompt } from '../../prompt-renderer.mjs';
 import { invariant } from '../../errors.mjs';
 import { responseFor } from '../output/response.mjs';
-import { initialUserPromptStepId, markUserPromptInjectedForStep } from '../../user-prompt.mjs';
+import { markUserPromptInjectedForStep, selectedUserPromptStepId, withSelectedStartupUserPromptTarget } from '../../user-prompt.mjs';
 
 export function renderStepPrompts({ workflowPath, workflow, baton, steps, repositoryRoot, templateBaseDir, includeDiagnostics = false } = {}) {
-  const userPromptStepId = initialUserPromptStepId({ workflow, baton, steps });
+  const userPromptStepId = selectedUserPromptStepId({ workflow, baton });
   const rendered = steps.map((entry) => ({
     ...entry,
     compiledPrompt: renderWorkflowPrompt({
@@ -30,8 +30,12 @@ export function prepareParallelBranch({ workflow, baton, stepId, step, output, a
   updatedBaton = markUserPromptInjectedForStep({
     workflow,
     baton: updatedBaton,
-    steps: [{ id: stepId, step }],
     stepId,
+  });
+  updatedBaton = withSelectedStartupUserPromptTarget({
+    workflow,
+    baton: updatedBaton,
+    steps: targets.map((targetId) => ({ id: targetId, step: workflow.steps[targetId] })),
   });
   updatedBaton.state = applyOutputToBatonState(updatedBaton, output, attempts, outputStepId, {
     mirrorToOutputs: Boolean(step.output?.schema),

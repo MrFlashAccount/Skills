@@ -67,6 +67,11 @@ function workflowStart(workflowDoc, workflowPath) {
   return start;
 }
 
+function startupUserPromptTarget(workflowDoc, start) {
+  const startStep = workflowDoc?.workflow?.steps?.[start];
+  return startStep?.kind === 'worker' ? start : undefined;
+}
+
 export async function ensureRunFiles(paths, { userPrompt } = {}) {
   await mkdir(paths.runDir, { recursive: true });
   await mkdir(paths.runnerDir, { recursive: true });
@@ -75,12 +80,17 @@ export async function ensureRunFiles(paths, { userPrompt } = {}) {
   const batonExists = await exists(paths.batonPath);
   if (!batonExists) {
     const workflowDoc = await readJson(paths.workflowPath, 'workflow');
+    const start = workflowStart(workflowDoc, paths.workflowPath);
     const initialBaton = {
-      cursor: workflowStart(workflowDoc, paths.workflowPath),
+      cursor: start,
       status: 'running',
       state: { artifacts: [], results: [] },
     };
-    if (typeof userPrompt === 'string') initialBaton.user_prompt = userPrompt;
+    if (typeof userPrompt === 'string') {
+      initialBaton.user_prompt = userPrompt;
+      const target = startupUserPromptTarget(workflowDoc, start);
+      if (target) initialBaton.user_prompt_target = target;
+    }
     await writeFile(paths.batonPath, `${JSON.stringify(initialBaton, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
   }
 

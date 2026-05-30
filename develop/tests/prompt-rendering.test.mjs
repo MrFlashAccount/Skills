@@ -422,7 +422,7 @@ test('prompt renderer: initial parallel workers put user prompt on first worker 
   const rendered = renderStepPrompts({
     workflowPath: writeJson('initial-parallel-user-prompt-workflow.json', { workflow }),
     workflow,
-    baton: baton({ user_prompt: rawPrompt }),
+    baton: baton({ user_prompt: rawPrompt, user_prompt_target: 'branch_b' }),
     steps: [
       { id: 'branch_b', action: 'run_worker', step: workflow.steps.branch_b },
       { id: 'branch_a', action: 'run_worker', step: workflow.steps.branch_a },
@@ -461,7 +461,7 @@ test('prompt renderer: mixed current approval and worker gives user prompt only 
   const rendered = renderStepPrompts({
     workflowPath: writeJson('mixed-current-user-prompt-workflow.json', { workflow }),
     workflow,
-    baton: baton({ user_prompt: rawPrompt }),
+    baton: baton({ user_prompt: rawPrompt, user_prompt_target: 'current_worker' }),
     steps: [
       { id: 'current_gate', action: 'wait_for_approval', step: workflow.steps.current_gate },
       { id: 'current_worker', action: 'run_worker', step: workflow.steps.current_worker },

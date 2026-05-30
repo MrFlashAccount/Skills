@@ -26,18 +26,31 @@ export function hasAnyWorkerOutput({ workflow, baton }) {
   return Object.entries(workflow?.steps ?? {}).some(([stepId, step]) => step?.kind === 'worker' && Object.hasOwn(state, stepId));
 }
 
-export function initialUserPromptStepId({ workflow, baton, steps }) {
-  if (typeof baton?.user_prompt !== 'string' || baton.user_prompt.trim().length === 0) return undefined;
-  if (baton.user_prompt_injected === true) return undefined;
-  if (hasAnyWorkerOutput({ workflow, baton })) return undefined;
-  return steps.find((entry) => entry.step?.kind === 'worker')?.id;
+function canSelectStartupUserPrompt({ workflow, baton }) {
+  if (typeof baton?.user_prompt !== 'string' || baton.user_prompt.trim().length === 0) return false;
+  if (baton.user_prompt_injected === true) return false;
+  if (hasAnyWorkerOutput({ workflow, baton })) return false;
+  return true;
 }
 
-export function shouldMarkUserPromptInjectedForStep({ workflow, baton, steps, stepId }) {
-  return initialUserPromptStepId({ workflow, baton, steps }) === stepId;
+export function selectedUserPromptStepId({ workflow, baton }) {
+  if (!canSelectStartupUserPrompt({ workflow, baton })) return undefined;
+  return typeof baton.user_prompt_target === 'string' ? baton.user_prompt_target : undefined;
 }
 
-export function markUserPromptInjectedForStep({ workflow, baton, steps, stepId }) {
-  if (!shouldMarkUserPromptInjectedForStep({ workflow, baton, steps, stepId })) return baton;
+export function withSelectedStartupUserPromptTarget({ workflow, baton, steps }) {
+  if (!canSelectStartupUserPrompt({ workflow, baton })) return baton;
+  if (typeof baton.user_prompt_target === 'string') return baton;
+  const target = steps.find((entry) => entry.step?.kind === 'worker')?.id;
+  if (!target) return baton;
+  return { ...baton, user_prompt_target: target };
+}
+
+export function shouldMarkUserPromptInjectedForStep({ workflow, baton, stepId }) {
+  return selectedUserPromptStepId({ workflow, baton }) === stepId;
+}
+
+export function markUserPromptInjectedForStep({ workflow, baton, stepId }) {
+  if (!shouldMarkUserPromptInjectedForStep({ workflow, baton, stepId })) return baton;
   return { ...baton, user_prompt_injected: true };
 }
