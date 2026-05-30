@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { next as runnerNext } from '../lib/workflow/runner/index.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-runner-check-'));
@@ -212,6 +213,41 @@ test('runner: next rejects empty or conflicting user prompt inputs', () => {
   const conflicting = runRunner(['next', '--run-dir', path.join(tempDir, 'conflicting-user-prompt-next'), '--workflow', workflowPath, '--user-prompt', 'from arg', '--user-prompt-file', promptPath]);
   assert.notEqual(conflicting.status, 0);
   assert.match(conflicting.stderr, /provide only one of --user-prompt or --user-prompt-file/);
+});
+
+test('runner: API next rejects empty user prompt before persisting baton', async () => {
+  const workflowPath = path.join(tempDir, 'api-empty-user-prompt-workflow.json');
+  writeJson(workflowPath, workflowDoc);
+
+  const emptyRunDir = path.join(tempDir, 'api-empty-user-prompt-next');
+  await assert.rejects(
+    runnerNext({ runDir: emptyRunDir, workflowPath, userPrompt: '' }),
+    /--user-prompt must not be empty or whitespace-only/,
+  );
+  assert.equal(existsSync(path.join(emptyRunDir, 'baton.json')), false);
+
+  const whitespaceRunDir = path.join(tempDir, 'api-whitespace-user-prompt-next');
+  await assert.rejects(
+    runnerNext({ runDir: whitespaceRunDir, workflowPath, userPrompt: '  \n\t' }),
+    /--user-prompt must not be empty or whitespace-only/,
+  );
+  assert.equal(existsSync(path.join(whitespaceRunDir, 'baton.json')), false);
+});
+
+test('runner: CLI resume ignores deleted startup user prompt file and preserves persisted prompt', () => {
+  const runDir = path.join(tempDir, 'user-prompt-resume-deleted-file');
+  const workflowPath = path.join(tempDir, 'user-prompt-resume-deleted-file-workflow.json');
+  const promptPath = path.join(tempDir, 'user-prompt-resume-deleted-file.txt');
+  writeJson(workflowPath, workflowDoc);
+  writeFileSync(promptPath, 'original file prompt');
+
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath, '--user-prompt-file', promptPath], 'next with prompt file');
+  rmSync(promptPath, { force: true });
+  const response = expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath, '--user-prompt-file', promptPath], 'resume with deleted prompt file');
+
+  assert.equal(response.resumed, true);
+  assert.equal(response.baton.user_prompt, 'original file prompt');
+  assert.equal(JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8')).user_prompt, 'original file prompt');
 });
 
 test('runner: non-next modes reject empty user prompt file option', () => {

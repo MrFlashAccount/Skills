@@ -2,7 +2,6 @@
 import { parseArgs } from 'node:util';
 import { WorkflowInterpreterError } from '../lib/workflow/errors.mjs';
 import { continueRun, loadInstructions, next } from '../lib/workflow/runner/index.mjs';
-import { resolveStartupUserPrompt } from '../lib/workflow/user-prompt.mjs';
 
 function fail(message) {
   console.error(`workflow-runner: ${message}`);
@@ -58,7 +57,8 @@ try {
       workflowPath: values.workflow,
       includeDiagnostics: values.diagnostics,
       output: values.output,
-      userPrompt: await resolveStartupUserPrompt({ userPrompt: values['user-prompt'], userPromptFile: values['user-prompt-file'] }),
+      userPrompt: values['user-prompt'],
+      userPromptFile: values['user-prompt-file'],
     });
     console.log(JSON.stringify(response, null, 2));
   }
