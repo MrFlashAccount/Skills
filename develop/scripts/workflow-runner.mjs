@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-import { readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { WorkflowInterpreterError } from '../lib/workflow/errors.mjs';
 import { continueRun, loadInstructions, next } from '../lib/workflow/runner/index.mjs';
+import { resolveStartupUserPrompt } from '../lib/workflow/user-prompt.mjs';
 
 function fail(message) {
   console.error(`workflow-runner: ${message}`);
@@ -36,18 +36,11 @@ function parseCliArgs(argv) {
     if (mode !== 'instructions' && parsed.values['step-id']) fail(usage());
     if (mode !== 'continue' && parsed.values.output?.length) fail(usage());
     if (mode !== 'next' && (parsed.values['user-prompt'] !== undefined || parsed.values['user-prompt-file'])) fail(usage());
-    if (parsed.values['user-prompt'] !== undefined && parsed.values['user-prompt-file']) fail('provide only one of --user-prompt or --user-prompt-file');
     if (mode === 'instructions' && (parsed.values.workflow || parsed.values.diagnostics || parsed.values.output?.length)) fail(usage());
     return { mode, values: parsed.values };
   } catch (error) {
     fail(`${error.message}\n${usage()}`);
   }
-}
-
-async function resolveUserPrompt(values) {
-  if (values['user-prompt'] !== undefined) return values['user-prompt'];
-  if (values['user-prompt-file']) return readFile(values['user-prompt-file'], 'utf8');
-  return undefined;
 }
 
 try {
@@ -65,7 +58,7 @@ try {
       workflowPath: values.workflow,
       includeDiagnostics: values.diagnostics,
       output: values.output,
-      userPrompt: await resolveUserPrompt(values),
+      userPrompt: await resolveStartupUserPrompt({ userPrompt: values['user-prompt'], userPromptFile: values['user-prompt-file'] }),
     });
     console.log(JSON.stringify(response, null, 2));
   }

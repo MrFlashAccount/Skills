@@ -31,7 +31,7 @@ node develop/scripts/workflow-runner.mjs instructions --run-dir <run-dir> --step
 
 When starting a new run, `next` may receive the raw startup user prompt with `--user-prompt` or `--user-prompt-file`. The runner stores it once as top-level `baton.user_prompt`. Existing runs are resumed as-is: later `next` calls do not overwrite `baton.user_prompt`, and `continue` preserves it while advancing the baton.
 
-The prompt renderer implicitly adds a `## User prompt` section only for the first rendered worker request before any worker step output exists. `workflow.start` may be a control step; later workers do not receive this section unless the workflow explicitly carries derived context through normal state/output paths.
+The runner/interpreter injects that startup prompt into the render context only for the first rendered worker request before any worker step output exists. The template compiler only renders a `## User prompt` section when that render-time value is passed; it does not decide eligibility itself. `workflow.start` may be a control step; approval/user-gate answers are separate host interactions, not startup `user_prompt`, and later workers do not receive this section unless the workflow explicitly carries derived context through normal state/output paths.
 
 ## Host request response
 

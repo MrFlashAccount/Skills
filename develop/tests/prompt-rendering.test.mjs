@@ -156,6 +156,7 @@ function renderFixture(overrides = {}) {
     repositoryRoot: overrides.repositoryRoot ?? tempDir,
     templateBaseDir: overrides.templateBaseDir,
     includeDiagnostics: overrides.includeDiagnostics,
+    userPrompt: overrides.userPrompt,
   });
 }
 
@@ -250,7 +251,7 @@ test('prompt renderer: appends role output and state sections in fixed compiled 
 
 
 
-test('prompt renderer: initial worker includes raw top-level user prompt', () => {
+test('prompt renderer: renders raw user prompt only when render context provides it', () => {
   const rawPrompt = 'Fix the bug as reported.\nDo not infer GitHub context.';
   const step = {
     name: 'Worker step',
@@ -265,6 +266,7 @@ test('prompt renderer: initial worker includes raw top-level user prompt', () =>
     stepId: 'worker_step',
     step,
     batonDoc: baton({ user_prompt: rawPrompt }),
+    userPrompt: rawPrompt,
   });
 
   assert.ok(compiled.prompt.includes(`## User prompt\n\n${rawPrompt}\n`));
@@ -277,7 +279,7 @@ test('prompt renderer: initial worker includes raw top-level user prompt', () =>
   ]);
 });
 
-test('prompt renderer: first worker includes raw top-level user prompt even when workflow start is not that worker', () => {
+test('prompt renderer: renders provided startup user prompt for worker selected after control steps', () => {
   const rawPrompt = 'Use the original startup task after approval.';
   const workflow = {
     ...schemaWorkflowDoc.workflow,
@@ -301,12 +303,13 @@ test('prompt renderer: first worker includes raw top-level user prompt even when
       user_prompt: rawPrompt,
       state: { artifacts: [], results: [], approval_step: { approval: 'approved' } },
     }),
+    userPrompt: rawPrompt,
   });
 
   assert.ok(compiled.prompt.includes(`## User prompt\n\n${rawPrompt}\n`));
 });
 
-test('prompt renderer: later worker omits raw top-level user prompt by default', () => {
+test('prompt renderer: does not infer user prompt eligibility from baton by default', () => {
   const step = {
     name: 'Direct next worker',
     kind: 'worker',

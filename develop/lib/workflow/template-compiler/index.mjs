@@ -15,19 +15,6 @@ function workflowInstruction({ workflow }) {
   return firstNonEmptyString([workflow?.instruction, workflow?.instructions]);
 }
 
-function hasAnyWorkerOutput({ workflow, baton }) {
-  const state = baton?.state ?? {};
-  return Object.entries(workflow?.steps ?? {}).some(([candidateStepId, candidateStep]) => candidateStep?.kind === 'worker' && Object.hasOwn(state, candidateStepId));
-}
-
-function userPromptForInitialWorker({ workflow, baton, step, includeInitialUserPrompt }) {
-  if (typeof baton?.user_prompt !== 'string') return undefined;
-  if (step?.kind !== 'worker') return undefined;
-  if (typeof includeInitialUserPrompt === 'boolean') return includeInitialUserPrompt ? baton.user_prompt : undefined;
-  if (hasAnyWorkerOutput({ workflow, baton })) return undefined;
-  return baton.user_prompt;
-}
-
 function assembleFixedPrompt({ promptLayer, templatePath, workflowInstructionBlock, inlinePrompt, roleBlock, stateBlock, outputContract, userPrompt, finalReminder }) {
   assertNoUnsupportedPlaceholders(promptLayer, templatePath);
   const parts = [trimStable(promptLayer)];
@@ -43,7 +30,7 @@ function assembleFixedPrompt({ promptLayer, templatePath, workflowInstructionBlo
   return `${parts.filter(Boolean).join('\n\n')}\n`;
 }
 
-export function renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, step, repositoryRoot, templateBaseDir, includeDiagnostics = false, includeInitialUserPrompt } = {}) {
+export function renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, step, repositoryRoot, templateBaseDir, includeDiagnostics = false, userPrompt } = {}) {
   const root = normalizeRepositoryRoot(repositoryRoot ?? path.resolve(path.dirname(path.resolve(workflowPath)), '..'));
   const input = step.input ?? {};
   const selectors = input.state ?? [];
@@ -55,7 +42,6 @@ export function renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, st
   const outputSchema = readOutputSchema({ workflow, step, repositoryRoot: root });
   const outputContract = outputContractSection(outputTemplate.content, outputTemplate.metadataPath, outputSchema.content, outputSchema.metadataPath);
   const workflowInstructionBlock = workflowInstruction({ workflow });
-  const userPrompt = userPromptForInitialWorker({ workflow, baton, step, includeInitialUserPrompt });
   const finalReminder = finalOutputReminder(outputContract);
 
   const usesDefaultPrompt = inputTemplate.content === undefined;

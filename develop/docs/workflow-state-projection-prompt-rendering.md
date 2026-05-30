@@ -94,7 +94,7 @@ Renderer-relevant fields:
 | `output.template` | worker | Markdown output contract template to include as strict return-shape instructions. |
 | `output.schema` | worker, optional | Repository-local JSON schema file to inject near the output contract as concise valid-JSON/self-check instructions. |
 | `workflow.instruction` | workflow root, optional extension | Workflow-level instruction appended directly under the top wrapper, before role/output/context layers. |
-| `baton.user_prompt` | baton root, optional | Raw startup user prompt appended to the first rendered worker request of the run. |
+| `baton.user_prompt` | baton root, optional | Raw startup user prompt stored at run start; the interpreter may pass it as render-time `userPrompt` only to the first worker request. |
 
 ### `input.state`
 
@@ -251,12 +251,12 @@ If truncation/redaction becomes necessary later, make it a separate explicit pro
 Proposed signature:
 
 ```js
-renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, step, repositoryRoot, templateBaseDir }) -> compiledPrompt
+renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, step, repositoryRoot, templateBaseDir, userPrompt }) -> compiledPrompt
 ```
 
 ### Inputs
 
-The renderer receives already-validated workflow/baton/step data. It may be called by `inspect`-adjacent code after `loadWorkflowAndBaton`, but it must not call `resolveTransition` or `applyOutputToBatonState`.
+The renderer receives already-validated workflow/baton/step data plus an optional render-time `userPrompt` string. The interpreter/runner decides whether startup `baton.user_prompt` is eligible for the current worker and passes it in only then; approval/user-gate answers are different interactions and are not startup `userPrompt`. The renderer may be called by `inspect`-adjacent code after `loadWorkflowAndBaton`, but it must not call `resolveTransition` or `applyOutputToBatonState`.
 
 ### Template resolution
 
@@ -288,7 +288,7 @@ After that top layer, the renderer always concatenates fixed sections in this or
 3. `## Output contract` if `output.template` exists;
 4. `## Projected baton state` if `input.state` selected anything;
 5. `## Workflow step prompt` if `input.prompt` exists;
-6. `## User prompt` from top-level `baton.user_prompt`, only for the first rendered worker request before any worker step output exists;
+6. `## User prompt` from the optional render-time `userPrompt` value, only when the interpreter/runner has selected this step as the first worker before any worker output exists;
 7. final reminder when an output contract exists.
 
 This keeps the output contract high for primacy, places context before the executable step/user request, and keeps a short output-contract reminder at the bottom for recency. It intentionally does not preserve compatibility with older placeholder templates.
