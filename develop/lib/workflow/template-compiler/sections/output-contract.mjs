@@ -1,36 +1,28 @@
-import { safeReadSchema, safeReadTemplate, section, trimStable, workflowSkillBase } from '../utils.mjs';
-import { WorkflowInterpreterError } from '../../errors.mjs';
-
-function outputBases({ workflow, repositoryRoot }) {
-  const bases = [];
-  const skillBase = workflowSkillBase({ workflow, repositoryRoot });
-  if (skillBase) bases.push(skillBase);
-  bases.push(repositoryRoot);
-  return bases;
-}
+import { loadOutputSchema, outputSchemaBases } from '../../output-schema.mjs';
+import { safeReadTemplate, section, trimStable } from '../utils.mjs';
 
 export function readOutputTemplate({ workflow, step, repositoryRoot }) {
   const templateRef = step.output?.template;
   if (!templateRef) return { content: '', metadataPath: undefined };
-  const resolved = safeReadTemplate({ templateRef, fieldName: 'output', bases: outputBases({ workflow, repositoryRoot }), repositoryRoot });
+  const resolved = safeReadTemplate({
+    templateRef,
+    fieldName: 'output',
+    bases: outputSchemaBases({ workflow, repositoryRoot }),
+    repositoryRoot,
+  });
   return { content: resolved.content, metadataPath: templateRef };
 }
 
-function parseOutputSchemaContent(schemaRef, content) {
-  try {
-    return JSON.parse(content);
-  } catch (error) {
-    throw new WorkflowInterpreterError(
-      `workflow prompt render failed: invalid output schema JSON '${schemaRef}': ${error.message}`,
-    );
-  }
-}
-
-export function readOutputSchema({ workflow, step, repositoryRoot }) {
+export function readOutputSchema({ workflow, workflowPath, step, repositoryRoot }) {
   const schemaRef = step.output?.schema;
   if (!schemaRef) return { content: '', metadataPath: undefined, schema: undefined };
-  const resolved = safeReadSchema({ schemaRef, fieldName: 'output', bases: outputBases({ workflow, repositoryRoot }), repositoryRoot });
-  const schema = parseOutputSchemaContent(schemaRef, resolved.content);
+  const { schema } = loadOutputSchema({
+    workflow,
+    workflowPath,
+    schemaRef,
+    repositoryRoot,
+    messagePrefix: 'workflow prompt render failed',
+  });
   return { content: JSON.stringify(schema, null, 2), metadataPath: schemaRef, schema };
 }
 

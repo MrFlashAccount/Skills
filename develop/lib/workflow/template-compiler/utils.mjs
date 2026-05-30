@@ -1,6 +1,8 @@
 import { readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { WorkflowInterpreterError } from '../errors.mjs';
+import { isInside } from '../path-utils.mjs';
+export { isInside, workflowSkillBase } from '../path-utils.mjs';
 
 export function normalizeRepositoryRoot(repositoryRoot) {
   return path.resolve(repositoryRoot ?? process.cwd());
@@ -15,20 +17,20 @@ function assertRelativeLocalRef(localRef, fieldName, kind) {
   }
 }
 
-export function isInside(child, parent) {
-  const relative = path.relative(parent, child);
-  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
-}
-
-export function safeReadLocalFile({ fileRef, fieldName, kind, bases, repositoryRoot, missingMessage }) {
+export function safeReadLocalFile({ fileRef, fieldName, kind, bases, repositoryRoot, missingMessage, allowedRoots }) {
   assertRelativeLocalRef(fileRef, fieldName, kind);
   const root = realpathSync(repositoryRoot);
+  const confinementRoots = (allowedRoots?.length ? allowedRoots : [root]).map((allowedRoot) => realpathSync(allowedRoot));
   const attempted = [];
+
+  function isInsideAllowed(candidate) {
+    return confinementRoots.some((allowedRoot) => isInside(candidate, allowedRoot));
+  }
 
   for (const base of bases) {
     const candidate = path.resolve(base, fileRef);
     attempted.push(candidate);
-    if (!isInside(candidate, root)) {
+    if (!isInsideAllowed(candidate)) {
       throw new WorkflowInterpreterError(
         `workflow prompt render failed: ${fieldName} ${kind} escapes repository root: ${fileRef}`,
       );
@@ -39,7 +41,7 @@ export function safeReadLocalFile({ fileRef, fieldName, kind, bases, repositoryR
     } catch {
       continue;
     }
-    if (!isInside(realCandidate, root)) {
+    if (!isInsideAllowed(realCandidate)) {
       throw new WorkflowInterpreterError(
         `workflow prompt render failed: ${fieldName} ${kind} escapes repository root: ${fileRef}`,
       );
@@ -52,16 +54,6 @@ export function safeReadLocalFile({ fileRef, fieldName, kind, bases, repositoryR
 
 export function safeReadTemplate({ templateRef, fieldName, bases, repositoryRoot, missingMessage }) {
   return safeReadLocalFile({ fileRef: templateRef, fieldName, kind: 'template', bases, repositoryRoot, missingMessage });
-}
-
-export function safeReadSchema({ schemaRef, fieldName, bases, repositoryRoot }) {
-  return safeReadLocalFile({ fileRef: schemaRef, fieldName, kind: 'schema', bases, repositoryRoot });
-}
-
-export function workflowSkillBase({ workflow, repositoryRoot }) {
-  const name = workflow?.name;
-  if (typeof name !== 'string' || name.length === 0) return undefined;
-  return path.join(repositoryRoot, 'skills', name);
 }
 
 export function trimStable(value) {

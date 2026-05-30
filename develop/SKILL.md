@@ -1,55 +1,85 @@
 ---
 name: develop-workflow-runtime
-description: Use for requests that should run a baton workflow through bounded worker prompts, approval waits, and the workflow interpreter.
+description: Use for running a workflow from the repo root through workflow-runner host requests, bounded workers, and user-input waits.
 ---
 
 # Workflow Runtime
 
-Run the selected workflow definition from `<steps>`. Do not decide workflow transitions yourself.
+Run workflows by driving the `workflow-runner` request loop from the repository root. Do not decide workflow transitions yourself.
 
 ## Variables
 
-- `<run-dir>`: existing/current run state directory chosen by the caller/orchestrator.
-- `<workflow>`: workflow file provided by the caller, selected workflow definition, or configured workflow path.
-- `<baton.json>`: JSON file containing the current live baton.
-- `<steps>`: current executable step array returned by start-run or the workflow interpreter.
-- `<output.json>`: output from the worker subagent, user approval step, or parallel branch wrapper for `<steps>`.
-- `<apply-response.json>`: JSON response from `scripts/workflow-interpreter.mjs apply`; contains the returned baton and `steps[]`.
-- `<render-response.json>`: JSON response from `scripts/workflow-interpreter.mjs render`; contains `steps[]`, each with its rendered `compiledPrompt`.
-- `<decision>`: compact decision label for this loop application, if persist requires it.
+- `<run-dir>`: current run directory; keep using the same value for the whole run.
+- `<workflow>`: workflow definition path for the initial `next`; same-run `continue` reuses the workflow stored in the run unless you explicitly override it.
+- `<result.json>`: JSON host-output file produced for one host request.
+- `<step-id>`: id of a request/step from `response.requests[]`.
 
-## Start run prerequisite
+## Runner commands
 
-Before entering the main loop, call the start script with `<run-dir>`:
+Start or resume a run from the repo root:
 
 ```bash
-scripts/start-run.mjs --run-dir <run-dir>
+node develop/scripts/workflow-runner.mjs next --run-dir <run-dir> --workflow <workflow>
 ```
 
-It returns `{ baton, steps }`. Put the returned baton into `<baton.json>` / baton variable, and put the returned steps into `<steps>`.
+Continue after host request outputs are ready:
 
-## Main loop
+```bash
+node develop/scripts/workflow-runner.mjs continue --run-dir <run-dir> --output <result.json>
+```
 
-Strictly follow these four steps.
+For multiple request outputs, name every output:
 
-1. Evaluate `<steps>`:
-   - if it has one step with `stop_done` or `stop_blocked`: exit the loop with the returned result.
-   - if it has one step with `run_worker`: render/build one bounded prompt from that step, launch exactly one bounded subagent/executor, and write the result to `<output.json>`.
-   - if it has more than one step: call `scripts/workflow-interpreter.mjs render <workflow> <baton.json>` and use `<render-response.json>.steps[]` to launch each branch prompt from `compiledPrompt`. Wait for every result, and write `<output.json>` as `{ "steps": { "<stepId>": <worker-or-approval-output> } }`. Parallel step outputs remain separate in `baton.state[stepId]`; the workflow then advances to the explicit join step.
-   - if it has one step with `wait_for_approval`: wait for explicit user response/approval, e.g. LGTM/ПОДТВЕРЖДАЮ as appropriate, then write that response to `<output.json>`.
-   - else: exit as blocked for unknown step action.
-2. Call workflow interpreter:
+```bash
+node develop/scripts/workflow-runner.mjs continue --run-dir <run-dir> \
+  --output <step-id>=<result.json> \
+  --output <step-id>=<result.json>
+```
 
-   ```bash
-   scripts/workflow-interpreter.mjs apply <workflow> <baton.json> <output.json>
-   ```
+Load instructions for one request:
 
-   Store the response as `<apply-response.json>`. If it fails, exit as blocked; do not rerun the worker/approval step automatically.
-3. Call persist script with `<run-dir>`, `<apply-response.json>`, `<output.json>`, and `<decision>`:
+```bash
+node develop/scripts/workflow-runner.mjs instructions --run-dir <run-dir> --step-id <step-id>
+```
 
-   ```bash
-   scripts/persist-run-state.mjs --run-dir <run-dir> --response <apply-response.json> --output <output.json> --decision "<decision>"
-   ```
+## Request loop
 
-   If persist fails, exit as blocked.
-4. Update `<baton.json>` from `<apply-response.json>.baton`, update `<steps>` from `<apply-response.json>.steps`, then return to step 1.
+1. From the repo root, call `workflow-runner next` for a new/resumed run, or `workflow-runner continue` after request outputs are ready.
+2. Read `response.status`.
+3. If `response.status` is `done`, stop and report the completed result.
+4. If `response.status` is `blocked`, stop and report the blocker.
+5. If `response.status` is `needs_host_actions`, execute every request in `response.requests[]`; the runner may return one or many requests.
+6. For each `run_worker` request, launch a fresh worker with the bootstrap below.
+7. For each `wait_for_approval` request, ask Sergey/the user for the input described by the loaded request instructions. Despite the legacy action name, this is a generic user-input request, not only an approve/reject/block gate.
+8. Capture one JSON host-output file per request.
+9. Pass all host outputs back to `workflow-runner continue`.
+10. Repeat from step 2.
+
+## Host request rules
+
+- Treat `response.requests[]` as the complete list of required host actions.
+- Execute every request in the list before continuing.
+- Do not run two `workflow-runner continue` commands concurrently for the same `<run-dir>`; the runner rejects same-run concurrent continues with a lock error. Collect all current outputs, then continue once.
+- `run_worker` may appear more than once; run those workers in parallel when safe.
+- `wait_for_approval` is also a host request; do not skip it, infer approval, or force it into a fixed approval envelope.
+- User input for `wait_for_approval` may be an approval verdict, an option choice, or free-form text.
+- Normalize the user answer into JSON that matches the request/step output contract. Examples: `{ "approval": "approved" }`, `{ "choice": "option_b" }`, `{ "answer": "free-form text" }`, or another shape required by the request instructions/schema.
+- When request instructions provide options, a schema, field names, or routing rules, use them to normalize the answer.
+- If the user answer is ambiguous for the requested output shape, ask a follow-up before continuing.
+- Use each request `id`/`stepId` when naming outputs for multiple requests.
+- Host-output files and paths are only transport for `workflow-runner continue`; do not treat them as business concepts.
+- If a worker, user answer, or host-output file is missing, stop as blocked instead of guessing.
+
+## Worker bootstrap template
+
+```text
+Load the step instructions by running:
+
+<command>
+
+Then follow the loaded instructions exactly.
+
+Do not add any behavior, role, output format, or constraints beyond the loaded instructions.
+
+If the instructions cannot be loaded, stop with an error and do not continue.
+```

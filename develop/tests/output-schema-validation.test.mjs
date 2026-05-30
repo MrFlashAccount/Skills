@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { WorkflowInterpreterError } from '../lib/workflow/errors.mjs';
 import { renderWorkflowPrompt } from '../lib/workflow/prompt-renderer.mjs';
+import { validateAgainstOutputSchema } from '../lib/workflow/output-schema-validation.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-output-schema-check-'));
@@ -112,6 +114,69 @@ const structuredSchema = {
 
 after(() => rmSync(tempDir, { recursive: true, force: true }));
 
+test('output.schema: workflow-relative parent schema ref resolves consistently for validation and prompt rendering', () => {
+  const repoDir = path.join(tempDir, 'workflow-relative-repo');
+  const workflowDir = path.join(repoDir, 'develop', 'workflows');
+  const schemaDir = path.join(repoDir, 'develop', 'schemas');
+  mkdirSync(workflowDir, { recursive: true });
+  mkdirSync(schemaDir, { recursive: true });
+  const schemaRef = '../schemas/workflow-output.schema.json';
+  const schema = {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome'],
+    properties: { outcome: { const: 'ready' } },
+    additionalProperties: false,
+  };
+  writeFileSync(path.join(schemaDir, 'workflow-output.schema.json'), `${JSON.stringify(schema, null, 2)}\n`);
+  const workflowPath = path.join(workflowDir, 'demo.workflow.json');
+  const doc = structuredClone(workflowDoc);
+  doc.workflow.steps.worker_step.output = { schema: schemaRef };
+  writeFileSync(workflowPath, `${JSON.stringify(doc, null, 2)}\n`);
+
+  const validation = validateAgainstOutputSchema({
+    workflow: doc.workflow,
+    workflowPath,
+    schemaRef,
+    output: { outcome: 'ready' },
+    repositoryRoot: repoDir,
+  });
+  assert.equal(validation.ok, true);
+
+  const rendered = renderWorkflowPrompt({
+    workflowPath,
+    workflow: doc.workflow,
+    baton: baton(),
+    stepId: 'worker_step',
+    step: doc.workflow.steps.worker_step,
+    repositoryRoot: repoDir,
+  });
+  assert.match(rendered.prompt, /Return valid JSON matching this schema/);
+  assert.match(rendered.prompt, /"outcome"/);
+  assert.match(rendered.prompt, /"const": "ready"/);
+});
+
+
+test('output.schema: invalid JSON Schema throws controlled workflow error', () => {
+  const doc = workflowWithSchema('invalid-json-schema-controlled-error', {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 42,
+  });
+
+  assert.throws(
+    () => validateAgainstOutputSchema({
+      workflow: doc.workflow,
+      workflowPath: path.join(tempDir, 'invalid-json-schema-controlled-error-workflow.json'),
+      schemaRef: doc.workflow.steps.worker_step.output.schema,
+      output: { outcome: 'ready' },
+      repositoryRoot: tempDir,
+    }),
+    (error) => error instanceof WorkflowInterpreterError
+      && error.message.includes("output schema validation failed: invalid output schema 'invalid-json-schema-controlled-error.schema.json'"),
+  );
+});
+
+
 test('output.schema: valid structured output passes and is stored by step id', () => {
   const doc = workflowWithSchema('valid-structured-output', structuredSchema);
 
@@ -125,6 +190,57 @@ test('output.schema: valid structured output passes and is stored by step id', (
   assert.deepEqual(response.baton.state.worker_step.payload, { ok: true });
   assert.deepEqual(response.baton.state.outputs.worker_step.payload, { ok: true });
   assert.equal(response.baton.state.artifacts.at(-1).summary, 'structured');
+});
+
+
+test('output.schema: approval output validates normalized user answer and is stored by step id', () => {
+  const schemaPath = writeJson('approval-choice.schema.json', {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['choice'],
+    properties: {
+      choice: { enum: ['ship', 'revise'] },
+      note: { type: 'string' },
+    },
+    additionalProperties: false,
+  });
+  const doc = structuredClone(workflowDoc);
+  doc.workflow.start = 'consumer_step';
+  doc.workflow.steps.consumer_step.input = { prompt: 'Capture normalized approval answer.' };
+  doc.workflow.steps.consumer_step.output = { schema: path.basename(schemaPath) };
+  doc.workflow.steps.consumer_step.next = { match: '${{ output.choice }}', cases: { ship: 'done', revise: 'worker_step' } };
+
+  const response = runApply('output-schema-approval-valid-stored', baton({ cursor: 'consumer_step' }), {
+    choice: 'ship',
+    note: 'Approved by user.',
+  }, true, doc);
+
+  assert.equal(response.baton.cursor, 'done');
+  assert.deepEqual(response.baton.state.consumer_step, { choice: 'ship', note: 'Approved by user.' });
+  assert.deepEqual(response.baton.state.outputs.consumer_step, { choice: 'ship', note: 'Approved by user.' });
+});
+
+test('output.schema: invalid approval output retries the approval step with schema feedback', () => {
+  const schemaPath = writeJson('approval-retry.schema.json', {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['approval'],
+    properties: {
+      approval: { const: 'approved' },
+    },
+    additionalProperties: false,
+  });
+  const doc = structuredClone(workflowDoc);
+  doc.workflow.start = 'consumer_step';
+  doc.workflow.steps.consumer_step.output = { schema: path.basename(schemaPath) };
+
+  const retry = runApply('output-schema-approval-invalid-retry', baton({ cursor: 'consumer_step' }), { approval: 'rejected' }, true, doc);
+
+  assert.equal(retry.baton.cursor, 'consumer_step');
+  assert.equal(retry.steps[0].action, 'wait_for_approval');
+  assert.equal(retry.baton.state.attempts['consumer_step:output.schema'], 1);
+  assert.match(retry.steps[0].step.input.prompt, /Previous output failed output\.schema validation/);
+  assert.match(retry.steps[0].step.input.prompt, /must be equal to constant/);
 });
 
 test('output.schema: invalid output retries with validation feedback then succeeds', () => {

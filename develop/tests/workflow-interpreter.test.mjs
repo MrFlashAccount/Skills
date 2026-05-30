@@ -654,7 +654,7 @@ test('schema validation: approval output state collections reject malformed entr
     { approval: 'approved', artifacts: [{ summary: 'untyped approval artifact would poison baton state' }] },
     false,
   );
-  assert.match(artifactMissingType.stderr, /worker output failed schema validation/);
+  assert.match(artifactMissingType.stderr, /approval output failed schema validation/);
 
   const nonObjectResult = runApply(
     'approval-output-result-non-object',
@@ -662,25 +662,25 @@ test('schema validation: approval output state collections reject malformed entr
     { approval: 'approved', results: ['string approval result would poison baton state'] },
     false,
   );
-  assert.match(nonObjectResult.stderr, /worker output failed schema validation/);
+  assert.match(nonObjectResult.stderr, /approval output failed schema validation/);
 });
 
-test('schema validation: approval output rejects wrapper-owned runtime fields', () => {
-  const directStateReplacement = runApply(
-    'approval-output-direct-state-replacement',
-    baton({ cursor: 'approval_step' }),
-    { approval: 'approved', state: { artifacts: [], results: [{ type: 'approval', summary: 'bypassed merge' }] } },
-    false,
-  );
-  assert.match(directStateReplacement.stderr, /worker output failed schema validation/);
+test('schema validation: approval output accepts request-specific JSON fields', () => {
+  const workflowDoc = structuredClone(schemaWorkflowDoc);
+  workflowDoc.workflow.steps.approval_step.next.match = '${{ output.choice }}';
+  workflowDoc.workflow.steps.approval_step.next.cases = { option_a: 'direct_next_worker', blocked: 'blocked' };
 
-  const unsupportedDiagnostics = runApply(
-    'approval-output-unsupported-diagnostics',
+  const response = runApply(
+    'approval-output-request-specific-json',
     baton({ cursor: 'approval_step' }),
-    { approval: 'approved', diagnostics: { summary: 'wrapper-only approval details' } },
-    false,
+    { choice: 'option_a', answer: 'Use the safer implementation path.', confidence: 0.82 },
+    true,
+    workflowDoc,
   );
-  assert.match(unsupportedDiagnostics.stderr, /worker output failed schema validation/);
+
+  assert.equal(response.baton.cursor, 'direct_next_worker');
+  assert.equal(response.steps[0].action, 'run_worker');
+  assert.deepEqual(response.baton.state.approval_step, { choice: 'option_a', answer: 'Use the safer implementation path.', confidence: 0.82 });
 });
 
 test('apply: next directive exposes target step input state selectors after transition', () => {
@@ -962,13 +962,14 @@ test('schema validation: approval input rejects worker-only role field', () => {
   assert.match(result.stderr, /workflow failed schema validation/);
 });
 
-test('schema validation: approval steps reject worker-only output schema declaration', () => {
+test('schema validation: approval steps accept optional output schema declaration', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
   workflowDoc.workflow.steps.approval_step.output = { schema: 'worker-output.json' };
 
-  const result = runInspect('approval-step-worker-output-schema', baton({ cursor: 'approval_step' }), false, workflowDoc);
+  const response = runInspect('approval-step-output-schema', baton({ cursor: 'approval_step' }), true, workflowDoc);
 
-  assert.match(result.stderr, /workflow failed schema validation/);
+  assert.equal(response.steps[0].action, 'wait_for_approval');
+  assert.equal(response.steps[0].step.output.schema, 'worker-output.json');
 });
 
 test('runtime validation: baton status must match cursor semantics', () => {
@@ -1029,7 +1030,7 @@ test('validation: worker and approval transition vocabularies stay distinct', ()
   const workerUsingApproval = runApply('worker-using-approval', baton(), { approval: 'approved' }, false);
   const approvalUsingOutcome = runApply('approval-using-outcome', baton({ cursor: 'approval_step' }), { outcome: 'approved' }, false);
   assert.match(workerUsingApproval.stderr, /worker cursor 'worker_step' must use outcome/);
-  assert.match(approvalUsingOutcome.stderr, /approval cursor 'approval_step' must use approval/);
+  assert.match(approvalUsingOutcome.stderr, /approval cursor 'approval_step' must use host\/user output fields, not outcome/);
 });
 
 test('validation: ambiguous outputs with both outcome and approval are rejected for typed steps', () => {
@@ -1042,7 +1043,7 @@ test('validation: ambiguous outputs with both outcome and approval are rejected 
   );
 
   assert.match(workerAmbiguous.stderr, /worker cursor 'worker_step' must use outcome, not approval/);
-  assert.match(approvalAmbiguous.stderr, /approval cursor 'approval_step' must use approval, not outcome/);
+  assert.match(approvalAmbiguous.stderr, /approval cursor 'approval_step' must use host\/user output fields, not outcome/);
 });
 
 test('validation: empty match/cases value is treated as a literal missing case', () => {

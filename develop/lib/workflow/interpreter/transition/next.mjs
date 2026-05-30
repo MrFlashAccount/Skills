@@ -26,7 +26,7 @@ export function applyNextTransition({ workflow, baton, cursorStep, workerOutput 
   const updatedBaton = structuredClone(baton);
   updatedBaton.cursor = targetStepId;
   updatedBaton.status = statusForStep(workflow, targetStepId, targetStep);
-  updatedBaton.state = applyOutputToBatonState(updatedBaton, workerOutput, attempts, cursorStep.kind === 'worker' ? baton.cursor : undefined, {
+  updatedBaton.state = applyOutputToBatonState(updatedBaton, workerOutput, attempts, ['worker', 'approval'].includes(cursorStep.kind) ? baton.cursor : undefined, {
     mirrorToOutputs: Boolean(cursorStep.output?.schema),
   });
   delete updatedBaton.blocker;

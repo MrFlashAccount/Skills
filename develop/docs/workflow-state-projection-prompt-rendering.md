@@ -9,7 +9,7 @@
 
 ## Problem
 
-The workflow interpreter can identify the current `step` and return a directive, but the next boundary is still implicit: something must turn the current workflow step plus baton state into a ready prompt for a child worker or approval surface.
+The workflow interpreter can identify the current `step` and return executable step entries, but the next boundary is still implicit: something must turn the current workflow step plus baton state into a ready prompt for a child worker or approval surface.
 
 That boundary should be a deterministic prompt-rendering stage, not an orchestrator shortcut and not interpreter transition logic. The renderer compiles a prompt from:
 
@@ -50,9 +50,10 @@ Current files already establish these contracts:
 
 - `develop/dev-harness.workflow.json` declares worker and approval steps with `input.state`, optional `input.template`, optional `input.prompt`, optional worker `input.role`, and worker `output.template`.
 - `develop/schemas/workflow.json` rejects step-level extension fields and allows workflow-scoped extensions only.
-- `develop/lib/workflow/interpreter/index.mjs` chooses the current `step`, validates transition targets, applies output, and returns `{ baton, directive }` for `inspect`/`apply`; `render` adds `compiledPrompt` without changing those existing response shapes.
-- `develop/lib/workflow/directive.mjs` exposes `{ id, action, step }` without rendering prompts.
+- `develop/lib/workflow/interpreter/index.mjs` chooses the current `step`, validates transition targets, applies output, and returns the unified `{ baton, steps[] }` response for `inspect`/`apply`; `render` keeps compiled prompts inside the deterministic runner layer without making host requests carry full prompt text.
+- `develop/lib/workflow/executable-steps.mjs` exposes step entries shaped as `{ id, action, step }` before rendering prompts.
 - `develop/lib/workflow/projection.mjs` projects only explicit top-level `input.state` selectors, skips selectors that are valid workflow step ids but absent from the current `baton.state`, and rejects nested selectors.
+
 - `develop/lib/workflow/prompt-renderer.mjs` loads local markdown templates, assembles fallback prompts, appends omitted role/output/state/step-prompt/user-task/reminder sections in the compiled layer order, and returns prompt metadata plus opt-in diagnostics.
 - `develop/lib/workflow/state.mjs` applies worker/approval output to baton state after the worker returns.
 - `shared/templates/README.md` says shared templates are output templates and do not define orchestration or worker spawning.
@@ -175,7 +176,7 @@ Add a renderer-level result shape that can be embedded in a future directive or 
 
 Notes:
 
-- `prompt` is the final string passed to the orchestrator.
+- `prompt` is the final rendered instruction text. Runtime host requests should expose a short instruction reference/load command instead of embedding this full text.
 - `metadata` is optional launch/support data only; it must not require orchestration decisions.
 - `diagnostics` is optional and should only be emitted when the caller opts in and diagnostics are present. Hard failures should throw `WorkflowInterpreterError` or a sibling workflow renderer error and surface through CLI stderr.
 - Avoid adding this to the existing `inspect` output by default unless Sergey approves response-shape expansion. A separate CLI mode avoids breaking the current directive contract. Keep debug step fields (`stepId`, `action`, `kind`, `name`) in `directive`, not duplicated in `compiledPrompt`.
