@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { renderWorkflowPrompt } from '../lib/workflow/prompt-renderer.mjs';
+import { validateAgainstOutputSchema } from '../lib/workflow/output-schema-validation.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-output-schema-check-'));
@@ -111,6 +112,49 @@ const structuredSchema = {
 };
 
 after(() => rmSync(tempDir, { recursive: true, force: true }));
+
+test('output.schema: workflow-relative parent schema ref resolves consistently for validation and prompt rendering', () => {
+  const repoDir = path.join(tempDir, 'workflow-relative-repo');
+  const workflowDir = path.join(repoDir, 'develop', 'workflows');
+  const schemaDir = path.join(repoDir, 'develop', 'schemas');
+  mkdirSync(workflowDir, { recursive: true });
+  mkdirSync(schemaDir, { recursive: true });
+  const schemaRef = '../schemas/workflow-output.schema.json';
+  const schema = {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome'],
+    properties: { outcome: { const: 'ready' } },
+    additionalProperties: false,
+  };
+  writeFileSync(path.join(schemaDir, 'workflow-output.schema.json'), `${JSON.stringify(schema, null, 2)}\n`);
+  const workflowPath = path.join(workflowDir, 'demo.workflow.json');
+  const doc = structuredClone(workflowDoc);
+  doc.workflow.steps.worker_step.output = { schema: schemaRef };
+  writeFileSync(workflowPath, `${JSON.stringify(doc, null, 2)}\n`);
+
+  const validation = validateAgainstOutputSchema({
+    workflow: doc.workflow,
+    workflowPath,
+    schemaRef,
+    output: { outcome: 'ready' },
+    repositoryRoot: repoDir,
+  });
+  assert.equal(validation.ok, true);
+
+  const rendered = renderWorkflowPrompt({
+    workflowPath,
+    workflow: doc.workflow,
+    baton: baton(),
+    stepId: 'worker_step',
+    step: doc.workflow.steps.worker_step,
+    repositoryRoot: repoDir,
+  });
+  assert.match(rendered.prompt, /Return valid JSON matching this schema/);
+  assert.match(rendered.prompt, /"outcome"/);
+  assert.match(rendered.prompt, /"const": "ready"/);
+});
+
 
 test('output.schema: valid structured output passes and is stored by step id', () => {
   const doc = workflowWithSchema('valid-structured-output', structuredSchema);

@@ -1,20 +1,8 @@
-import path from 'node:path';
-import { safeReadSchema, safeReadTemplate, section, trimStable, workflowSkillBase } from '../utils.mjs';
-import { WorkflowInterpreterError } from '../../errors.mjs';
+import { loadOutputSchema, outputSchemaBases } from '../../output-schema.mjs';
+import { safeReadTemplate, section, trimStable } from '../utils.mjs';
 
 function outputBases({ workflow, workflowPath, repositoryRoot }) {
-  const bases = [];
-  const skillBase = workflowSkillBase({ workflow, repositoryRoot });
-  if (skillBase) bases.push(skillBase);
-  bases.push(repositoryRoot);
-  if (workflowPath) bases.push(path.dirname(path.resolve(workflowPath)));
-  return bases;
-}
-
-function outputAllowedRoots({ workflowPath, repositoryRoot }) {
-  const roots = [repositoryRoot];
-  if (workflowPath) roots.push(path.dirname(path.resolve(workflowPath)));
-  return roots;
+  return outputSchemaBases({ workflow, workflowPath, repositoryRoot });
 }
 
 export function readOutputTemplate({ workflow, step, repositoryRoot }) {
@@ -24,27 +12,16 @@ export function readOutputTemplate({ workflow, step, repositoryRoot }) {
   return { content: resolved.content, metadataPath: templateRef };
 }
 
-function parseOutputSchemaContent(schemaRef, content) {
-  try {
-    return JSON.parse(content);
-  } catch (error) {
-    throw new WorkflowInterpreterError(
-      `workflow prompt render failed: invalid output schema JSON '${schemaRef}': ${error.message}`,
-    );
-  }
-}
-
 export function readOutputSchema({ workflow, workflowPath, step, repositoryRoot }) {
   const schemaRef = step.output?.schema;
   if (!schemaRef) return { content: '', metadataPath: undefined, schema: undefined };
-  const resolved = safeReadSchema({
+  const { schema } = loadOutputSchema({
+    workflow,
+    workflowPath,
     schemaRef,
-    fieldName: 'output',
-    bases: outputBases({ workflow, workflowPath, repositoryRoot }),
     repositoryRoot,
-    allowedRoots: outputAllowedRoots({ workflowPath, repositoryRoot }),
+    messagePrefix: 'workflow prompt render failed',
   });
-  const schema = parseOutputSchemaContent(schemaRef, resolved.content);
   return { content: JSON.stringify(schema, null, 2), metadataPath: schemaRef, schema };
 }
 

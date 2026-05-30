@@ -426,7 +426,7 @@ test('prompt renderer: missing output schema fails deterministically', () => {
 
   assert.throws(
     () => renderFixture({ label: 'render-missing-output-schema', stepId: 'worker_step', step }),
-    /missing output schema 'missing\.schema\.json'/,
+    /output\.schema not found: missing\.schema\.json/,
   );
 });
 
