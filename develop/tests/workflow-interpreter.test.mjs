@@ -179,9 +179,20 @@ test('runtime guard: inspect rejects reserved input.state selectors even when sc
   assert.match(response.stderr, /reserved state selector 'artifacts'.*runtime aggregate state/);
 });
 
+test('runtime guard: inspect rejects undeclared input.state selectors even when semantic validation is bypassed', () => {
+  const workflowDoc = structuredClone(schemaWorkflowDoc);
+  workflowDoc.workflow.steps.approval_step.input.state = ['missing_step'];
+
+  const response = runInspect('runtime-missing-state-selector-inspect', baton({ cursor: 'approval_step', status: 'running' }), false, workflowDoc);
+
+  assert.match(response.stderr, /input\.state selector 'missing_step'.*declared workflow step/);
+});
+
 test('runtime guard: apply rejects reserved workflow step ids even when semantic validation is bypassed', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
   workflowDoc.workflow.start = 'artifacts';
+  workflowDoc.workflow.steps.approval_step.input.state = [];
+  workflowDoc.workflow.steps.direct_next_worker.input.state = [];
   workflowDoc.workflow.steps.artifacts = workflowDoc.workflow.steps.worker_step;
   delete workflowDoc.workflow.steps.worker_step;
 
