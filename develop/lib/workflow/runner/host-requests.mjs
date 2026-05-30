@@ -1,4 +1,4 @@
-import { join, relative } from 'node:path';
+import { join } from 'node:path';
 import { loadOutputSchema } from '../output-schema.mjs';
 
 const TERMINAL_ACTIONS = new Set(['stop_done', 'stop_blocked']);
@@ -37,7 +37,6 @@ function resolvedOutputSchemaForStep(step, { workflow, workflowPath, repositoryR
   const resolved = loadOutputSchema({ workflow, workflowPath, schemaRef, repositoryRoot });
   return {
     ref: schemaRef,
-    path: relative(repositoryRoot, resolved.schemaPath),
     schema: resolved.schema,
   };
 }
