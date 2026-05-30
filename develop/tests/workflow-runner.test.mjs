@@ -236,7 +236,7 @@ test('runner: approval request exposes optional output schema reference', () => 
   assert.equal(response.requests[0].action, 'wait_for_approval');
   assert.equal(response.requests[0].outputSchema, path.basename(schemaPath));
   assert.equal(response.requests[0].resolvedOutputSchema.ref, path.basename(schemaPath));
-  assert.match(response.requests[0].resolvedOutputSchema.path, /approval-output-schema-request\.schema\.json$/);
+  assert.equal(Object.hasOwn(response.requests[0].resolvedOutputSchema, 'path'), false);
   assert.deepEqual(response.requests[0].resolvedOutputSchema.schema.required, ['choice']);
 });
 
@@ -276,7 +276,7 @@ test('runner: typed approval retry preserves validation feedback in instructions
   assert.equal(response.requests[0].action, 'wait_for_approval');
   assert.equal(response.requests[0].outputSchema, path.basename(schemaPath));
   assert.equal(response.requests[0].resolvedOutputSchema.ref, path.basename(schemaPath));
-  assert.match(response.requests[0].resolvedOutputSchema.path, /approval-output-schema-retry\.schema\.json$/);
+  assert.equal(Object.hasOwn(response.requests[0].resolvedOutputSchema, 'path'), false);
   assert.deepEqual(response.requests[0].resolvedOutputSchema.schema.required, ['choice']);
   assert.equal(response.baton.state.attempts['choose_path:output.schema'], 1);
 
@@ -285,6 +285,58 @@ test('runner: typed approval retry preserves validation feedback in instructions
   assert.match(loaded.stdout, /Previous output failed output\.schema validation \(attempt 1\/3\)\./);
   assert.match(loaded.stdout, /Validation errors:/);
   assert.match(loaded.stdout, /approved/);
+});
+
+
+test('runner: typed approval static parallel next preserves approval output in state', () => {
+  const runDir = path.join(tempDir, 'approval-output-schema-static-parallel');
+  const workflowPath = path.join(tempDir, 'approval-output-schema-static-parallel-workflow.json');
+  const schemaPath = path.join(tempDir, 'approval-output-schema-static-parallel.schema.json');
+  writeJson(schemaPath, {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['choice', 'notes'],
+    properties: {
+      choice: { enum: ['approved'] },
+      notes: { type: 'string' },
+    },
+    additionalProperties: false,
+  });
+  const approvalWorkflow = structuredClone(workflowDoc);
+  approvalWorkflow.workflow.start = 'choose_path';
+  approvalWorkflow.workflow.steps = {
+    choose_path: {
+      name: 'Choose path',
+      kind: 'approval',
+      input: { prompt: 'Ask the user whether to fan out.' },
+      output: { schema: path.basename(schemaPath) },
+      next: ['branch_a', 'branch_b'],
+    },
+    branch_a: approvalWorkflow.workflow.steps.branch_a,
+    branch_b: approvalWorkflow.workflow.steps.branch_b,
+    join: approvalWorkflow.workflow.steps.join,
+    done: approvalWorkflow.workflow.steps.done,
+    blocked: approvalWorkflow.workflow.steps.blocked,
+  };
+  approvalWorkflow.workflow.steps.branch_a.input.state = ['choose_path'];
+  approvalWorkflow.workflow.steps.branch_b.input.state = ['choose_path'];
+  approvalWorkflow.workflow.steps.join.next = 'done';
+  writeJson(workflowPath, approvalWorkflow);
+
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next approval static parallel');
+  const outputPath = path.join(runDir, 'choose-path-output.json');
+  const approvalOutput = { choice: 'approved', notes: 'Fan out now.' };
+  writeJson(outputPath, approvalOutput);
+  const response = expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', `choose_path=${outputPath}`], 'continue approval static parallel');
+
+  assert.equal(response.status, 'needs_host_actions');
+  assert.deepEqual(response.requests.map((request) => request.id), ['branch_a', 'branch_b']);
+  assert.deepEqual(response.baton.state.choose_path, approvalOutput);
+  assert.deepEqual(response.baton.state.outputs.choose_path, approvalOutput);
+
+  const branchAInstructions = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'branch_a']);
+  assert.equal(branchAInstructions.status, 0, branchAInstructions.stderr);
+  assert.match(branchAInstructions.stdout, /Fan out now\./);
 });
 
 test('runner: continue fans out parallel branch requests with separate step ids and load commands', () => {
