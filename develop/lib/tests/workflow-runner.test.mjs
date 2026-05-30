@@ -1345,6 +1345,40 @@ test('runner: durable commit recovery rejects symlinked instruction paths outsid
 });
 
 
+
+test('runner: durable commit recovery allows run dirs under symlinked parents', () => {
+  const realParent = path.join(tempDir, 'durable-commit-real-parent');
+  const linkedParent = path.join(tempDir, 'durable-commit-linked-parent');
+  mkdirSync(realParent, { recursive: true });
+  rmSync(linkedParent, { recursive: true, force: true });
+  symlinkSync(realParent, linkedParent, 'dir');
+  const runDir = path.join(linkedParent, 'run');
+  const workflowPath = path.join(tempDir, 'durable-commit-linked-parent-workflow.json');
+  const singleWorkflow = structuredClone(workflowDoc);
+  singleWorkflow.steps.prepare.next = 'done';
+  writeJson(workflowPath, singleWorkflow);
+
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next durable symlinked parent setup');
+  const instructionPath = path.join(runDir, '.workflow-runner', 'instructions', 'prepare.md');
+  const durableCommitPath = path.join(runDir, '.workflow-runner', 'durable-commit.json');
+  writeJson(durableCommitPath, {
+    version: 1,
+    response: JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8')),
+    instructions: [{ path: instructionPath, content: 'instructions via symlinked parent\n' }],
+    historyText: '',
+  });
+
+  const result = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'prepare']);
+
+  assert.equal(result.status, 0, `instructions failed
+stdout:
+${result.stdout}
+stderr:
+${result.stderr}`);
+  assert.equal(readFileSync(path.join(realParent, 'run', '.workflow-runner', 'instructions', 'prepare.md'), 'utf8'), 'instructions via symlinked parent\n');
+});
+
+
 test('runner: durable commit recovery rejects symlinked instructions dir', () => {
   const runDir = path.join(tempDir, 'durable-commit-instructions-dir-symlink-escape');
   const workflowPath = path.join(tempDir, 'durable-commit-instructions-dir-symlink-escape-workflow.json');

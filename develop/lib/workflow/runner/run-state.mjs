@@ -208,10 +208,13 @@ async function nearestExistingParent(path) {
 }
 
 async function validateInstructionCommit(paths, instructions) {
+  const runnerDir = resolve(paths.runnerDir);
   const instructionsDir = resolve(paths.instructionsDir);
+  if ((await lstat(runnerDir)).isSymbolicLink()) throw new Error(`durable workflow commit instructions dir is unsafe: ${paths.instructionsDir}`);
   if ((await lstat(instructionsDir)).isSymbolicLink()) throw new Error(`durable workflow commit instructions dir is unsafe: ${paths.instructionsDir}`);
+  const runnerDirRealpath = await realpath(runnerDir);
   const instructionsDirRealpath = await realpath(instructionsDir);
-  if (!isInside(instructionsDirRealpath, instructionsDir)) throw new Error(`durable workflow commit instructions dir is unsafe: ${paths.instructionsDir}`);
+  if (!isInside(instructionsDirRealpath, runnerDirRealpath)) throw new Error(`durable workflow commit instructions dir is unsafe: ${paths.instructionsDir}`);
   for (const instruction of instructions ?? []) {
     if (!instruction || typeof instruction !== 'object' || Array.isArray(instruction)) throw new Error('invalid durable workflow commit instruction entry');
     if (typeof instruction.path !== 'string' || instruction.path.length === 0) throw new Error('invalid durable workflow commit instruction path');

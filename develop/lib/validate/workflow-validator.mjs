@@ -300,9 +300,8 @@ function assertTransitionSemantics(workflow, schemasByStep) {
   }
 }
 
-export function validateWorkflowDocument(workflowDoc, { workflowPath = 'workflow.json', repositoryRoot } = {}) {
-  assertWorkflowSchema(workflowDoc);
-  const workflow = workflowDoc;
+export function validateWorkflowDocument(workflow, { workflowPath = 'workflow.json', repositoryRoot } = {}) {
+  assertWorkflowSchema(workflow);
   assertWorkflowIdentity(workflow);
   assertWorkflowStepIds(workflow);
   assertWorkflowRootTargets(workflow);
