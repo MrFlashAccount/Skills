@@ -1,6 +1,8 @@
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { WorkflowInterpreterError } from './errors.mjs';
+import { isInside, workflowSkillBase } from './path-utils.mjs';
+export { isInside, workflowSkillBase } from './path-utils.mjs';
 
 /**
  * Canonical output.schema path resolution used by both runtime validation and
@@ -8,17 +10,6 @@ import { WorkflowInterpreterError } from './errors.mjs';
  * resolution keeps searching so base ordering cannot make one path fail while
  * another workflow-relative candidate would succeed.
  */
-export function isInside(child, parent) {
-  const relative = path.relative(parent, child);
-  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
-}
-
-export function workflowSkillBase({ workflow, repositoryRoot }) {
-  const name = workflow?.name;
-  if (typeof name !== 'string' || name.length === 0) return undefined;
-  return path.join(repositoryRoot, 'skills', name);
-}
-
 export function outputSchemaBases({ workflow, workflowPath, repositoryRoot }) {
   const bases = [];
   const skillBase = workflowSkillBase({ workflow, repositoryRoot });

@@ -1,6 +1,8 @@
 import { readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { WorkflowInterpreterError } from '../errors.mjs';
+import { isInside } from '../path-utils.mjs';
+export { isInside, workflowSkillBase } from '../path-utils.mjs';
 
 export function normalizeRepositoryRoot(repositoryRoot) {
   return path.resolve(repositoryRoot ?? process.cwd());
@@ -13,11 +15,6 @@ function assertRelativeLocalRef(localRef, fieldName, kind) {
   if (path.isAbsolute(localRef)) {
     throw new WorkflowInterpreterError(`workflow prompt render failed: ${fieldName} ${kind} must be a local relative path: ${localRef}`);
   }
-}
-
-export function isInside(child, parent) {
-  const relative = path.relative(parent, child);
-  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
 }
 
 export function safeReadLocalFile({ fileRef, fieldName, kind, bases, repositoryRoot, missingMessage, allowedRoots }) {
@@ -57,12 +54,6 @@ export function safeReadLocalFile({ fileRef, fieldName, kind, bases, repositoryR
 
 export function safeReadTemplate({ templateRef, fieldName, bases, repositoryRoot, missingMessage }) {
   return safeReadLocalFile({ fileRef: templateRef, fieldName, kind: 'template', bases, repositoryRoot, missingMessage });
-}
-
-export function workflowSkillBase({ workflow, repositoryRoot }) {
-  const name = workflow?.name;
-  if (typeof name !== 'string' || name.length === 0) return undefined;
-  return path.join(repositoryRoot, 'skills', name);
 }
 
 export function trimStable(value) {

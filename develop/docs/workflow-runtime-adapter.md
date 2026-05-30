@@ -46,7 +46,7 @@ When host work is needed, the runner returns:
 }
 ```
 
-The public host request carries only the requested action identity, step identity, and instruction-loader command. Approval requests may also expose an optional `outputSchema` reference when the workflow step declares `output.schema`; for compatibility this remains the raw workflow reference. New host adapters should prefer the paired `resolvedOutputSchema` object when present: it includes the raw `ref` and schema payload that describes the normalized answer JSON expected back from the host. It intentionally does not expose runner filesystem paths. Instruction storage paths are private runner state. Output path and filename are wrapper-owned transport details, not runner/interpreter request contract.
+The public host request contract is intentionally narrow: requested action identity, step identity, and the instruction-loader command are always public. Approval requests may additionally include output-schema metadata when the workflow step declares `output.schema`. `outputSchema` is the legacy raw workflow reference. `resolvedOutputSchema` is the preferred host-adapter contract when present: it contains `{ ref, schema }`, where `ref` is the same raw workflow reference and `schema` is the JSON payload describing the normalized answer expected back from the host. Neither field exposes runner filesystem paths. Instruction storage paths are private runner state. Output path and filename are wrapper-owned transport details, not runner/interpreter request contract.
 
 Terminal statuses are:
 
