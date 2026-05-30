@@ -4,6 +4,7 @@ import { invariant } from '../../errors.mjs';
 import { resolveTransition } from '../../transitions.mjs';
 import { prepareParallelBranch } from '../parallel/render.mjs';
 import { responseFor } from '../output/response.mjs';
+import { markUserPromptInjectedForStep } from '../../user-prompt.mjs';
 
 export function applyNextTransition({ workflow, baton, cursorStep, workerOutput }) {
   const { targetStepId, targetStepIds, attempts } = resolveTransition({ workflow, baton, stepId: baton.cursor, step: cursorStep, output: workerOutput });
@@ -23,7 +24,13 @@ export function applyNextTransition({ workflow, baton, cursorStep, workerOutput 
   const targetStep = workflow.steps[targetStepId];
   invariant(targetStep, `transition target not found in workflow: ${targetStepId}`);
 
-  const updatedBaton = structuredClone(baton);
+  let updatedBaton = structuredClone(baton);
+  updatedBaton = markUserPromptInjectedForStep({
+    workflow,
+    baton: updatedBaton,
+    steps: [{ id: baton.cursor, step: cursorStep }],
+    stepId: baton.cursor,
+  });
   updatedBaton.cursor = targetStepId;
   updatedBaton.status = statusForStep(workflow, targetStepId, targetStep);
   updatedBaton.state = applyOutputToBatonState(updatedBaton, workerOutput, attempts, ['worker', 'approval'].includes(cursorStep.kind) ? baton.cursor : undefined, {

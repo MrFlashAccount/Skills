@@ -32,3 +32,12 @@ export function initialUserPromptStepId({ workflow, baton, steps }) {
   if (hasAnyWorkerOutput({ workflow, baton })) return undefined;
   return steps.find((entry) => entry.step?.kind === 'worker')?.id;
 }
+
+export function shouldMarkUserPromptInjectedForStep({ workflow, baton, steps, stepId }) {
+  return initialUserPromptStepId({ workflow, baton, steps }) === stepId;
+}
+
+export function markUserPromptInjectedForStep({ workflow, baton, steps, stepId }) {
+  if (!shouldMarkUserPromptInjectedForStep({ workflow, baton, steps, stepId })) return baton;
+  return { ...baton, user_prompt_injected: true };
+}

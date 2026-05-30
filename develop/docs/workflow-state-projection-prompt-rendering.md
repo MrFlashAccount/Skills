@@ -95,7 +95,7 @@ Renderer-relevant fields:
 | `output.schema` | worker, optional | Repository-local JSON schema file to inject near the output contract as concise valid-JSON/self-check instructions. |
 | `workflow.instruction` | workflow root, optional extension | Workflow-level instruction appended directly under the top wrapper, before role/output/context layers. |
 | `baton.user_prompt` | baton root, optional | Raw startup user prompt stored at run start; must contain non-whitespace text when present. |
-| `baton.user_prompt_injected` | baton root, optional | Runner/interpreter marker set after `baton.user_prompt` has been rendered into one worker instruction; prevents reinjection after resume or workflow drift. |
+| `baton.user_prompt_injected` | baton root, optional | Runner/interpreter marker set after the selected startup-prompt worker output has been applied; prevents reinjection after completion/resume or workflow drift while allowing repeated renders of the same uncompleted worker to preserve the prompt. |
 
 ### `input.state`
 
@@ -289,7 +289,7 @@ After that top layer, the renderer always concatenates fixed sections in this or
 3. `## Output contract` if `output.template` exists;
 4. `## Projected baton state` if `input.state` selected anything;
 5. `## Workflow step prompt` if `input.prompt` exists;
-6. `## User prompt` from the optional render-time `userPrompt` value, only when the interpreter/runner has selected this worker as the one startup prompt recipient and `baton.user_prompt_injected` is not already true;
+6. `## User prompt` from the optional render-time `userPrompt` value, only when the interpreter/runner has selected this worker as the one startup prompt recipient and that selected worker output has not yet set `baton.user_prompt_injected`; repeated renders before completion preserve the section for the same worker;
 7. final reminder when an output contract exists.
 
 This keeps the output contract high for primacy, places context before the executable step/user request, and keeps a short output-contract reminder at the bottom for recency. It intentionally does not preserve compatibility with older placeholder templates.

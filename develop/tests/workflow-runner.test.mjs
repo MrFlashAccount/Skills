@@ -160,14 +160,21 @@ test('runner: user prompt is stored, included only in initial worker instruction
 
   const first = expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath, '--user-prompt', rawPrompt], 'next with user prompt');
   assert.equal(first.baton.user_prompt, rawPrompt);
-  assert.equal(first.baton.user_prompt_injected, true);
+  assert.equal(first.baton.user_prompt_injected, undefined);
   assert.equal(JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8')).user_prompt, rawPrompt);
-  assert.equal(JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8')).user_prompt_injected, true);
+  assert.equal(JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8')).user_prompt_injected, undefined);
 
   const initialInstructions = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'prepare']);
   assert.equal(initialInstructions.status, 0, initialInstructions.stderr);
   assert.match(initialInstructions.stdout, /## User prompt/);
   assert.equal(initialInstructions.stdout.includes(rawPrompt), true);
+
+  const resumedBeforeOutput = expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'resume before first output');
+  assert.equal(resumedBeforeOutput.baton.user_prompt_injected, undefined);
+  const resumedInstructions = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'prepare']);
+  assert.equal(resumedInstructions.status, 0, resumedInstructions.stderr);
+  assert.match(resumedInstructions.stdout, /## User prompt/);
+  assert.equal(resumedInstructions.stdout.includes(rawPrompt), true);
 
   const prepareOutput = path.join(runDir, 'prepare-output.json');
   writeJson(prepareOutput, workerOutput('prepared'));

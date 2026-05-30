@@ -83,7 +83,7 @@
       "type": "object"
     },
     "user_prompt_injected": {
-      "description": "Interpreter/runner marker set after baton.user_prompt has been rendered into one worker instruction. Prevents reinjection after resume or workflow drift.",
+      "description": "Interpreter/runner marker set after the selected startup-prompt worker output has been applied. Prevents reinjection after completion/resume or workflow drift while allowing repeated renders of the same uncompleted worker to preserve the prompt.",
       "type": "boolean"
     }
   },
