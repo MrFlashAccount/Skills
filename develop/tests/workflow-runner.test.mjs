@@ -339,6 +339,45 @@ test('runner: typed approval static parallel next preserves approval output in s
   assert.match(branchAInstructions.stdout, /Fan out now\./);
 });
 
+
+test('runner: generic approval static parallel next preserves approval output in state', () => {
+  const runDir = path.join(tempDir, 'approval-generic-static-parallel');
+  const workflowPath = path.join(tempDir, 'approval-generic-static-parallel-workflow.json');
+  const approvalWorkflow = structuredClone(workflowDoc);
+  approvalWorkflow.workflow.start = 'choose_path';
+  approvalWorkflow.workflow.steps = {
+    choose_path: {
+      name: 'Choose path',
+      kind: 'approval',
+      input: { prompt: 'Ask the user whether to fan out.' },
+      next: ['branch_a', 'branch_b'],
+    },
+    branch_a: approvalWorkflow.workflow.steps.branch_a,
+    branch_b: approvalWorkflow.workflow.steps.branch_b,
+    join: approvalWorkflow.workflow.steps.join,
+    done: approvalWorkflow.workflow.steps.done,
+    blocked: approvalWorkflow.workflow.steps.blocked,
+  };
+  approvalWorkflow.workflow.steps.branch_a.input.state = ['choose_path'];
+  approvalWorkflow.workflow.steps.branch_b.input.state = ['choose_path'];
+  approvalWorkflow.workflow.steps.join.next = 'done';
+  writeJson(workflowPath, approvalWorkflow);
+
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next generic approval static parallel');
+  const outputPath = path.join(runDir, 'choose-path-output.json');
+  const approvalOutput = { approval: 'approved', answer: 'Use both branches.' };
+  writeJson(outputPath, approvalOutput);
+  const response = expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', `choose_path=${outputPath}`], 'continue generic approval static parallel');
+
+  assert.equal(response.status, 'needs_host_actions');
+  assert.deepEqual(response.requests.map((request) => request.id), ['branch_a', 'branch_b']);
+  assert.deepEqual(response.baton.state.choose_path, approvalOutput);
+
+  const branchAInstructions = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'branch_a']);
+  assert.equal(branchAInstructions.status, 0, branchAInstructions.stderr);
+  assert.match(branchAInstructions.stdout, /Use both branches\./);
+});
+
 test('runner: continue fans out parallel branch requests with separate step ids and load commands', () => {
   const runDir = path.join(tempDir, 'parallel');
   const workflowPath = path.join(tempDir, 'parallel-workflow.json');
