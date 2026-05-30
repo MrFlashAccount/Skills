@@ -35,7 +35,7 @@ function parseCliArgs(argv) {
     if (mode === 'instructions' && !parsed.values['step-id']) fail(usage());
     if (mode !== 'instructions' && parsed.values['step-id']) fail(usage());
     if (mode !== 'continue' && parsed.values.output?.length) fail(usage());
-    if (mode !== 'next' && (parsed.values['user-prompt'] !== undefined || parsed.values['user-prompt-file'])) fail(usage());
+    if (mode !== 'next' && (parsed.values['user-prompt'] !== undefined || parsed.values['user-prompt-file'] !== undefined)) fail(usage());
     if (mode === 'instructions' && (parsed.values.workflow || parsed.values.diagnostics || parsed.values.output?.length)) fail(usage());
     return { mode, values: parsed.values };
   } catch (error) {

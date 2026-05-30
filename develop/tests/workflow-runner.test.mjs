@@ -207,6 +207,12 @@ test('runner: next rejects empty or conflicting user prompt inputs', () => {
   assert.match(conflicting.stderr, /provide only one of --user-prompt or --user-prompt-file/);
 });
 
+test('runner: non-next modes reject empty user prompt file option', () => {
+  const result = runRunner(['instructions', '--run-dir', path.join(tempDir, 'unsupported-user-prompt-file'), '--step-id', 'prepare', '--user-prompt-file', '']);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /usage: node scripts\/workflow-runner\.mjs/);
+});
+
 test('runner: user prompt is included in first worker when workflow starts with approval step', () => {
   const runDir = path.join(tempDir, 'user-prompt-control-start');
   const workflowPath = path.join(tempDir, 'user-prompt-control-start-workflow.json');
