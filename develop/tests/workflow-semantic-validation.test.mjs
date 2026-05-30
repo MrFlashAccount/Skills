@@ -255,6 +255,20 @@ test('workflow semantic validation rejects invalid worker roles in generic workf
   assert.throws(() => validate(doc), /step 'worker_step' input\.role 'missing-workflow-role' is not an allowed role/);
 });
 
+test('workflow semantic validation rejects step ids reserved for baton state bookkeeping', () => {
+  for (const reservedStepId of ['artifacts', 'results', 'outputs', 'attempts']) {
+    const doc = genericWorkflowWithWorkerRole('backend');
+    doc.workflow.start = reservedStepId;
+    doc.workflow.steps[reservedStepId] = {
+      ...doc.workflow.steps.worker_step,
+      name: `Reserved ${reservedStepId}`,
+    };
+    delete doc.workflow.steps.worker_step;
+
+    assertSemanticFailure(doc, new RegExp(`workflow step id '${reservedStepId}' is reserved for runtime aggregate state`));
+  }
+});
+
 test('workflow semantic validation warns when DevHarness described fields lack x-usage', () => {
   const doc = structuredClone(workflowDoc);
   doc.workflow.steps.research_draft.output.schema = 'develop/tests/fixtures/research-draft-missing-x-usage.schema.json';
@@ -322,14 +336,16 @@ test('workflow semantic validation accepts input expressions against projected i
   assert.deepEqual(validateSynthetic(doc), { ok: true, workflow: 'synthetic-validation-fixture', steps: 7 });
 });
 
-test('workflow semantic validation rejects input.state selectors that do not name workflow step ids', () => {
-  assertSemanticFailure(
-    syntheticWorkflow((draft) => {
-      draft.workflow.steps.consumer.input.state = ['missing_step'];
-      return draft;
-    }),
-    /consumer.*input\.state selector 'missing_step'.*declared workflow step/,
-  );
+test('workflow semantic validation rejects input.state selectors that do not name own workflow step ids', () => {
+  for (const selector of ['missing_step', '__proto__', 'toString']) {
+    assertSemanticFailure(
+      syntheticWorkflow((draft) => {
+        draft.workflow.steps.consumer.input.state = [selector];
+        return draft;
+      }),
+      new RegExp(`consumer.*input\\.state selector '${selector}'.*declared workflow step`),
+    );
+  }
 
   assertSemanticFailure(
     syntheticWorkflow((draft) => {

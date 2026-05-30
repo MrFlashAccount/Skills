@@ -56,7 +56,7 @@ function assertWorkflowInputStateSelectors(workflow) {
         }
         fail(`step '${stepId}' input.state selector '${selector}' is invalid; v1 supports top-level workflow step ids only`);
       }
-      if (!workflow.steps[selector]) {
+      if (!Object.hasOwn(workflow.steps, selector)) {
         fail(`step '${stepId}' input.state selector '${selector}' does not reference a declared workflow step`);
       }
     }

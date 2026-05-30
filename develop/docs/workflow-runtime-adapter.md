@@ -20,12 +20,20 @@ The host adapter is thin. It executes requests with whatever capabilities the en
 ## Runner commands
 
 ```bash
-node develop/scripts/workflow-runner.mjs next --run-dir <run-dir> [--workflow <workflow.json>]
+node develop/scripts/workflow-runner.mjs next --run-dir <run-dir> [--workflow <workflow.json>] [--user-prompt <text> | --user-prompt-file <path>]
 node develop/scripts/workflow-runner.mjs continue --run-dir <run-dir> --output <worker-output.json> [--output <step-id=worker-output.json> ...] [--workflow <workflow.json>]
 node develop/scripts/workflow-runner.mjs instructions --run-dir <run-dir> --step-id <id>
 ```
 
 `next` creates the run files if needed and returns the current host work. `continue` applies host-provided artifact paths from the previous host requests, persists the new baton, and returns the next host work. `instructions` prints only the compiled instructions for one current requested step and fails for unknown, unsafe, or missing step instructions.
+
+### Startup user prompt
+
+When starting a new run, `next` may receive the raw startup user prompt with `--user-prompt` or `--user-prompt-file`. The runner stores it once as top-level `baton.user_prompt`. Existing runs are resumed as-is: later `next` calls do not overwrite `baton.user_prompt`, and `continue` preserves it while advancing the baton.
+
+At run initialization, the runner deterministically selects and persists `baton.user_prompt_target` from the static startup topology. A target is stable only when all possible startup paths that can be chosen before the first worker guarantee the same worker target; static fanout may pin one rendered worker branch, but ambiguous dynamic transitions, divergent `match/cases`, and terminal/no-worker `match/cases` branches fail loudly instead of accepting a prompt that might be unused.
+
+The runner/interpreter injects the startup prompt only into the render context for the persisted `baton.user_prompt_target` until that selected worker's output is applied. Rendering validates that the saved target is still defined, is still a worker, and is present whenever the current response renders workers or reaches a terminal step; otherwise the runner fails rather than silently dropping `baton.user_prompt`. It persists `baton.user_prompt_injected: true` only when applying that selected worker output, so a crash or repeated `next` before completion keeps the prompt in that same worker's instructions, while resume or workflow-shape drift after completion cannot reinject it into a later worker. The template compiler only renders a `## User prompt` section for worker steps when that render-time value is passed; it does not decide eligibility itself. `workflow.start` may be a control step; approval/user-gate answers are separate host interactions, not startup `user_prompt`, and later workers do not receive this section unless the workflow explicitly carries derived context through normal state/output paths.
 
 ## Host request response
 
@@ -138,3 +146,5 @@ This mapping is not part of the portable workflow contract. Other hosts can exec
 - Host action types beyond the existing workflow actions are intentionally minimal.
 - `workflow-runner.mjs continue` uses a per-run `.workflow-runner/continue.lock` guard so only one host continue operation mutates a run directory at a time.
 - The CLI shape is small on purpose and can be renamed after review.
+
+`develop/scripts/start-run.mjs` is legacy initialization/inspection only. It does not accept `--user-prompt` or `--user-prompt-file`; use `workflow-runner next` for startup prompt capture and instruction rendering.

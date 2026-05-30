@@ -1,4 +1,5 @@
 import { applyWorkflowOutput, renderInterpreterResponse, renderWorkflow } from '../interpreter/index.mjs';
+import { resolveStartupUserPrompt } from '../user-prompt.mjs';
 import { assertSafeStepId, instructionPathForStep, responseStatusForInterpreterResponse, toRunnerResponse } from './host-requests.mjs';
 import { commitDurableRunState, ensureRunFiles, pathExists, readJson, readText, recoverDurableCommit, repositoryRoot, resolveRunPaths, withContinueRunLock } from './run-state.mjs';
 
@@ -34,13 +35,15 @@ async function persistNextRunnerResponse(paths, rendered, runState) {
     baton: response.baton,
     instructions: stepInstructionsFor(paths, rendered),
     history: { source: 'workflow-runner', baton: response.baton, requests: response.requests },
+    writeBaton: runState.initialized,
   });
   return response;
 }
 
-export async function next({ runDir, workflowPath, includeDiagnostics = false }) {
+export async function next({ runDir, workflowPath, includeDiagnostics = false, userPrompt, userPromptFile } = {}) {
   const paths = resolveRunPaths({ runDir, workflowPath });
-  const runState = await ensureRunFiles(paths);
+  const startupUserPrompt = (await pathExists(paths.batonPath)) ? undefined : await resolveStartupUserPrompt({ userPrompt, userPromptFile });
+  const runState = await ensureRunFiles(paths, { userPrompt: startupUserPrompt });
   await recoverDurableCommit(paths);
   const rendered = renderWorkflow(paths.workflowPath, paths.batonPath, { includeDiagnostics, repositoryRoot });
   return persistNextRunnerResponse(paths, rendered, {
