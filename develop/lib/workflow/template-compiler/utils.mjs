@@ -59,10 +59,6 @@ export function safeReadTemplate({ templateRef, fieldName, bases, repositoryRoot
   return safeReadLocalFile({ fileRef: templateRef, fieldName, kind: 'template', bases, repositoryRoot, missingMessage });
 }
 
-export function safeReadSchema({ schemaRef, fieldName, bases, repositoryRoot, allowedRoots }) {
-  return safeReadLocalFile({ fileRef: schemaRef, fieldName, kind: 'schema', bases, repositoryRoot, allowedRoots });
-}
-
 export function workflowSkillBase({ workflow, repositoryRoot }) {
   const name = workflow?.name;
   if (typeof name !== 'string' || name.length === 0) return undefined;

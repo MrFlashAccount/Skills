@@ -1,4 +1,5 @@
 import { validateJsonSchema } from 'schema-validation';
+import { WorkflowInterpreterError } from './errors.mjs';
 import { loadOutputSchema, resolveOutputSchemaPath } from './output-schema.mjs';
 import { formatSchemaErrors, workflowSchemas } from './schema-validation.mjs';
 
