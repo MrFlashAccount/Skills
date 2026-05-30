@@ -13,8 +13,8 @@
         "prompt": "Read the task context, gather local/project evidence, identify constraints, risks, open questions, and architecture-sensitive pressure. Return outcome ready_for_attack when the research_packet is ready, or blocked with blocker.source_step_id = research_draft when implementation-critical input is missing."
       },
       "output": {
-        "template": "../../shared/templates/research-packet-template.md",
-        "schema": "workflows/dev-harness/schemas/research-draft-output.json"
+        "template": "templates/research-packet-template.md",
+        "schema": "schemas/research-draft-output.json"
       },
       "next": {
         "match": "${{ output.outcome }}",
@@ -35,8 +35,8 @@
         "prompt": "Attack research_draft.research_packet for missing evidence, unsafe assumptions, scope drift, sensitive surfaces, and unclear approval questions. Return approved, needs_revision, or blocked. If blocked, set blocker.source_step_id = research_attack."
       },
       "output": {
-        "template": "../../shared/templates/review-verdict-template.md",
-        "schema": "workflows/dev-harness/schemas/gate-attack-verdict-output.json"
+        "template": "templates/review-verdict-template.md",
+        "schema": "schemas/gate-attack-verdict-output.json"
       },
       "next": {
         "match": "${{ output.outcome }}",
@@ -78,8 +78,8 @@
         "prompt": "Produce the minimal architecture decision or structural contract required by the approved research. If architecture work is not needed, record the explicit no-artifact decision in architecture_contract. Return ready_for_attack or blocked with blocker.source_step_id = architecture_draft."
       },
       "output": {
-        "template": "../../shared/templates/architecture-proposal-template.md",
-        "schema": "workflows/dev-harness/schemas/architecture-draft-output.json"
+        "template": "templates/architecture-proposal-template.md",
+        "schema": "schemas/architecture-draft-output.json"
       },
       "next": {
         "match": "${{ output.outcome }}",
@@ -101,8 +101,8 @@
         "prompt": "Attack architecture_draft.architecture_contract for ownership seams, dependency direction, contract surfaces, durable artifact pressure, and compatibility risk. Return approved, needs_revision, or blocked. If blocked, set blocker.source_step_id = architecture_attack."
       },
       "output": {
-        "template": "../../shared/templates/review-verdict-template.md",
-        "schema": "workflows/dev-harness/schemas/gate-attack-verdict-output.json"
+        "template": "templates/review-verdict-template.md",
+        "schema": "schemas/gate-attack-verdict-output.json"
       },
       "next": {
         "match": "${{ output.outcome }}",
@@ -145,8 +145,8 @@
         "prompt": "Produce the implementation plan contract for approval from approved research and architecture. The step id remains planning_draft for compatibility, but once approve_plan approves this output, downstream steps must treat it as the final approved plan contract. selected_implementation_steps must contain only unique canonical implementation step ids needed for the plan: backend_implementation, frontend_implementation, architecture_artifact_update. implementation_route must be the normalized route for exactly that unique selected set: backend, frontend, architecture, backend_frontend, backend_architecture, frontend_architecture, or all. Collapse overlapping same-role work into one canonical task; do not create duplicate backend/frontend/architecture workers. If duplicate same-role work cannot be safely collapsed, return blocked with blocker.source_step_id = planning_draft. selected_review_steps must explicitly contain the unique reviewers that must run after implementation; implementation_join must not invent or recompute reviewers. Keep review_plan.reviewers aligned with selected_review_steps. Return ready_for_attack or blocked with blocker.source_step_id = planning_draft."
       },
       "output": {
-        "template": "../../shared/templates/implementation-plan-template.md",
-        "schema": "workflows/dev-harness/schemas/planning-draft-output.json"
+        "template": "templates/implementation-plan-template.md",
+        "schema": "schemas/planning-draft-output.json"
       },
       "next": {
         "match": "${{ output.outcome }}",
@@ -167,8 +167,8 @@
         "prompt": "Challenge the plan contract in planning_draft.implementation_plan plus selected_implementation_steps, implementation_route, selected_review_steps, and review_plan for unique canonical task selection, route/selection consistency, explicit final reviewer selection, no duplicate same-role workers, entity coverage, one-owner-per-file-zone, project baseline, architecture artifact manifest, verification/rollback surfaces, sensitive surfaces, request-path/contract touchpoints, and max-detail leaks. Return approved, needs_revision, or blocked. If selected tasks contain duplicate/overlapping same-role work that cannot collapse to one canonical step, or if reviewers are missing/recomputed outside planning, return blocked with blocker.source_step_id = planning_attack."
       },
       "output": {
-        "template": "../../shared/templates/review-verdict-template.md",
-        "schema": "workflows/dev-harness/schemas/gate-attack-verdict-output.json"
+        "template": "templates/review-verdict-template.md",
+        "schema": "schemas/gate-attack-verdict-output.json"
       },
       "next": {
         "match": "${{ output.outcome }}",
@@ -208,8 +208,8 @@
         "prompt": "Validate that the approved plan contract planning_draft.implementation_route exactly matches the unique canonical planning_draft.selected_implementation_steps and that no duplicate same-role implementation worker is requested. If valid, return outcome equal to planning_draft.implementation_route. If invalid or impossible to collapse safely, return outcome blocked with blocker.source_step_id = implementation_dispatch."
       },
       "output": {
-        "template": "../../shared/templates/review-verdict-template.md",
-        "schema": "workflows/dev-harness/schemas/implementation-dispatch-output.json"
+        "template": "templates/review-verdict-template.md",
+        "schema": "schemas/implementation-dispatch-output.json"
       },
       "next": {
         "match": "${{ output.outcome }}",
@@ -256,8 +256,8 @@
         "prompt": "Implement only the backend slice selected in the approved plan contract planning_draft.selected_implementation_steps. This workflow supports at most one backend_implementation worker; handle all backend work for the approved plan here and do not spawn duplicate backend workers. Read prior step outputs from projected input.<step_id> fields only; do not rely on artifacts/results globals. Preserve frozen research, architecture, execution plan, and user constraints. Return implemented or blocked with blocker.source_step_id = backend_implementation."
       },
       "output": {
-        "template": "../../shared/templates/implementer-handoff-template.md",
-        "schema": "workflows/dev-harness/schemas/implementation-output.json"
+        "template": "templates/implementer-handoff-template.md",
+        "schema": "schemas/implementation-output.json"
       },
       "next": "implementation_join"
     },
@@ -273,8 +273,8 @@
         "prompt": "Implement only the frontend slice selected in the approved plan contract planning_draft.selected_implementation_steps. This workflow supports at most one frontend_implementation worker; handle all frontend work for the approved plan here and do not spawn duplicate frontend workers. Read prior step outputs from projected input.<step_id> fields only; do not rely on artifacts/results globals. Preserve frozen research, architecture, execution plan, and user constraints. Return implemented or blocked with blocker.source_step_id = frontend_implementation."
       },
       "output": {
-        "template": "../../shared/templates/implementer-handoff-template.md",
-        "schema": "workflows/dev-harness/schemas/implementation-output.json"
+        "template": "templates/implementer-handoff-template.md",
+        "schema": "schemas/implementation-output.json"
       },
       "next": "implementation_join"
     },
@@ -290,8 +290,8 @@
         "prompt": "Update only approved architecture artifacts or architecture handoff notes selected in the approved plan contract planning_draft.selected_implementation_steps. This workflow supports at most one architecture_artifact_update worker; collapse all approved architecture artifact work into this step. Do not redesign. Read prior step outputs from projected input.<step_id> fields only. Return implemented or blocked with blocker.source_step_id = architecture_artifact_update."
       },
       "output": {
-        "template": "../../shared/templates/implementer-handoff-template.md",
-        "schema": "workflows/dev-harness/schemas/implementation-output.json"
+        "template": "templates/implementer-handoff-template.md",
+        "schema": "schemas/implementation-output.json"
       },
       "next": "implementation_join"
     },
@@ -308,8 +308,8 @@
         "prompt": "Join exactly the implementation outputs named by the approved plan contract planning_draft.selected_implementation_steps from projected input.<step_id> fields. Confirm each selected branch completed, verification evidence exists, and no branch widened scope. Do not choose, invent, or recompute reviewers; reviewers are fixed by planning_draft.selected_review_steps. If complete, return outcome ready_for_review with reviewer_handoff.selected_review_steps copied from planning_draft.selected_review_steps. If incomplete, return outcome blocked with blocker.source_step_id = implementation_join."
       },
       "output": {
-        "template": "../../shared/templates/reviewer-handoff-template.md",
-        "schema": "workflows/dev-harness/schemas/implementation-join-output.json"
+        "template": "templates/reviewer-handoff-template.md",
+        "schema": "schemas/implementation-join-output.json"
       },
       "next": {
         "match": "${{ output.outcome }}",
@@ -330,8 +330,8 @@
         "prompt": "Dispatch reviewers from the final approved plan contract. Do not infer reviewers from implementation_join output. Return outcome ready_for_review and copy planning_draft.selected_review_steps into verdict.selected_review_steps; next is resolved from input.planning_draft.selected_review_steps."
       },
       "output": {
-        "template": "../../shared/templates/review-verdict-template.md",
-        "schema": "workflows/dev-harness/schemas/review-dispatch-output.json"
+        "template": "templates/review-verdict-template.md",
+        "schema": "schemas/review-dispatch-output.json"
       },
       "next": "${{ input.planning_draft.selected_review_steps }}"
     },
@@ -351,8 +351,8 @@
         "prompt": "Review implementation against approved architecture decision, ownership seams, dependency direction, compatibility surfaces, and artifact obligations. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = architect_review."
       },
       "output": {
-        "template": "../../shared/templates/review-verdict-template.md",
-        "schema": "workflows/dev-harness/schemas/gate-review-verdict-output.json"
+        "template": "templates/review-verdict-template.md",
+        "schema": "schemas/gate-review-verdict-output.json"
       },
       "next": "review_join"
     },
@@ -372,8 +372,8 @@
         "prompt": "Review backend correctness, contracts, data flow, validation, failure handling, permissions, rollout safety, observability, and tests for the slice selected by the approved plan contract. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = backend_review."
       },
       "output": {
-        "template": "../../shared/templates/review-verdict-template.md",
-        "schema": "workflows/dev-harness/schemas/gate-review-verdict-output.json"
+        "template": "templates/review-verdict-template.md",
+        "schema": "schemas/gate-review-verdict-output.json"
       },
       "next": "review_join"
     },
@@ -393,8 +393,8 @@
         "prompt": "Review frontend correctness, data flow, state handling, accessibility-relevant behavior, and tests for the slice selected by the approved plan contract. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = frontend_review."
       },
       "output": {
-        "template": "../../shared/templates/review-verdict-template.md",
-        "schema": "workflows/dev-harness/schemas/gate-review-verdict-output.json"
+        "template": "templates/review-verdict-template.md",
+        "schema": "schemas/gate-review-verdict-output.json"
       },
       "next": "review_join"
     },
@@ -414,8 +414,8 @@
         "prompt": "Review visual/product taste, copy fit, interaction polish, and user-facing coherence for frontend-relevant changes. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = frontend_taste_review."
       },
       "output": {
-        "template": "../../shared/templates/review-verdict-template.md",
-        "schema": "workflows/dev-harness/schemas/gate-review-verdict-output.json"
+        "template": "templates/review-verdict-template.md",
+        "schema": "schemas/gate-review-verdict-output.json"
       },
       "next": "review_join"
     },
@@ -435,8 +435,8 @@
         "prompt": "Review trust boundaries, injection surfaces, secret handling, permission assumptions, and unsafe automation paths for the slice selected by the approved plan contract. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = security_review."
       },
       "output": {
-        "template": "../../shared/templates/review-verdict-template.md",
-        "schema": "workflows/dev-harness/schemas/gate-review-verdict-output.json"
+        "template": "templates/review-verdict-template.md",
+        "schema": "schemas/gate-review-verdict-output.json"
       },
       "next": "review_join"
     },
@@ -456,8 +456,8 @@
         "prompt": "Review data minimization, sensitive content exposure, durable memory/logging risk, and user-context handling for the slice selected by the approved plan contract. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = privacy_review."
       },
       "output": {
-        "template": "../../shared/templates/review-verdict-template.md",
-        "schema": "workflows/dev-harness/schemas/gate-review-verdict-output.json"
+        "template": "templates/review-verdict-template.md",
+        "schema": "schemas/gate-review-verdict-output.json"
       },
       "next": "review_join"
     },
@@ -477,8 +477,8 @@
         "prompt": "Review verification depth, regression risk, edge cases, deterministic runtime behavior, and handoff quality for the slice selected by the approved plan contract. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = qa_review."
       },
       "output": {
-        "template": "../../shared/templates/review-verdict-template.md",
-        "schema": "workflows/dev-harness/schemas/gate-review-verdict-output.json"
+        "template": "templates/review-verdict-template.md",
+        "schema": "schemas/gate-review-verdict-output.json"
       },
       "next": "review_join"
     },
@@ -500,8 +500,8 @@
         "prompt": "Aggregate exactly the review outputs named by the approved plan contract planning_draft.selected_review_steps from projected input.<step_id> fields. This is a join/decision step, not a critique pass. If every selected reviewer passed, return outcome passed and next done. If changes are needed, return outcome needs_changes and next equal to the relevant implementation step ids from reviewer required_implementation_steps, not every implementation branch. If review cannot finish safely, return outcome blocked, next blocked, and blocker.source_step_id = review_join."
       },
       "output": {
-        "template": "../../shared/templates/review-verdict-template.md",
-        "schema": "workflows/dev-harness/schemas/review-join-output.json"
+        "template": "templates/review-verdict-template.md",
+        "schema": "schemas/review-join-output.json"
       },
       "next": "${{ output.next }}"
     },

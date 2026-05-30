@@ -1,28 +1,24 @@
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { WorkflowInterpreterError } from './errors.mjs';
-import { isInside, workflowSkillBase } from './path-utils.mjs';
-export { isInside, workflowSkillBase } from './path-utils.mjs';
+import { isInside } from './path-utils.mjs';
+export { isInside } from './path-utils.mjs';
 
 /**
  * Canonical output.schema path resolution used by both runtime validation and
- * prompt rendering. Candidate bases may fail confinement or existence checks;
- * resolution keeps searching so base ordering cannot make one path fail while
- * another workflow-relative candidate would succeed.
+ * prompt rendering. Relative refs use one base only: the directory containing
+ * the active workflow file, confined to that workflow package directory.
  */
-export function outputSchemaBases({ workflow, workflowPath, repositoryRoot }) {
-  const bases = [];
-  const skillBase = workflowSkillBase({ workflow, repositoryRoot });
-  if (skillBase) bases.push(skillBase);
-  if (workflowPath) bases.push(path.dirname(path.resolve(workflowPath)));
-  bases.push(repositoryRoot);
-  return bases;
+export function workflowResourceBase({ workflowPath }) {
+  return path.dirname(path.resolve(workflowPath));
 }
 
-export function outputSchemaAllowedRoots({ workflowPath, repositoryRoot }) {
-  const roots = [repositoryRoot];
-  if (workflowPath) roots.push(path.dirname(path.resolve(workflowPath)));
-  return roots;
+export function outputSchemaBases({ workflowPath }) {
+  return [workflowResourceBase({ workflowPath })];
+}
+
+export function outputSchemaAllowedRoots({ workflowPath }) {
+  return [workflowResourceBase({ workflowPath })];
 }
 
 function outputSchemaError(messagePrefix, message) {
@@ -47,9 +43,8 @@ export function resolveOutputSchemaPath({
 }) {
   assertOutputSchemaRef({ schemaRef, messagePrefix });
 
-  const root = realpathSync(repositoryRoot);
-  const allowedRoots = outputSchemaAllowedRoots({ workflowPath, repositoryRoot: root }).map((allowedRoot) => realpathSync(allowedRoot));
-  const bases = outputSchemaBases({ workflow, workflowPath, repositoryRoot: root });
+  const allowedRoots = outputSchemaAllowedRoots({ workflowPath }).map((allowedRoot) => realpathSync(allowedRoot));
+  const bases = outputSchemaBases({ workflowPath });
 
   function isInsideAllowed(candidate) {
     return allowedRoots.some((allowedRoot) => isInside(candidate, allowedRoot));

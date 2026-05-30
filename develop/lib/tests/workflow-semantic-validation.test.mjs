@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test, { after } from 'node:test';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,6 +12,8 @@ import { validateAgainstOutputSchema } from '../workflow/output-schema-validatio
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-semantic-validation-'));
+mkdirSync(path.join(tempDir, 'schemas'), { recursive: true });
+cpSync(path.join(REPO_ROOT, 'workflows/dev-harness/schemas'), path.join(tempDir, 'schemas'), { recursive: true });
 
 function validate(doc) {
   return validateWorkflowDocument(doc, { workflowPath: path.join(REPO_ROOT, 'workflows/dev-harness/workflow.json'), repositoryRoot: REPO_ROOT });
@@ -171,9 +173,9 @@ test('workflow semantic validation rejects workflow wrapper field on flat docume
 test('research critic save step uses persistence metadata template matching its output schema', () => {
   const step = researchCriticWorkflowDoc.steps.save_research_packet;
 
-  assert.equal(step.output.template, 'shared/templates/research-save-metadata-template.md');
-  assert.equal(step.output.schema, 'workflows/research-critic/schemas/save-research-packet-output.json');
-  assert.notEqual(step.output.template, 'shared/templates/research-packet-template.md');
+  assert.equal(step.output.template, 'templates/research-save-metadata-template.md');
+  assert.equal(step.output.schema, 'schemas/save-research-packet-output.json');
+  assert.notEqual(step.output.template, 'templates/research-packet-template.md');
   assert.deepEqual(validateWorkflowDocument(researchCriticWorkflowDoc, { workflowPath: path.join(REPO_ROOT, 'workflows/research-critic/workflow.json'), repositoryRoot: REPO_ROOT }), {
     ok: true,
     workflow: 'research-critic',
@@ -285,9 +287,10 @@ test('workflow semantic validation rejects step ids reserved for baton state boo
 
 test('workflow semantic validation warns when DevHarness described fields lack x-usage', () => {
   const doc = structuredClone(workflowDoc);
-  doc.steps.research_draft.output.schema = 'develop/lib/tests/fixtures/research-draft-missing-x-usage.schema.json';
+  cpSync(path.join(REPO_ROOT, 'develop/lib/tests/fixtures/research-draft-missing-x-usage.schema.json'), path.join(tempDir, 'schemas/research-draft-missing-x-usage.schema.json'));
+  doc.steps.research_draft.output.schema = 'schemas/research-draft-missing-x-usage.schema.json';
 
-  const result = validate(doc);
+  const result = validateSynthetic(doc);
 
   assert.equal(result.ok, true);
   assert.equal(result.warnings.length, 1);
@@ -296,7 +299,8 @@ test('workflow semantic validation warns when DevHarness described fields lack x
 
 test('workflow semantic validation rejects schema-declared dynamic targets that are not workflow steps', () => {
   const doc = structuredClone(workflowDoc);
-  doc.steps.review_join.output.schema = 'develop/lib/tests/fixtures/review-join-output-unknown-target.schema.json';
+  cpSync(path.join(REPO_ROOT, 'develop/lib/tests/fixtures/review-join-output-unknown-target.schema.json'), path.join(tempDir, 'schemas/review-join-output-unknown-target.schema.json'));
+  doc.steps.review_join.output.schema = 'schemas/review-join-output-unknown-target.schema.json';
 
   assertSemanticFailure(doc, /review_join.*output\.next.*unknown_step/);
 });
@@ -450,6 +454,7 @@ test('workflow semantic validation rejects dynamic array target schemas with inv
 
 
 test('workflow semantic validation uses approval output.schema for output match cases when declared', () => {
+  cpSync(path.join(REPO_ROOT, 'develop/lib/tests/fixtures/approval-choice-output.schema.json'), path.join(tempDir, 'approval-choice-output.schema.json'));
   const doc = {
       name: 'approval-schema-routing-fixture',
       version: 1,
@@ -461,7 +466,7 @@ test('workflow semantic validation uses approval output.schema for output match 
           name: 'Approve',
           kind: 'approval',
           input: { prompt: 'Choose ship or revise.' },
-          output: { schema: 'develop/lib/tests/fixtures/approval-choice-output.schema.json' },
+          output: { schema: 'approval-choice-output.schema.json' },
           next: { match: '${{ output.choice }}', cases: { ship: 'done' } },
         },
         done: { name: 'Done', kind: 'done' },

@@ -13,8 +13,8 @@
         "prompt": "Normalize the task input, inspect available evidence, and produce a research packet. Return ready_for_attack when the packet is ready for critic review, needs_input when user answers are required, or blocked when progress is unsafe without external input. If revising after critic feedback or user answers, preserve answered decisions and close only evidence-backed questions."
       },
       "output": {
-        "template": "shared/templates/research-packet-template.md",
-        "schema": "workflows/research-critic/schemas/research-draft-output.json"
+        "template": "templates/research-packet-template.md",
+        "schema": "schemas/research-draft-output.json"
       },
       "next": {
         "match": "${{ output.outcome }}",
@@ -58,8 +58,8 @@
         "prompt": "Revise the research packet using the approved user answers from ask_research_questions and any critic feedback if present. Preserve answered decisions and close only evidence-backed questions. Return ready_for_attack when the packet is ready for critic review, needs_input when more user answers are required, or blocked when progress is unsafe without external input."
       },
       "output": {
-        "template": "shared/templates/research-packet-template.md",
-        "schema": "workflows/research-critic/schemas/research-draft-output.json"
+        "template": "templates/research-packet-template.md",
+        "schema": "schemas/research-draft-output.json"
       },
       "next": {
         "match": "${{ output.outcome }}",
@@ -83,8 +83,8 @@
         "prompt": "Attack the latest available research packet for weak evidence, unsafe assumptions, missing user input, misclassified blockers, and over-broad candidate approaches. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Return approved only when the packet is ready for downstream handoff, needs_revision when a bounded revision should loop through a fresh draft-producing output, needs_input when user answers are required, or blocked for an unsafe stop."
       },
       "output": {
-        "template": "shared/templates/review-verdict-template.md",
-        "schema": "workflows/research-critic/schemas/research-attack-output.json"
+        "template": "templates/review-verdict-template.md",
+        "schema": "schemas/research-attack-output.json"
       },
       "next": {
         "match": "${{ output.outcome }}",
@@ -111,8 +111,8 @@
         "prompt": "Revise the latest available research packet using the latest research_attack verdict and any approved user answers. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Preserve answered decisions, address each bounded critic finding, and return ready_for_attack when the packet is ready for another critic review, needs_input when user answers are required, or blocked when progress is unsafe without external input."
       },
       "output": {
-        "template": "shared/templates/research-packet-template.md",
-        "schema": "workflows/research-critic/schemas/research-draft-output.json"
+        "template": "templates/research-packet-template.md",
+        "schema": "schemas/research-draft-output.json"
       },
       "next": {
         "match": "${{ output.outcome }}",
@@ -137,8 +137,8 @@
         "prompt": "Finalize persistence metadata for the approved research packet using the latest approved research packet and latest research_attack verdict. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. The caller should save concrete worker outputs under the active run directory's outputs/ folder and persist the returned baton/history with the generic persist helper. Return saved after emitting artifact/result references to the saved packet, or blocked if the packet cannot be safely saved."
       },
       "output": {
-        "template": "shared/templates/research-save-metadata-template.md",
-        "schema": "workflows/research-critic/schemas/save-research-packet-output.json"
+        "template": "templates/research-save-metadata-template.md",
+        "schema": "schemas/save-research-packet-output.json"
       },
       "next": {
         "match": "${{ output.outcome }}",

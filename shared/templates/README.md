@@ -6,7 +6,7 @@ This package is reference-only. It is not a runtime skill and must not contain `
 
 ## Template role
 
-In workflow descriptors, treat these files as output templates: they describe the expected artifact or answer shape a worker returns. Reference them relative to the consuming skill, matching `input.template` conventions; for Dev Harness that means `../../shared/templates/<file>.md`. Prompt/input templates remain separate under the consuming workflow's `input.template` paths.
+These files are source copies for reusable output templates. Workflow descriptors should keep the templates they use inside the workflow package (for example `workflows/<name>/templates/<file>.md`) and reference them relative to that package's `workflow.json`. Prompt/input templates remain separate under the consuming workflow's package-local `input.template` paths.
 
 ## Templates
 

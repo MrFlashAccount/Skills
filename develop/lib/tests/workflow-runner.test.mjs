@@ -10,6 +10,7 @@ import { next as runnerNext } from '../workflow/runner/index.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-runner-check-'));
+writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
 
 const workflowDoc = {
     name: 'runner-check',
@@ -22,28 +23,28 @@ const workflowDoc = {
         name: 'Prepare',
         kind: 'worker',
         input: { prompt: 'Prepare branch.' },
-        output: { template: 'shared/templates/implementation-plan-template.md' },
+        output: { template: 'output.md' },
         next: ['branch_a', 'branch_b'],
       },
       branch_a: {
         name: 'Branch A',
         kind: 'worker',
         input: { state: ['prepare'], prompt: 'Run branch A.' },
-        output: { template: 'shared/templates/implementation-plan-template.md' },
+        output: { template: 'output.md' },
         next: 'join',
       },
       branch_b: {
         name: 'Branch B',
         kind: 'worker',
         input: { state: ['prepare'], prompt: 'Run branch B.' },
-        output: { template: 'shared/templates/implementation-plan-template.md' },
+        output: { template: 'output.md' },
         next: 'join',
       },
       join: {
         name: 'Join',
         kind: 'worker',
         input: { state: ['branch_a', 'branch_b'], prompt: 'Join branch output.' },
-        output: { template: 'shared/templates/implementation-plan-template.md' },
+        output: { template: 'output.md' },
         next: 'done',
       },
       done: { name: 'Done', kind: 'done', input: { prompt: 'Finished.' } },
@@ -1154,7 +1155,7 @@ test('runner: continue does not persist applied output when next render fails', 
       template: 'missing-input-template.md',
       prompt: 'This step should fail prompt rendering.',
     },
-    output: { template: 'shared/templates/implementation-plan-template.md' },
+    output: { template: 'output.md' },
     next: 'done',
   };
   writeJson(workflowPath, renderFailureWorkflow);

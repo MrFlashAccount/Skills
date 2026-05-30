@@ -52,8 +52,8 @@ export function safeReadLocalFile({ fileRef, fieldName, kind, bases, repositoryR
   throw new WorkflowInterpreterError(missingMessage ?? `workflow prompt render failed: missing ${fieldName} ${kind} '${fileRef}' (tried ${attempted.join(', ')})`);
 }
 
-export function safeReadTemplate({ templateRef, fieldName, bases, repositoryRoot, missingMessage }) {
-  return safeReadLocalFile({ fileRef: templateRef, fieldName, kind: 'template', bases, repositoryRoot, missingMessage });
+export function safeReadTemplate({ templateRef, fieldName, bases, repositoryRoot, missingMessage, allowedRoots }) {
+  return safeReadLocalFile({ fileRef: templateRef, fieldName, kind: 'template', bases, repositoryRoot, missingMessage, allowedRoots });
 }
 
 export function trimStable(value) {
