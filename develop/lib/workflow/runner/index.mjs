@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { applyWorkflowOutput, renderWorkflow } from '../interpreter/index.mjs';
+import { applyWorkflowOutput, renderInterpreterResponse, renderWorkflow } from '../interpreter/index.mjs';
 import { assertSafeStepId, instructionPathForStep, responseStatusForInterpreterResponse, toRunnerResponse } from './host-requests.mjs';
 import { appendHistory, ensureRunFiles, pathExists, persistRunnerResponse, readJson, readText, repositoryRoot, resolveRunPaths, withContinueRunLock, writeJsonAtomic, writeTextAtomic } from './run-state.mjs';
 
@@ -103,7 +103,7 @@ export async function continueRun({ runDir, workflowPath, output, includeDiagnos
     await writeJsonAtomic(paths.batonPath, applied.baton);
     await appendHistory(paths, { source: 'workflow-runner-continue', baton: applied.baton, output: outputPath });
 
-    const rendered = renderWorkflow(paths.workflowPath, paths.batonPath, { includeDiagnostics, repositoryRoot });
+    const rendered = renderInterpreterResponse(paths.workflowPath, paths.batonPath, applied, { includeDiagnostics, repositoryRoot });
     return runnerResponseForRendered(paths, rendered, { initialized: false, resumed: true });
   });
 }

@@ -237,6 +237,50 @@ test('runner: approval request exposes optional output schema reference', () => 
   assert.equal(response.requests[0].outputSchema, path.basename(schemaPath));
 });
 
+test('runner: typed approval retry preserves validation feedback in instructions', () => {
+  const runDir = path.join(tempDir, 'approval-output-schema-retry');
+  const workflowPath = path.join(tempDir, 'approval-output-schema-retry-workflow.json');
+  const schemaPath = path.join(tempDir, 'approval-output-schema-retry.schema.json');
+  writeJson(schemaPath, {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['choice'],
+    properties: { choice: { enum: ['approved', 'blocked'] } },
+    additionalProperties: false,
+  });
+  const approvalWorkflow = structuredClone(workflowDoc);
+  approvalWorkflow.workflow.start = 'choose_path';
+  approvalWorkflow.workflow.steps = {
+    choose_path: {
+      name: 'Choose path',
+      kind: 'approval',
+      input: { prompt: 'Ask the user whether to approve or block.' },
+      output: { schema: path.basename(schemaPath) },
+      next: { match: '${{ output.choice }}', cases: { approved: 'done', blocked: 'blocked' } },
+    },
+    done: approvalWorkflow.workflow.steps.done,
+    blocked: approvalWorkflow.workflow.steps.blocked,
+  };
+  writeJson(workflowPath, approvalWorkflow);
+
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next approval output schema retry');
+  const outputPath = path.join(runDir, 'invalid-approval.json');
+  writeJson(outputPath, { choice: 'maybe' });
+
+  const response = expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', `choose_path=${outputPath}`], 'continue approval output schema retry');
+
+  assert.equal(response.status, 'needs_host_actions');
+  assert.equal(response.requests[0].action, 'wait_for_approval');
+  assert.equal(response.requests[0].outputSchema, path.basename(schemaPath));
+  assert.equal(response.baton.state.attempts['choose_path:output.schema'], 1);
+
+  const loaded = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'choose_path']);
+  assert.equal(loaded.status, 0, loaded.stderr);
+  assert.match(loaded.stdout, /Previous output failed output\.schema validation \(attempt 1\/3\)\./);
+  assert.match(loaded.stdout, /Validation errors:/);
+  assert.match(loaded.stdout, /approved/);
+});
+
 test('runner: continue fans out parallel branch requests with separate step ids and load commands', () => {
   const runDir = path.join(tempDir, 'parallel');
   const workflowPath = path.join(tempDir, 'parallel-workflow.json');
