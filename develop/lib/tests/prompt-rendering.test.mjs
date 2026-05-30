@@ -719,6 +719,40 @@ test('workflow resource refs resolve from the workflow package directory after p
 
 
 
+
+test('prompt renderer: default repository boundary allows workflow package shared schema refs', () => {
+  const repoDir = path.join(tempDir, 'default-render-shared-repo');
+  const workflowDir = path.join(repoDir, 'workflows', 'demo');
+  const sharedDir = path.join(repoDir, 'shared');
+  mkdirSync(workflowDir, { recursive: true });
+  mkdirSync(sharedDir, { recursive: true });
+  writeFileSync(path.join(workflowDir, 'output.md'), '## Output contract\nReturn markdown.\n');
+  writeFileSync(path.join(workflowDir, 'worker.md'), '# Worker\n');
+  writeFileSync(path.join(sharedDir, 'shared.schema.json'), JSON.stringify({
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome'],
+    properties: { outcome: { const: 'ready' } },
+    additionalProperties: false,
+  }));
+  const workflowPath = path.join(workflowDir, 'workflow.json');
+  const doc = structuredClone(schemaWorkflowDoc);
+  doc.steps.worker_step.input = { prompt: 'Run worker.' };
+  doc.steps.worker_step.output = { template: 'output.md', schema: '../../shared/shared.schema.json' };
+  writeFileSync(workflowPath, `${JSON.stringify(doc, null, 2)}\n`);
+
+  const rendered = renderWorkflowPrompt({
+    workflowPath,
+    workflow: doc,
+    baton: baton(),
+    stepId: 'worker_step',
+    step: doc.steps.worker_step,
+  });
+
+  assert.match(rendered.prompt, /Return valid JSON matching this schema/);
+  assert.match(rendered.prompt, /"outcome"/);
+});
+
 test('prompt renderer: shared template refs are explicit and reusable across workflow packages', () => {
   const repoDir = path.join(tempDir, 'shared-template-repo');
   const sharedTemplateDir = path.join(repoDir, 'shared', 'templates');
@@ -774,6 +808,67 @@ test('prompt renderer: shared template refs are explicit and reusable across wor
     }),
     /missing output template 'root-only-output\.md'/,
   );
+});
+
+test('prompt renderer: workflow resource refs cannot escape repository root', () => {
+  const repoDir = path.join(tempDir, 'resource-boundary-repo');
+  const workflowDir = path.join(repoDir, 'workflows', 'demo');
+  const outsideDir = path.join(tempDir, 'outside-resource-boundary');
+  mkdirSync(workflowDir, { recursive: true });
+  mkdirSync(outsideDir, { recursive: true });
+  writeFileSync(path.join(workflowDir, 'workflow.json'), '{}\n');
+  writeFileSync(path.join(outsideDir, 'secret.md'), 'LEAK MUST NOT APPEAR\n');
+  writeFileSync(path.join(outsideDir, 'secret.schema.json'), JSON.stringify({ type: 'object' }));
+
+  const workflowPath = path.join(workflowDir, 'workflow.json');
+  const baseWorkflow = {
+    name: 'resource-boundary',
+    version: 1,
+    start: 'worker_step',
+    done: 'done',
+    blocked: 'blocked',
+    steps: {
+      worker_step: { name: 'Worker step', kind: 'worker', input: { state: [], prompt: 'Run.' }, next: 'done' },
+      done: { name: 'Done', kind: 'done' },
+      blocked: { name: 'Blocked', kind: 'blocked' },
+    },
+  };
+
+  const escapedTemplate = path.relative(workflowDir, path.join(outsideDir, 'secret.md'));
+  const inputWorkflow = structuredClone(baseWorkflow);
+  inputWorkflow.steps.worker_step.input.template = escapedTemplate;
+  assert.throws(
+    () => renderWorkflowPrompt({ workflowPath, workflow: inputWorkflow, baton: baton(), stepId: 'worker_step', step: inputWorkflow.steps.worker_step, repositoryRoot: repoDir }),
+    /input template escapes repository root/,
+  );
+
+  const outputWorkflow = structuredClone(baseWorkflow);
+  outputWorkflow.steps.worker_step.output = { template: escapedTemplate };
+  assert.throws(
+    () => renderWorkflowPrompt({ workflowPath, workflow: outputWorkflow, baton: baton(), stepId: 'worker_step', step: outputWorkflow.steps.worker_step, repositoryRoot: repoDir }),
+    /output template escapes repository root/,
+  );
+
+  const schemaWorkflow = structuredClone(baseWorkflow);
+  const escapedSchema = path.relative(workflowDir, path.join(outsideDir, 'secret.schema.json'));
+  schemaWorkflow.steps.worker_step.output = { schema: escapedSchema };
+  assert.throws(
+    () => validateAgainstOutputSchema({ workflow: schemaWorkflow, workflowPath, schemaRef: escapedSchema, output: {}, repositoryRoot: repoDir }),
+    /output schema escapes repository root/,
+  );
+
+  const symlinkPath = path.join(workflowDir, 'linked-secret.md');
+  try {
+    symlinkSync(path.join(outsideDir, 'secret.md'), symlinkPath);
+    const symlinkWorkflow = structuredClone(baseWorkflow);
+    symlinkWorkflow.steps.worker_step.input.template = 'linked-secret.md';
+    assert.throws(
+      () => renderWorkflowPrompt({ workflowPath, workflow: symlinkWorkflow, baton: baton(), stepId: 'worker_step', step: symlinkWorkflow.steps.worker_step, repositoryRoot: repoDir }),
+      /input template escapes repository root/,
+    );
+  } finally {
+    rmSync(symlinkPath, { force: true });
+  }
 });
 
 test('prompt renderer: output schema is validated and injected in the output contract layer', () => {

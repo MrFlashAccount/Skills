@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
 import { validateWorkflowInterpreterCliArgs } from '../workflow/cli-args-validation.mjs';
+import { defaultRepositoryRootForWorkflow } from '../workflow/resource-resolver.mjs';
 import { WorkflowInterpreterError } from '../workflow/errors.mjs';
 import { applyWorkflowOutput, inspectWorkflow, renderWorkflow } from '../workflow/interpreter/index.mjs';
 
@@ -39,8 +40,8 @@ const USAGE_BY_MODE = {
 
 const COMMANDS = {
   inspect: ({ workflowPath, batonPath }) => inspectWorkflow(workflowPath, batonPath),
-  render: ({ workflowPath, batonPath, includeDiagnostics }) => renderWorkflow(workflowPath, batonPath, { includeDiagnostics }),
-  apply: ({ workflowPath, batonPath, outputPath }) => applyWorkflowOutput(workflowPath, batonPath, outputPath),
+  render: ({ workflowPath, batonPath, includeDiagnostics }) => renderWorkflow(workflowPath, batonPath, { includeDiagnostics, repositoryRoot: defaultRepositoryRootForWorkflow(workflowPath) }),
+  apply: ({ workflowPath, batonPath, outputPath }) => applyWorkflowOutput(workflowPath, batonPath, outputPath, undefined, { repositoryRoot: defaultRepositoryRootForWorkflow(workflowPath) }),
 };
 
 function usageForArgs(args) {
