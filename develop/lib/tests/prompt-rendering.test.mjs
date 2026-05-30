@@ -741,7 +741,7 @@ test('prompt renderer: shared template refs are explicit and reusable across wor
         name: 'Worker step',
         kind: 'worker',
         input: { state: [] },
-        output: { template: 'shared/templates/reused-output.md' },
+        output: { template: '../../shared/templates/reused-output.md' },
         next: 'done',
       },
       done: { name: 'Done', kind: 'done' },
@@ -758,8 +758,8 @@ test('prompt renderer: shared template refs are explicit and reusable across wor
     repositoryRoot: repoDir,
   });
 
-  assertMarkersInOrder(render(firstWorkflowDir).prompt, ['<!-- output template: shared/templates/reused-output.md -->', '## Shared reusable output template']);
-  assertMarkersInOrder(render(secondWorkflowDir).prompt, ['<!-- output template: shared/templates/reused-output.md -->', '## Shared reusable output template']);
+  assertMarkersInOrder(render(firstWorkflowDir).prompt, ['<!-- output template: ../../shared/templates/reused-output.md -->', '## Shared reusable output template']);
+  assertMarkersInOrder(render(secondWorkflowDir).prompt, ['<!-- output template: ../../shared/templates/reused-output.md -->', '## Shared reusable output template']);
 
   const rootFallbackWorkflow = structuredClone(workflow);
   rootFallbackWorkflow.steps.worker_step.output.template = 'root-only-output.md';
@@ -888,68 +888,16 @@ test('prompt renderer: output contract is always appended as static included tex
   ]);
 });
 
-test('prompt renderer: path resolver rejects escape and missing templates', () => {
-  const escapedTemplatePath = path.resolve(tempDir, '../outside.md');
-  writeFileSync(escapedTemplatePath, 'outside repo\n');
-  try {
-    const escapedStep = {
-      name: 'Worker step',
-      kind: 'worker',
-      input: { template: '../outside.md', state: [] },
-      output: { template: 'output.md' },
-      next: 'done',
-    };
-    const missingStep = {
-      name: 'Worker step',
-      kind: 'worker',
-      input: { template: 'missing-template.md', state: [] },
-      output: { template: 'output.md' },
-      next: 'done',
-    };
+test('prompt renderer: path resolver rejects missing templates without fallback', () => {
+  const missingStep = {
+    name: 'Worker step',
+    kind: 'worker',
+    input: { template: 'missing-template.md', state: [] },
+    output: { template: 'output.md' },
+    next: 'done',
+  };
 
-    assert.throws(() => renderFixture({ label: 'render-escape', stepId: 'worker_step', step: escapedStep }), /input template escapes repository root/);
-    assert.throws(() => renderFixture({ label: 'render-missing', stepId: 'worker_step', step: missingStep }), /missing input template 'missing-template\.md'/);
-  } finally {
-    rmSync(escapedTemplatePath, { force: true });
-  }
-});
-
-test('prompt renderer: template root confinement rejects symlink escapes and external bases', () => {
-  const outsideTemplatePath = path.resolve(tempDir, '../outside-symlink-template.md');
-  const symlinkPath = path.join(tempDir, 'symlink-template.md');
-  const externalTemplateDir = path.resolve(tempDir, '../external-template-base');
-  const externalTemplatePath = path.join(externalTemplateDir, 'external-template.md');
-  writeFileSync(outsideTemplatePath, 'outside symlink repo\n');
-  rmSync(externalTemplateDir, { recursive: true, force: true });
-  try {
-    symlinkSync(outsideTemplatePath, symlinkPath);
-    const symlinkStep = {
-      name: 'Worker step',
-      kind: 'worker',
-      input: { template: 'symlink-template.md', state: [] },
-      next: 'done',
-    };
-
-    assert.throws(() => renderFixture({ label: 'render-symlink-escape', stepId: 'worker_step', step: symlinkStep }), /input template escapes repository root/);
-
-    const externalBaseStep = {
-      name: 'Worker step',
-      kind: 'worker',
-      input: { template: 'external-template.md', state: [] },
-      next: 'done',
-    };
-    symlinkSync(path.dirname(outsideTemplatePath), externalTemplateDir, 'dir');
-    writeFileSync(externalTemplatePath, 'outside base repo\n');
-
-    assert.throws(
-      () => renderFixture({ label: 'render-external-base', stepId: 'worker_step', step: externalBaseStep, templateBaseDir: externalTemplateDir }),
-      /input template escapes repository root/,
-    );
-  } finally {
-    rmSync(symlinkPath, { force: true });
-    rmSync(externalTemplateDir, { recursive: true, force: true });
-    rmSync(outsideTemplatePath, { force: true });
-  }
+  assert.throws(() => renderFixture({ label: 'render-missing', stepId: 'worker_step', step: missingStep }), /missing input template 'missing-template\.md'/);
 });
 
 test('CLI render: runtime guard rejects reserved aggregate state selectors', () => {

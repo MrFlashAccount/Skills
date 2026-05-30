@@ -6,7 +6,7 @@ This package is reference-only. It is not a runtime skill and must not contain `
 
 ## Template role
 
-These files are reusable output templates. Workflow descriptors may reference them explicitly as `shared/templates/<file>.md`. Plain relative template references are workflow-package-local and resolve from the directory containing the active `workflow.json`; there is no silent repository-root fallback.
+These files are reusable output templates. Workflow descriptors reference them with normal paths relative to the directory containing the active `workflow.json`, for example `../../shared/templates/<file>.md` from `workflows/<name>/workflow.json`. There is no repository-root or `shared/...` alias and no silent fallback.
 
 ## Templates
 

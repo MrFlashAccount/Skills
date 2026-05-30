@@ -30,7 +30,7 @@ In scope for #89:
 - Define and implement a dumb workflow prompt renderer.
 - Extend schemas only where needed to expose compiled prompt results cleanly.
 - Add deterministic CLI/test coverage for rendering the current step.
-- Keep output contracts as markdown templates using `output.template`: plain relative refs are workflow-package-local, while reusable shared templates use the explicit `shared/templates/...` repository-root convention. Optional JSON schemas remain workflow-package-local unless they deliberately use the same explicit `shared/...` convention.
+- Keep output contracts as markdown templates using `output.template`: all workflow file refs are relative to the directory containing the active `workflow.json`. Reusable shared templates use normal relative paths such as `../../shared/templates/...`.
 
 ## Non-goals
 
@@ -115,13 +115,11 @@ Nested path selection should not ship in v1. It creates a query language, partia
 
 Resolution must be deterministic and local-only:
 
-1. resolve plain relative references against the workflow descriptor directory unless the caller passes an explicit template base directory;
-2. resolve explicit shared references beginning with `shared/` against the repository root and confine them to the repository `shared/` tree;
-3. reject paths outside the selected resource root;
-4. reject missing files with a hard renderer error;
-5. do not fetch templates from the network.
+1. resolve relative references against the workflow descriptor directory;
+2. reject missing files with a hard renderer error;
+3. do not fetch templates from the network.
 
-Do not use ambiguous repo-root-relative fallbacks such as `workflows/<name>/schemas/...` inside workflow JSON. Move local resources with the workflow package and reference them as `schemas/...`, `templates/...`, or another path relative to the package directory. Reusable resources should stay under `shared/` and be referenced with the explicit `shared/...` prefix.
+Do not use ambiguous repo-root-relative fallbacks such as `workflows/<name>/schemas/...` inside workflow JSON. Move local resources with the workflow package and reference them as `schemas/...`, `templates/...`, or another path relative to the package directory. Reusable resources under `shared/` must be referenced with normal workflow-relative paths such as `../../shared/templates/...`.
 
 Do not silently ignore a declared `input.template`; missing declared templates fail clearly. Omitted templates use the deterministic default prompt and may emit opt-in diagnostics.
 
@@ -129,14 +127,14 @@ Do not silently ignore a declared `input.template`; missing declared templates f
 
 `output.template` is a markdown output contract. The renderer loads the referenced markdown file and appends it as strict worker return instructions.
 
-`output.schema` is optional prompt guidance. When present, the renderer resolves it using the same base and confinement rule as output templates: plain relative refs from the workflow package directory, explicit `shared/...` refs from the repository shared tree, verifies the file is parseable JSON, and injects an instruction to return valid JSON matching that schema. When a validation command or tool is available in the agent/subagent context, the injected instruction requires preflight validation of the generated JSON against the schema before the final answer, fixing validation errors and repeating for a bounded number of attempts. The harness/orchestrator still validates the final returned JSON again after the answer, so agent-side validation is preflight, not the final authority. If no validation command or tool is available in that context, the agent should still return strict schema-matching JSON and expect harness-level validation. The renderer does not validate future worker output while rendering. The interpreter/harness validates the returned worker JSON against this schema during `apply`.
+`output.schema` is optional prompt guidance. When present, the renderer resolves it using the same canonical workflow-file resolver as output templates: refs are relative to the directory containing the active `workflow.json`. It verifies the file is parseable JSON and injects an instruction to return valid JSON matching that schema. When a validation command or tool is available in the agent/subagent context, the injected instruction requires preflight validation of the generated JSON against the schema before the final answer, fixing validation errors and repeating for a bounded number of attempts. The harness/orchestrator still validates the final returned JSON again after the answer, so agent-side validation is preflight, not the final authority. If no validation command or tool is available in that context, the agent should still return strict schema-matching JSON and expect harness-level validation. The renderer does not validate future worker output while rendering. The interpreter/harness validates the returned worker JSON against this schema during `apply`.
 
 Rules:
 
 - keep `template` as the existing markdown contract field;
-- allow optional `schema` as a workflow-package-local JSON schema path, or an explicit `shared/...` schema path when a schema is intentionally reused;
+- allow optional `schema` as a JSON schema path relative to the workflow file;
 - DevHarness may use `output.schema` on research and implementation-plan worker steps to require reviewer selection state such as `review_plan.reviewers`; this validates/stores the structured output only and does not implement reviewer routing or fan-out;
-- reject missing, escaping, or invalid-JSON schema files with deterministic `WorkflowInterpreterError`;
+- reject missing or invalid-JSON schema files with deterministic `WorkflowInterpreterError`;
 - do not introduce `format`, `sections`, or similar output contract fields;
 - do not validate returned markdown headings at render time;
 - steps without `output.schema` keep worker-output envelope validation in the existing `worker-output` schema.
