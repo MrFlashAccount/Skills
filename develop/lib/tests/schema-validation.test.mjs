@@ -1,7 +1,28 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { validateJsonSchema } from 'schema-validation';
-import { assertBatonSchema, reviewerSelectionOutputSchema, workflowSchemas } from '../workflow/schema-validation.mjs';
+import { assertBatonSchema, assertWorkflowSchema, reviewerSelectionOutputSchema, workflowSchemas } from '../workflow/schema-validation.mjs';
+
+function minimalWorkflowDoc(overrides = {}) {
+  return {
+    name: 'minimal-workflow',
+    version: 1,
+    start: 'worker_step',
+    done: 'done',
+    blocked: 'blocked',
+    steps: {
+      worker_step: {
+        name: 'Worker step',
+        kind: 'worker',
+        output: { template: 'output.md' },
+        next: 'done',
+      },
+      done: { name: 'Done', kind: 'done' },
+      blocked: { name: 'Blocked', kind: 'blocked' },
+    },
+    ...overrides,
+  };
+}
 
 test('generic JSON Schema helper validates workflow schema documents at runtime', () => {
   const valid = {
@@ -43,4 +64,13 @@ test('baton schema rejects empty or whitespace-only user_prompt outside CLI', ()
     () => assertBatonSchema({ ...validBaton, user_prompt: '  \n\t' }),
     /baton failed schema validation: .*user_prompt.*must match pattern|baton failed schema validation: .*must match pattern/,
   );
+});
+
+test('workflow schema accepts workflow documents without workflow-level instruction', () => {
+  assert.doesNotThrow(() => assertWorkflowSchema(minimalWorkflowDoc()));
+});
+
+test('workflow schema permits empty workflow-level instruction values as optional metadata', () => {
+  assert.doesNotThrow(() => assertWorkflowSchema(minimalWorkflowDoc({ instruction: '' })));
+  assert.doesNotThrow(() => assertWorkflowSchema(minimalWorkflowDoc({ instructions: '  \n\t' })));
 });

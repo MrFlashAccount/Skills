@@ -263,7 +263,40 @@ test('prompt renderer: appends role output and state sections in fixed compiled 
   ]);
 });
 
+test('prompt renderer: renders workflow instruction alias when instructions is non-empty', () => {
+  const compiled = renderFixture({
+    label: 'render-instructions-alias',
+    workflow: {
+      ...schemaWorkflowDoc,
+      instructions: 'Use the legacy instructions alias.',
+    },
+  });
 
+  assert.match(compiled.prompt, /## Workflow instruction\n\nUse the legacy instructions alias\./);
+});
+
+test('prompt renderer: omits workflow instruction section when instruction is absent or empty', () => {
+  const absent = renderFixture({ label: 'render-no-workflow-instruction', workflow: schemaWorkflowDoc });
+  assert.doesNotMatch(absent.prompt, /## Workflow instruction/);
+
+  const empty = renderFixture({
+    label: 'render-empty-workflow-instruction',
+    workflow: {
+      ...schemaWorkflowDoc,
+      instruction: '',
+    },
+  });
+  assert.doesNotMatch(empty.prompt, /## Workflow instruction/);
+
+  const whitespace = renderFixture({
+    label: 'render-whitespace-workflow-instruction',
+    workflow: {
+      ...schemaWorkflowDoc,
+      instruction: '  \n\t',
+    },
+  });
+  assert.doesNotMatch(whitespace.prompt, /## Workflow instruction/);
+});
 
 
 test('prompt renderer: renders raw user prompt only when render context provides it', () => {
