@@ -138,6 +138,19 @@ test('state projection: missing key fails hard with step selector and available 
   );
 });
 
+test('state projection: optional selectors project when present and skip missing keys', () => {
+  const projected = projectState({
+    stepId: 'join',
+    batonState: { required: { ok: true }, selected_branch: { done: true } },
+    selectors: ['required'],
+    optionalSelectors: ['selected_branch', 'unselected_branch'],
+  });
+
+  assert.deepEqual(projected.value, { required: { ok: true }, selected_branch: { done: true } });
+  assert.deepEqual(projected.projectedKeys, ['required', 'selected_branch']);
+  assert.deepEqual(projected.diagnostics, [{ severity: 'info', code: 'optional_state_missing', selector: 'unselected_branch' }]);
+});
+
 test('state projection: nested selectors are rejected', () => {
   assert.throws(
     () => projectState({ stepId: 'research', batonState: { artifacts: [] }, selectors: ['artifacts.0'] }),

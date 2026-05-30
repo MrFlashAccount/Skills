@@ -176,6 +176,14 @@
             "minLength": 1
           },
           "uniqueItems": true
+        },
+        "optionalState": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
         }
       },
       "additionalProperties": false
@@ -201,6 +209,14 @@
         "role": {
           "type": "string",
           "minLength": 1
+        },
+        "optionalState": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
         }
       },
       "additionalProperties": false

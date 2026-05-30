@@ -215,6 +215,16 @@ test('workflow semantic validation accepts input.state selectors that reference 
   assert.deepEqual(validateSynthetic(doc), { ok: true, workflow: 'synthetic-validation-fixture', steps: 8 });
 });
 
+test('workflow semantic validation accepts optionalState selectors and input expressions against optional projections', () => {
+  const doc = syntheticWorkflow((draft) => {
+    draft.workflow.steps.consumer.input = { state: ['producer'], optionalState: ['branch_a'] };
+    draft.workflow.steps.consumer.next = { match: '${{ input.branch_a.outcome }}', cases: { ready: 'done', blocked: 'blocked' } };
+    return draft;
+  });
+
+  assert.deepEqual(validateSynthetic(doc), { ok: true, workflow: 'synthetic-validation-fixture', steps: 7 });
+});
+
 test('workflow semantic validation rejects input.state selectors that do not name workflow step ids', () => {
   assertSemanticFailure(
     syntheticWorkflow((draft) => {
@@ -236,6 +246,16 @@ test('workflow semantic validation rejects input.state selectors that do not nam
 
 });
 
+test('workflow semantic validation rejects input state selectors that do not name workflow step ids', () => {
+  assertSemanticFailure(
+    syntheticWorkflow((draft) => {
+      draft.workflow.steps.consumer.input.optionalState = ['missing_step'];
+      return draft;
+    }),
+    /consumer.*input\.optionalState selector 'missing_step'.*declared workflow step/,
+  );
+});
+
 test('workflow semantic validation rejects unsupported nested input.state selectors', () => {
   assertSemanticFailure(
     syntheticWorkflow((draft) => {
@@ -243,6 +263,14 @@ test('workflow semantic validation rejects unsupported nested input.state select
       return draft;
     }),
     /consumer.*input\.state selector 'producer\.route' is invalid/,
+  );
+
+  assertSemanticFailure(
+    syntheticWorkflow((draft) => {
+      draft.workflow.steps.consumer.input.optionalState = ['producer.route'];
+      return draft;
+    }),
+    /consumer.*input\.optionalState selector 'producer\.route' is invalid/,
   );
 });
 

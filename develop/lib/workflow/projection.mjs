@@ -7,20 +7,21 @@ function formatAvailableKeys(batonState = {}) {
   return keys.length > 0 ? keys.join(', ') : '(none)';
 }
 
-export function projectState({ batonState = {}, selectors = [], stepId = '' } = {}) {
-  if (!Array.isArray(selectors) || selectors.length === 0) {
-    return { value: {}, projectedKeys: [], diagnostics: [] };
+function assertValidSelector(selector, stepId) {
+  if (typeof selector !== 'string' || !TOP_LEVEL_SELECTOR.test(selector)) {
+    throw new WorkflowInterpreterError(
+      `workflow prompt render failed: step '${stepId}' uses unsupported state selector '${selector}'; v1 supports top-level baton state keys only`,
+    );
   }
+}
 
+export function projectState({ batonState = {}, selectors = [], optionalSelectors = [], stepId = '' } = {}) {
   const value = {};
   const projectedKeys = [];
+  const diagnostics = [];
 
-  for (const selector of selectors) {
-    if (typeof selector !== 'string' || !TOP_LEVEL_SELECTOR.test(selector)) {
-      throw new WorkflowInterpreterError(
-        `workflow prompt render failed: step '${stepId}' uses unsupported state selector '${selector}'; v1 supports top-level baton state keys only`,
-      );
-    }
+  for (const selector of selectors ?? []) {
+    assertValidSelector(selector, stepId);
 
     if (!Object.hasOwn(batonState, selector)) {
       throw new WorkflowInterpreterError(
@@ -32,7 +33,18 @@ export function projectState({ batonState = {}, selectors = [], stepId = '' } = 
     projectedKeys.push(selector);
   }
 
-  return { value, projectedKeys, diagnostics: [] };
+  for (const selector of optionalSelectors ?? []) {
+    assertValidSelector(selector, stepId);
+    if (!Object.hasOwn(batonState, selector)) {
+      diagnostics.push({ severity: 'info', code: 'optional_state_missing', selector });
+      continue;
+    }
+    if (Object.hasOwn(value, selector)) continue;
+    value[selector] = structuredClone(batonState[selector]);
+    projectedKeys.push(selector);
+  }
+
+  return { value, projectedKeys, diagnostics };
 }
 
 export function fencedJson(value) {

@@ -38,7 +38,8 @@ export function renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, st
   const root = normalizeRepositoryRoot(repositoryRoot ?? path.resolve(path.dirname(path.resolve(workflowPath)), '..'));
   const input = step.input ?? {};
   const selectors = input.state ?? [];
-  const projection = projectState({ batonState: baton.state ?? {}, selectors, stepId });
+  const optionalSelectors = input.optionalState ?? [];
+  const projection = projectState({ batonState: baton.state ?? {}, selectors, optionalSelectors, stepId });
   const stateBlock = projectedStateBlock({ workflow, projection, repositoryRoot: root, readOutputSchema });
   const inputTemplate = readInputTemplate({ workflowPath, workflow, input, repositoryRoot: root, templateBaseDir });
   const inputRole = readInputRole({ input, repositoryRoot: root });

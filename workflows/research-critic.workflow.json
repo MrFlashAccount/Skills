@@ -32,15 +32,44 @@
         "kind": "approval",
         "input": {
           "state": [
-            "research_draft",
-            "research_attack"
+            "research_draft"
           ],
-          "prompt": "Ask the user only the blocking research questions from the latest research_draft or research_attack output. Continue with approval approved after the user answer is captured in the approval output; use blocked only when the user cannot or will not provide required input."
+          "prompt": "Ask the user only the blocking research questions from the latest research_draft or research_attack output. Continue with approval approved after the user answer is captured in the approval output; use blocked only when the user cannot or will not provide required input.",
+          "optionalState": [
+            "research_attack"
+          ]
         },
         "next": {
           "match": "${{ output.approval }}",
           "cases": {
-            "approved": "research_draft",
+            "approved": "research_answered_draft",
+            "blocked": "blocked"
+          }
+        }
+      },
+      "research_answered_draft": {
+        "name": "Research answered draft",
+        "kind": "worker",
+        "input": {
+          "role": "researcher",
+          "state": [
+            "research_draft",
+            "ask_research_questions"
+          ],
+          "optionalState": [
+            "research_attack"
+          ],
+          "prompt": "Revise the research packet using the approved user answers from ask_research_questions and any critic feedback if present. Preserve answered decisions and close only evidence-backed questions. Return ready_for_attack when the packet is ready for critic review, needs_input when more user answers are required, or blocked when progress is unsafe without external input."
+        },
+        "output": {
+          "template": "shared/templates/research-packet-template.md",
+          "schema": "schemas/research-critic/research-draft-output.json"
+        },
+        "next": {
+          "match": "${{ output.outcome }}",
+          "cases": {
+            "ready_for_attack": "research_attack",
+            "needs_input": "ask_research_questions",
             "blocked": "blocked"
           }
         }
@@ -51,8 +80,7 @@
         "input": {
           "role": "critic",
           "state": [
-            "research_draft",
-            "ask_research_questions"
+            "research_draft"
           ],
           "prompt": "Attack the latest research_draft packet for weak evidence, unsafe assumptions, missing user input, misclassified blockers, and over-broad candidate approaches. Return approved only when the packet is ready for downstream handoff, needs_revision when a bounded revision should loop through research_draft, needs_input when user answers are required, or blocked for an unsafe stop."
         },
@@ -64,7 +92,34 @@
           "match": "${{ output.outcome }}",
           "cases": {
             "approved": "save_research_packet",
-            "needs_revision": "research_draft",
+            "needs_revision": "research_revision",
+            "needs_input": "ask_research_questions",
+            "blocked": "blocked"
+          }
+        }
+      },
+      "research_revision": {
+        "name": "Research revision",
+        "kind": "worker",
+        "input": {
+          "role": "researcher",
+          "state": [
+            "research_draft",
+            "research_attack"
+          ],
+          "optionalState": [
+            "ask_research_questions"
+          ],
+          "prompt": "Revise the research packet using the latest research_attack verdict and any approved user answers. Preserve answered decisions, address each bounded critic finding, and return ready_for_attack when the packet is ready for another critic review, needs_input when user answers are required, or blocked when progress is unsafe without external input."
+        },
+        "output": {
+          "template": "shared/templates/research-packet-template.md",
+          "schema": "schemas/research-critic/research-draft-output.json"
+        },
+        "next": {
+          "match": "${{ output.outcome }}",
+          "cases": {
+            "ready_for_attack": "research_attack",
             "needs_input": "ask_research_questions",
             "blocked": "blocked"
           }
@@ -107,12 +162,16 @@
         "name": "Blocked",
         "kind": "blocked",
         "input": {
-          "state": [
+          "state": [],
+          "prompt": "Research workflow is blocked. Surface the blocker and required input.",
+          "optionalState": [
             "research_draft",
+            "ask_research_questions",
+            "research_answered_draft",
             "research_attack",
+            "research_revision",
             "save_research_packet"
-          ],
-          "prompt": "Research workflow is blocked. Surface the blocker and required input."
+          ]
         }
       }
     }
