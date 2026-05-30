@@ -58,19 +58,33 @@
         }
       },
       "propertyNames": {
-        "not": { "enum": ["run", "history"] }
+        "not": {
+          "enum": [
+            "run",
+            "history"
+          ]
+        }
       },
       "additionalProperties": false
     },
     "user_prompt": {
       "description": "Raw run-level startup user prompt captured when the workflow run is initialized. Immutable after start/resume.",
-      "type": "string"
+      "type": "string",
+      "allOf": [
+        {
+          "pattern": "\\S"
+        }
+      ]
     },
     "blocker": {
       "type": "object"
     },
     "error": {
       "type": "object"
+    },
+    "user_prompt_injected": {
+      "description": "Interpreter/runner marker set after baton.user_prompt has been rendered into one worker instruction. Prevents reinjection after resume or workflow drift.",
+      "type": "boolean"
     }
   },
   "additionalProperties": false,

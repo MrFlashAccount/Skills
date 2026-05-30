@@ -280,6 +280,49 @@ test('prompt renderer: renders raw user prompt only when render context provides
   ]);
 });
 
+test('prompt renderer: ignores render-time user prompt after persisted injection marker', () => {
+  const rawPrompt = 'Already injected prompt must not repeat.';
+  const step = {
+    name: 'Later worker',
+    kind: 'worker',
+    input: { prompt: 'Run later.' },
+    output: { template: 'output.md' },
+    next: 'done',
+  };
+
+  const compiled = renderFixture({
+    label: 'render-user-prompt-marker-guard',
+    stepId: 'later_worker',
+    step,
+    batonDoc: baton({ cursor: 'later_worker', user_prompt: rawPrompt, user_prompt_injected: true }),
+    userPrompt: rawPrompt,
+  });
+
+  assert.doesNotMatch(compiled.prompt, /## User prompt/);
+  assert.equal(compiled.prompt.includes(rawPrompt), false);
+});
+
+test('prompt renderer: ignores render-time user prompt for non-worker steps', () => {
+  const rawPrompt = 'Approval steps must not receive startup prompt.';
+  const step = {
+    name: 'Approval step',
+    kind: 'approval',
+    input: { prompt: 'Approve.' },
+    next: 'done',
+  };
+
+  const compiled = renderFixture({
+    label: 'render-user-prompt-approval-guard',
+    stepId: 'approval_step',
+    step,
+    batonDoc: baton({ cursor: 'approval_step', user_prompt: rawPrompt }),
+    userPrompt: rawPrompt,
+  });
+
+  assert.doesNotMatch(compiled.prompt, /## User prompt/);
+  assert.equal(compiled.prompt.includes(rawPrompt), false);
+});
+
 test('prompt renderer: does not render empty user prompt even when render context provides it', () => {
   const step = {
     name: 'Worker step',

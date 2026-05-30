@@ -7,10 +7,17 @@ function assertNonEmptyUserPrompt(value, source) {
   return value;
 }
 
+function assertNonEmptyUserPromptFilePath(value) {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    throw new Error('--user-prompt-file path must not be empty or whitespace-only');
+  }
+  return value;
+}
+
 export async function resolveStartupUserPrompt({ userPrompt, userPromptFile } = {}) {
   if (userPrompt !== undefined && userPromptFile !== undefined) throw new Error('provide only one of --user-prompt or --user-prompt-file');
   if (userPrompt !== undefined) return assertNonEmptyUserPrompt(userPrompt, '--user-prompt');
-  if (userPromptFile !== undefined) return assertNonEmptyUserPrompt(await readFile(userPromptFile, 'utf8'), '--user-prompt-file');
+  if (userPromptFile !== undefined) return assertNonEmptyUserPrompt(await readFile(assertNonEmptyUserPromptFilePath(userPromptFile), 'utf8'), '--user-prompt-file');
   return undefined;
 }
 
@@ -21,6 +28,7 @@ export function hasAnyWorkerOutput({ workflow, baton }) {
 
 export function initialUserPromptStepId({ workflow, baton, steps }) {
   if (typeof baton?.user_prompt !== 'string' || baton.user_prompt.trim().length === 0) return undefined;
+  if (baton.user_prompt_injected === true) return undefined;
   if (hasAnyWorkerOutput({ workflow, baton })) return undefined;
   return steps.find((entry) => entry.step?.kind === 'worker')?.id;
 }

@@ -4,7 +4,6 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { ensureRunFiles, resolveRunPaths } from '../lib/workflow/runner/run-state.mjs';
-import { resolveStartupUserPrompt } from '../lib/workflow/user-prompt.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const skillDir = resolve(scriptDir, '..');
@@ -22,14 +21,12 @@ function parseCliArgs(argv) {
       options: {
         'run-dir': { type: 'string' },
         workflow: { type: 'string' },
-        'user-prompt': { type: 'string' },
-        'user-prompt-file': { type: 'string' },
       },
       strict: true,
       allowPositionals: false,
     }).values;
   } catch (error) {
-    fail(`${error.message}\nusage: node scripts/start-run.mjs --run-dir <dir> [--workflow <workflow.json>] [--user-prompt <text> | --user-prompt-file <path>]`);
+    fail(`${error.message}\nusage: node scripts/start-run.mjs --run-dir <dir> [--workflow <workflow.json>]`);
   }
 }
 
@@ -60,8 +57,7 @@ const runDir = requireString(values['run-dir'], '--run-dir');
 const workflowPath = resolve(values.workflow ?? defaultWorkflowPath);
 const paths = resolveRunPaths({ runDir, workflowPath });
 
-const userPrompt = await resolveStartupUserPrompt({ userPrompt: values['user-prompt'], userPromptFile: values['user-prompt-file'] }).catch((error) => fail(error.message));
-const { resumed } = await ensureRunFiles(paths, { userPrompt });
+const { resumed } = await ensureRunFiles(paths);
 const response = inspectWorkflow(paths.workflowPath, paths.batonPath);
 
 console.log(JSON.stringify({

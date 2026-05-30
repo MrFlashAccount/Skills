@@ -54,7 +54,7 @@ export function renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, st
     roleBlock: inputRole.content,
     stateBlock,
     outputContract,
-    userPrompt,
+    userPrompt: step.kind === 'worker' && baton.user_prompt_injected !== true ? userPrompt : undefined,
     finalReminder,
   });
   const diagnostics = usesDefaultPrompt

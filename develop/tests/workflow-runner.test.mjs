@@ -143,7 +143,9 @@ test('runner: user prompt is stored, included only in initial worker instruction
 
   const first = expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath, '--user-prompt', rawPrompt], 'next with user prompt');
   assert.equal(first.baton.user_prompt, rawPrompt);
+  assert.equal(first.baton.user_prompt_injected, true);
   assert.equal(JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8')).user_prompt, rawPrompt);
+  assert.equal(JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8')).user_prompt_injected, true);
 
   const initialInstructions = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'prepare']);
   assert.equal(initialInstructions.status, 0, initialInstructions.stderr);
@@ -154,7 +156,9 @@ test('runner: user prompt is stored, included only in initial worker instruction
   writeJson(prepareOutput, workerOutput('prepared'));
   const nextResponse = expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', prepareOutput], 'continue with user prompt');
   assert.equal(nextResponse.baton.user_prompt, rawPrompt);
+  assert.equal(nextResponse.baton.user_prompt_injected, true);
   assert.equal(JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8')).user_prompt, rawPrompt);
+  assert.equal(JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8')).user_prompt_injected, true);
 
   const laterInstructions = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'branch_a']);
   assert.equal(laterInstructions.status, 0, laterInstructions.stderr);
@@ -175,6 +179,10 @@ test('runner: next rejects empty or conflicting user prompt inputs', () => {
   const emptyFile = runRunner(['next', '--run-dir', path.join(tempDir, 'empty-user-prompt-file-next'), '--workflow', workflowPath, '--user-prompt-file', promptPath]);
   assert.notEqual(emptyFile.status, 0);
   assert.match(emptyFile.stderr, /--user-prompt-file must not be empty or whitespace-only/);
+
+  const emptyPath = runRunner(['next', '--run-dir', path.join(tempDir, 'empty-user-prompt-file-path-next'), '--workflow', workflowPath, '--user-prompt-file', '']);
+  assert.notEqual(emptyPath.status, 0);
+  assert.match(emptyPath.stderr, /--user-prompt-file path must not be empty or whitespace-only/);
 
   writeFileSync(promptPath, 'from file');
   const conflicting = runRunner(['next', '--run-dir', path.join(tempDir, 'conflicting-user-prompt-next'), '--workflow', workflowPath, '--user-prompt', 'from arg', '--user-prompt-file', promptPath]);
@@ -233,6 +241,32 @@ test('runner: next resumes existing baton without overwriting user prompt', () =
   assert.equal(response.resumed, true);
   assert.equal(response.baton.user_prompt, 'original raw prompt');
   assert.equal(JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8')).user_prompt, 'original raw prompt');
+});
+
+test('runner: persisted user prompt injection marker survives workflow drift on resume', () => {
+  const runDir = path.join(tempDir, 'user-prompt-workflow-drift');
+  const workflowPath = path.join(tempDir, 'user-prompt-workflow-drift.json');
+  const driftWorkflow = structuredClone(workflowDoc);
+  driftWorkflow.workflow.steps.prepare.next = 'branch_a';
+  driftWorkflow.workflow.steps.branch_a.next = 'done';
+  writeJson(workflowPath, driftWorkflow);
+  const rawPrompt = 'Do not inject twice after workflow drift.';
+
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath, '--user-prompt', rawPrompt], 'next before workflow drift');
+  const prepareOutput = path.join(runDir, 'prepare-drift-output.json');
+  writeJson(prepareOutput, workerOutput('prepared before drift'));
+  expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', prepareOutput], 'continue before workflow drift');
+
+  delete driftWorkflow.workflow.steps.prepare;
+  driftWorkflow.workflow.start = 'branch_a';
+  writeJson(workflowPath, driftWorkflow);
+  const resumed = expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'rerender after workflow drift');
+  assert.equal(resumed.baton.user_prompt_injected, true);
+
+  const laterInstructions = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'branch_a']);
+  assert.equal(laterInstructions.status, 0, laterInstructions.stderr);
+  assert.doesNotMatch(laterInstructions.stdout, /## User prompt/);
+  assert.equal(laterInstructions.stdout.includes(rawPrompt), false);
 });
 
 test('runner: continue applies single output and returns terminal done', () => {

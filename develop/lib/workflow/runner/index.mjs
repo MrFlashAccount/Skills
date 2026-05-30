@@ -14,6 +14,7 @@ async function persistStepInstructions(paths, interpreterResponse) {
 
 async function runnerResponseForRendered(paths, rendered, { initialized, resumed }) {
   await persistStepInstructions(paths, rendered);
+  if (rendered.baton?.user_prompt_injected === true) await writeJsonAtomic(paths.batonPath, rendered.baton);
   const response = {
     ...toRunnerResponse(rendered, { runDir: paths.runDir }),
     runDir: paths.runDir,

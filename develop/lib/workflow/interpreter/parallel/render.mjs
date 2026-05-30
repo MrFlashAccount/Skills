@@ -6,7 +6,7 @@ import { initialUserPromptStepId } from '../../user-prompt.mjs';
 
 export function renderStepPrompts({ workflowPath, workflow, baton, steps, repositoryRoot, templateBaseDir, includeDiagnostics = false } = {}) {
   const userPromptStepId = initialUserPromptStepId({ workflow, baton, steps });
-  return steps.map((entry) => ({
+  const rendered = steps.map((entry) => ({
     ...entry,
     compiledPrompt: renderWorkflowPrompt({
       workflowPath,
@@ -20,6 +20,8 @@ export function renderStepPrompts({ workflowPath, workflow, baton, steps, reposi
       userPrompt: userPromptStepId === entry.id ? baton.user_prompt : undefined,
     }),
   }));
+  if (userPromptStepId) baton.user_prompt_injected = true;
+  return rendered;
 }
 
 export function prepareParallelBranch({ workflow, baton, stepId, step, output, attempts, targets = step.next, storeStepOutput = false }) {

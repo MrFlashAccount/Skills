@@ -81,63 +81,17 @@ test('start-run creates run dir, initializes baton/history, and returns steps', 
 });
 
 
-test('start-run stores raw user prompt on new baton only', () => {
-  const runDir = path.join(tempDir, 'new-run-user-prompt');
-  const rawPrompt = 'Fix issue #123 exactly as reported.\nKeep scope tight.';
-  const result = runStart(['--run-dir', runDir, '--user-prompt', rawPrompt]);
-  const status = parseSuccess('new run with user prompt', result);
 
-  assert.equal(status.initialized, true);
-  assert.equal(status.response.baton.user_prompt, rawPrompt);
-  assert.equal(JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8')).user_prompt, rawPrompt);
-});
+test('start-run rejects startup user prompt options; workflow-runner next owns rendering', () => {
+  const runDir = path.join(tempDir, 'start-run-user-prompt-rejected');
 
-test('start-run user prompt file stores exact content', () => {
-  const runDir = path.join(tempDir, 'new-run-user-prompt-file');
-  const promptPath = path.join(tempDir, 'raw-user-prompt.txt');
-  const rawPrompt = 'Line one from file.\nLine two stays raw.\n';
-  writeFileSync(promptPath, rawPrompt);
+  const inline = runStart(['--run-dir', runDir, '--user-prompt', 'raw prompt']);
+  assert.notEqual(inline.status, 0);
+  assert.match(inline.stderr, /Unknown option '--user-prompt'|usage: node scripts\/start-run\.mjs --run-dir <dir> \[--workflow <workflow\.json>\]/);
 
-  const result = runStart(['--run-dir', runDir, '--user-prompt-file', promptPath]);
-  const status = parseSuccess('new run with user prompt file', result);
-
-  assert.equal(status.response.baton.user_prompt, rawPrompt);
-});
-
-test('start-run rejects empty or whitespace-only user prompt inputs', () => {
-  const emptyArg = runStart(['--run-dir', path.join(tempDir, 'empty-user-prompt'), '--user-prompt', '']);
-  assert.notEqual(emptyArg.status, 0);
-  assert.match(emptyArg.stderr, /--user-prompt must not be empty or whitespace-only/);
-
-  const promptPath = path.join(tempDir, 'empty-user-prompt-file.txt');
-  writeFileSync(promptPath, '  \n\t');
-  const emptyFile = runStart(['--run-dir', path.join(tempDir, 'empty-user-prompt-file-run'), '--user-prompt-file', promptPath]);
-  assert.notEqual(emptyFile.status, 0);
-  assert.match(emptyFile.stderr, /--user-prompt-file must not be empty or whitespace-only/);
-});
-
-test('start-run rejects simultaneous user prompt sources', () => {
-  const promptPath = path.join(tempDir, 'conflicting-user-prompt-file.txt');
-  writeFileSync(promptPath, 'from file');
-  const result = runStart(['--run-dir', path.join(tempDir, 'conflicting-user-prompt'), '--user-prompt', 'from arg', '--user-prompt-file', promptPath]);
-
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /provide only one of --user-prompt or --user-prompt-file/);
-});
-
-test('start-run resumes existing baton without overwriting user prompt', () => {
-  const runDir = path.join(tempDir, 'resume-run-user-prompt');
-  rmSync(runDir, { recursive: true, force: true });
-  const original = baton({ user_prompt: 'original prompt' });
-  writeJson(path.join(runDir, 'baton.json'), original);
-  const beforeBaton = readFileSync(path.join(runDir, 'baton.json'), 'utf8');
-
-  const result = runStart(['--run-dir', runDir, '--user-prompt', 'replacement prompt']);
-  const status = parseSuccess('resume run user prompt', result);
-
-  assert.equal(status.resumed, true);
-  assert.equal(status.response.baton.user_prompt, 'original prompt');
-  assert.equal(readFileSync(path.join(runDir, 'baton.json'), 'utf8'), beforeBaton);
+  const file = runStart(['--run-dir', runDir, '--user-prompt-file', '']);
+  assert.notEqual(file.status, 0);
+  assert.match(file.stderr, /Unknown option '--user-prompt-file'|usage: node scripts\/start-run\.mjs --run-dir <dir> \[--workflow <workflow\.json>\]/);
 });
 
 test('start-run resumes existing baton without overwriting it', () => {
