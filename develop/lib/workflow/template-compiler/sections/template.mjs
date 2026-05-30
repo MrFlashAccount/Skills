@@ -1,18 +1,12 @@
-import path from 'node:path';
 import { WorkflowInterpreterError } from '../../errors.mjs';
-import { safeReadTemplate, workflowSkillBase } from '../utils.mjs';
+import { safeReadTemplate } from '../utils.mjs';
 
 export function readInputTemplate({ workflowPath, workflow, input, repositoryRoot, templateBaseDir }) {
   if (!input?.template) return { content: undefined, metadataPath: undefined };
-  const workflowDir = path.dirname(path.resolve(workflowPath));
-  const bases = [path.resolve(templateBaseDir ?? workflowDir)];
-  const skillBase = workflowSkillBase({ workflow, repositoryRoot });
-  if (skillBase) bases.push(skillBase);
   const resolved = safeReadTemplate({
+    workflowPath,
     templateRef: input.template,
     fieldName: 'input',
-    bases,
-    repositoryRoot,
   });
   return { content: resolved.content, metadataPath: input.template };
 }

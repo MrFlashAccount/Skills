@@ -12,10 +12,10 @@ writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markd
 
 function outputContract(name = 'worker') {
   const templates = {
-    worker: '../../shared/templates/implementation-plan-template.md',
-    research: '../../shared/templates/research-packet-template.md',
+    worker: 'output.md',
+    research: 'output.md',
   };
-  return { template: templates[name] ?? '../../shared/templates/review-verdict-template.md' };
+  return { template: templates[name] ?? 'output.md' };
 }
 
 const schemaWorkflowDoc = {
@@ -228,14 +228,14 @@ after(() => {
 test('schema validation: workflow accepts output template and schema refs on worker contracts', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
   workflowDoc.steps.worker_step.output = {
-    template: '../../shared/templates/research-packet-template.md',
+    template: 'output.md',
     schema: 'schemas/worker-output.json',
   };
 
   const response = runInspect('output-template-schema-ref-valid', baton(), true, workflowDoc);
 
   assert.deepEqual(response.steps[0].step.output, {
-    template: '../../shared/templates/research-packet-template.md',
+    template: 'output.md',
     schema: 'schemas/worker-output.json',
   });
 });
@@ -244,8 +244,8 @@ test('schema validation: malformed output template contract shapes are rejected'
   const cases = [
     ['missing-template', {}],
     ['blank-template', { template: '' }],
-    ['obsolete-format', { template: '../../shared/templates/research-packet-template.md', format: 'markdown' }],
-    ['extra-output-field', { template: '../../shared/templates/research-packet-template.md', sections: ['Verdict'] }],
+    ['obsolete-format', { template: 'output.md', format: 'markdown' }],
+    ['extra-output-field', { template: 'output.md', sections: ['Verdict'] }],
   ];
 
   for (const [label, outputShape] of cases) {
@@ -261,7 +261,7 @@ test('schema validation: malformed output template contract shapes are rejected'
 test('runtime: output template semantics are ignored while worker envelope is validated', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
   workflowDoc.steps.worker_step.output = {
-    template: '../../shared/templates/research-packet-template.md',
+    template: 'output.md',
   };
 
   const response = runApply('output-template-semantics-ignored', baton(), {
@@ -831,9 +831,9 @@ test('schema validation: worker steps require declared output template contract'
 test('schema validation: worker output contract allows template plus optional schema only', () => {
 
   const withOutputTemplate = structuredClone(schemaWorkflowDoc);
-  withOutputTemplate.steps.worker_step.output.template = '../../shared/templates/implementation-plan-template.md';
+  withOutputTemplate.steps.worker_step.output.template = 'output.md';
   const response = runInspect('worker-step-output-template', baton(), true, withOutputTemplate);
-  assert.equal(response.steps[0].step.output.template, '../../shared/templates/implementation-plan-template.md');
+  assert.equal(response.steps[0].step.output.template, 'output.md');
 
   const emptyTemplateName = structuredClone(schemaWorkflowDoc);
   emptyTemplateName.steps.worker_step.output.template = '';

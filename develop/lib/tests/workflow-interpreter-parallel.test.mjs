@@ -8,10 +8,11 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-parallel-check-'));
+writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
 const renderWorkflowPaths = [];
 
 function outputContract() {
-  return { template: '../../shared/templates/implementation-plan-template.md' };
+  return { template: 'output.md' };
 }
 
 const emptyState = { artifacts: [], results: [] };
@@ -128,9 +129,7 @@ function runApply(label, batonDoc, workerOutput, expectSuccess = true, workflowD
 function runRender(label, batonDoc, expectSuccess = true, workflowDoc = parallelWorkflowDoc) {
   const prefix = safeName(label);
   const batonPath = writeJson(`${prefix}-baton.json`, batonDoc);
-  const wfPath = path.join(root, 'develop', `${prefix}-workflow.json`);
-  writeFileSync(wfPath, `${JSON.stringify(workflowDoc, null, 2)}\n`);
-  renderWorkflowPaths.push(wfPath);
+  const wfPath = writeJson(`${prefix}-workflow.json`, workflowDoc);
   const before = readFileSync(batonPath, 'utf8');
 
   const result = runNode(['develop/lib/bin/workflow-interpreter.mjs', 'render', wfPath, batonPath]);

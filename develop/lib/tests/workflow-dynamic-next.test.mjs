@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-dynamic-next-'));
+writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
 
 const dynamicOutputSchema = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
@@ -37,7 +38,7 @@ const dynamicOutputSchema = {
 writeFileSync(path.join(tempDir, 'dynamic-output-schema.json'), `${JSON.stringify(dynamicOutputSchema, null, 2)}\n`);
 
 function outputContract() {
-  return { template: '../../shared/templates/implementation-plan-template.md', schema: 'dynamic-output-schema.json' };
+  return { template: 'output.md', schema: 'dynamic-output-schema.json' };
 }
 
 function workflow(next = '${{ output.next }}') {

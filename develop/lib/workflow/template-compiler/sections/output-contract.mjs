@@ -1,14 +1,13 @@
-import { loadOutputSchema, outputSchemaBases } from '../../output-schema.mjs';
+import { loadOutputSchema } from '../../output-schema.mjs';
 import { safeReadTemplate, section, trimStable } from '../utils.mjs';
 
-export function readOutputTemplate({ workflow, step, repositoryRoot }) {
+export function readOutputTemplate({ workflowPath, step, repositoryRoot }) {
   const templateRef = step.output?.template;
   if (!templateRef) return { content: '', metadataPath: undefined };
   const resolved = safeReadTemplate({
+    workflowPath,
     templateRef,
     fieldName: 'output',
-    bases: outputSchemaBases({ workflow, repositoryRoot }),
-    repositoryRoot,
   });
   return { content: resolved.content, metadataPath: templateRef };
 }

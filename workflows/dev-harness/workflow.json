@@ -14,7 +14,7 @@
       },
       "output": {
         "template": "../../shared/templates/research-packet-template.md",
-        "schema": "workflows/dev-harness/schemas/research-draft-output.json"
+        "schema": "schemas/research-draft-output.json"
       },
       "next": {
         "match": "${{ output.outcome }}",
@@ -36,7 +36,7 @@
       },
       "output": {
         "template": "../../shared/templates/review-verdict-template.md",
-        "schema": "workflows/dev-harness/schemas/gate-attack-verdict-output.json"
+        "schema": "schemas/gate-attack-verdict-output.json"
       },
       "next": {
         "match": "${{ output.outcome }}",
@@ -79,7 +79,7 @@
       },
       "output": {
         "template": "../../shared/templates/architecture-proposal-template.md",
-        "schema": "workflows/dev-harness/schemas/architecture-draft-output.json"
+        "schema": "schemas/architecture-draft-output.json"
       },
       "next": {
         "match": "${{ output.outcome }}",
@@ -102,7 +102,7 @@
       },
       "output": {
         "template": "../../shared/templates/review-verdict-template.md",
-        "schema": "workflows/dev-harness/schemas/gate-attack-verdict-output.json"
+        "schema": "schemas/gate-attack-verdict-output.json"
       },
       "next": {
         "match": "${{ output.outcome }}",
@@ -146,7 +146,7 @@
       },
       "output": {
         "template": "../../shared/templates/implementation-plan-template.md",
-        "schema": "workflows/dev-harness/schemas/planning-draft-output.json"
+        "schema": "schemas/planning-draft-output.json"
       },
       "next": {
         "match": "${{ output.outcome }}",
@@ -168,7 +168,7 @@
       },
       "output": {
         "template": "../../shared/templates/review-verdict-template.md",
-        "schema": "workflows/dev-harness/schemas/gate-attack-verdict-output.json"
+        "schema": "schemas/gate-attack-verdict-output.json"
       },
       "next": {
         "match": "${{ output.outcome }}",
@@ -209,7 +209,7 @@
       },
       "output": {
         "template": "../../shared/templates/review-verdict-template.md",
-        "schema": "workflows/dev-harness/schemas/implementation-dispatch-output.json"
+        "schema": "schemas/implementation-dispatch-output.json"
       },
       "next": {
         "match": "${{ output.outcome }}",
@@ -257,7 +257,7 @@
       },
       "output": {
         "template": "../../shared/templates/implementer-handoff-template.md",
-        "schema": "workflows/dev-harness/schemas/implementation-output.json"
+        "schema": "schemas/implementation-output.json"
       },
       "next": "implementation_join"
     },
@@ -274,7 +274,7 @@
       },
       "output": {
         "template": "../../shared/templates/implementer-handoff-template.md",
-        "schema": "workflows/dev-harness/schemas/implementation-output.json"
+        "schema": "schemas/implementation-output.json"
       },
       "next": "implementation_join"
     },
@@ -291,7 +291,7 @@
       },
       "output": {
         "template": "../../shared/templates/implementer-handoff-template.md",
-        "schema": "workflows/dev-harness/schemas/implementation-output.json"
+        "schema": "schemas/implementation-output.json"
       },
       "next": "implementation_join"
     },
@@ -309,7 +309,7 @@
       },
       "output": {
         "template": "../../shared/templates/reviewer-handoff-template.md",
-        "schema": "workflows/dev-harness/schemas/implementation-join-output.json"
+        "schema": "schemas/implementation-join-output.json"
       },
       "next": {
         "match": "${{ output.outcome }}",
@@ -331,7 +331,7 @@
       },
       "output": {
         "template": "../../shared/templates/review-verdict-template.md",
-        "schema": "workflows/dev-harness/schemas/review-dispatch-output.json"
+        "schema": "schemas/review-dispatch-output.json"
       },
       "next": "${{ input.planning_draft.selected_review_steps }}"
     },
@@ -352,7 +352,7 @@
       },
       "output": {
         "template": "../../shared/templates/review-verdict-template.md",
-        "schema": "workflows/dev-harness/schemas/gate-review-verdict-output.json"
+        "schema": "schemas/gate-review-verdict-output.json"
       },
       "next": "review_join"
     },
@@ -373,7 +373,7 @@
       },
       "output": {
         "template": "../../shared/templates/review-verdict-template.md",
-        "schema": "workflows/dev-harness/schemas/gate-review-verdict-output.json"
+        "schema": "schemas/gate-review-verdict-output.json"
       },
       "next": "review_join"
     },
@@ -394,7 +394,7 @@
       },
       "output": {
         "template": "../../shared/templates/review-verdict-template.md",
-        "schema": "workflows/dev-harness/schemas/gate-review-verdict-output.json"
+        "schema": "schemas/gate-review-verdict-output.json"
       },
       "next": "review_join"
     },
@@ -415,7 +415,7 @@
       },
       "output": {
         "template": "../../shared/templates/review-verdict-template.md",
-        "schema": "workflows/dev-harness/schemas/gate-review-verdict-output.json"
+        "schema": "schemas/gate-review-verdict-output.json"
       },
       "next": "review_join"
     },
@@ -436,7 +436,7 @@
       },
       "output": {
         "template": "../../shared/templates/review-verdict-template.md",
-        "schema": "workflows/dev-harness/schemas/gate-review-verdict-output.json"
+        "schema": "schemas/gate-review-verdict-output.json"
       },
       "next": "review_join"
     },
@@ -457,7 +457,7 @@
       },
       "output": {
         "template": "../../shared/templates/review-verdict-template.md",
-        "schema": "workflows/dev-harness/schemas/gate-review-verdict-output.json"
+        "schema": "schemas/gate-review-verdict-output.json"
       },
       "next": "review_join"
     },
@@ -478,7 +478,7 @@
       },
       "output": {
         "template": "../../shared/templates/review-verdict-template.md",
-        "schema": "workflows/dev-harness/schemas/gate-review-verdict-output.json"
+        "schema": "schemas/gate-review-verdict-output.json"
       },
       "next": "review_join"
     },
@@ -501,7 +501,7 @@
       },
       "output": {
         "template": "../../shared/templates/review-verdict-template.md",
-        "schema": "workflows/dev-harness/schemas/review-join-output.json"
+        "schema": "schemas/review-join-output.json"
       },
       "next": "${{ output.next }}"
     },

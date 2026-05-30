@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-start-'));
+writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
 const helperPath = path.join(root, 'develop/lib/bin/start-run.mjs');
 
 const fixtureWorkflowPath = path.join(tempDir, 'fixture.json');
@@ -22,7 +23,7 @@ const fixtureWorkflowDoc = {
         name: 'Worker step',
         kind: 'worker',
         input: { state: ['worker_step'], prompt: 'Run worker.' },
-        output: { template: '../../shared/templates/implementation-plan-template.md' },
+        output: { template: 'output.md' },
         next: 'done',
       },
       done: { name: 'Done', kind: 'done', input: { prompt: 'Finished.' } },

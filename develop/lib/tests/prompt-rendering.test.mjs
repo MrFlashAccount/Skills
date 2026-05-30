@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
@@ -8,17 +8,22 @@ import { fileURLToPath } from 'node:url';
 import { projectState } from '../workflow/projection.mjs';
 import { renderStepPrompts } from '../workflow/interpreter/index.mjs';
 import { renderWorkflowPrompt } from '../workflow/prompt-renderer.mjs';
+import { validateAgainstOutputSchema } from '../workflow/output-schema-validation.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'prompt-rendering-check-'));
 writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
+mkdirSync(path.join(tempDir, 'templates'), { recursive: true });
+writeFileSync(path.join(tempDir, 'templates', 'implementation-plan-template.md'), '## Implementation plan\nReturn implementation plan.\n');
+writeFileSync(path.join(tempDir, 'templates', 'research-packet-template.md'), '## Research packet\nReturn research packet.\n');
+writeFileSync(path.join(tempDir, 'templates', 'review-verdict-template.md'), '## Review verdict\nReturn review verdict.\n');
 
 function outputContract(name = 'worker') {
   const templates = {
-    worker: '../../shared/templates/implementation-plan-template.md',
-    research: '../../shared/templates/research-packet-template.md',
+    worker: 'templates/implementation-plan-template.md',
+    research: 'templates/research-packet-template.md',
   };
-  return { template: templates[name] ?? '../../shared/templates/review-verdict-template.md' };
+  return { template: templates[name] ?? 'templates/review-verdict-template.md' };
 }
 
 const schemaWorkflowDoc = {
@@ -649,6 +654,128 @@ test('prompt renderer: output template content is included as markdown, not inte
 
 
 
+
+test('workflow resource refs resolve from the workflow package directory after package copy', () => {
+  const repoDir = path.join(tempDir, 'portable-workflow-repo');
+  const workflowDir = path.join(repoDir, 'workflows', 'nested', 'portable');
+  const copiedWorkflowDir = path.join(repoDir, 'copied', 'portable');
+  mkdirSync(path.join(workflowDir, 'schemas'), { recursive: true });
+  mkdirSync(path.join(workflowDir, 'templates'), { recursive: true });
+  writeFileSync(path.join(workflowDir, 'input.md'), '# Local input template\n');
+  writeFileSync(path.join(workflowDir, 'templates', 'output.md'), '## Local output template\n');
+  writeFileSync(path.join(workflowDir, 'schemas', 'output.schema.json'), JSON.stringify({
+    type: 'object',
+    required: ['outcome'],
+    properties: { outcome: { const: 'ready' } },
+    additionalProperties: false,
+  }, null, 2));
+  const workflow = {
+    name: 'portable',
+    version: 1,
+    start: 'worker_step',
+    done: 'done',
+    blocked: 'blocked',
+    steps: {
+      worker_step: {
+        name: 'Worker step',
+        kind: 'worker',
+        input: { template: 'input.md', state: [] },
+        output: { template: 'templates/output.md', schema: 'schemas/output.schema.json' },
+        next: 'done',
+      },
+      done: { name: 'Done', kind: 'done' },
+      blocked: { name: 'Blocked', kind: 'blocked' },
+    },
+  };
+  const workflowPath = path.join(workflowDir, 'workflow.json');
+  writeFileSync(workflowPath, `${JSON.stringify(workflow, null, 2)}\n`);
+
+  const render = (nextWorkflowPath) => renderWorkflowPrompt({
+    workflowPath: nextWorkflowPath,
+    workflow,
+    baton: baton(),
+    stepId: 'worker_step',
+    step: workflow.steps.worker_step,
+    repositoryRoot: repoDir,
+  });
+
+  const compiled = render(workflowPath);
+  assertMarkersInOrder(compiled.prompt, ['# Local input template', '<!-- output template: templates/output.md -->', '## Local output template', '<!-- output schema: schemas/output.schema.json -->']);
+  assert.equal(validateAgainstOutputSchema({ workflow, workflowPath, schemaRef: 'schemas/output.schema.json', output: { outcome: 'ready' }, repositoryRoot: repoDir }).ok, true);
+
+  cpSync(workflowDir, copiedWorkflowDir, { recursive: true });
+  const copiedWorkflowPath = path.join(copiedWorkflowDir, 'workflow.json');
+  const copied = render(copiedWorkflowPath);
+  assertMarkersInOrder(copied.prompt, ['# Local input template', '## Local output template', '"const": "ready"']);
+  assert.equal(validateAgainstOutputSchema({ workflow, workflowPath: copiedWorkflowPath, schemaRef: 'schemas/output.schema.json', output: { outcome: 'ready' }, repositoryRoot: repoDir }).ok, true);
+
+  mkdirSync(path.join(repoDir, 'workflows', 'portable', 'schemas'), { recursive: true });
+  writeFileSync(path.join(repoDir, 'workflows', 'portable', 'schemas', 'output.schema.json'), JSON.stringify({ type: 'object' }));
+  assert.throws(
+    () => validateAgainstOutputSchema({ workflow, workflowPath, schemaRef: 'workflows/portable/schemas/output.schema.json', output: { outcome: 'ready' }, repositoryRoot: repoDir }),
+    /output\.schema not found: workflows\/portable\/schemas\/output\.schema\.json/,
+  );
+});
+
+
+
+test('prompt renderer: shared template refs are explicit and reusable across workflow packages', () => {
+  const repoDir = path.join(tempDir, 'shared-template-repo');
+  const sharedTemplateDir = path.join(repoDir, 'shared', 'templates');
+  const firstWorkflowDir = path.join(repoDir, 'workflows', 'first');
+  const secondWorkflowDir = path.join(repoDir, 'workflows', 'second');
+  mkdirSync(sharedTemplateDir, { recursive: true });
+  mkdirSync(firstWorkflowDir, { recursive: true });
+  mkdirSync(secondWorkflowDir, { recursive: true });
+  writeFileSync(path.join(sharedTemplateDir, 'reused-output.md'), '## Shared reusable output template\n');
+  writeFileSync(path.join(repoDir, 'root-only-output.md'), '## Root fallback must not be used\n');
+
+  const workflow = {
+    name: 'shared-template-reuse',
+    version: 1,
+    start: 'worker_step',
+    done: 'done',
+    blocked: 'blocked',
+    steps: {
+      worker_step: {
+        name: 'Worker step',
+        kind: 'worker',
+        input: { state: [] },
+        output: { template: '../../shared/templates/reused-output.md' },
+        next: 'done',
+      },
+      done: { name: 'Done', kind: 'done' },
+      blocked: { name: 'Blocked', kind: 'blocked' },
+    },
+  };
+
+  const render = (workflowDir) => renderWorkflowPrompt({
+    workflowPath: path.join(workflowDir, 'workflow.json'),
+    workflow,
+    baton: baton(),
+    stepId: 'worker_step',
+    step: workflow.steps.worker_step,
+    repositoryRoot: repoDir,
+  });
+
+  assertMarkersInOrder(render(firstWorkflowDir).prompt, ['<!-- output template: ../../shared/templates/reused-output.md -->', '## Shared reusable output template']);
+  assertMarkersInOrder(render(secondWorkflowDir).prompt, ['<!-- output template: ../../shared/templates/reused-output.md -->', '## Shared reusable output template']);
+
+  const rootFallbackWorkflow = structuredClone(workflow);
+  rootFallbackWorkflow.steps.worker_step.output.template = 'root-only-output.md';
+  assert.throws(
+    () => renderWorkflowPrompt({
+      workflowPath: path.join(firstWorkflowDir, 'workflow.json'),
+      workflow: rootFallbackWorkflow,
+      baton: baton(),
+      stepId: 'worker_step',
+      step: rootFallbackWorkflow.steps.worker_step,
+      repositoryRoot: repoDir,
+    }),
+    /missing output template 'root-only-output\.md'/,
+  );
+});
+
 test('prompt renderer: output schema is validated and injected in the output contract layer', () => {
   writeFileSync(path.join(tempDir, 'static-schema-wrapper.md'), '# Static wrapper\n');
   writeFileSync(path.join(tempDir, 'schema-output.md'), '## Required return\nUse this contract.\n');
@@ -761,68 +888,16 @@ test('prompt renderer: output contract is always appended as static included tex
   ]);
 });
 
-test('prompt renderer: path resolver rejects escape and missing templates', () => {
-  const escapedTemplatePath = path.resolve(tempDir, '../outside.md');
-  writeFileSync(escapedTemplatePath, 'outside repo\n');
-  try {
-    const escapedStep = {
-      name: 'Worker step',
-      kind: 'worker',
-      input: { template: '../outside.md', state: [] },
-      output: { template: 'output.md' },
-      next: 'done',
-    };
-    const missingStep = {
-      name: 'Worker step',
-      kind: 'worker',
-      input: { template: 'missing-template.md', state: [] },
-      output: { template: 'output.md' },
-      next: 'done',
-    };
+test('prompt renderer: path resolver rejects missing templates without fallback', () => {
+  const missingStep = {
+    name: 'Worker step',
+    kind: 'worker',
+    input: { template: 'missing-template.md', state: [] },
+    output: { template: 'output.md' },
+    next: 'done',
+  };
 
-    assert.throws(() => renderFixture({ label: 'render-escape', stepId: 'worker_step', step: escapedStep }), /input template escapes repository root/);
-    assert.throws(() => renderFixture({ label: 'render-missing', stepId: 'worker_step', step: missingStep }), /missing input template 'missing-template\.md'/);
-  } finally {
-    rmSync(escapedTemplatePath, { force: true });
-  }
-});
-
-test('prompt renderer: template root confinement rejects symlink escapes and external bases', () => {
-  const outsideTemplatePath = path.resolve(tempDir, '../outside-symlink-template.md');
-  const symlinkPath = path.join(tempDir, 'symlink-template.md');
-  const externalTemplateDir = path.resolve(tempDir, '../external-template-base');
-  const externalTemplatePath = path.join(externalTemplateDir, 'external-template.md');
-  writeFileSync(outsideTemplatePath, 'outside symlink repo\n');
-  rmSync(externalTemplateDir, { recursive: true, force: true });
-  try {
-    symlinkSync(outsideTemplatePath, symlinkPath);
-    const symlinkStep = {
-      name: 'Worker step',
-      kind: 'worker',
-      input: { template: 'symlink-template.md', state: [] },
-      next: 'done',
-    };
-
-    assert.throws(() => renderFixture({ label: 'render-symlink-escape', stepId: 'worker_step', step: symlinkStep }), /input template escapes repository root/);
-
-    const externalBaseStep = {
-      name: 'Worker step',
-      kind: 'worker',
-      input: { template: 'external-template.md', state: [] },
-      next: 'done',
-    };
-    symlinkSync(path.dirname(outsideTemplatePath), externalTemplateDir, 'dir');
-    writeFileSync(externalTemplatePath, 'outside base repo\n');
-
-    assert.throws(
-      () => renderFixture({ label: 'render-external-base', stepId: 'worker_step', step: externalBaseStep, templateBaseDir: externalTemplateDir }),
-      /input template escapes repository root/,
-    );
-  } finally {
-    rmSync(symlinkPath, { force: true });
-    rmSync(externalTemplateDir, { recursive: true, force: true });
-    rmSync(outsideTemplatePath, { force: true });
-  }
+  assert.throws(() => renderFixture({ label: 'render-missing', stepId: 'worker_step', step: missingStep }), /missing input template 'missing-template\.md'/);
 });
 
 test('CLI render: runtime guard rejects reserved aggregate state selectors', () => {
@@ -840,7 +915,7 @@ test('CLI render: runtime guard rejects reserved aggregate state selectors', () 
 test('CLI render: fixture returns compiledPrompt and does not mutate baton', () => {
   const outputTemplateRef = `${path.basename(tempDir)}-worker-output.md`;
   writeFileSync(path.join(tempDir, 'worker.md'), '# Worker template\n');
-  writeFileSync(path.resolve(tempDir, '..', outputTemplateRef), '## Required return\nUse this contract.\n');
+  writeFileSync(path.join(tempDir, outputTemplateRef), '## Required return\nUse this contract.\n');
   const workflowDoc = structuredClone(schemaWorkflowDoc);
   delete workflowDoc.steps.worker_step.input.role;
   workflowDoc.steps.worker_step.output = { template: outputTemplateRef };

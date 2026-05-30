@@ -11,6 +11,7 @@ import { validateAgainstOutputSchema } from '../workflow/output-schema-validatio
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-output-schema-check-'));
+writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
 
 const workflowDoc = {
     name: 'output-schema-spec',
@@ -23,7 +24,7 @@ const workflowDoc = {
         name: 'Worker step',
         kind: 'worker',
         input: { prompt: 'Run worker.' },
-        output: { template: '../../shared/templates/implementation-plan-template.md' },
+        output: { template: 'output.md' },
         next: { match: '${{ output.outcome }}', cases: { ready: 'done', blocked: 'blocked' } },
       },
       consumer_step: {
@@ -113,13 +114,14 @@ const structuredSchema = {
 
 after(() => rmSync(tempDir, { recursive: true, force: true }));
 
-test('output.schema: workflow-relative parent schema ref resolves consistently for validation and prompt rendering', () => {
-  const repoDir = path.join(tempDir, 'workflow-relative-repo');
-  const workflowDir = path.join(repoDir, 'develop', 'workflows');
-  const schemaDir = path.join(repoDir, 'develop', 'schemas');
+test('output.schema: workflow-package schema ref resolves consistently for validation and prompt rendering', () => {
+  const repoDir = path.join(tempDir, 'workflow-package-repo');
+  const workflowDir = path.join(repoDir, 'workflows', 'demo');
+  const schemaDir = path.join(workflowDir, 'schemas');
   mkdirSync(workflowDir, { recursive: true });
   mkdirSync(schemaDir, { recursive: true });
-  const schemaRef = '../schemas/workflow-output.schema.json';
+  writeFileSync(path.join(workflowDir, 'output.md'), '## Output contract\nReturn markdown.\n');
+  const schemaRef = 'schemas/workflow-output.schema.json';
   const schema = {
     $schema: 'https://json-schema.org/draft/2020-12/schema',
     type: 'object',
