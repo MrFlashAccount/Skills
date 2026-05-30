@@ -4,7 +4,7 @@ import { invariant } from '../../errors.mjs';
 import { resolveTransition } from '../../transitions.mjs';
 import { prepareParallelBranch } from '../parallel/render.mjs';
 import { responseFor } from '../output/response.mjs';
-import { markUserPromptInjectedForStep, withSelectedStartupUserPromptTarget } from '../../user-prompt.mjs';
+import { markUserPromptInjectedForStep, validateSelectedStartupUserPromptTarget } from '../../user-prompt.mjs';
 
 export function applyNextTransition({ workflow, baton, cursorStep, workerOutput }) {
   const { targetStepId, targetStepIds, attempts } = resolveTransition({ workflow, baton, stepId: baton.cursor, step: cursorStep, output: workerOutput });
@@ -30,7 +30,7 @@ export function applyNextTransition({ workflow, baton, cursorStep, workerOutput 
     baton: updatedBaton,
     stepId: baton.cursor,
   });
-  updatedBaton = withSelectedStartupUserPromptTarget({
+  updatedBaton = validateSelectedStartupUserPromptTarget({
     workflow,
     baton: updatedBaton,
     steps: [{ id: targetStepId, step: targetStep }],

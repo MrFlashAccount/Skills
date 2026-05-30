@@ -288,7 +288,7 @@ test('runner: user prompt is included in first worker when workflow starts with 
       name: 'Gate',
       kind: 'approval',
       input: { prompt: 'Approve startup task.' },
-      next: { match: '${{ output.approval }}', cases: { approved: 'prepare', blocked: 'blocked' } },
+      next: { match: '${{ output.approval }}', cases: { approved: 'prepare', retry: 'prepare' } },
     },
     ...approvalFirstWorkflow.workflow.steps,
   };
@@ -316,6 +316,86 @@ test('runner: user prompt is included in first worker when workflow starts with 
   assert.equal(laterInstructions.status, 0, laterInstructions.stderr);
   assert.doesNotMatch(laterInstructions.stdout, /## User prompt/);
   assert.equal(laterInstructions.stdout.includes(rawPrompt), false);
+});
+
+test('runner: startup prompt target rejects match-cases with worker and terminal branches', () => {
+  const runDir = path.join(tempDir, 'user-prompt-match-terminal-rejected');
+  const workflowPath = path.join(tempDir, 'user-prompt-match-terminal-rejected.json');
+  const approvalFirstWorkflow = structuredClone(workflowDoc);
+  approvalFirstWorkflow.workflow.start = 'gate';
+  approvalFirstWorkflow.workflow.steps = {
+    gate: {
+      name: 'Gate',
+      kind: 'approval',
+      input: { prompt: 'Approve startup task.' },
+      next: { match: '${{ output.approval }}', cases: { approved: 'prepare', blocked: 'blocked' } },
+    },
+    ...approvalFirstWorkflow.workflow.steps,
+  };
+  writeJson(workflowPath, approvalFirstWorkflow);
+
+  const result = runRunner(['next', '--run-dir', runDir, '--workflow', workflowPath, '--user-prompt', 'Prompt must not be dropped.']);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /cannot determine stable startup user prompt target: workflow step 'gate' has a match\/cases branch with no worker target/);
+});
+
+test('runner: startup prompt target rejects a selected match-cases branch that no longer renders the target', () => {
+  const runDir = path.join(tempDir, 'user-prompt-match-selected-target-missing');
+  const workflowPath = path.join(tempDir, 'user-prompt-match-selected-target-missing.json');
+  const approvalFirstWorkflow = structuredClone(workflowDoc);
+  approvalFirstWorkflow.workflow.start = 'gate';
+  approvalFirstWorkflow.workflow.steps = {
+    gate: {
+      name: 'Gate',
+      kind: 'approval',
+      input: { prompt: 'Choose startup route.' },
+      next: { match: '${{ output.choice }}', cases: { approved: 'prepare', retry: 'prepare' } },
+    },
+    ...approvalFirstWorkflow.workflow.steps,
+  };
+  writeJson(workflowPath, approvalFirstWorkflow);
+
+  const initial = expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath, '--user-prompt', 'Prompt must reach prepare.'], 'next stable match-cases');
+  assert.equal(initial.baton.user_prompt_target, 'prepare');
+
+  approvalFirstWorkflow.workflow.steps.gate.next = { match: '${{ output.choice }}', cases: { approved: 'done', retry: 'prepare' } };
+  writeJson(workflowPath, approvalFirstWorkflow);
+  const approvalOutput = path.join(runDir, 'gate-output.json');
+  writeJson(approvalOutput, { choice: 'approved' });
+  const result = runRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', `gate=${approvalOutput}`]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /startup user prompt target 'prepare' is not renderable in the current workflow response/);
+});
+
+test('runner: startup prompt target rejects dynamic fanout before prompt selection can drift', () => {
+  const runDir = path.join(tempDir, 'user-prompt-dynamic-fanout-rejected');
+  const workflowPath = path.join(tempDir, 'user-prompt-dynamic-fanout-rejected.json');
+  const approvalWorkflow = structuredClone(workflowDoc);
+  approvalWorkflow.workflow.start = 'choose_path';
+  approvalWorkflow.workflow.steps = {
+    choose_path: {
+      name: 'Choose path',
+      kind: 'approval',
+      input: { prompt: 'Ask whether to fan out.' },
+      next: ['branch_a', '${{ output.extra_branch }}'],
+    },
+    branch_a: approvalWorkflow.workflow.steps.branch_a,
+    branch_b: approvalWorkflow.workflow.steps.branch_b,
+    join: approvalWorkflow.workflow.steps.join,
+    done: approvalWorkflow.workflow.steps.done,
+    blocked: approvalWorkflow.workflow.steps.blocked,
+  };
+  approvalWorkflow.workflow.steps.branch_a.input.state = ['choose_path'];
+  approvalWorkflow.workflow.steps.branch_b.input.state = ['choose_path'];
+  approvalWorkflow.workflow.steps.join.next = 'done';
+  writeJson(workflowPath, approvalWorkflow);
+
+  const result = runRunner(['next', '--run-dir', runDir, '--workflow', workflowPath, '--user-prompt', 'Prompt must not pick a drift-prone fanout target.']);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /cannot determine stable startup user prompt target: workflow step 'choose_path' uses dynamic or ambiguous next/);
 });
 
 test('runner: next resumes existing baton without overwriting user prompt', () => {
@@ -586,14 +666,16 @@ test('runner: selected startup prompt target survives static parallel workflow o
   writeJson(workflowPath, approvalWorkflow);
   const rawPrompt = 'Prompt must stay with originally selected branch.';
 
-  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath, '--user-prompt', rawPrompt], 'next approval before static fanout');
-  const approvalOutput = path.join(runDir, 'choose-path-output.json');
-  writeJson(approvalOutput, { approval: 'approved' });
-  const fanout = expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', `choose_path=${approvalOutput}`], 'continue approval static fanout');
-  assert.equal(fanout.baton.user_prompt_target, 'branch_a');
+  const initial = expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath, '--user-prompt', rawPrompt], 'next approval before static fanout');
+  assert.equal(initial.baton.user_prompt_target, 'branch_a');
 
   approvalWorkflow.workflow.steps.choose_path.next = ['branch_b', 'branch_a'];
   writeJson(workflowPath, approvalWorkflow);
+  const approvalOutput = path.join(runDir, 'choose-path-output.json');
+  writeJson(approvalOutput, { approval: 'approved' });
+  const fanout = expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', `choose_path=${approvalOutput}`], 'continue approval static fanout after drift');
+  assert.equal(fanout.baton.user_prompt_target, 'branch_a');
+
   const rerendered = expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next after static fanout drift');
   assert.deepEqual(rerendered.requests.map((request) => request.id), ['branch_b', 'branch_a']);
 
@@ -606,6 +688,93 @@ test('runner: selected startup prompt target survives static parallel workflow o
   assert.equal(branchBInstructions.status, 0, branchBInstructions.stderr);
   assert.doesNotMatch(branchBInstructions.stdout, /## User prompt/);
   assert.equal(branchBInstructions.stdout.includes(rawPrompt), false);
+});
+
+test('runner: startup prompt static fanout selects renderable worker instead of downstream control-branch worker', () => {
+  const runDir = path.join(tempDir, 'user-prompt-static-fanout-control-branch');
+  const workflowPath = path.join(tempDir, 'user-prompt-static-fanout-control-branch.json');
+  const fanoutWorkflow = structuredClone(workflowDoc);
+  fanoutWorkflow.workflow.start = 'choose_path';
+  fanoutWorkflow.workflow.steps = {
+    choose_path: {
+      name: 'Choose path',
+      kind: 'approval',
+      input: { prompt: 'Choose whether to ask before the join.' },
+      next: ['approval_before_worker', 'work_b'],
+    },
+    approval_before_worker: {
+      name: 'Approval before worker',
+      kind: 'approval',
+      input: { prompt: 'Approve delayed worker.' },
+      next: 'join',
+    },
+    work_b: {
+      ...fanoutWorkflow.workflow.steps.branch_b,
+      next: 'join',
+    },
+    join: fanoutWorkflow.workflow.steps.join,
+    done: fanoutWorkflow.workflow.steps.done,
+    blocked: fanoutWorkflow.workflow.steps.blocked,
+  };
+  fanoutWorkflow.workflow.steps.work_b.input.state = ['choose_path'];
+  fanoutWorkflow.workflow.steps.join.input.state = ['approval_before_worker', 'work_b'];
+  fanoutWorkflow.workflow.steps.join.next = 'done';
+  writeJson(workflowPath, fanoutWorkflow);
+  const rawPrompt = 'Prompt belongs to the worker visible in the first fanout response.';
+
+  const initial = expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath, '--user-prompt', rawPrompt], 'next control branch fanout');
+  assert.equal(initial.baton.user_prompt_target, 'work_b');
+
+  const chooseOutput = path.join(runDir, 'choose-path-output.json');
+  writeJson(chooseOutput, { approval: 'approved' });
+  const fanout = expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', `choose_path=${chooseOutput}`], 'continue control branch fanout');
+  assert.deepEqual(fanout.requests.map((request) => [request.id, request.action]), [
+    ['approval_before_worker', 'wait_for_approval'],
+    ['work_b', 'run_worker'],
+  ]);
+  assert.equal(fanout.baton.user_prompt_target, 'work_b');
+
+  const workBInstructions = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'work_b']);
+  assert.equal(workBInstructions.status, 0, workBInstructions.stderr);
+  assert.match(workBInstructions.stdout, /## User prompt/);
+  assert.equal(workBInstructions.stdout.includes(rawPrompt), true);
+});
+
+test('runner: startup prompt target removal before first output fails loudly instead of dropping prompt', () => {
+  const runDir = path.join(tempDir, 'user-prompt-static-parallel-target-removed');
+  const workflowPath = path.join(tempDir, 'user-prompt-static-parallel-target-removed.json');
+  const approvalWorkflow = structuredClone(workflowDoc);
+  approvalWorkflow.workflow.start = 'choose_path';
+  approvalWorkflow.workflow.steps = {
+    choose_path: {
+      name: 'Choose path',
+      kind: 'approval',
+      input: { prompt: 'Ask whether to fan out.' },
+      next: ['branch_a', 'branch_b'],
+    },
+    branch_a: approvalWorkflow.workflow.steps.branch_a,
+    branch_b: approvalWorkflow.workflow.steps.branch_b,
+    join: approvalWorkflow.workflow.steps.join,
+    done: approvalWorkflow.workflow.steps.done,
+    blocked: approvalWorkflow.workflow.steps.blocked,
+  };
+  approvalWorkflow.workflow.steps.branch_a.input.state = ['choose_path'];
+  approvalWorkflow.workflow.steps.branch_b.input.state = ['choose_path'];
+  writeJson(workflowPath, approvalWorkflow);
+
+  const initial = expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath, '--user-prompt', 'Prompt must not disappear.'], 'next approval before target removal');
+  assert.equal(initial.baton.user_prompt_target, 'branch_a');
+
+  delete approvalWorkflow.workflow.steps.branch_a;
+  approvalWorkflow.workflow.steps.choose_path.next = ['branch_b'];
+  approvalWorkflow.workflow.steps.branch_b.next = 'done';
+  writeJson(workflowPath, approvalWorkflow);
+  const approvalOutput = path.join(runDir, 'choose-path-output-removed.json');
+  writeJson(approvalOutput, { approval: 'approved' });
+  const result = runRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', `choose_path=${approvalOutput}`]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /startup user prompt target 'branch_a' is no longer defined|startup user prompt target 'branch_a' is not renderable/);
 });
 
 test('runner: untyped approval static parallel applies branch outputs and persists prompt marker once', () => {

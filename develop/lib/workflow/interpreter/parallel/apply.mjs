@@ -5,7 +5,7 @@ import { applyOutputToBatonState } from '../../state.mjs';
 import { responseFor } from '../output/response.mjs';
 import { assertOutputSchemaIfDeclared } from '../output/worker-output.mjs';
 import { joinForParallelTargets } from '../../transition-targets.mjs';
-import { shouldMarkUserPromptInjectedForStep, withSelectedStartupUserPromptTarget } from '../../user-prompt.mjs';
+import { shouldMarkUserPromptInjectedForStep, validateSelectedStartupUserPromptTarget } from '../../user-prompt.mjs';
 
 function readParallelOutputForStep(allOutput, stepId) {
   invariant(allOutput && typeof allOutput === 'object' && !Array.isArray(allOutput), 'parallel output must be an object');
@@ -78,7 +78,7 @@ export function applyParallelOutputs({ workflowPath, workflow, baton, cursorStep
   const targetStepId = joinForParallelTargets(workflow, targets);
   const targetStep = workflow.steps[targetStepId];
   invariant(targetStep, `transition target not found in workflow: ${targetStepId}`);
-  updatedBaton = withSelectedStartupUserPromptTarget({
+  updatedBaton = validateSelectedStartupUserPromptTarget({
     workflow,
     baton: updatedBaton,
     steps: [{ id: targetStepId, step: targetStep }],

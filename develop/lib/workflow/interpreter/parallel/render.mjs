@@ -2,9 +2,10 @@ import { applyOutputToBatonState } from '../../state.mjs';
 import { renderWorkflowPrompt } from '../../prompt-renderer.mjs';
 import { invariant } from '../../errors.mjs';
 import { responseFor } from '../output/response.mjs';
-import { markUserPromptInjectedForStep, selectedUserPromptStepId, withSelectedStartupUserPromptTarget } from '../../user-prompt.mjs';
+import { assertStartupUserPromptTargetRenderable, markUserPromptInjectedForStep, selectedUserPromptStepId, validateSelectedStartupUserPromptTarget } from '../../user-prompt.mjs';
 
 export function renderStepPrompts({ workflowPath, workflow, baton, steps, repositoryRoot, templateBaseDir, includeDiagnostics = false } = {}) {
+  assertStartupUserPromptTargetRenderable({ workflow, baton, steps });
   const userPromptStepId = selectedUserPromptStepId({ workflow, baton });
   const rendered = steps.map((entry) => ({
     ...entry,
@@ -32,7 +33,7 @@ export function prepareParallelBranch({ workflow, baton, stepId, step, output, a
     baton: updatedBaton,
     stepId,
   });
-  updatedBaton = withSelectedStartupUserPromptTarget({
+  updatedBaton = validateSelectedStartupUserPromptTarget({
     workflow,
     baton: updatedBaton,
     steps: targets.map((targetId) => ({ id: targetId, step: workflow.steps[targetId] })),
