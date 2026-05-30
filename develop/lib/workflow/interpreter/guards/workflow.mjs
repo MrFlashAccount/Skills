@@ -2,6 +2,7 @@ import { invariant } from '../../errors.mjs';
 import { statusForStep } from '../../model.mjs';
 import { readJson } from '../../json-io.mjs';
 import { assertBatonSchema, assertWorkflowSchema } from '../../schema-validation.mjs';
+import { assertProjectableStateSelector, isReservedStateKey, RESERVED_STEP_IDS } from '../../state-keys.mjs';
 import { assertTransitionDescriptorTargets, normalizeTransitionNext } from '../../transitions.mjs';
 
 export function loadWorkflowAndBaton(workflowPath, batonPath) {
@@ -13,6 +14,7 @@ export function loadWorkflowAndBaton(workflowPath, batonPath) {
 
   const workflow = workflowDoc.workflow;
   assertWorkflowRootTargets(workflow);
+  assertWorkflowRuntimeStateBoundary(workflow);
   assertWorkflowTransitionTargets(workflow);
 
   const cursorStep = workflow.steps[baton.cursor];
@@ -25,6 +27,24 @@ export function loadWorkflowAndBaton(workflowPath, batonPath) {
   );
 
   return { workflow, baton, cursorStep };
+}
+
+function assertWorkflowRuntimeStateBoundary(workflow) {
+  for (const [stepId, step] of Object.entries(workflow.steps)) {
+    invariant(
+      !isReservedStateKey(stepId),
+      `workflow step id '${stepId}' is reserved for runtime aggregate state; reserved ids: ${RESERVED_STEP_IDS.join(', ')}`,
+    );
+
+    for (const selector of step.input?.state ?? []) {
+      try {
+        assertProjectableStateSelector(selector, { stepId, errorPrefix: 'workflow runtime validation failed' });
+      } catch (error) {
+        if (error instanceof Error) invariant(false, error.message);
+        throw error;
+      }
+    }
+  }
 }
 
 function assertWorkflowRootTargets(workflow) {

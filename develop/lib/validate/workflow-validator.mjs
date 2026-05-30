@@ -1,14 +1,13 @@
 import { validateJsonSchema } from 'schema-validation';
 import { WorkflowInterpreterError } from '../workflow/errors.mjs';
 import { readJson } from '../workflow/json-io.mjs';
-import { RESERVED_STEP_IDS, isReservedStateKey } from '../workflow/state-keys.mjs';
+import { RESERVED_STEP_IDS, assertProjectableStateSelector, isReservedStateKey } from '../workflow/state-keys.mjs';
 import { readOutputSchema } from '../workflow/output-schema-validation.mjs';
 import { assertRoleDirectoryName, listAllowedWorkflowRoles } from '../workflow/roles.mjs';
 import { assertWorkflowSchema, workflowSchemas } from '../workflow/schema-validation.mjs';
 import { assertTransitionDescriptorTargets, normalizeTransitionNext } from '../workflow/transitions.mjs';
 
 const DYNAMIC_TARGET_UNCHECKED_ROOTS = new Set(['outputs']);
-const TOP_LEVEL_STATE_SELECTOR = /^[A-Za-z_][A-Za-z0-9_-]*$/;
 const WORKFLOW_NAME = /^[a-z][a-z0-9-]*$/;
 
 function fail(message) {
@@ -49,11 +48,14 @@ function assertWorkflowStepIds(workflow) {
 function assertWorkflowInputStateSelectors(workflow) {
   for (const [stepId, step] of Object.entries(workflow.steps)) {
     for (const selector of step.input?.state ?? []) {
-      if (!TOP_LEVEL_STATE_SELECTOR.test(selector)) {
+      try {
+        assertProjectableStateSelector(selector, { stepId, errorPrefix: 'workflow semantic validation failed' });
+      } catch (error) {
+        if (!(error instanceof WorkflowInterpreterError)) throw error;
+        if (!/top-level workflow step ids only/.test(error.message)) {
+          fail(`step '${stepId}' input.state selector '${selector}' is reserved for runtime aggregate state and cannot reference workflow steps`);
+        }
         fail(`step '${stepId}' input.state selector '${selector}' is invalid; v1 supports top-level workflow step ids only`);
-      }
-      if (isReservedStateKey(selector)) {
-        fail(`step '${stepId}' input.state selector '${selector}' is reserved for runtime aggregate state and cannot reference workflow steps`);
       }
       if (!workflow.steps[selector]) {
         fail(`step '${stepId}' input.state selector '${selector}' does not reference a declared workflow step`);

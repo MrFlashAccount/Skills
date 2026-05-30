@@ -35,7 +35,7 @@ function response(overrides = {}) {
         step: {
           name: 'Approve research',
           kind: 'approval',
-          input: { state: ['artifacts', 'results'], prompt: 'Approve research.' },
+          input: { state: ['research_draft'], prompt: 'Approve research.' },
           next: { match: '${{ output.approval }}', cases: { approved: 'architecture', blocked: 'blocked' } },
         },
       },

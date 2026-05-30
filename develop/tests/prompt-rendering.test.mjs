@@ -150,6 +150,15 @@ test('state projection: nested selectors are rejected', () => {
   );
 });
 
+test('state projection: reserved runtime aggregate selectors are rejected even when present in baton state', () => {
+  for (const selector of ['artifacts', 'results', 'outputs', 'attempts']) {
+    assert.throws(
+      () => projectState({ stepId: 'research', batonState: { [selector]: [{ type: 'packet', summary: 'leaked' }] }, selectors: [selector] }),
+      new RegExp(`reserved state selector '${selector}'.*runtime aggregate state`),
+    );
+  }
+});
+
 function renderFixture(overrides = {}) {
   const workflowPath = writeJson(`${safeName(overrides.label ?? 'render')}-workflow.json`, overrides.workflowDoc ?? schemaWorkflowDoc);
   return renderWorkflowPrompt({
@@ -559,6 +568,18 @@ test('prompt renderer: template root confinement rejects symlink escapes and ext
     rmSync(externalTemplateDir, { recursive: true, force: true });
     rmSync(outsideTemplatePath, { force: true });
   }
+});
+
+test('CLI render: runtime guard rejects reserved aggregate state selectors', () => {
+  const workflowDoc = structuredClone(schemaWorkflowDoc);
+  workflowDoc.workflow.steps.approval_step.input.state = ['artifacts'];
+  const workflowPath = writeJson('runtime-reserved-render-workflow.json', workflowDoc);
+  const batonPath = writeJson('runtime-reserved-render-baton.json', baton({ cursor: 'approval_step', status: 'running', state: { artifacts: [{ type: 'packet', summary: 'leaked' }], results: [] } }));
+
+  const result = runNode(['develop/scripts/workflow-interpreter.mjs', 'render', workflowPath, batonPath]);
+  const response = expectCliResult('runtime-reserved-render', result, false);
+
+  assert.match(response.stderr, /reserved state selector 'artifacts'.*runtime aggregate state/);
 });
 
 test('CLI render: fixture returns compiledPrompt and does not mutate baton', () => {

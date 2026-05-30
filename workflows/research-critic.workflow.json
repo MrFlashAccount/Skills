@@ -105,10 +105,12 @@
           "role": "researcher",
           "state": [
             "research_draft",
+            "research_answered_draft",
+            "research_revision",
             "research_attack",
             "ask_research_questions"
           ],
-          "prompt": "Revise the research packet using the latest research_attack verdict and any approved user answers. Preserve answered decisions, address each bounded critic finding, and return ready_for_attack when the packet is ready for another critic review, needs_input when user answers are required, or blocked when progress is unsafe without external input."
+          "prompt": "Revise the latest available research packet using the latest research_attack verdict and any approved user answers. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Preserve answered decisions, address each bounded critic finding, and return ready_for_attack when the packet is ready for another critic review, needs_input when user answers are required, or blocked when progress is unsafe without external input."
         },
         "output": {
           "template": "shared/templates/research-packet-template.md",

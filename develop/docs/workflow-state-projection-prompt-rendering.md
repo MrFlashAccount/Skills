@@ -103,7 +103,7 @@ Renderer-relevant fields:
 V1 selectors are top-level workflow step ids only:
 
 - valid examples: `research_draft`, `approve_plan`, `review_join` when those steps exist in the workflow;
-- invalid examples: `artifacts`, `results`, `outputs` unless the workflow declares steps with those exact ids;
+- invalid examples: `artifacts`, `results`, `outputs`, `attempts`; reserved runtime aggregate ids are always banned as workflow step ids and projected state selectors;
 - invalid nested selectors: `research_draft.route`, `artifacts[0]`, `results.*`, `$..summary`.
 
 Nested path selection should not ship in v1. It creates a query language, partial-object privacy questions, ordering traps, and unclear diagnostics. If needed later, add a separate selector grammar after real use cases exist.
