@@ -235,6 +235,9 @@ test('runner: approval request exposes optional output schema reference', () => 
   assert.equal(response.status, 'needs_host_actions');
   assert.equal(response.requests[0].action, 'wait_for_approval');
   assert.equal(response.requests[0].outputSchema, path.basename(schemaPath));
+  assert.equal(response.requests[0].resolvedOutputSchema.ref, path.basename(schemaPath));
+  assert.match(response.requests[0].resolvedOutputSchema.path, /approval-output-schema-request\.schema\.json$/);
+  assert.deepEqual(response.requests[0].resolvedOutputSchema.schema.required, ['choice']);
 });
 
 test('runner: typed approval retry preserves validation feedback in instructions', () => {
@@ -272,6 +275,9 @@ test('runner: typed approval retry preserves validation feedback in instructions
   assert.equal(response.status, 'needs_host_actions');
   assert.equal(response.requests[0].action, 'wait_for_approval');
   assert.equal(response.requests[0].outputSchema, path.basename(schemaPath));
+  assert.equal(response.requests[0].resolvedOutputSchema.ref, path.basename(schemaPath));
+  assert.match(response.requests[0].resolvedOutputSchema.path, /approval-output-schema-retry\.schema\.json$/);
+  assert.deepEqual(response.requests[0].resolvedOutputSchema.schema.required, ['choice']);
   assert.equal(response.baton.state.attempts['choose_path:output.schema'], 1);
 
   const loaded = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'choose_path']);

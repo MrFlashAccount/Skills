@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { WorkflowInterpreterError } from '../lib/workflow/errors.mjs';
 import { renderWorkflowPrompt } from '../lib/workflow/prompt-renderer.mjs';
 import { validateAgainstOutputSchema } from '../lib/workflow/output-schema-validation.mjs';
 
@@ -153,6 +154,26 @@ test('output.schema: workflow-relative parent schema ref resolves consistently f
   assert.match(rendered.prompt, /Return valid JSON matching this schema/);
   assert.match(rendered.prompt, /"outcome"/);
   assert.match(rendered.prompt, /"const": "ready"/);
+});
+
+
+test('output.schema: invalid JSON Schema throws controlled workflow error', () => {
+  const doc = workflowWithSchema('invalid-json-schema-controlled-error', {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 42,
+  });
+
+  assert.throws(
+    () => validateAgainstOutputSchema({
+      workflow: doc.workflow,
+      workflowPath: path.join(tempDir, 'invalid-json-schema-controlled-error-workflow.json'),
+      schemaRef: doc.workflow.steps.worker_step.output.schema,
+      output: { outcome: 'ready' },
+      repositoryRoot: tempDir,
+    }),
+    (error) => error instanceof WorkflowInterpreterError
+      && error.message.includes("output schema validation failed: invalid output schema 'invalid-json-schema-controlled-error.schema.json'"),
+  );
 });
 
 

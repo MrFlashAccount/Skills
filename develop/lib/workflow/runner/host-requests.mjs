@@ -1,4 +1,5 @@
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
+import { loadOutputSchema } from '../output-schema.mjs';
 
 const TERMINAL_ACTIONS = new Set(['stop_done', 'stop_blocked']);
 const SAFE_STEP_ID = /^[A-Za-z0-9_.-]+$/;
@@ -30,7 +31,18 @@ export function responseStatusForInterpreterResponse(interpreterResponse) {
   return 'needs_host_actions';
 }
 
-export function buildHostRequests(interpreterResponse, { runDir }) {
+function resolvedOutputSchemaForStep(step, { workflow, workflowPath, repositoryRoot = process.cwd() }) {
+  const schemaRef = step.step?.output?.schema;
+  if (step.action !== 'wait_for_approval' || !schemaRef) return undefined;
+  const resolved = loadOutputSchema({ workflow, workflowPath, schemaRef, repositoryRoot });
+  return {
+    ref: schemaRef,
+    path: relative(repositoryRoot, resolved.schemaPath),
+    schema: resolved.schema,
+  };
+}
+
+export function buildHostRequests(interpreterResponse, { runDir, workflow, workflowPath, repositoryRoot }) {
   const status = responseStatusForInterpreterResponse(interpreterResponse);
   if (status !== 'needs_host_actions') return [];
 
@@ -43,7 +55,11 @@ export function buildHostRequests(interpreterResponse, { runDir }) {
         action: step.action,
         loadInstructionsCommand: loadInstructionsCommandForStep(runDir, step.id),
       };
-      if (step.action === 'wait_for_approval' && step.step?.output?.schema) request.outputSchema = step.step.output.schema;
+      const resolvedOutputSchema = resolvedOutputSchemaForStep(step, { workflow, workflowPath, repositoryRoot });
+      if (resolvedOutputSchema) {
+        request.outputSchema = resolvedOutputSchema.ref;
+        request.resolvedOutputSchema = resolvedOutputSchema;
+      }
       return request;
     });
 }

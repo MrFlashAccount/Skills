@@ -14,8 +14,14 @@ async function persistStepInstructions(paths, interpreterResponse) {
 
 async function runnerResponseForRendered(paths, rendered, { initialized, resumed }) {
   await persistStepInstructions(paths, rendered);
+  const workflowDoc = await readJson(paths.workflowPath, 'workflow');
   const response = {
-    ...toRunnerResponse(rendered, { runDir: paths.runDir }),
+    ...toRunnerResponse(rendered, {
+      runDir: paths.runDir,
+      workflow: workflowDoc.workflow,
+      workflowPath: paths.workflowPath,
+      repositoryRoot,
+    }),
     runDir: paths.runDir,
     workflow: paths.workflowPath,
     initialized,
