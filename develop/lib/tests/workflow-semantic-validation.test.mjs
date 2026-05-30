@@ -173,9 +173,9 @@ test('workflow semantic validation rejects workflow wrapper field on flat docume
 test('research critic save step uses persistence metadata template matching its output schema', () => {
   const step = researchCriticWorkflowDoc.steps.save_research_packet;
 
-  assert.equal(step.output.template, 'templates/research-save-metadata-template.md');
+  assert.equal(step.output.template, 'shared/templates/research-save-metadata-template.md');
   assert.equal(step.output.schema, 'schemas/save-research-packet-output.json');
-  assert.notEqual(step.output.template, 'templates/research-packet-template.md');
+  assert.notEqual(step.output.template, 'shared/templates/research-packet-template.md');
   assert.deepEqual(validateWorkflowDocument(researchCriticWorkflowDoc, { workflowPath: path.join(REPO_ROOT, 'workflows/research-critic/workflow.json'), repositoryRoot: REPO_ROOT }), {
     ok: true,
     workflow: 'research-critic',

@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { WorkflowInterpreterError } from '../../errors.mjs';
-import { safeReadTemplate } from '../utils.mjs';
+import { safeReadTemplate, workflowResourceSearchScope } from '../utils.mjs';
 
 export function readInputTemplate({ workflowPath, workflow, input, repositoryRoot, templateBaseDir }) {
   if (!input?.template) return { content: undefined, metadataPath: undefined };
@@ -8,8 +8,11 @@ export function readInputTemplate({ workflowPath, workflow, input, repositoryRoo
   if (templateBaseDir && path.resolve(templateBaseDir) !== workflowDir) {
     throw new WorkflowInterpreterError(`workflow prompt render failed: input template escapes repository root: ${input.template}`);
   }
-  const bases = [path.resolve(workflowDir)];
-  const allowedRoots = [path.resolve(workflowDir)];
+  const { bases, allowedRoots } = workflowResourceSearchScope({
+    resourceRef: input.template,
+    workflowPath,
+    repositoryRoot,
+  });
   const resolved = safeReadTemplate({
     templateRef: input.template,
     fieldName: 'input',

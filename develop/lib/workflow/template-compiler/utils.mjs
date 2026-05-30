@@ -8,6 +8,23 @@ export function normalizeRepositoryRoot(repositoryRoot) {
   return path.resolve(repositoryRoot ?? process.cwd());
 }
 
+export function workflowResourceBase({ workflowPath }) {
+  return path.dirname(path.resolve(workflowPath));
+}
+
+export function repositorySharedResourceBase({ repositoryRoot }) {
+  return path.join(normalizeRepositoryRoot(repositoryRoot), 'shared');
+}
+
+export function workflowResourceSearchScope({ resourceRef, workflowPath, repositoryRoot }) {
+  const workflowDir = workflowResourceBase({ workflowPath });
+  if (typeof resourceRef === 'string' && resourceRef.startsWith('shared/')) {
+    const root = normalizeRepositoryRoot(repositoryRoot);
+    return { bases: [root], allowedRoots: [repositorySharedResourceBase({ repositoryRoot: root })] };
+  }
+  return { bases: [workflowDir], allowedRoots: [workflowDir] };
+}
+
 function assertRelativeLocalRef(localRef, fieldName, kind) {
   if (typeof localRef !== 'string' || localRef.length === 0) {
     throw new WorkflowInterpreterError(`workflow prompt render failed: ${fieldName} ${kind} reference is empty`);

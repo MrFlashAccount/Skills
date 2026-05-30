@@ -717,6 +717,65 @@ test('workflow resource refs resolve from the workflow package directory after p
   );
 });
 
+
+
+test('prompt renderer: shared template refs are explicit and reusable across workflow packages', () => {
+  const repoDir = path.join(tempDir, 'shared-template-repo');
+  const sharedTemplateDir = path.join(repoDir, 'shared', 'templates');
+  const firstWorkflowDir = path.join(repoDir, 'workflows', 'first');
+  const secondWorkflowDir = path.join(repoDir, 'workflows', 'second');
+  mkdirSync(sharedTemplateDir, { recursive: true });
+  mkdirSync(firstWorkflowDir, { recursive: true });
+  mkdirSync(secondWorkflowDir, { recursive: true });
+  writeFileSync(path.join(sharedTemplateDir, 'reused-output.md'), '## Shared reusable output template\n');
+  writeFileSync(path.join(repoDir, 'root-only-output.md'), '## Root fallback must not be used\n');
+
+  const workflow = {
+    name: 'shared-template-reuse',
+    version: 1,
+    start: 'worker_step',
+    done: 'done',
+    blocked: 'blocked',
+    steps: {
+      worker_step: {
+        name: 'Worker step',
+        kind: 'worker',
+        input: { state: [] },
+        output: { template: 'shared/templates/reused-output.md' },
+        next: 'done',
+      },
+      done: { name: 'Done', kind: 'done' },
+      blocked: { name: 'Blocked', kind: 'blocked' },
+    },
+  };
+
+  const render = (workflowDir) => renderWorkflowPrompt({
+    workflowPath: path.join(workflowDir, 'workflow.json'),
+    workflow,
+    baton: baton(),
+    stepId: 'worker_step',
+    step: workflow.steps.worker_step,
+    repositoryRoot: repoDir,
+  });
+
+  assertMarkersInOrder(render(firstWorkflowDir).prompt, ['<!-- output template: shared/templates/reused-output.md -->', '## Shared reusable output template']);
+  assertMarkersInOrder(render(secondWorkflowDir).prompt, ['<!-- output template: shared/templates/reused-output.md -->', '## Shared reusable output template']);
+
+  const rootFallbackWorkflow = structuredClone(workflow);
+  rootFallbackWorkflow.steps.worker_step.output.template = 'root-only-output.md';
+  assert.throws(
+    () => renderWorkflowPrompt({
+      workflowPath: path.join(firstWorkflowDir, 'workflow.json'),
+      workflow: rootFallbackWorkflow,
+      baton: baton(),
+      stepId: 'worker_step',
+      step: rootFallbackWorkflow.steps.worker_step,
+      repositoryRoot: repoDir,
+    }),
+    /missing output template 'root-only-output\.md'/,
+  );
+});
+
 test('prompt renderer: output schema is validated and injected in the output contract layer', () => {
   writeFileSync(path.join(tempDir, 'static-schema-wrapper.md'), '# Static wrapper\n');
   writeFileSync(path.join(tempDir, 'schema-output.md'), '## Required return\nUse this contract.\n');

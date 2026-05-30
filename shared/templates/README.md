@@ -6,7 +6,7 @@ This package is reference-only. It is not a runtime skill and must not contain `
 
 ## Template role
 
-These files are source copies for reusable output templates. Workflow descriptors should keep the templates they use inside the workflow package (for example `workflows/<name>/templates/<file>.md`) and reference them relative to that package's `workflow.json`. Prompt/input templates remain separate under the consuming workflow's package-local `input.template` paths.
+These files are reusable output templates. Workflow descriptors may reference them explicitly as `shared/templates/<file>.md`. Plain relative template references are workflow-package-local and resolve from the directory containing the active `workflow.json`; there is no silent repository-root fallback.
 
 ## Templates
 

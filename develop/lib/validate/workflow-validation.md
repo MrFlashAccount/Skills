@@ -62,7 +62,7 @@ The validator checks static and dynamic transition declarations:
 
 ### 4. Output schema availability and compile checks
 
-For every step with `output.schema`, the validator resolves the schema relative to the directory containing the active `workflow.json`, loads it, and confirms it compiles as JSON Schema.
+For every step with `output.schema`, the validator resolves plain relative refs from the directory containing the active `workflow.json`; explicit `shared/...` refs resolve from the repository shared tree. It loads the schema and confirms it compiles as JSON Schema. There is no silent repository-root fallback for plain relative refs.
 
 ### 5. Dynamic route schema coverage
 

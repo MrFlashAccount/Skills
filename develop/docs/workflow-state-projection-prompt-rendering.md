@@ -30,7 +30,7 @@ In scope for #89:
 - Define and implement a dumb workflow prompt renderer.
 - Extend schemas only where needed to expose compiled prompt results cleanly.
 - Add deterministic CLI/test coverage for rendering the current step.
-- Keep output contracts as workflow-package markdown templates using `output.template`, with optional workflow-package JSON schemas referenced by `output.schema` for prompt-level response constraints.
+- Keep output contracts as markdown templates using `output.template`: plain relative refs are workflow-package-local, while reusable shared templates use the explicit `shared/templates/...` repository-root convention. Optional JSON schemas remain workflow-package-local unless they deliberately use the same explicit `shared/...` convention.
 
 ## Non-goals
 
@@ -87,12 +87,12 @@ Renderer-relevant fields:
 | --- | --- | --- |
 | `step.name` | all step kinds | Human label available to prompt templates and default prompt text. |
 | `step.kind` | all step kinds | Determines directive action outside the renderer and remains available to prompt templates. |
-| `input.template` | all step kinds, optional | Markdown input prompt template to load and render from the workflow package directory; omitted steps use renderer-owned prompt layering. |
+| `input.template` | all step kinds, optional | Markdown input prompt template to load and render from the workflow package directory, or from `shared/...` when explicitly referenced; omitted steps use renderer-owned prompt layering. |
 | `input.prompt` | all step kinds | Inline task instruction appended or substituted by the renderer. |
 | `input.state` | all step kinds | Explicit list of workflow step ids whose state may be projected. |
 | `input.role` | worker | Role name resolved from `roles/<name>/`; renderer inlines `ROLE.md` and `RUBRIC.md` into prompt context. |
-| `output.template` | worker | Markdown output contract template resolved from the workflow package directory and included as strict return-shape instructions. |
-| `output.schema` | worker, optional | Workflow-package JSON schema file to inject near the output contract as concise valid-JSON/self-check instructions. |
+| `output.template` | worker | Markdown output contract template resolved from the workflow package directory, or from `shared/...` when explicitly referenced, and included as strict return-shape instructions. |
+| `output.schema` | worker, optional | JSON schema file to inject near the output contract as concise valid-JSON/self-check instructions. Plain refs are workflow-package-local; `shared/...` refs are explicit shared resources. |
 | `instruction` / `instructions` | workflow root, optional runtime prompt capability | Workflow-level instruction appended under the top wrapper before role/output/context layers. It is optional and should not be used for generic orchestration notes that pollute every step prompt; prefer `description`/registry metadata for non-runtime guidance or step-specific `input.prompt` text when only one step needs it. |
 | `baton.user_prompt` | baton root, optional | Raw startup user prompt stored at run start; must contain non-whitespace text when present. |
 | `baton.user_prompt_injected` | baton root, optional | Runner/interpreter marker set after the selected startup-prompt worker output has been applied; prevents reinjection after completion/resume or workflow drift while allowing repeated renders of the same uncompleted worker to preserve the prompt. |
@@ -115,12 +115,13 @@ Nested path selection should not ship in v1. It creates a query language, partia
 
 Resolution must be deterministic and local-only:
 
-1. resolve relative references against the workflow descriptor directory unless the caller passes an explicit template base directory;
-2. reject paths outside that workflow directory or explicit template base;
-3. reject missing files with a hard renderer error;
-4. do not fetch templates from the network.
+1. resolve plain relative references against the workflow descriptor directory unless the caller passes an explicit template base directory;
+2. resolve explicit shared references beginning with `shared/` against the repository root and confine them to the repository `shared/` tree;
+3. reject paths outside the selected resource root;
+4. reject missing files with a hard renderer error;
+5. do not fetch templates from the network.
 
-Do not use repo-root-relative fallbacks such as `workflows/<name>/schemas/...` inside workflow JSON. Move/copy local resources with the workflow package and reference them as `schemas/...`, `templates/...`, or another path relative to the package directory.
+Do not use ambiguous repo-root-relative fallbacks such as `workflows/<name>/schemas/...` inside workflow JSON. Move local resources with the workflow package and reference them as `schemas/...`, `templates/...`, or another path relative to the package directory. Reusable resources should stay under `shared/` and be referenced with the explicit `shared/...` prefix.
 
 Do not silently ignore a declared `input.template`; missing declared templates fail clearly. Omitted templates use the deterministic default prompt and may emit opt-in diagnostics.
 
@@ -128,12 +129,12 @@ Do not silently ignore a declared `input.template`; missing declared templates f
 
 `output.template` is a markdown output contract. The renderer loads the referenced markdown file and appends it as strict worker return instructions.
 
-`output.schema` is optional prompt guidance. When present, the renderer resolves it from the workflow package directory using the same base and confinement rule as output templates, verifies the file is parseable JSON, and injects an instruction to return valid JSON matching that schema. When a validation command or tool is available in the agent/subagent context, the injected instruction requires preflight validation of the generated JSON against the schema before the final answer, fixing validation errors and repeating for a bounded number of attempts. The harness/orchestrator still validates the final returned JSON again after the answer, so agent-side validation is preflight, not the final authority. If no validation command or tool is available in that context, the agent should still return strict schema-matching JSON and expect harness-level validation. The renderer does not validate future worker output while rendering. The interpreter/harness validates the returned worker JSON against this schema during `apply`.
+`output.schema` is optional prompt guidance. When present, the renderer resolves it using the same base and confinement rule as output templates: plain relative refs from the workflow package directory, explicit `shared/...` refs from the repository shared tree, verifies the file is parseable JSON, and injects an instruction to return valid JSON matching that schema. When a validation command or tool is available in the agent/subagent context, the injected instruction requires preflight validation of the generated JSON against the schema before the final answer, fixing validation errors and repeating for a bounded number of attempts. The harness/orchestrator still validates the final returned JSON again after the answer, so agent-side validation is preflight, not the final authority. If no validation command or tool is available in that context, the agent should still return strict schema-matching JSON and expect harness-level validation. The renderer does not validate future worker output while rendering. The interpreter/harness validates the returned worker JSON against this schema during `apply`.
 
 Rules:
 
 - keep `template` as the existing markdown contract field;
-- allow optional `schema` as a workflow-package-local JSON schema path;
+- allow optional `schema` as a workflow-package-local JSON schema path, or an explicit `shared/...` schema path when a schema is intentionally reused;
 - DevHarness may use `output.schema` on research and implementation-plan worker steps to require reviewer selection state such as `review_plan.reviewers`; this validates/stores the structured output only and does not implement reviewer routing or fan-out;
 - reject missing, escaping, or invalid-JSON schema files with deterministic `WorkflowInterpreterError`;
 - do not introduce `format`, `sections`, or similar output contract fields;
@@ -168,7 +169,7 @@ Add a renderer-level result shape that can be embedded in a future directive or 
 {
   "prompt": "...final rendered markdown...",
   "metadata": {
-    "outputTemplate": "templates/research-packet-template.md",
+    "outputTemplate": "shared/templates/research-packet-template.md",
     "outputSchema": "schemas/research-output.schema.json",
     "roleMaterial": ["roles/researcher/ROLE.md", "roles/researcher/RUBRIC.md"],
     "projectedStateKeys": ["research_draft", "implementation_plan"]

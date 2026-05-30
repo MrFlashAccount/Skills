@@ -6,18 +6,26 @@ export { isInside } from './path-utils.mjs';
 
 /**
  * Canonical output.schema path resolution used by both runtime validation and
- * prompt rendering. Relative refs use one base only: the directory containing
- * the active workflow file, confined to that workflow package directory.
+ * prompt rendering. Plain relative refs use one base only: the directory
+ * containing the active workflow file, confined to that workflow package
+ * directory. Explicit shared refs (`shared/...`) resolve from the repository
+ * root and are confined to the repository shared tree.
  */
 export function workflowResourceBase({ workflowPath }) {
   return path.dirname(path.resolve(workflowPath));
 }
 
-export function outputSchemaBases({ workflowPath }) {
+export function sharedResourceBase({ repositoryRoot }) {
+  return path.join(path.resolve(repositoryRoot ?? process.cwd()), 'shared');
+}
+
+export function outputSchemaBases({ workflowPath, schemaRef, repositoryRoot }) {
+  if (typeof schemaRef === 'string' && schemaRef.startsWith('shared/')) return [path.resolve(repositoryRoot ?? process.cwd())];
   return [workflowResourceBase({ workflowPath })];
 }
 
-export function outputSchemaAllowedRoots({ workflowPath }) {
+export function outputSchemaAllowedRoots({ workflowPath, schemaRef, repositoryRoot }) {
+  if (typeof schemaRef === 'string' && schemaRef.startsWith('shared/')) return [sharedResourceBase({ repositoryRoot })];
   return [workflowResourceBase({ workflowPath })];
 }
 
@@ -43,8 +51,8 @@ export function resolveOutputSchemaPath({
 }) {
   assertOutputSchemaRef({ schemaRef, messagePrefix });
 
-  const allowedRoots = outputSchemaAllowedRoots({ workflowPath }).map((allowedRoot) => realpathSync(allowedRoot));
-  const bases = outputSchemaBases({ workflowPath });
+  const allowedRoots = outputSchemaAllowedRoots({ workflowPath, schemaRef, repositoryRoot }).map((allowedRoot) => realpathSync(allowedRoot));
+  const bases = outputSchemaBases({ workflowPath, schemaRef, repositoryRoot });
 
   function isInsideAllowed(candidate) {
     return allowedRoots.some((allowedRoot) => isInside(candidate, allowedRoot));
