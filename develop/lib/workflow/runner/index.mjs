@@ -17,7 +17,7 @@ async function runnerResponseForRendered(paths, rendered, { initialized, resumed
   return {
     ...toRunnerResponse(rendered, {
       runDir: paths.runDir,
-      workflow: workflowDoc.workflow,
+      workflow: workflowDoc,
       workflowPath: paths.workflowPath,
       repositoryRoot,
     }),

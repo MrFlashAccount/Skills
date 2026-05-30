@@ -50,7 +50,7 @@ function assertNoNestedMatchCasesTarget(target, fieldPath) {
 }
 
 function assertWorkflowNoNestedMatchCases(workflowDoc) {
-  const steps = workflowDoc?.workflow?.steps;
+  const steps = workflowDoc?.steps;
   if (!steps || typeof steps !== 'object' || Array.isArray(steps)) return;
 
   for (const [stepId, step] of Object.entries(steps)) {
@@ -65,6 +65,7 @@ function assertWorkflowNoNestedMatchCases(workflowDoc) {
     }
   }
 }
+
 
 export function assertWorkflowSchema(workflowDoc) {
   try {

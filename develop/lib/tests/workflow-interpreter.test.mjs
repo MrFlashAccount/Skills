@@ -19,7 +19,6 @@ function outputContract(name = 'worker') {
 }
 
 const schemaWorkflowDoc = {
-  workflow: {
     name: 'schema-spec',
     version: 1,
     start: 'worker_step',
@@ -49,11 +48,10 @@ const schemaWorkflowDoc = {
       done: { name: 'Done', kind: 'done', input: { prompt: 'Finished.' } },
       blocked: { name: 'Blocked', kind: 'blocked', input: { prompt: 'Blocked.' } },
     },
-  },
+
 };
 
 const e2eWorkflowDoc = {
-  workflow: {
     name: 'deterministic-e2e-spec',
     version: 1,
     start: 'worker_step',
@@ -97,7 +95,7 @@ const e2eWorkflowDoc = {
       done: { name: 'Done', kind: 'done', input: { prompt: 'Finished.' } },
       blocked: { name: 'Blocked', kind: 'blocked', input: { prompt: 'Blocked.' } },
     },
-  },
+
 };
 
 const emptyState = { artifacts: [], results: [] };
@@ -172,7 +170,7 @@ function runApply(label, batonDoc, workerOutput, expectSuccess = true, workflowD
 
 test('runtime guard: inspect rejects reserved input.state selectors even when schema validation passes', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc.workflow.steps.approval_step.input.state = ['artifacts'];
+  workflowDoc.steps.approval_step.input.state = ['artifacts'];
 
   const response = runInspect('runtime-reserved-selector-inspect', baton({ cursor: 'approval_step', status: 'running' }), false, workflowDoc);
 
@@ -181,7 +179,7 @@ test('runtime guard: inspect rejects reserved input.state selectors even when sc
 
 test('runtime guard: inspect rejects undeclared input.state selectors even when semantic validation is bypassed', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc.workflow.steps.approval_step.input.state = ['missing_step'];
+  workflowDoc.steps.approval_step.input.state = ['missing_step'];
 
   const response = runInspect('runtime-missing-state-selector-inspect', baton({ cursor: 'approval_step', status: 'running' }), false, workflowDoc);
 
@@ -190,11 +188,11 @@ test('runtime guard: inspect rejects undeclared input.state selectors even when 
 
 test('runtime guard: apply rejects reserved workflow step ids even when semantic validation is bypassed', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc.workflow.start = 'artifacts';
-  workflowDoc.workflow.steps.approval_step.input.state = [];
-  workflowDoc.workflow.steps.direct_next_worker.input.state = [];
-  workflowDoc.workflow.steps.artifacts = workflowDoc.workflow.steps.worker_step;
-  delete workflowDoc.workflow.steps.worker_step;
+  workflowDoc.start = 'artifacts';
+  workflowDoc.steps.approval_step.input.state = [];
+  workflowDoc.steps.direct_next_worker.input.state = [];
+  workflowDoc.steps.artifacts = workflowDoc.steps.worker_step;
+  delete workflowDoc.steps.worker_step;
 
   const response = runApply('runtime-reserved-step-id-apply', baton({ cursor: 'artifacts' }), output(), false, workflowDoc);
 
@@ -229,7 +227,7 @@ after(() => {
 
 test('schema validation: workflow accepts output template and schema refs on worker contracts', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc.workflow.steps.worker_step.output = {
+  workflowDoc.steps.worker_step.output = {
     template: '../../shared/templates/research-packet-template.md',
     schema: 'schemas/worker-output.json',
   };
@@ -252,7 +250,7 @@ test('schema validation: malformed output template contract shapes are rejected'
 
   for (const [label, outputShape] of cases) {
     const workflowDoc = structuredClone(schemaWorkflowDoc);
-    workflowDoc.workflow.steps.worker_step.output = outputShape;
+    workflowDoc.steps.worker_step.output = outputShape;
 
     const result = runInspect(`output-template-contract-${label}`, baton(), false, workflowDoc);
 
@@ -262,7 +260,7 @@ test('schema validation: malformed output template contract shapes are rejected'
 
 test('runtime: output template semantics are ignored while worker envelope is validated', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc.workflow.steps.worker_step.output = {
+  workflowDoc.steps.worker_step.output = {
     template: '../../shared/templates/research-packet-template.md',
   };
 
@@ -281,18 +279,26 @@ test('runtime: output template semantics are ignored while worker envelope is va
   assert.match(badEnvelope.stderr, /worker output failed schema validation/);
 });
 
-test('schema validation: top-level wrapper fields are rejected by the workflow schema', () => {
-  const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc['meta' + 'data'] = { owner: 'specific-wrapper' };
+test('schema validation: wrapped workflow documents are rejected by the workflow schema', () => {
+  const workflowDoc = { workflow: structuredClone(schemaWorkflowDoc) };
 
-  const result = runInspect('top-level-wrapper-field', baton(), false, workflowDoc);
+  const result = runInspect('wrapped-workflow-document', baton(), false, workflowDoc);
+
+  assert.match(result.stderr, /workflow failed schema validation/);
+});
+
+test('schema validation: workflow wrapper field is rejected even on otherwise flat documents', () => {
+  const workflowDoc = structuredClone(schemaWorkflowDoc);
+  workflowDoc.workflow = structuredClone(schemaWorkflowDoc);
+
+  const result = runInspect('flat-with-wrapper-field', baton(), false, workflowDoc);
 
   assert.match(result.stderr, /workflow failed schema validation/);
 });
 
 test('schema workflow fixture: workflow-scoped extensions are accepted and ignored by generic interpreter', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc.workflow.operatorHints = {
+  workflowDoc.operatorHints = {
     owner: 'specific-wrapper',
     prompts: { worker_step: 'wrapper-owned-prompt.md' },
   };
@@ -306,7 +312,7 @@ test('schema workflow fixture: workflow-scoped extensions are accepted and ignor
 
 test('schema validation: step-level extension fields are rejected rather than ignored', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc.workflow.steps.worker_step.operatorHints = { template: 'wrapper-owned-prompt.md' };
+  workflowDoc.steps.worker_step.operatorHints = { template: 'wrapper-owned-prompt.md' };
 
   const result = runInspect('step-level-extension-field', baton(), false, workflowDoc);
 
@@ -381,8 +387,8 @@ test('e2e: scripted blocked branch reaches stop_blocked with blocker carried on 
 
 test('e2e: non-retry transition cycles stop at the deterministic scripted loop guard', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc.workflow.start = 'worker_a';
-  workflowDoc.workflow.steps = {
+  workflowDoc.start = 'worker_a';
+  workflowDoc.steps = {
     worker_a: {
       name: 'Worker A',
       kind: 'worker',
@@ -451,18 +457,18 @@ test('inspect: approval and terminal steps expose only canonical response fields
   assert.deepEqual(approval.steps[0], {
     id: 'approval_step',
     action: 'wait_for_approval',
-    step: schemaWorkflowDoc.workflow.steps.approval_step,
+    step: schemaWorkflowDoc.steps.approval_step,
   });
-  assert.deepEqual(done.steps[0], { id: 'done', action: 'stop_done', step: schemaWorkflowDoc.workflow.steps.done });
-  assert.deepEqual(blocked.steps[0], { id: 'blocked', action: 'stop_blocked', step: schemaWorkflowDoc.workflow.steps.blocked });
+  assert.deepEqual(done.steps[0], { id: 'done', action: 'stop_done', step: schemaWorkflowDoc.steps.done });
+  assert.deepEqual(blocked.steps[0], { id: 'blocked', action: 'stop_blocked', step: schemaWorkflowDoc.steps.blocked });
   assert.equal(Object.hasOwn(done.steps[0].step, 'next'), false);
   assert.equal(Object.hasOwn(blocked.steps[0].step, 'next'), false);
 });
 
 test('runtime: non-root terminal step kinds resolve terminal status and stop steps', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc.workflow.steps.archived_done = { name: 'Archived done', kind: 'done', input: { prompt: 'Archived finish.' } };
-  workflowDoc.workflow.steps.deferred_blocked = { name: 'Deferred blocked', kind: 'blocked', input: { prompt: 'Deferred blockage.' } };
+  workflowDoc.steps.archived_done = { name: 'Archived done', kind: 'done', input: { prompt: 'Archived finish.' } };
+  workflowDoc.steps.deferred_blocked = { name: 'Deferred blocked', kind: 'blocked', input: { prompt: 'Deferred blockage.' } };
 
   const done = runInspect('inspect-non-root-done', baton({ cursor: 'archived_done', status: 'done' }), true, workflowDoc);
   const blocked = runInspect('inspect-non-root-blocked', baton({ cursor: 'deferred_blocked', status: 'blocked' }), true, workflowDoc);
@@ -483,8 +489,8 @@ test('runtime: terminal cursors reject apply instead of advancing again', () => 
 
 test('runtime: non-root terminal cursors reject apply instead of advancing again', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc.workflow.steps.archived_done = { name: 'Archived done', kind: 'done', input: { prompt: 'Archived finish.' } };
-  workflowDoc.workflow.steps.deferred_blocked = { name: 'Deferred blocked', kind: 'blocked', input: { prompt: 'Deferred blockage.' } };
+  workflowDoc.steps.archived_done = { name: 'Archived done', kind: 'done', input: { prompt: 'Archived finish.' } };
+  workflowDoc.steps.deferred_blocked = { name: 'Deferred blocked', kind: 'blocked', input: { prompt: 'Deferred blockage.' } };
 
   const done = runApply('apply-non-root-terminal-done', baton({ cursor: 'archived_done', status: 'done' }), output(), false, workflowDoc);
   const blocked = runApply('apply-non-root-terminal-blocked', baton({ cursor: 'deferred_blocked', status: 'blocked' }), output(), false, workflowDoc);
@@ -678,8 +684,8 @@ test('schema validation: approval output state collections reject malformed entr
 
 test('schema validation: approval output accepts request-specific JSON fields', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc.workflow.steps.approval_step.next.match = '${{ output.choice }}';
-  workflowDoc.workflow.steps.approval_step.next.cases = { option_a: 'direct_next_worker', blocked: 'blocked' };
+  workflowDoc.steps.approval_step.next.match = '${{ output.choice }}';
+  workflowDoc.steps.approval_step.next.cases = { option_a: 'direct_next_worker', blocked: 'blocked' };
 
   const response = runApply(
     'approval-output-request-specific-json',
@@ -769,7 +775,7 @@ test('apply: direct string next still merges output state before resolving termi
 
 test('static validation: dangling direct string next targets fail before execution', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc.workflow.steps.direct_next_worker.next = 'missing_done';
+  workflowDoc.steps.direct_next_worker.next = 'missing_done';
   const result = runInspect('dangling-direct-next-target', baton(), false, workflowDoc);
   assert.match(result.stderr, /workflow step 'direct_next_worker' transition 'next' target not found: missing_done/);
 });
@@ -785,7 +791,7 @@ test('static validation: dangling direct string next targets fail before executi
 
 test('static validation: dangling match/cases transition targets fail even when unselected', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc.workflow.steps.worker_step.next.cases.blocked = 'missing_blocked_branch';
+  workflowDoc.steps.worker_step.next.cases.blocked = 'missing_blocked_branch';
   const result = runApply('dangling-unselected-cases-target', baton(), output({ outcome: 'ready' }), false, workflowDoc);
   assert.match(result.stderr, /workflow step 'worker_step' transition 'next\.cases\.blocked' target not found: missing_blocked_branch/);
 });
@@ -794,15 +800,15 @@ test('static validation: dangling match/cases transition targets fail even when 
 
 test('schema validation: unsupported obsolete vocabulary is rejected by the workflow schema', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc.workflow.steps.worker_step.kind = 'subagent';
-  workflowDoc.workflow.steps.worker_step.outcomes = { ready: 'approval_step' };
+  workflowDoc.steps.worker_step.kind = 'subagent';
+  workflowDoc.steps.worker_step.outcomes = { ready: 'approval_step' };
   const result = runInspect('obsolete-vocabulary', baton(), false, workflowDoc);
   assert.match(result.stderr, /workflow failed schema validation/);
 });
 
 test('schema validation: unsupported step kind is rejected without relying on other shape errors', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc.workflow.steps.worker_step.kind = 'subagent';
+  workflowDoc.steps.worker_step.kind = 'subagent';
 
   const result = runInspect('unsupported-step-kind', baton(), false, workflowDoc);
 
@@ -811,67 +817,67 @@ test('schema validation: unsupported step kind is rejected without relying on ot
 
 test('schema validation: nonterminal workflow steps require next in the workflow schema', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  delete workflowDoc.workflow.steps.worker_step.next;
+  delete workflowDoc.steps.worker_step.next;
   const result = runInspect('missing-next', baton(), false, workflowDoc);
   assert.match(result.stderr, /workflow failed schema validation/);
 });
 
 test('schema validation: worker steps require declared output template contract', () => {
   const missingOutput = structuredClone(schemaWorkflowDoc);
-  delete missingOutput.workflow.steps.worker_step.output;
+  delete missingOutput.steps.worker_step.output;
   assert.match(runInspect('worker-step-missing-output', baton(), false, missingOutput).stderr, /workflow failed schema validation/);
 });
 
 test('schema validation: worker output contract allows template plus optional schema only', () => {
 
   const withOutputTemplate = structuredClone(schemaWorkflowDoc);
-  withOutputTemplate.workflow.steps.worker_step.output.template = '../../shared/templates/implementation-plan-template.md';
+  withOutputTemplate.steps.worker_step.output.template = '../../shared/templates/implementation-plan-template.md';
   const response = runInspect('worker-step-output-template', baton(), true, withOutputTemplate);
   assert.equal(response.steps[0].step.output.template, '../../shared/templates/implementation-plan-template.md');
 
   const emptyTemplateName = structuredClone(schemaWorkflowDoc);
-  emptyTemplateName.workflow.steps.worker_step.output.template = '';
+  emptyTemplateName.steps.worker_step.output.template = '';
   assert.match(runInspect('worker-step-empty-output-template', baton(), false, emptyTemplateName).stderr, /workflow failed schema validation/);
 
   const withOutputSchema = structuredClone(schemaWorkflowDoc);
-  withOutputSchema.workflow.steps.worker_step.output.schema = 'schemas/worker-output.json';
+  withOutputSchema.steps.worker_step.output.schema = 'schemas/worker-output.json';
   const schemaResponse = runInspect('worker-step-output-schema', baton(), true, withOutputSchema);
   assert.equal(schemaResponse.steps[0].step.output.schema, 'schemas/worker-output.json');
 
   const obsoleteFormat = structuredClone(schemaWorkflowDoc);
-  obsoleteFormat.workflow.steps.worker_step.output.format = 'markdown';
+  obsoleteFormat.steps.worker_step.output.format = 'markdown';
   assert.match(runInspect('worker-step-obsolete-output-format', baton(), false, obsoleteFormat).stderr, /workflow failed schema validation/);
 
   const wrapperOwnedDetails = structuredClone(schemaWorkflowDoc);
-  wrapperOwnedDetails.workflow.steps.worker_step.output.prompt = 'wrapper-owned-output-prompt.md';
+  wrapperOwnedDetails.steps.worker_step.output.prompt = 'wrapper-owned-output-prompt.md';
   assert.match(runInspect('worker-step-output-wrapper-details', baton(), false, wrapperOwnedDetails).stderr, /workflow failed schema validation/);
 });
 
 
 test('schema validation: match/cases transitions require selector and non-empty cases', () => {
   const missingSelector = structuredClone(schemaWorkflowDoc);
-  delete missingSelector.workflow.steps.worker_step.next.match;
+  delete missingSelector.steps.worker_step.next.match;
   assert.match(runInspect('transition-cases-missing-selector', baton(), false, missingSelector).stderr, /workflow failed schema validation/);
 
   const emptyMap = structuredClone(schemaWorkflowDoc);
-  emptyMap.workflow.steps.worker_step.next.cases = {};
+  emptyMap.steps.worker_step.next.cases = {};
   assert.match(runInspect('transition-cases-empty-cases', baton(), false, emptyMap).stderr, /workflow failed schema validation/);
 });
 
 test('schema validation: match/cases transition cases must be present object', () => {
   const missingMap = structuredClone(schemaWorkflowDoc);
-  delete missingMap.workflow.steps.worker_step.next.cases;
+  delete missingMap.steps.worker_step.next.cases;
   assert.match(runInspect('transition-cases-missing-cases', baton(), false, missingMap).stderr, /workflow failed schema validation/);
 
   const arrayMap = structuredClone(schemaWorkflowDoc);
-  arrayMap.workflow.steps.worker_step.next.cases = ['approval_step'];
+  arrayMap.steps.worker_step.next.cases = ['approval_step'];
   assert.match(runInspect('transition-cases-array-cases', baton(), false, arrayMap).stderr, /workflow failed schema validation/);
 });
 
 
 test('schema validation: match/cases transition objects reject unsupported control fields', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc.workflow.steps.worker_step.next.default = 'blocked';
+  workflowDoc.steps.worker_step.next.default = 'blocked';
 
   const result = runInspect('transition-cases-unsupported-default', baton(), false, workflowDoc);
 
@@ -880,7 +886,7 @@ test('schema validation: match/cases transition objects reject unsupported contr
 
 test('schema validation: match/cases transition selector must be non-empty', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc.workflow.steps.worker_step.next.match = '';
+  workflowDoc.steps.worker_step.next.match = '';
 
   const result = runInspect('transition-cases-empty-selector', baton(), false, workflowDoc);
 
@@ -889,55 +895,55 @@ test('schema validation: match/cases transition selector must be non-empty', () 
 
 test('schema validation: match/cases transition selector rejects non-string values', () => {
   const numericSelector = structuredClone(schemaWorkflowDoc);
-  numericSelector.workflow.steps.worker_step.next.match = 0;
+  numericSelector.steps.worker_step.next.match = 0;
   assert.match(runInspect('transition-cases-numeric-selector', baton(), false, numericSelector).stderr, /workflow failed schema validation/);
 
   const booleanSelector = structuredClone(schemaWorkflowDoc);
-  booleanSelector.workflow.steps.worker_step.next.match = false;
+  booleanSelector.steps.worker_step.next.match = false;
   assert.match(runInspect('transition-cases-boolean-selector', baton(), false, booleanSelector).stderr, /workflow failed schema validation/);
 });
 
 test('schema validation: transition target strings must be non-empty', () => {
   const emptyDirectTarget = structuredClone(schemaWorkflowDoc);
-  emptyDirectTarget.workflow.steps.direct_next_worker.next = '';
+  emptyDirectTarget.steps.direct_next_worker.next = '';
   assert.match(runInspect('empty-direct-transition-target', baton({ cursor: 'direct_next_worker' }), false, emptyDirectTarget).stderr, /workflow failed schema validation/);
 
   const emptyMappedTarget = structuredClone(schemaWorkflowDoc);
-  emptyMappedTarget.workflow.steps.worker_step.next.cases.ready = '';
+  emptyMappedTarget.steps.worker_step.next.cases.ready = '';
   assert.match(runInspect('empty-matchCases-transition-target', baton(), false, emptyMappedTarget).stderr, /workflow failed schema validation/);
 });
 
 test('schema validation: transition target values reject non-string non-policy shapes', () => {
   const numericDirectTarget = structuredClone(schemaWorkflowDoc);
-  numericDirectTarget.workflow.steps.direct_next_worker.next = 1;
+  numericDirectTarget.steps.direct_next_worker.next = 1;
   assert.match(runInspect('numeric-direct-transition-target', baton({ cursor: 'direct_next_worker' }), false, numericDirectTarget).stderr, /workflow failed schema validation/);
 
   const nestedMappedTarget = structuredClone(schemaWorkflowDoc);
-  nestedMappedTarget.workflow.steps.worker_step.next.cases.ready = { target: { id: 'approval_step' }, maxAttempts: 2, onLimit: 'blocked' };
+  nestedMappedTarget.steps.worker_step.next.cases.ready = { target: { id: 'approval_step' }, maxAttempts: 2, onLimit: 'blocked' };
   assert.match(runInspect('nested-matchCases-transition-target', baton(), false, nestedMappedTarget).stderr, /workflow failed schema validation/);
 });
 
 test('schema validation: workflow terminal and start target strings must be non-empty', () => {
   const emptyStart = structuredClone(schemaWorkflowDoc);
-  emptyStart.workflow.start = '';
+  emptyStart.start = '';
   assert.match(runInspect('empty-workflow-start-target', baton(), false, emptyStart).stderr, /workflow failed schema validation/);
 
   const emptyDone = structuredClone(schemaWorkflowDoc);
-  emptyDone.workflow.done = '';
+  emptyDone.done = '';
   assert.match(runInspect('empty-workflow-done-target', baton(), false, emptyDone).stderr, /workflow failed schema validation/);
 
   const emptyBlocked = structuredClone(schemaWorkflowDoc);
-  emptyBlocked.workflow.blocked = '';
+  emptyBlocked.blocked = '';
   assert.match(runInspect('empty-workflow-blocked-target', baton(), false, emptyBlocked).stderr, /workflow failed schema validation/);
 });
 
 test('schema validation: terminal steps reject outgoing transitions', () => {
   const doneWithNext = structuredClone(schemaWorkflowDoc);
-  doneWithNext.workflow.steps.done.next = 'worker_step';
+  doneWithNext.steps.done.next = 'worker_step';
   assert.match(runInspect('terminal-done-with-next', baton({ cursor: 'done', status: 'done' }), false, doneWithNext).stderr, /workflow failed schema validation/);
 
   const blockedWithNext = structuredClone(schemaWorkflowDoc);
-  blockedWithNext.workflow.steps.blocked.next = 'worker_step';
+  blockedWithNext.steps.blocked.next = 'worker_step';
   assert.match(
     runInspect('terminal-blocked-with-next', baton({ cursor: 'blocked', status: 'blocked' }), false, blockedWithNext).stderr,
     /workflow failed schema validation/,
@@ -946,27 +952,27 @@ test('schema validation: terminal steps reject outgoing transitions', () => {
 
 test('schema validation: step input rejects wrapper-owned nested fields', () => {
   const workerInputExtension = structuredClone(schemaWorkflowDoc);
-  workerInputExtension.workflow.steps.worker_step.input.operatorHints = { prompt: 'wrapper-owned-worker-prompt.md' };
+  workerInputExtension.steps.worker_step.input.operatorHints = { prompt: 'wrapper-owned-worker-prompt.md' };
   assert.match(runInspect('worker-input-wrapper-field', baton(), false, workerInputExtension).stderr, /workflow failed schema validation/);
 
   const terminalInputExtension = structuredClone(schemaWorkflowDoc);
-  terminalInputExtension.workflow.steps.done.input.operatorHints = { prompt: 'wrapper-owned-done-prompt.md' };
+  terminalInputExtension.steps.done.input.operatorHints = { prompt: 'wrapper-owned-done-prompt.md' };
   assert.match(runInspect('terminal-input-wrapper-field', baton({ cursor: 'done', status: 'done' }), false, terminalInputExtension).stderr, /workflow failed schema validation/);
 });
 
 test('schema validation: input state selectors must be unique non-empty strings', () => {
   const duplicateSelector = structuredClone(schemaWorkflowDoc);
-  duplicateSelector.workflow.steps.worker_step.input.state = ['worker_step', 'worker_step'];
+  duplicateSelector.steps.worker_step.input.state = ['worker_step', 'worker_step'];
   assert.match(runInspect('duplicate-worker-state-selector', baton(), false, duplicateSelector).stderr, /workflow failed schema validation/);
 
   const emptyApprovalSelector = structuredClone(schemaWorkflowDoc);
-  emptyApprovalSelector.workflow.steps.approval_step.input.state = [''];
+  emptyApprovalSelector.steps.approval_step.input.state = [''];
   assert.match(runInspect('empty-approval-state-selector', baton({ cursor: 'approval_step' }), false, emptyApprovalSelector).stderr, /workflow failed schema validation/);
 });
 
 test('schema validation: approval input rejects worker-only role field', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc.workflow.steps.approval_step.input.role = 'backend';
+  workflowDoc.steps.approval_step.input.role = 'backend';
 
   const result = runInspect('approval-input-worker-role', baton({ cursor: 'approval_step' }), false, workflowDoc);
 
@@ -975,7 +981,7 @@ test('schema validation: approval input rejects worker-only role field', () => {
 
 test('schema validation: approval steps accept optional output schema declaration', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc.workflow.steps.approval_step.output = { schema: 'worker-output.json' };
+  workflowDoc.steps.approval_step.output = { schema: 'worker-output.json' };
 
   const response = runInspect('approval-step-output-schema', baton({ cursor: 'approval_step' }), true, workflowDoc);
 
@@ -996,23 +1002,23 @@ test('runtime validation: baton status must match cursor semantics', () => {
 
 test('runtime validation: workflow root targets resolve to expected terminal step kinds', () => {
   const missingStart = structuredClone(schemaWorkflowDoc);
-  missingStart.workflow.start = 'missing_start';
+  missingStart.start = 'missing_start';
   assert.match(runInspect('missing-workflow-start-target', baton(), false, missingStart).stderr, /workflow start target not found: missing_start/);
 
   const missingDone = structuredClone(schemaWorkflowDoc);
-  missingDone.workflow.done = 'missing_done';
+  missingDone.done = 'missing_done';
   assert.match(runInspect('missing-workflow-done-target', baton(), false, missingDone).stderr, /workflow done target not found: missing_done/);
 
   const missingBlocked = structuredClone(schemaWorkflowDoc);
-  missingBlocked.workflow.blocked = 'missing_blocked';
+  missingBlocked.blocked = 'missing_blocked';
   assert.match(runInspect('missing-workflow-blocked-target', baton(), false, missingBlocked).stderr, /workflow blocked target not found: missing_blocked/);
 
   const donePointsToWorker = structuredClone(schemaWorkflowDoc);
-  donePointsToWorker.workflow.done = 'worker_step';
+  donePointsToWorker.done = 'worker_step';
   assert.match(runInspect('workflow-done-target-is-worker', baton(), false, donePointsToWorker).stderr, /workflow done target 'worker_step' must be a done step/);
 
   const blockedPointsToWorker = structuredClone(schemaWorkflowDoc);
-  blockedPointsToWorker.workflow.blocked = 'worker_step';
+  blockedPointsToWorker.blocked = 'worker_step';
   assert.match(
     runInspect('workflow-blocked-target-is-worker', baton(), false, blockedPointsToWorker).stderr,
     /workflow blocked target 'worker_step' must be a blocked step/,
@@ -1064,7 +1070,7 @@ test('validation: empty match/cases value is treated as a literal missing case',
 
 test('schema validation: nested match/cases transitions are rejected explicitly', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc.workflow.steps.worker_step.next.cases.ready = {
+  workflowDoc.steps.worker_step.next.cases.ready = {
     match: '${{ output.security_needed }}',
     cases: { yes: 'approval_step', no: 'direct_next_worker' },
   };
@@ -1076,8 +1082,8 @@ test('schema validation: nested match/cases transitions are rejected explicitly'
 
 test('validation: match/cases transition selector missing from output is rejected clearly', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc.workflow.steps.worker_step.next.match = '${{ output.decision }}';
-  workflowDoc.workflow.steps.worker_step.next.cases = { approve: 'approval_step' };
+  workflowDoc.steps.worker_step.next.match = '${{ output.decision }}';
+  workflowDoc.steps.worker_step.next.cases = { approve: 'approval_step' };
 
   const result = runApply('missing-transition-selector-field', baton(), output({ outcome: 'ready' }), false, workflowDoc);
 
@@ -1086,8 +1092,8 @@ test('validation: match/cases transition selector missing from output is rejecte
 
 test('validation: approval match/cases transition selector mismatch is rejected clearly', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc.workflow.steps.approval_step.next.match = '${{ output.decision }}';
-  workflowDoc.workflow.steps.approval_step.next.cases = { approve: 'direct_next_worker' };
+  workflowDoc.steps.approval_step.next.match = '${{ output.decision }}';
+  workflowDoc.steps.approval_step.next.cases = { approve: 'direct_next_worker' };
 
   const result = runApply('approval-missing-transition-selector-field', baton({ cursor: 'approval_step' }), { approval: 'approved' }, false, workflowDoc);
 
@@ -1096,7 +1102,7 @@ test('validation: approval match/cases transition selector mismatch is rejected 
 
 test('apply: match/cases transition value string zero is accepted as a real case key', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc.workflow.steps.worker_step.next.cases['0'] = 'approval_step';
+  workflowDoc.steps.worker_step.next.cases['0'] = 'approval_step';
 
   const response = runApply('zero-string-match-case-value', baton(), output({ outcome: '0' }), true, workflowDoc);
   assert.equal(response.baton.cursor, 'approval_step');

@@ -28,14 +28,18 @@ make -C develop validate
 
 The validator first checks the workflow document with the workflow JSON Schema. This catches malformed workflow structure before semantic checks run.
 
+Workflow documents must be flat: the JSON root directly contains `name`, `version`, `start`, `done`, `blocked`, `steps`, and optional metadata such as `description` or `triggers`. Wrapped workflow documents are invalid and are rejected before semantic checks run.
+
+Workflow-level `instruction` / `instructions` remains an optional runtime prompt capability. Do not use it for generic orchestration notes or registry metadata because it is injected into every step prompt; use metadata fields such as `description`/`triggers` or move only genuinely step-specific guidance into the relevant step `input.prompt`.
+
 ### 2. Root workflow targets
 
 The validator checks that:
 
-- `workflow.name` is a non-empty lowercase kebab-case identifier.
-- `workflow.start` names a declared step.
-- `workflow.done` names a declared step with `kind: "done"`.
-- `workflow.blocked` names a declared step with `kind: "blocked"`.
+- `name` is a non-empty lowercase kebab-case identifier.
+- `start` names a declared step.
+- `done` names a declared step with `kind: "done"`.
+- `blocked` names a declared step with `kind: "blocked"`.
 
 ### 2a. Step ids and projected state selectors
 

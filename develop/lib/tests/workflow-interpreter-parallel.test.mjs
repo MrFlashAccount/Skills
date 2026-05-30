@@ -17,7 +17,6 @@ function outputContract() {
 const emptyState = { artifacts: [], results: [] };
 
 const parallelWorkflowDoc = {
-  workflow: {
     name: 'parallel-spec',
     version: 1,
     start: 'prepare',
@@ -55,7 +54,7 @@ const parallelWorkflowDoc = {
       done: { name: 'Done', kind: 'done', input: { prompt: 'Finished.' } },
       blocked: { name: 'Blocked', kind: 'blocked', input: { prompt: 'Blocked.' } },
     },
-  },
+
 };
 
 function safeName(label) {
@@ -188,9 +187,9 @@ test('runtime: parallel step outputs write separate state and advance to explici
 
 test('e2e: wrapper can render parallel branch prompts, collect branch outputs, and render join state', () => {
   const workflowDoc = structuredClone(parallelWorkflowDoc);
-  workflowDoc.workflow.name = 'parallel-render-spec';
-  workflowDoc.workflow.steps.branch_a.input.state = ['prepare'];
-  workflowDoc.workflow.steps.branch_b.input.state = ['prepare'];
+  workflowDoc.name = 'parallel-render-spec';
+  workflowDoc.steps.branch_a.input.state = ['prepare'];
+  workflowDoc.steps.branch_b.input.state = ['prepare'];
 
   const pending = runApply('parallel-e2e-start', baton({ cursor: 'prepare' }), output({
     outcome: 'ready',
@@ -237,32 +236,32 @@ test('runtime: join step can read parallel branch state and continue to done', (
 
 test('schema validation: parallel next rejects empty arrays and duplicate targets', () => {
   const emptyNextWorkflowDoc = structuredClone(parallelWorkflowDoc);
-  emptyNextWorkflowDoc.workflow.steps.prepare.next = [];
+  emptyNextWorkflowDoc.steps.prepare.next = [];
   const empty = runInspect('parallel-empty-next', baton({ cursor: 'prepare' }), false, emptyNextWorkflowDoc);
   assert.match(empty.stderr, /workflow failed schema validation/);
 
   const duplicateNextWorkflowDoc = structuredClone(parallelWorkflowDoc);
-  duplicateNextWorkflowDoc.workflow.steps.prepare.next = ['branch_a', 'branch_a'];
+  duplicateNextWorkflowDoc.steps.prepare.next = ['branch_a', 'branch_a'];
   const duplicate = runInspect('parallel-duplicate-next', baton({ cursor: 'prepare' }), false, duplicateNextWorkflowDoc);
   assert.match(duplicate.stderr, /workflow failed schema validation/);
 });
 
 test('runtime validation: parallel branches reject nested parallel and non-join shapes', () => {
   const nestedWorkflowDoc = structuredClone(parallelWorkflowDoc);
-  nestedWorkflowDoc.workflow.steps.branch_a.next = ['join'];
+  nestedWorkflowDoc.steps.branch_a.next = ['join'];
   const nested = runInspect('parallel-nested-rejected', baton({ cursor: 'prepare' }), false, nestedWorkflowDoc);
   assert.match(nested.stderr, /cannot start nested parallel steps/);
 
   const matchCasesBranchWorkflowDoc = structuredClone(parallelWorkflowDoc);
-  matchCasesBranchWorkflowDoc.workflow.steps.branch_a.next = { match: '${{ output.outcome }}', cases: { ready: 'join' } };
+  matchCasesBranchWorkflowDoc.steps.branch_a.next = { match: '${{ output.outcome }}', cases: { ready: 'join' } };
   const matchCases = runInspect('parallel-matchCases-branch-rejected', baton({ cursor: 'prepare' }), false, matchCasesBranchWorkflowDoc);
   assert.match(matchCases.stderr, /must use a string next to an explicit join step/);
 });
 
 test('runtime: repeated sequential loop execution still overwrites latest per-step state', () => {
   const workflowDoc = structuredClone(parallelWorkflowDoc);
-  workflowDoc.workflow.start = 'worker_step';
-  workflowDoc.workflow.steps.worker_step = {
+  workflowDoc.start = 'worker_step';
+  workflowDoc.steps.worker_step = {
     name: 'Worker step',
     kind: 'worker',
     input: { prompt: 'Run worker.' },

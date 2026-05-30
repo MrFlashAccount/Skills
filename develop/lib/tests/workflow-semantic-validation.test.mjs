@@ -78,7 +78,6 @@ writeSchema('unknown-array-target-output.schema.json', {
 
 function genericWorkflowWithWorkerRole(role) {
   return {
-    workflow: {
       name: 'generic-role-validation-fixture',
       version: 1,
       start: 'worker_step',
@@ -95,13 +94,12 @@ function genericWorkflowWithWorkerRole(role) {
         done: { name: 'Done', kind: 'done' },
         blocked: { name: 'Blocked', kind: 'blocked' },
       },
-    },
+
   };
 }
 
 function syntheticWorkflow(overrides) {
   const doc = {
-    workflow: {
       name: 'synthetic-validation-fixture',
       version: 1,
       start: 'producer',
@@ -145,17 +143,33 @@ function syntheticWorkflow(overrides) {
         done: { name: 'Done', kind: 'done', input: { state: ['consumer'] } },
         blocked: { name: 'Blocked', kind: 'blocked', input: { state: ['producer'] } },
       },
-    },
+
   };
   return overrides?.(doc) ?? doc;
 }
 
-test('workflow semantic validation accepts the checked-in DevHarness workflow', () => {
-  assert.deepEqual(validate(workflowDoc), { ok: true, workflow: 'dev-harness', steps: Object.keys(workflowDoc.workflow.steps).length });
+test('workflow semantic validation accepts the checked-in flat DevHarness workflow', () => {
+  assert.equal(Object.hasOwn(workflowDoc, 'workflow'), false);
+  assert.deepEqual(validate(workflowDoc), { ok: true, workflow: 'dev-harness', steps: Object.keys(workflowDoc.steps).length });
+});
+
+test('workflow semantic validation rejects wrapped workflow documents', () => {
+  const flat = syntheticWorkflow();
+  const wrapped = { workflow: structuredClone(flat) };
+
+  assert.deepEqual(validateSynthetic(flat), { ok: true, workflow: 'synthetic-validation-fixture', steps: Object.keys(flat.steps).length });
+  assertSemanticFailure(wrapped, /workflow failed schema validation/);
+});
+
+test('workflow semantic validation rejects workflow wrapper field on flat documents', () => {
+  const flat = syntheticWorkflow();
+  flat.workflow = structuredClone(syntheticWorkflow());
+
+  assertSemanticFailure(flat, /workflow failed schema validation/);
 });
 
 test('research critic save step uses persistence metadata template matching its output schema', () => {
-  const step = researchCriticWorkflowDoc.workflow.steps.save_research_packet;
+  const step = researchCriticWorkflowDoc.steps.save_research_packet;
 
   assert.equal(step.output.template, 'shared/templates/research-save-metadata-template.md');
   assert.equal(step.output.schema, 'workflows/research-critic/schemas/save-research-packet-output.json');
@@ -163,16 +177,16 @@ test('research critic save step uses persistence metadata template matching its 
   assert.deepEqual(validateWorkflowDocument(researchCriticWorkflowDoc, { workflowPath: path.join(REPO_ROOT, 'workflows/research-critic/workflow.json'), repositoryRoot: REPO_ROOT }), {
     ok: true,
     workflow: 'research-critic',
-    steps: Object.keys(researchCriticWorkflowDoc.workflow.steps).length,
+    steps: Object.keys(researchCriticWorkflowDoc.steps).length,
   });
 });
 
 test('research critic saved packet output requires projected artifacts and results', () => {
   const workflowPath = path.join(REPO_ROOT, 'workflows/research-critic/workflow.json');
-  const step = researchCriticWorkflowDoc.workflow.steps.save_research_packet;
+  const step = researchCriticWorkflowDoc.steps.save_research_packet;
 
   const missingProjection = validateAgainstOutputSchema({
-    workflow: researchCriticWorkflowDoc.workflow,
+    workflow: researchCriticWorkflowDoc,
     workflowPath,
     schemaRef: step.output.schema,
     repositoryRoot: REPO_ROOT,
@@ -183,7 +197,7 @@ test('research critic saved packet output requires projected artifacts and resul
   assert.match(missingProjection.errors, /results/);
 
   const emptyProjection = validateAgainstOutputSchema({
-    workflow: researchCriticWorkflowDoc.workflow,
+    workflow: researchCriticWorkflowDoc,
     workflowPath,
     schemaRef: step.output.schema,
     repositoryRoot: REPO_ROOT,
@@ -194,7 +208,7 @@ test('research critic saved packet output requires projected artifacts and resul
   assert.match(emptyProjection.errors, /results/);
 
   const withProjection = validateAgainstOutputSchema({
-    workflow: researchCriticWorkflowDoc.workflow,
+    workflow: researchCriticWorkflowDoc,
     workflowPath,
     schemaRef: step.output.schema,
     repositoryRoot: REPO_ROOT,
@@ -210,9 +224,9 @@ test('research critic saved packet output requires projected artifacts and resul
 
 test('research critic save packet output keeps saved and blocked branches exclusive', () => {
   const workflowPath = path.join(REPO_ROOT, 'workflows/research-critic/workflow.json');
-  const step = researchCriticWorkflowDoc.workflow.steps.save_research_packet;
+  const step = researchCriticWorkflowDoc.steps.save_research_packet;
   const schemaContext = {
-    workflow: researchCriticWorkflowDoc.workflow,
+    workflow: researchCriticWorkflowDoc,
     workflowPath,
     schemaRef: step.output.schema,
     repositoryRoot: REPO_ROOT,
@@ -258,12 +272,12 @@ test('workflow semantic validation rejects invalid worker roles in generic workf
 test('workflow semantic validation rejects step ids reserved for baton state bookkeeping', () => {
   for (const reservedStepId of ['artifacts', 'results', 'outputs', 'attempts']) {
     const doc = genericWorkflowWithWorkerRole('backend');
-    doc.workflow.start = reservedStepId;
-    doc.workflow.steps[reservedStepId] = {
-      ...doc.workflow.steps.worker_step,
+    doc.start = reservedStepId;
+    doc.steps[reservedStepId] = {
+      ...doc.steps.worker_step,
       name: `Reserved ${reservedStepId}`,
     };
-    delete doc.workflow.steps.worker_step;
+    delete doc.steps.worker_step;
 
     assertSemanticFailure(doc, new RegExp(`workflow step id '${reservedStepId}' is reserved for runtime aggregate state`));
   }
@@ -271,7 +285,7 @@ test('workflow semantic validation rejects step ids reserved for baton state boo
 
 test('workflow semantic validation warns when DevHarness described fields lack x-usage', () => {
   const doc = structuredClone(workflowDoc);
-  doc.workflow.steps.research_draft.output.schema = 'develop/lib/tests/fixtures/research-draft-missing-x-usage.schema.json';
+  doc.steps.research_draft.output.schema = 'develop/lib/tests/fixtures/research-draft-missing-x-usage.schema.json';
 
   const result = validate(doc);
 
@@ -282,28 +296,28 @@ test('workflow semantic validation warns when DevHarness described fields lack x
 
 test('workflow semantic validation rejects schema-declared dynamic targets that are not workflow steps', () => {
   const doc = structuredClone(workflowDoc);
-  doc.workflow.steps.review_join.output.schema = 'develop/lib/tests/fixtures/review-join-output-unknown-target.schema.json';
+  doc.steps.review_join.output.schema = 'develop/lib/tests/fixtures/review-join-output-unknown-target.schema.json';
 
   assertSemanticFailure(doc, /review_join.*output\.next.*unknown_step/);
 });
 
 test('workflow semantic validation rejects missing match cases from output schema enums', () => {
   const doc = structuredClone(workflowDoc);
-  delete doc.workflow.steps.research_draft.next.cases.blocked;
+  delete doc.steps.research_draft.next.cases.blocked;
 
   assertSemanticFailure(doc, /research_draft.*next\.cases is missing schema-declared case 'blocked'/);
 });
 
 test('workflow semantic validation rejects unreachable match cases not present in output schema enums', () => {
   const doc = structuredClone(workflowDoc);
-  doc.workflow.steps.research_draft.next.cases.unreachable = 'blocked';
+  doc.steps.research_draft.next.cases.unreachable = 'blocked';
 
   assert.throws(() => validate(doc), /research_draft.*unreachable case 'unreachable'/);
 });
 
 test('workflow semantic validation rejects malformed workflow names', () => {
   const doc = syntheticWorkflow((draft) => {
-    draft.workflow.name = '../not-a-workflow-name';
+    draft.name = '../not-a-workflow-name';
     return draft;
   });
 
@@ -314,12 +328,12 @@ test('workflow semantic validation accepts input.state selectors that reference 
   assert.deepEqual(validateSynthetic(syntheticWorkflow()), { ok: true, workflow: 'synthetic-validation-fixture', steps: 7 });
 
   const doc = syntheticWorkflow((draft) => {
-    draft.workflow.steps.approval_gate = {
+    draft.steps.approval_gate = {
       name: 'Approval gate',
       kind: 'approval',
       next: { match: '${{ output.approval }}', cases: { approved: 'consumer', blocked: 'blocked' } },
     };
-    draft.workflow.steps.consumer.input.state = ['approval_gate'];
+    draft.steps.consumer.input.state = ['approval_gate'];
     return draft;
   });
 
@@ -328,8 +342,8 @@ test('workflow semantic validation accepts input.state selectors that reference 
 
 test('workflow semantic validation accepts input expressions against projected input.state selectors', () => {
   const doc = syntheticWorkflow((draft) => {
-    draft.workflow.steps.consumer.input = { state: ['producer', 'branch_a'] };
-    draft.workflow.steps.consumer.next = { match: '${{ input.branch_a.outcome }}', cases: { ready: 'done', blocked: 'blocked' } };
+    draft.steps.consumer.input = { state: ['producer', 'branch_a'] };
+    draft.steps.consumer.next = { match: '${{ input.branch_a.outcome }}', cases: { ready: 'done', blocked: 'blocked' } };
     return draft;
   });
 
@@ -340,7 +354,7 @@ test('workflow semantic validation rejects input.state selectors that do not nam
   for (const selector of ['missing_step', '__proto__', 'toString']) {
     assertSemanticFailure(
       syntheticWorkflow((draft) => {
-        draft.workflow.steps.consumer.input.state = [selector];
+        draft.steps.consumer.input.state = [selector];
         return draft;
       }),
       new RegExp(`consumer.*input\\.state selector '${selector}'.*declared workflow step`),
@@ -349,7 +363,7 @@ test('workflow semantic validation rejects input.state selectors that do not nam
 
   assertSemanticFailure(
     syntheticWorkflow((draft) => {
-      draft.workflow.steps.consumer.input.state = ['artifacts', 'results', 'outputs'];
+      draft.steps.consumer.input.state = ['artifacts', 'results', 'outputs'];
       return draft;
     }),
     /consumer.*input\.state selector 'artifacts'.*reserved for runtime aggregate state/,
@@ -360,7 +374,7 @@ test('workflow semantic validation rejects declared step ids reserved for aggreg
   for (const reservedStepId of ['artifacts', 'results', 'outputs', 'attempts']) {
     assertSemanticFailure(
       syntheticWorkflow((draft) => {
-        draft.workflow.steps[reservedStepId] = {
+        draft.steps[reservedStepId] = {
           name: `Reserved ${reservedStepId}`,
           kind: 'worker',
           output: { template: `${reservedStepId}.md`, schema: 'route-output.schema.json' },
@@ -376,7 +390,7 @@ test('workflow semantic validation rejects declared step ids reserved for aggreg
 test('workflow semantic validation rejects unsupported nested input.state selectors', () => {
   assertSemanticFailure(
     syntheticWorkflow((draft) => {
-      draft.workflow.steps.consumer.input.state = ['producer.route'];
+      draft.steps.consumer.input.state = ['producer.route'];
       return draft;
     }),
     /consumer.*input\.state selector 'producer\.route' is invalid/,
@@ -386,7 +400,7 @@ test('workflow semantic validation rejects unsupported nested input.state select
 test('workflow semantic validation rejects projected input expressions with unknown schema fields', () => {
   assertSemanticFailure(
     syntheticWorkflow((draft) => {
-      draft.workflow.steps.consumer.next = { match: '${{ input.producer.missing_route }}', cases: { review: 'done', blocked: 'blocked' } };
+      draft.steps.consumer.next = { match: '${{ input.producer.missing_route }}', cases: { review: 'done', blocked: 'blocked' } };
       return draft;
     }),
     /consumer.*input\.producer\.missing_route.*no schema-covered path/,
@@ -396,7 +410,7 @@ test('workflow semantic validation rejects projected input expressions with unkn
 test('workflow semantic validation rejects aggregate runtime state expressions in input transitions', () => {
   assertSemanticFailure(
     syntheticWorkflow((draft) => {
-      draft.workflow.steps.consumer.next = { match: '${{ input.outputs.producer.route }}', cases: { review: 'done', blocked: 'blocked' } };
+      draft.steps.consumer.next = { match: '${{ input.outputs.producer.route }}', cases: { review: 'done', blocked: 'blocked' } };
       return draft;
     }),
     /consumer.*input\.outputs\.producer\.route.*does not project input state 'outputs'/,
@@ -406,8 +420,8 @@ test('workflow semantic validation rejects aggregate runtime state expressions i
 test('workflow semantic validation rejects unsafe dynamic array target schemas', () => {
   assertSemanticFailure(
     syntheticWorkflow((draft) => {
-      draft.workflow.steps.producer.next = '${{ output.next_steps }}';
-      draft.workflow.steps.producer.output.schema = 'bad-array-output.schema.json';
+      draft.steps.producer.next = '${{ output.next_steps }}';
+      draft.steps.producer.output.schema = 'bad-array-output.schema.json';
       return draft;
     }),
     /producer.*output\.next_steps.*array target schema must declare minItems >= 1/,
@@ -415,8 +429,8 @@ test('workflow semantic validation rejects unsafe dynamic array target schemas',
 
   assertSemanticFailure(
     syntheticWorkflow((draft) => {
-      draft.workflow.steps.producer.next = '${{ output.next_steps }}';
-      draft.workflow.steps.producer.output.schema = 'unknown-array-target-output.schema.json';
+      draft.steps.producer.next = '${{ output.next_steps }}';
+      draft.steps.producer.output.schema = 'unknown-array-target-output.schema.json';
       return draft;
     }),
     /producer.*output\.next_steps.*target not found: missing_branch/,
@@ -426,8 +440,8 @@ test('workflow semantic validation rejects unsafe dynamic array target schemas',
 test('workflow semantic validation rejects dynamic array target schemas with invalid join shape', () => {
   assertSemanticFailure(
     syntheticWorkflow((draft) => {
-      draft.workflow.steps.producer.next = '${{ output.next_steps }}';
-      draft.workflow.steps.branch_b.next = 'done';
+      draft.steps.producer.next = '${{ output.next_steps }}';
+      draft.steps.branch_b.next = 'done';
       return draft;
     }),
     /producer.*output\.next_steps.*parallel branch targets must share one explicit join step/,
@@ -437,7 +451,6 @@ test('workflow semantic validation rejects dynamic array target schemas with inv
 
 test('workflow semantic validation uses approval output.schema for output match cases when declared', () => {
   const doc = {
-    workflow: {
       name: 'approval-schema-routing-fixture',
       version: 1,
       start: 'approve',
@@ -454,7 +467,7 @@ test('workflow semantic validation uses approval output.schema for output match 
         done: { name: 'Done', kind: 'done' },
         blocked: { name: 'Blocked', kind: 'blocked' },
       },
-    },
+
   };
 
   assertSemanticFailure(doc, /approve.*next\.cases is missing schema-declared case 'revise'/);

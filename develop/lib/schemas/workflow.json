@@ -2,53 +2,8 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/workflow",
   "title": "Workflow Document",
-  "type": "object",
-  "required": [
-    "workflow"
-  ],
-  "properties": {
-    "workflow": {
-      "type": "object",
-      "required": [
-        "name",
-        "version",
-        "start",
-        "done",
-        "blocked",
-        "steps"
-      ],
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "version": {
-          "type": "integer",
-          "minimum": 1
-        },
-        "start": {
-          "type": "string",
-          "minLength": 1
-        },
-        "done": {
-          "type": "string",
-          "minLength": 1
-        },
-        "blocked": {
-          "type": "string",
-          "minLength": 1
-        },
-        "steps": {
-          "type": "object",
-          "minProperties": 1,
-          "additionalProperties": {
-            "$ref": "#/$defs/step"
-          }
-        }
-      },
-      "additionalProperties": true
-    }
-  },
-  "additionalProperties": false,
+  "description": "Workflow documents use the flat workflow root: name, version, start, done, blocked, and steps are defined at the JSON root.",
+  "$ref": "#/$defs/workflow",
   "$defs": {
     "step": {
       "description": "Canonical target workflow step shape.",
@@ -304,6 +259,51 @@
         }
       },
       "additionalProperties": false
+    },
+    "workflow": {
+      "type": "object",
+      "required": [
+        "name",
+        "version",
+        "start",
+        "done",
+        "blocked",
+        "steps"
+      ],
+      "not": {
+        "required": [
+          "workflow"
+        ]
+      },
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "start": {
+          "type": "string",
+          "minLength": 1
+        },
+        "done": {
+          "type": "string",
+          "minLength": 1
+        },
+        "blocked": {
+          "type": "string",
+          "minLength": 1
+        },
+        "steps": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "$ref": "#/$defs/step"
+          }
+        }
+      },
+      "additionalProperties": true
     }
   }
 }

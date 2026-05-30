@@ -49,7 +49,7 @@ In scope for #89:
 Current files already establish these contracts:
 
 - `workflows/dev-harness/workflow.json` declares worker and approval steps with `input.state`, optional `input.template`, optional `input.prompt`, optional worker `input.role`, and worker `output.template`.
-- `develop/lib/schemas/workflow.json` rejects step-level extension fields and allows workflow-scoped extensions only.
+- `develop/lib/schemas/workflow.json` requires flat workflow documents (`name`, `version`, `start`, `done`, `blocked`, `steps` at the JSON root), rejects wrapped workflow documents, rejects step-level extension fields, and allows workflow-scoped extensions only.
 - `develop/lib/workflow/interpreter/index.mjs` chooses the current `step`, validates transition targets, applies output, and returns the unified `{ baton, steps[] }` response for `inspect`/`apply`; `render` keeps compiled prompts inside the deterministic runner layer without making host requests carry full prompt text.
 - `develop/lib/workflow/executable-steps.mjs` exposes step entries shaped as `{ id, action, step }` before rendering prompts.
 - `develop/lib/workflow/projection.mjs` projects only explicit top-level `input.state` selectors, skips selectors that are valid workflow step ids but absent from the current `baton.state`, and rejects nested selectors.
@@ -93,7 +93,7 @@ Renderer-relevant fields:
 | `input.role` | worker | Role name resolved from `roles/<name>/`; renderer inlines `ROLE.md` and `RUBRIC.md` into prompt context. |
 | `output.template` | worker | Markdown output contract template to include as strict return-shape instructions. |
 | `output.schema` | worker, optional | Repository-local JSON schema file to inject near the output contract as concise valid-JSON/self-check instructions. |
-| `workflow.instruction` | workflow root, optional extension | Workflow-level instruction appended directly under the top wrapper, before role/output/context layers. |
+| `instruction` / `instructions` | workflow root, optional runtime prompt capability | Workflow-level instruction appended under the top wrapper before role/output/context layers. It is optional and should not be used for generic orchestration notes that pollute every step prompt; prefer `description`/registry metadata for non-runtime guidance or step-specific `input.prompt` text when only one step needs it. |
 | `baton.user_prompt` | baton root, optional | Raw startup user prompt stored at run start; must contain non-whitespace text when present. |
 | `baton.user_prompt_injected` | baton root, optional | Runner/interpreter marker set after the selected startup-prompt worker output has been applied; prevents reinjection after completion/resume or workflow drift while allowing repeated renders of the same uncompleted worker to preserve the prompt. |
 

@@ -10,7 +10,7 @@ function assertLoadedWorkflowAndBaton(workflowDoc, baton, workflowPath) {
   assertWorkflowSchema(workflowDoc);
   assertBatonSchema(baton);
 
-  const workflow = workflowDoc.workflow;
+  const workflow = workflowDoc;
   assertNoReservedWorkflowStepIds(workflow);
   assertWorkflowRootTargets(workflow);
   assertWorkflowRuntimeStateBoundary(workflow);
