@@ -32,12 +32,10 @@
         "kind": "approval",
         "input": {
           "state": [
-            "research_draft"
-          ],
-          "prompt": "Ask the user only the blocking research questions from the latest research_draft or research_attack output. Continue with approval approved after the user answer is captured in the approval output; use blocked only when the user cannot or will not provide required input.",
-          "optionalState": [
+            "research_draft",
             "research_attack"
-          ]
+          ],
+          "prompt": "Ask the user only the blocking research questions from the latest research_draft or research_attack output. Continue with approval approved after the user answer is captured in the approval output; use blocked only when the user cannot or will not provide required input."
         },
         "next": {
           "match": "${{ output.approval }}",
@@ -54,9 +52,7 @@
           "role": "researcher",
           "state": [
             "research_draft",
-            "ask_research_questions"
-          ],
-          "optionalState": [
+            "ask_research_questions",
             "research_attack"
           ],
           "prompt": "Revise the research packet using the approved user answers from ask_research_questions and any critic feedback if present. Preserve answered decisions and close only evidence-backed questions. Return ready_for_attack when the packet is ready for critic review, needs_input when more user answers are required, or blocked when progress is unsafe without external input."
@@ -105,9 +101,7 @@
           "role": "researcher",
           "state": [
             "research_draft",
-            "research_attack"
-          ],
-          "optionalState": [
+            "research_attack",
             "ask_research_questions"
           ],
           "prompt": "Revise the research packet using the latest research_attack verdict and any approved user answers. Preserve answered decisions, address each bounded critic finding, and return ready_for_attack when the packet is ready for another critic review, needs_input when user answers are required, or blocked when progress is unsafe without external input."
@@ -162,16 +156,15 @@
         "name": "Blocked",
         "kind": "blocked",
         "input": {
-          "state": [],
-          "prompt": "Research workflow is blocked. Surface the blocker and required input.",
-          "optionalState": [
+          "state": [
             "research_draft",
             "ask_research_questions",
             "research_answered_draft",
             "research_attack",
             "research_revision",
             "save_research_packet"
-          ]
+          ],
+          "prompt": "Research workflow is blocked. Surface the blocker and required input."
         }
       }
     }

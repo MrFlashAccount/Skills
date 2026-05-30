@@ -196,30 +196,20 @@ projectState({ batonState, selectors }) -> { value, projectedKeys, diagnostics }
 
 ### Missing-key policy
 
-Default v1 policy: fail hard when a selected key is absent from `baton.state`.
+Default v1 policy: `input.state` selectors are strict against declared workflow step ids during semantic validation, but optional relative to the current `baton.state` at prompt-render time.
 
-Rationale: `input.state` is an explicit contract. A typo such as `artifact` should not produce a deceptively valid prompt.
+Rationale: branch/join steps may project every semantically valid branch output while only some branches have actually run in the current baton. Typos such as `artifact` are still rejected by workflow semantic validation because selectors must reference declared workflow step ids.
 
-Error shape should identify:
-
-- `stepId`;
-- selector;
-- available top-level baton state keys.
-
-Example message:
-
-```text
-workflow prompt render failed: step 'research' selected missing baton state key 'artifact'; available keys: artifacts, results
-```
+When a selected step id is absent from `baton.state`, projection skips it and continues with the selectors that are present.
 
 ### Nested path policy
 
-Reject nested selectors in v1. A selector is valid only when it matches one top-level key exactly. Suggested validation regex: `/^[A-Za-z_][A-Za-z0-9_-]*$/` plus actual key existence.
+Reject nested selectors in v1. A selector is valid only when it matches one declared workflow step id exactly. Suggested validation regex: `/^[A-Za-z_][A-Za-z0-9_-]*$/` plus actual key existence.
 
 Rejected selector examples should produce clear diagnostics:
 
 ```text
-workflow prompt render failed: step 'research' uses unsupported state selector 'artifacts.0'; v1 supports top-level baton state keys only
+workflow prompt render failed: step 'research' uses unsupported state selector 'artifacts.0'; v1 supports top-level workflow step ids only
 ```
 
 ### Serialization
@@ -376,7 +366,6 @@ Hard errors:
 
 - workflow/baton schema validation failure;
 - cursor/status inconsistency;
-- selected missing baton state key;
 - nested or unsupported state selector;
 - missing `input.template` when declared;
 - missing `output.template` when declared;
@@ -391,7 +380,7 @@ Non-errors:
 - absent `input.state`: emit no state section;
 - absent `output.template` on approval/done/blocked steps.
 
-Diagnostics are machine-readable in compiled results only when rendering succeeds with non-fatal notices and the caller opts in, for example CLI `render --diagnostics`. The current non-fatal diagnostic is `default_prompt_used`, emitted when a step has no `input.template` and the renderer assembles the deterministic fallback prompt. Most v1 conditions still fail hard rather than continue with a risky prompt.
+Diagnostics are machine-readable in compiled results only when rendering succeeds with non-fatal notices and the caller opts in, for example CLI `render --diagnostics`. The current non-fatal diagnostic is `default_prompt_used`, emitted when a step has no `input.template` and the renderer assembles the deterministic fallback prompt. Missing selected step outputs are normal branch/join state and are skipped without diagnostics.
 
 ## Test plan
 
@@ -401,7 +390,7 @@ Unit tests:
 
 - `projectState` includes only explicit keys.
 - `projectState` preserves selector order.
-- `projectState` rejects missing keys.
+- `projectState` skips selected step ids that are absent from the current baton state.
 - `projectState` rejects nested selectors.
 - `projectState` serializes stable fenced JSON.
 - `renderWorkflowPrompt` renders default prompt when no input template exists.

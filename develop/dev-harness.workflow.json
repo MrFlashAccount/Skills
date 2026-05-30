@@ -302,14 +302,12 @@
         "kind": "worker",
         "input": {
           "state": [
-            "planning_draft"
-          ],
-          "prompt": "Join exactly the implementation outputs named by the approved plan contract planning_draft.selected_implementation_steps from projected input.<step_id> fields. Confirm each selected branch completed, verification evidence exists, and no branch widened scope. Do not choose, invent, or recompute reviewers; reviewers are fixed by planning_draft.selected_review_steps. If complete, return outcome ready_for_review with reviewer_handoff.selected_review_steps copied from planning_draft.selected_review_steps. If incomplete, return outcome blocked with blocker.source_step_id = implementation_join.",
-          "optionalState": [
+            "planning_draft",
             "backend_implementation",
             "frontend_implementation",
             "architecture_artifact_update"
-          ]
+          ],
+          "prompt": "Join exactly the implementation outputs named by the approved plan contract planning_draft.selected_implementation_steps from projected input.<step_id> fields. Confirm each selected branch completed, verification evidence exists, and no branch widened scope. Do not choose, invent, or recompute reviewers; reviewers are fixed by planning_draft.selected_review_steps. If complete, return outcome ready_for_review with reviewer_handoff.selected_review_steps copied from planning_draft.selected_review_steps. If incomplete, return outcome blocked with blocker.source_step_id = implementation_join."
         },
         "output": {
           "template": "../../shared/templates/reviewer-handoff-template.md",
@@ -347,14 +345,12 @@
           "state": [
             "planning_draft",
             "implementation_join",
-            "review_dispatch"
-          ],
-          "prompt": "Review implementation against approved architecture decision, ownership seams, dependency direction, compatibility surfaces, and artifact obligations. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = architect_review.",
-          "optionalState": [
+            "review_dispatch",
             "backend_implementation",
             "frontend_implementation",
             "architecture_artifact_update"
-          ]
+          ],
+          "prompt": "Review implementation against approved architecture decision, ownership seams, dependency direction, compatibility surfaces, and artifact obligations. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = architect_review."
         },
         "output": {
           "template": "../../shared/templates/review-verdict-template.md",
@@ -370,14 +366,12 @@
           "state": [
             "planning_draft",
             "implementation_join",
-            "review_dispatch"
-          ],
-          "prompt": "Review backend correctness, contracts, data flow, validation, failure handling, permissions, rollout safety, observability, and tests for the slice selected by the approved plan contract. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = backend_review.",
-          "optionalState": [
+            "review_dispatch",
             "backend_implementation",
             "frontend_implementation",
             "architecture_artifact_update"
-          ]
+          ],
+          "prompt": "Review backend correctness, contracts, data flow, validation, failure handling, permissions, rollout safety, observability, and tests for the slice selected by the approved plan contract. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = backend_review."
         },
         "output": {
           "template": "../../shared/templates/review-verdict-template.md",
@@ -393,14 +387,12 @@
           "state": [
             "planning_draft",
             "implementation_join",
-            "review_dispatch"
-          ],
-          "prompt": "Review frontend correctness, data flow, state handling, accessibility-relevant behavior, and tests for the slice selected by the approved plan contract. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = frontend_review.",
-          "optionalState": [
+            "review_dispatch",
             "backend_implementation",
             "frontend_implementation",
             "architecture_artifact_update"
-          ]
+          ],
+          "prompt": "Review frontend correctness, data flow, state handling, accessibility-relevant behavior, and tests for the slice selected by the approved plan contract. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = frontend_review."
         },
         "output": {
           "template": "../../shared/templates/review-verdict-template.md",
@@ -416,14 +408,12 @@
           "state": [
             "planning_draft",
             "implementation_join",
-            "review_dispatch"
-          ],
-          "prompt": "Review visual/product taste, copy fit, interaction polish, and user-facing coherence for frontend-relevant changes. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = frontend_taste_review.",
-          "optionalState": [
+            "review_dispatch",
             "backend_implementation",
             "frontend_implementation",
             "architecture_artifact_update"
-          ]
+          ],
+          "prompt": "Review visual/product taste, copy fit, interaction polish, and user-facing coherence for frontend-relevant changes. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = frontend_taste_review."
         },
         "output": {
           "template": "../../shared/templates/review-verdict-template.md",
@@ -439,14 +429,12 @@
           "state": [
             "planning_draft",
             "implementation_join",
-            "review_dispatch"
-          ],
-          "prompt": "Review trust boundaries, injection surfaces, secret handling, permission assumptions, and unsafe automation paths for the slice selected by the approved plan contract. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = security_review.",
-          "optionalState": [
+            "review_dispatch",
             "backend_implementation",
             "frontend_implementation",
             "architecture_artifact_update"
-          ]
+          ],
+          "prompt": "Review trust boundaries, injection surfaces, secret handling, permission assumptions, and unsafe automation paths for the slice selected by the approved plan contract. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = security_review."
         },
         "output": {
           "template": "../../shared/templates/review-verdict-template.md",
@@ -462,14 +450,12 @@
           "state": [
             "planning_draft",
             "implementation_join",
-            "review_dispatch"
-          ],
-          "prompt": "Review data minimization, sensitive content exposure, durable memory/logging risk, and user-context handling for the slice selected by the approved plan contract. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = privacy_review.",
-          "optionalState": [
+            "review_dispatch",
             "backend_implementation",
             "frontend_implementation",
             "architecture_artifact_update"
-          ]
+          ],
+          "prompt": "Review data minimization, sensitive content exposure, durable memory/logging risk, and user-context handling for the slice selected by the approved plan contract. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = privacy_review."
         },
         "output": {
           "template": "../../shared/templates/review-verdict-template.md",
@@ -485,14 +471,12 @@
           "state": [
             "planning_draft",
             "implementation_join",
-            "review_dispatch"
-          ],
-          "prompt": "Review verification depth, regression risk, edge cases, deterministic runtime behavior, and handoff quality for the slice selected by the approved plan contract. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = qa_review.",
-          "optionalState": [
+            "review_dispatch",
             "backend_implementation",
             "frontend_implementation",
             "architecture_artifact_update"
-          ]
+          ],
+          "prompt": "Review verification depth, regression risk, edge cases, deterministic runtime behavior, and handoff quality for the slice selected by the approved plan contract. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = qa_review."
         },
         "output": {
           "template": "../../shared/templates/review-verdict-template.md",
@@ -506,10 +490,7 @@
         "input": {
           "state": [
             "planning_draft",
-            "implementation_join"
-          ],
-          "prompt": "Aggregate exactly the review outputs named by the approved plan contract planning_draft.selected_review_steps from projected input.<step_id> fields. This is a join/decision step, not a critique pass. If every selected reviewer passed, return outcome passed and next done. If changes are needed, return outcome needs_changes and next equal to the relevant implementation step ids from reviewer required_implementation_steps, not every implementation branch. If review cannot finish safely, return outcome blocked, next blocked, and blocker.source_step_id = review_join.",
-          "optionalState": [
+            "implementation_join",
             "architect_review",
             "backend_review",
             "frontend_review",
@@ -517,7 +498,8 @@
             "security_review",
             "privacy_review",
             "qa_review"
-          ]
+          ],
+          "prompt": "Aggregate exactly the review outputs named by the approved plan contract planning_draft.selected_review_steps from projected input.<step_id> fields. This is a join/decision step, not a critique pass. If every selected reviewer passed, return outcome passed and next done. If changes are needed, return outcome needs_changes and next equal to the relevant implementation step ids from reviewer required_implementation_steps, not every implementation branch. If review cannot finish safely, return outcome blocked, next blocked, and blocker.source_step_id = review_join."
         },
         "output": {
           "template": "../../shared/templates/review-verdict-template.md",
@@ -539,9 +521,7 @@
         "name": "Blocked",
         "kind": "blocked",
         "input": {
-          "state": [],
-          "prompt": "Workflow blocked. Use the blocker embedded in the exact projected step output; blocker.source_step_id identifies the producing step. Return the blocker, evidence, risk, and exact next decision or missing input; do not summarize artifacts/results globals.",
-          "optionalState": [
+          "state": [
             "research_draft",
             "research_attack",
             "architecture_draft",
@@ -562,7 +542,8 @@
             "privacy_review",
             "qa_review",
             "review_join"
-          ]
+          ],
+          "prompt": "Workflow blocked. Use the blocker embedded in the exact projected step output; blocker.source_step_id identifies the producing step. Return the blocker, evidence, risk, and exact next decision or missing input; do not summarize artifacts/results globals."
         }
       }
     }

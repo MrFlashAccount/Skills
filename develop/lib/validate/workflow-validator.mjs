@@ -39,14 +39,12 @@ function assertWorkflowIdentity(workflow) {
 
 function assertWorkflowInputStateSelectors(workflow) {
   for (const [stepId, step] of Object.entries(workflow.steps)) {
-    for (const field of ['state', 'optionalState']) {
-      for (const selector of step.input?.[field] ?? []) {
-        if (!TOP_LEVEL_STATE_SELECTOR.test(selector)) {
-          fail(`step '${stepId}' input.${field} selector '${selector}' is invalid; v1 supports top-level workflow step ids only`);
-        }
-        if (!workflow.steps[selector]) {
-          fail(`step '${stepId}' input.${field} selector '${selector}' does not reference a declared workflow step`);
-        }
+    for (const selector of step.input?.state ?? []) {
+      if (!TOP_LEVEL_STATE_SELECTOR.test(selector)) {
+        fail(`step '${stepId}' input.state selector '${selector}' is invalid; v1 supports top-level workflow step ids only`);
+      }
+      if (!workflow.steps[selector]) {
+        fail(`step '${stepId}' input.state selector '${selector}' does not reference a declared workflow step`);
       }
     }
   }
@@ -186,7 +184,7 @@ function schemaForExpression({ workflow, schemasByStep, stepId, step, expression
   if (DYNAMIC_TARGET_UNCHECKED_ROOTS.has(stateKey)) {
     return { schema: undefined, reason: `input.${stateKey} is aggregate runtime state` };
   }
-  const projectedState = [...(step.input?.state ?? []), ...(step.input?.optionalState ?? [])];
+  const projectedState = step.input?.state ?? [];
   if (!projectedState.includes(stateKey)) {
     return { schema: undefined, reason: `step '${stepId}' does not project input state '${stateKey}' for ${expression.source}` };
   }

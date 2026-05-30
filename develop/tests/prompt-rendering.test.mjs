@@ -131,30 +131,22 @@ test('state projection: absent selectors project empty object', () => {
   assert.deepEqual(projected.projectedKeys, []);
 });
 
-test('state projection: missing key fails hard with step selector and available keys', () => {
-  assert.throws(
-    () => projectState({ stepId: 'research', batonState: { artifacts: [], results: [] }, selectors: ['artifact'] }),
-    /step 'research' selected missing baton state key 'artifact'; available keys: artifacts, results/,
-  );
-});
-
-test('state projection: optional selectors project when present and skip missing keys', () => {
+test('state projection: skips valid selectors that are absent from the current baton state', () => {
   const projected = projectState({
     stepId: 'join',
     batonState: { required: { ok: true }, selected_branch: { done: true } },
-    selectors: ['required'],
-    optionalSelectors: ['selected_branch', 'unselected_branch'],
+    selectors: ['required', 'selected_branch', 'unselected_branch'],
   });
 
   assert.deepEqual(projected.value, { required: { ok: true }, selected_branch: { done: true } });
   assert.deepEqual(projected.projectedKeys, ['required', 'selected_branch']);
-  assert.deepEqual(projected.diagnostics, [{ severity: 'info', code: 'optional_state_missing', selector: 'unselected_branch' }]);
+  assert.deepEqual(projected.diagnostics, []);
 });
 
 test('state projection: nested selectors are rejected', () => {
   assert.throws(
     () => projectState({ stepId: 'research', batonState: { artifacts: [] }, selectors: ['artifacts.0'] }),
-    /unsupported state selector 'artifacts\.0'.*top-level baton state keys only/,
+    /unsupported state selector 'artifacts\.0'.*top-level workflow step ids only/,
   );
 });
 
