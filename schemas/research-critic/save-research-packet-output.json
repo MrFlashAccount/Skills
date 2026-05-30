@@ -40,13 +40,15 @@
       "type": "array",
       "items": {
         "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact"
-      }
+      },
+      "minItems": 1
     },
     "results": {
       "type": "array",
       "items": {
         "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/result"
-      }
+      },
+      "minItems": 1
     },
     "blocker": {
       "$ref": "#/$defs/blocker"
@@ -102,8 +104,15 @@
       },
       "then": {
         "required": [
-          "saved"
-        ]
+          "saved",
+          "artifacts",
+          "results"
+        ],
+        "not": {
+          "required": [
+            "blocker"
+          ]
+        }
       }
     },
     {
@@ -120,7 +129,26 @@
       "then": {
         "required": [
           "blocker"
-        ]
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "saved"
+              ]
+            },
+            {
+              "required": [
+                "artifacts"
+              ]
+            },
+            {
+              "required": [
+                "results"
+              ]
+            }
+          ]
+        }
       }
     }
   ]

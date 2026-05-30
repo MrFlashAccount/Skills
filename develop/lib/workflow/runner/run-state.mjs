@@ -188,21 +188,59 @@ async function writeInstructionFiles(instructions) {
   for (const instruction of instructions ?? []) await writeTextAtomic(instruction.path, instruction.content);
 }
 
+async function readTextIfExists(path) {
+  try {
+    return { exists: true, content: await readFile(path, 'utf8') };
+  } catch (error) {
+    if (error?.code === 'ENOENT') return { exists: false, content: undefined };
+    throw error;
+  }
+}
+
+async function restoreTextSnapshot(path, snapshot) {
+  if (snapshot.exists) await writeTextAtomic(path, snapshot.content);
+  else await rm(path, { force: true });
+}
+
+async function snapshotDurableTargets(paths, instructions) {
+  const instructionSnapshots = new Map();
+  for (const instruction of instructions ?? []) instructionSnapshots.set(instruction.path, await readTextIfExists(instruction.path));
+  return {
+    instructions: instructionSnapshots,
+    history: await readTextIfExists(paths.historyPath),
+    baton: await readTextIfExists(paths.batonPath),
+    lastResponse: await readTextIfExists(paths.lastResponsePath),
+  };
+}
+
+async function restoreDurableTargets(paths, snapshot) {
+  for (const [instructionPath, instructionSnapshot] of snapshot.instructions.entries()) await restoreTextSnapshot(instructionPath, instructionSnapshot);
+  await restoreTextSnapshot(paths.historyPath, snapshot.history);
+  await restoreTextSnapshot(paths.batonPath, snapshot.baton);
+  await restoreTextSnapshot(paths.lastResponsePath, snapshot.lastResponse);
+}
+
 export async function recoverDurableCommit(paths) {
   if (!(await exists(paths.durableCommitPath))) return false;
   const commit = await readJson(paths.durableCommitPath, 'pending durable workflow commit');
   if (commit?.version !== 1) throw new Error(`unsupported durable workflow commit version in ${paths.durableCommitPath}`);
 
-  await writeInstructionFiles(commit.instructions);
-  maybeFailDurableCommitAfter('instructions');
-  if (typeof commit.historyText === 'string') await writeTextAtomic(paths.historyPath, commit.historyText);
-  maybeFailDurableCommitAfter('history');
-  await writeJsonAtomic(paths.batonPath, commit.baton);
-  maybeFailDurableCommitAfter('baton');
-  await writeJsonAtomic(paths.lastResponsePath, commit.response);
-  maybeFailDurableCommitAfter('last-response');
-  await rm(paths.durableCommitPath, { force: true });
-  return true;
+  const before = await snapshotDurableTargets(paths, commit.instructions);
+  try {
+    await writeInstructionFiles(commit.instructions);
+    maybeFailDurableCommitAfter('instructions');
+    if (typeof commit.historyText === 'string') await writeTextAtomic(paths.historyPath, commit.historyText);
+    maybeFailDurableCommitAfter('history');
+    await writeJsonAtomic(paths.batonPath, commit.baton);
+    maybeFailDurableCommitAfter('baton');
+    await writeJsonAtomic(paths.lastResponsePath, commit.response);
+    maybeFailDurableCommitAfter('last-response');
+    await rm(paths.durableCommitPath, { force: true });
+    return true;
+  } catch (error) {
+    await restoreDurableTargets(paths, before);
+    throw error;
+  }
 }
 
 export async function commitDurableRunState(paths, { response, baton, instructions = [], history }) {

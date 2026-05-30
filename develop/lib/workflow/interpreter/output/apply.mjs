@@ -8,7 +8,8 @@ import { applyParallelOutputs } from '../parallel/apply.mjs';
 import { hasAppliedOutputForStep } from './response.mjs';
 import { assertOutputSchemaIfDeclared, isParallelOutputEnvelope, readWorkerOutputForStep } from './worker-output.mjs';
 
-function readCandidateOutput({ outputPath, step }) {
+function readCandidateOutput({ outputPath, step, outputValue }) {
+  if (outputValue !== undefined) return outputValue;
   if (!step.output?.schema) return readJson(outputPath, 'worker output');
   try {
     return JSON.parse(readFileSync(outputPath, 'utf8'));
@@ -17,12 +18,12 @@ function readCandidateOutput({ outputPath, step }) {
   }
 }
 
-export function applyWorkflowOutput(workflowPath, batonPath, outputPath) {
+export function applyWorkflowOutput(workflowPath, batonPath, outputPath, outputValue) {
   const { workflow, baton, cursorStep } = loadWorkflowAndBaton(workflowPath, batonPath);
   const staticParallelNext = isStaticParallelNext(cursorStep.next);
   const dynamicNext = isDynamicTransitionNext(cursorStep.next);
   const canApplyPreparedParallelOutput = hasAppliedOutputForStep(baton, baton.cursor) && (staticParallelNext || dynamicNext);
-  const candidateOutput = canApplyPreparedParallelOutput ? readCandidateOutput({ outputPath, step: cursorStep }) : undefined;
+  const candidateOutput = canApplyPreparedParallelOutput ? readCandidateOutput({ outputPath, step: cursorStep, outputValue }) : undefined;
   if (staticParallelNext && isParallelOutputEnvelope(candidateOutput)) {
     return applyParallelOutputs({ workflowPath, workflow, baton, cursorStep, outputPath, allOutput: candidateOutput });
   }
@@ -43,7 +44,7 @@ export function applyWorkflowOutput(workflowPath, batonPath, outputPath) {
     }
   }
 
-  const readResult = readWorkerOutputForStep({ outputPath, baton, stepId: baton.cursor, step: cursorStep, allOutput: candidateOutput });
+  const readResult = readWorkerOutputForStep({ outputPath, baton, stepId: baton.cursor, step: cursorStep, allOutput: outputValue ?? candidateOutput });
   if (readResult.retryResponse) return readResult.retryResponse;
   const { workerOutput, retryResponse } = assertOutputSchemaIfDeclared({
     workflowPath,

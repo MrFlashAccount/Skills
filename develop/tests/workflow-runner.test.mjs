@@ -204,6 +204,42 @@ test('runner: wait_for_approval request accepts request-specific host output JSO
   assert.deepEqual(response.baton.state.choose_path, { choice: 'option_a', answer: 'Ship the smaller fix first.' });
 });
 
+test('runner: single approval request with opaque id still applies output by stepId', () => {
+  const runDir = path.join(tempDir, 'approval-opaque-request-id');
+  const workflowPath = path.join(tempDir, 'approval-opaque-request-id-workflow.json');
+  const approvalWorkflow = structuredClone(workflowDoc);
+  approvalWorkflow.workflow.start = 'choose_path';
+  approvalWorkflow.workflow.steps = {
+    choose_path: {
+      name: 'Choose path',
+      kind: 'approval',
+      input: { prompt: 'Ask the user to choose option_a or option_b.' },
+      next: { match: '${{ output.choice }}', cases: { option_a: 'done', option_b: 'join' } },
+    },
+    join: approvalWorkflow.workflow.steps.join,
+    done: approvalWorkflow.workflow.steps.done,
+    blocked: approvalWorkflow.workflow.steps.blocked,
+  };
+  approvalWorkflow.workflow.steps.join.input.state = [];
+  approvalWorkflow.workflow.steps.join.next = 'done';
+  writeJson(workflowPath, approvalWorkflow);
+
+  const next = expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next opaque approval');
+  assert.equal(next.status, 'needs_host_actions');
+  assert.equal(next.requests[0].stepId, 'choose_path');
+  const lastResponsePath = path.join(runDir, '.workflow-runner', 'last-response.json');
+  const lastResponse = JSON.parse(readFileSync(lastResponsePath, 'utf8'));
+  lastResponse.requests[0].id = 'user-input-1';
+  writeJson(lastResponsePath, lastResponse);
+
+  const outputPath = path.join(runDir, 'choose-path-answer.json');
+  writeJson(outputPath, { choice: 'option_a', answer: 'Opaque id should not imply parallel.' });
+  const response = expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', `user-input-1=${outputPath}`], 'continue opaque approval');
+
+  assert.equal(response.status, 'done');
+  assert.equal(response.baton.cursor, 'done');
+  assert.deepEqual(response.baton.state.choose_path, { choice: 'option_a', answer: 'Opaque id should not imply parallel.' });
+});
 
 test('runner: approval request exposes optional output schema reference', () => {
   const runDir = path.join(tempDir, 'approval-output-schema-request');
@@ -288,7 +324,6 @@ test('runner: typed approval retry preserves validation feedback in instructions
   assert.match(loaded.stdout, /approved/);
 });
 
-
 test('runner: typed approval static parallel next preserves approval output in state', () => {
   const runDir = path.join(tempDir, 'approval-output-schema-static-parallel');
   const workflowPath = path.join(tempDir, 'approval-output-schema-static-parallel-workflow.json');
@@ -339,7 +374,6 @@ test('runner: typed approval static parallel next preserves approval output in s
   assert.equal(branchAInstructions.status, 0, branchAInstructions.stderr);
   assert.match(branchAInstructions.stdout, /Fan out now\./);
 });
-
 
 test('runner: generic approval static parallel next preserves approval output in state', () => {
   const runDir = path.join(tempDir, 'approval-generic-static-parallel');
@@ -477,6 +511,74 @@ test('runner: continue collects parallel outputs and advances to join request', 
   assert.equal(baton.cursor, 'join');
 });
 
+test('runner: dynamic parallel with one branch still applies branch output as parallel envelope', () => {
+  const runDir = path.join(tempDir, 'dynamic-single-branch-parallel');
+  const workflowPath = path.join(tempDir, 'dynamic-single-branch-parallel-workflow.json');
+  const schemaPath = path.join(tempDir, 'dynamic-single-branch-output.schema.json');
+  writeJson(schemaPath, {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome', 'selected_steps'],
+    properties: {
+      outcome: { enum: ['ready'] },
+      selected_steps: { type: 'array', minItems: 1, uniqueItems: true, items: { enum: ['branch_a'] } },
+      results: { type: 'array' },
+      artifacts: { type: 'array' },
+    },
+    additionalProperties: false,
+  });
+  const dynamicWorkflow = structuredClone(workflowDoc);
+  dynamicWorkflow.workflow.steps.prepare.output.schema = path.basename(schemaPath);
+  dynamicWorkflow.workflow.steps.prepare.next = '${{ output.selected_steps }}';
+  delete dynamicWorkflow.workflow.steps.branch_b;
+  dynamicWorkflow.workflow.steps.join.input.state = ['branch_a'];
+  writeJson(workflowPath, dynamicWorkflow);
+
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next dynamic single branch setup');
+  const prepareOutput = path.join(runDir, 'prepare-output.json');
+  writeJson(prepareOutput, { outcome: 'ready', selected_steps: ['branch_a'] });
+  const branch = expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', prepareOutput], 'continue dynamic prepare to one branch');
+  assert.deepEqual(branch.requests.map((request) => request.id), ['branch_a']);
+  assert.equal(branch.baton.cursor, 'prepare');
+
+  const branchOutput = path.join(runDir, 'branch-a-output.json');
+  writeJson(branchOutput, workerOutput('single branch complete'));
+  const response = expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', `branch_a=${branchOutput}`], 'continue dynamic single branch to join');
+
+  assert.equal(response.status, 'needs_host_actions');
+  assert.deepEqual(response.requests.map((request) => request.id), ['join']);
+  assert.equal(response.baton.cursor, 'join');
+  assert.equal(response.baton.state.branch_a.results[0].summary, 'single branch complete');
+  assert.equal(Object.hasOwn(response.baton.state, 'attempts'), false);
+});
+
+test('runner: static parallel with one branch still applies branch output as parallel envelope', () => {
+  const runDir = path.join(tempDir, 'static-single-branch-parallel');
+  const workflowPath = path.join(tempDir, 'static-single-branch-parallel-workflow.json');
+  const staticWorkflow = structuredClone(workflowDoc);
+  staticWorkflow.workflow.steps.prepare.next = ['branch_a'];
+  delete staticWorkflow.workflow.steps.branch_b;
+  staticWorkflow.workflow.steps.join.input.state = ['branch_a'];
+  writeJson(workflowPath, staticWorkflow);
+
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next static single branch setup');
+  const prepareOutput = path.join(runDir, 'prepare-output.json');
+  writeJson(prepareOutput, workerOutput('prepared'));
+  const branch = expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', prepareOutput], 'continue static prepare to one branch');
+  assert.deepEqual(branch.requests.map((request) => request.id), ['branch_a']);
+  assert.equal(branch.baton.cursor, 'prepare');
+
+  const branchOutput = path.join(runDir, 'branch-a-output.json');
+  writeJson(branchOutput, workerOutput('static single branch complete'));
+  const response = expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', `branch_a=${branchOutput}`], 'continue static single branch to join');
+
+  assert.equal(response.status, 'needs_host_actions');
+  assert.deepEqual(response.requests.map((request) => request.id), ['join']);
+  assert.equal(response.baton.cursor, 'join');
+  assert.equal(response.baton.state.branch_a.results[0].summary, 'static single branch complete');
+  assert.equal(Object.hasOwn(response.baton.state, 'attempts'), false);
+});
+
 test('runner: continue rejects concurrent attempts for the same run dir', async () => {
   const runDir = path.join(tempDir, 'concurrent-continue-same-run-dir');
   const workflowPath = path.join(tempDir, 'concurrent-continue-same-run-dir.json');
@@ -543,7 +645,6 @@ test('runner: continue reports missing requested output as an error', () => {
   assert.match(result.stderr, /missing host output/);
 });
 
-
 test('runner: continue does not persist applied output when next render fails', () => {
   const runDir = path.join(tempDir, 'render-failure-no-advance');
   const workflowPath = path.join(tempDir, 'render-failure-no-advance-workflow.json');
@@ -582,45 +683,91 @@ test('runner: continue does not persist applied output when next render fails', 
   assert.equal(Object.hasOwn(baton.state, 'prepare'), false);
 });
 
+test('runner: parallel continue does not create durable envelope when next render fails', () => {
+  const runDir = path.join(tempDir, 'parallel-render-failure-no-envelope');
+  const workflowPath = path.join(tempDir, 'parallel-render-failure-no-envelope-workflow.json');
+  const renderFailureWorkflow = structuredClone(workflowDoc);
+  renderFailureWorkflow.workflow.steps.join.input.template = 'missing-join-template.md';
+  writeJson(workflowPath, renderFailureWorkflow);
 
-test('runner: continue recovers from post-render durable commit failure without mismatched next state', () => {
-  const runDir = path.join(tempDir, 'durable-commit-pending-failure');
-  const workflowPath = path.join(tempDir, 'durable-commit-pending-failure-workflow.json');
-  const singleWorkflow = structuredClone(workflowDoc);
-  singleWorkflow.workflow.steps.prepare.next = 'done';
-  writeJson(workflowPath, singleWorkflow);
-
-  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next durable commit failure setup');
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next parallel render failure setup');
+  const prepareOutput = path.join(runDir, 'prepare-output.json');
+  writeJson(prepareOutput, workerOutput('prepared'));
+  expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', prepareOutput], 'continue prepare to branches');
   const batonBefore = readFileSync(path.join(runDir, 'baton.json'), 'utf8');
   const historyBefore = readFileSync(path.join(runDir, 'history.md'), 'utf8');
   const lastResponseBefore = readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8');
 
-  const outputPath = path.join(runDir, 'prepare-result.json');
-  writeJson(outputPath, workerOutput('prepared after durable retry'));
-  const failed = runRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', outputPath], {
-    env: { WORKFLOW_RUNNER_FAIL_DURABLE_COMMIT_AFTER: 'pending' },
-  });
+  const branchA = path.join(runDir, 'branch-a-output.json');
+  const branchB = path.join(runDir, 'branch-b-output.json');
+  writeJson(branchA, workerOutput('branch a complete'));
+  writeJson(branchB, workerOutput('branch b complete'));
+  const result = runRunner([
+    'continue',
+    '--run-dir',
+    runDir,
+    '--workflow',
+    workflowPath,
+    '--output',
+    `branch_a=${branchA}`,
+    '--output',
+    `branch_b=${branchB}`,
+  ]);
 
-  assert.notEqual(failed.status, 0);
-  assert.match(failed.stderr, /injected durable commit failure after pending/);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /workflow prompt render failed/);
   assert.equal(readFileSync(path.join(runDir, 'baton.json'), 'utf8'), batonBefore);
   assert.equal(readFileSync(path.join(runDir, 'history.md'), 'utf8'), historyBefore);
   assert.equal(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8'), lastResponseBefore);
-  assert.equal(existsSync(path.join(runDir, '.workflow-runner', 'durable-commit.json')), true);
-
-  const recovered = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'prepare']);
-  assert.notEqual(recovered.status, 0);
-  assert.match(recovered.stderr, /unknown current workflow step id: prepare/);
-  assert.equal(existsSync(path.join(runDir, '.workflow-runner', 'durable-commit.json')), false);
-
-  const baton = JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8'));
-  const lastResponse = JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8'));
-  assert.equal(baton.cursor, 'done');
-  assert.equal(lastResponse.status, 'done');
-  assert.equal(baton.state.prepare.results[0].summary, 'prepared after durable retry');
-  assert.match(readFileSync(path.join(runDir, 'history.md'), 'utf8'), /prepare-result\.json/);
+  assert.equal(existsSync(path.join(runDir, '.workflow-runner', 'parallel-output.json')), false);
 });
 
+test('runner: continue recovers from post-render durable commit failure without mismatched next state', () => {
+  for (const failurePoint of ['pending', 'instructions', 'history', 'baton', 'last-response']) {
+    const runDir = path.join(tempDir, `durable-commit-${failurePoint}-failure`);
+    const workflowPath = path.join(tempDir, `durable-commit-${failurePoint}-failure-workflow.json`);
+    const singleWorkflow = structuredClone(workflowDoc);
+    singleWorkflow.workflow.steps.prepare.next = 'join';
+    singleWorkflow.workflow.steps.join.input.state = ['prepare'];
+    writeJson(workflowPath, singleWorkflow);
+
+    expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], `next durable commit ${failurePoint} failure setup`);
+    const batonBefore = readFileSync(path.join(runDir, 'baton.json'), 'utf8');
+    const historyBefore = readFileSync(path.join(runDir, 'history.md'), 'utf8');
+    const lastResponseBefore = readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8');
+    const joinInstructionPath = path.join(runDir, '.workflow-runner', 'instructions', 'join.md');
+    const staleJoinInstructions = 'stale join instructions must survive failed commit\n';
+    assert.equal(existsSync(joinInstructionPath), false);
+    writeFileSync(joinInstructionPath, staleJoinInstructions);
+
+    const outputPath = path.join(runDir, 'prepare-result.json');
+    writeJson(outputPath, workerOutput(`prepared after durable ${failurePoint} retry`));
+    const failed = runRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', outputPath], {
+      env: { WORKFLOW_RUNNER_FAIL_DURABLE_COMMIT_AFTER: failurePoint },
+    });
+
+    assert.notEqual(failed.status, 0);
+    assert.match(failed.stderr, new RegExp(`injected durable commit failure after ${failurePoint}`));
+    assert.equal(readFileSync(path.join(runDir, 'baton.json'), 'utf8'), batonBefore);
+    assert.equal(readFileSync(path.join(runDir, 'history.md'), 'utf8'), historyBefore);
+    assert.equal(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8'), lastResponseBefore);
+    assert.equal(readFileSync(joinInstructionPath, 'utf8'), staleJoinInstructions);
+    assert.equal(existsSync(path.join(runDir, '.workflow-runner', 'durable-commit.json')), true);
+
+    const recovered = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'join']);
+    assert.equal(recovered.status, 0, recovered.stderr);
+    assert.match(recovered.stdout, new RegExp(`prepared after durable ${failurePoint} retry`));
+    assert.equal(existsSync(path.join(runDir, '.workflow-runner', 'durable-commit.json')), false);
+
+    const baton = JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8'));
+    const lastResponse = JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8'));
+    assert.equal(baton.cursor, 'join');
+    assert.equal(lastResponse.status, 'needs_host_actions');
+    assert.deepEqual(lastResponse.requests.map((request) => request.id), ['join']);
+    assert.equal(baton.state.prepare.results[0].summary, `prepared after durable ${failurePoint} retry`);
+    assert.match(readFileSync(path.join(runDir, 'history.md'), 'utf8'), /prepare-result\.json/);
+  }
+});
 
 test('runner: instructions rejects unknown, unsafe, and missing instructions', () => {
   const runDir = path.join(tempDir, 'instructions-errors');

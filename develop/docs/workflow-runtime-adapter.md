@@ -136,5 +136,5 @@ This mapping is not part of the portable workflow contract. Other hosts can exec
 
 - The runner request schema is not yet split into a standalone JSON schema.
 - Host action types beyond the existing workflow actions are intentionally minimal.
-- Locking/concurrent host execution safeguards are not implemented here.
+- `workflow-runner.mjs continue` uses a per-run `.workflow-runner/continue.lock` guard so only one host continue operation mutates a run directory at a time.
 - The CLI shape is small on purpose and can be renamed after review.

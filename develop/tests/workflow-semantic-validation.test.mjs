@@ -8,6 +8,7 @@ import workflowDoc from '../dev-harness.workflow.json' with { type: 'json' };
 import researchCriticWorkflowDoc from '../../workflows/research-critic.workflow.json' with { type: 'json' };
 import { WorkflowInterpreterError } from '../lib/workflow/errors.mjs';
 import { validateWorkflowDocument } from '../lib/validate/workflow-validator.mjs';
+import { validateAgainstOutputSchema } from '../lib/workflow/output-schema-validation.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-semantic-validation-'));
@@ -164,6 +165,88 @@ test('research critic save step uses persistence metadata template matching its 
     workflow: 'research-critic',
     steps: Object.keys(researchCriticWorkflowDoc.workflow.steps).length,
   });
+});
+
+test('research critic saved packet output requires projected artifacts and results', () => {
+  const workflowPath = path.join(REPO_ROOT, 'workflows/research-critic.workflow.json');
+  const step = researchCriticWorkflowDoc.workflow.steps.save_research_packet;
+
+  const missingProjection = validateAgainstOutputSchema({
+    workflow: researchCriticWorkflowDoc.workflow,
+    workflowPath,
+    schemaRef: step.output.schema,
+    repositoryRoot: REPO_ROOT,
+    output: { outcome: 'saved', saved: { summary: 'Saved.', artifact_path: 'research/packet.md' } },
+  });
+  assert.equal(missingProjection.ok, false);
+  assert.match(missingProjection.errors, /artifacts/);
+  assert.match(missingProjection.errors, /results/);
+
+  const emptyProjection = validateAgainstOutputSchema({
+    workflow: researchCriticWorkflowDoc.workflow,
+    workflowPath,
+    schemaRef: step.output.schema,
+    repositoryRoot: REPO_ROOT,
+    output: { outcome: 'saved', saved: { summary: 'Saved.', artifact_path: 'research/packet.md' }, artifacts: [], results: [] },
+  });
+  assert.equal(emptyProjection.ok, false);
+  assert.match(emptyProjection.errors, /artifacts/);
+  assert.match(emptyProjection.errors, /results/);
+
+  const withProjection = validateAgainstOutputSchema({
+    workflow: researchCriticWorkflowDoc.workflow,
+    workflowPath,
+    schemaRef: step.output.schema,
+    repositoryRoot: REPO_ROOT,
+    output: {
+      outcome: 'saved',
+      saved: { summary: 'Saved.', artifact_path: 'research/packet.md' },
+      artifacts: [{ type: 'research', summary: 'Saved packet.', path: 'research/packet.md' }],
+      results: [{ summary: 'Saved packet.' }],
+    },
+  });
+  assert.equal(withProjection.ok, true);
+});
+
+test('research critic save packet output keeps saved and blocked branches exclusive', () => {
+  const workflowPath = path.join(REPO_ROOT, 'workflows/research-critic.workflow.json');
+  const step = researchCriticWorkflowDoc.workflow.steps.save_research_packet;
+  const schemaContext = {
+    workflow: researchCriticWorkflowDoc.workflow,
+    workflowPath,
+    schemaRef: step.output.schema,
+    repositoryRoot: REPO_ROOT,
+  };
+
+  const blockedWithProjection = validateAgainstOutputSchema({
+    ...schemaContext,
+    output: {
+      outcome: 'blocked',
+      blocker: { summary: 'Cannot save.', source_step_id: 'save_research_packet', needed: 'Writable target.' },
+      saved: { summary: 'Should not coexist.', artifact_path: 'research/packet.md' },
+      artifacts: [{ type: 'research', summary: 'Should not aggregate.', path: 'research/packet.md' }],
+      results: [{ summary: 'Should not aggregate.' }],
+    },
+  });
+  assert.equal(blockedWithProjection.ok, false);
+
+  const savedWithBlocker = validateAgainstOutputSchema({
+    ...schemaContext,
+    output: {
+      outcome: 'saved',
+      saved: { summary: 'Saved.', artifact_path: 'research/packet.md' },
+      artifacts: [{ type: 'research', summary: 'Saved packet.', path: 'research/packet.md' }],
+      results: [{ summary: 'Saved packet.' }],
+      blocker: { summary: 'Should not coexist.', source_step_id: 'save_research_packet', needed: 'Nothing.' },
+    },
+  });
+  assert.equal(savedWithBlocker.ok, false);
+
+  const blockedOnly = validateAgainstOutputSchema({
+    ...schemaContext,
+    output: { outcome: 'blocked', blocker: { summary: 'Cannot save.', source_step_id: 'save_research_packet', needed: 'Writable target.' } },
+  });
+  assert.equal(blockedOnly.ok, true);
 });
 
 test('workflow semantic validation rejects invalid worker roles in generic workflows', () => {
