@@ -7,7 +7,6 @@ import { assertRoleDirectoryName, listAllowedWorkflowRoles } from '../workflow/r
 import { assertWorkflowSchema, workflowSchemas } from '../workflow/schema-validation.mjs';
 import { assertTransitionDescriptorTargets, normalizeTransitionNext } from '../workflow/transitions.mjs';
 
-const DYNAMIC_TARGET_UNCHECKED_ROOTS = new Set(['outputs']);
 const WORKFLOW_NAME = /^[a-z][a-z0-9-]*$/;
 
 function fail(message) {
@@ -195,9 +194,6 @@ function schemaForExpression({ workflow, schemasByStep, stepId, step, expression
   }
 
   const [stateKey, ...rest] = expression.path;
-  if (DYNAMIC_TARGET_UNCHECKED_ROOTS.has(stateKey)) {
-    return { schema: undefined, reason: `input.${stateKey} is aggregate runtime state` };
-  }
   const projectedState = step.input?.state ?? [];
   if (!projectedState.includes(stateKey)) {
     return { schema: undefined, reason: `step '${stepId}' does not project input state '${stateKey}' for ${expression.source}` };

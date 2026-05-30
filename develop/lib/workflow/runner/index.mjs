@@ -15,7 +15,7 @@ async function persistStepInstructions(paths, interpreterResponse) {
 async function runnerResponseForRendered(paths, rendered, { initialized, resumed }) {
   await persistStepInstructions(paths, rendered);
   const workflowDoc = await readJson(paths.workflowPath, 'workflow');
-  const response = {
+  return {
     ...toRunnerResponse(rendered, {
       runDir: paths.runDir,
       workflow: workflowDoc.workflow,
@@ -27,6 +27,10 @@ async function runnerResponseForRendered(paths, rendered, { initialized, resumed
     initialized,
     resumed,
   };
+}
+
+async function persistNextRunnerResponse(paths, rendered, runState) {
+  const response = await runnerResponseForRendered(paths, rendered, runState);
   await persistRunnerResponse(paths, response);
   return response;
 }
@@ -35,7 +39,7 @@ export async function next({ runDir, workflowPath, includeDiagnostics = false })
   const paths = resolveRunPaths({ runDir, workflowPath });
   const runState = await ensureRunFiles(paths);
   const rendered = renderWorkflow(paths.workflowPath, paths.batonPath, { includeDiagnostics, repositoryRoot });
-  return runnerResponseForRendered(paths, rendered, {
+  return persistNextRunnerResponse(paths, rendered, {
     initialized: runState.initialized,
     resumed: runState.resumed,
   });
@@ -108,9 +112,11 @@ export async function continueRun({ runDir, workflowPath, output, includeDiagnos
     const applied = applyWorkflowOutput(paths.workflowPath, paths.batonPath, outputPath);
     const rendered = renderInterpreterResponse(paths.workflowPath, paths.batonPath, applied, { includeDiagnostics, repositoryRoot });
 
+    const response = await runnerResponseForRendered(paths, rendered, { initialized: false, resumed: true });
+    await writeJsonAtomic(paths.lastResponsePath, response);
     await writeJsonAtomic(paths.batonPath, applied.baton);
-    await appendHistory(paths, { source: 'workflow-runner-continue', baton: applied.baton, output: outputPath });
-    return runnerResponseForRendered(paths, rendered, { initialized: false, resumed: true });
+    await appendHistory(paths, { source: 'workflow-runner-continue', baton: applied.baton, output: outputPath, requests: response.requests });
+    return response;
   });
 }
 

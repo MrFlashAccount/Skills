@@ -187,6 +187,7 @@ test('runner: wait_for_approval request accepts request-specific host output JSO
     done: approvalWorkflow.workflow.steps.done,
     blocked: approvalWorkflow.workflow.steps.blocked,
   };
+  approvalWorkflow.workflow.steps.join.input.state = [];
   approvalWorkflow.workflow.steps.join.next = 'done';
   writeJson(workflowPath, approvalWorkflow);
 

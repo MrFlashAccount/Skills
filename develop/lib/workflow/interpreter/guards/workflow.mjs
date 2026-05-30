@@ -53,6 +53,10 @@ function assertWorkflowRuntimeStateBoundary(workflow) {
         if (error instanceof Error) invariant(false, error.message);
         throw error;
       }
+      invariant(
+        Object.hasOwn(workflow.steps, selector),
+        `workflow runtime validation failed: step '${stepId}' input.state selector '${selector}' does not reference a declared workflow step`,
+      );
     }
   }
 }

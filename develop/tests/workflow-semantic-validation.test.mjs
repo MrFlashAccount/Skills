@@ -280,6 +280,16 @@ test('workflow semantic validation rejects projected input expressions with unkn
   );
 });
 
+test('workflow semantic validation rejects aggregate runtime state expressions in input transitions', () => {
+  assertSemanticFailure(
+    syntheticWorkflow((draft) => {
+      draft.workflow.steps.consumer.next = { match: '${{ input.outputs.producer.route }}', cases: { review: 'done', blocked: 'blocked' } };
+      return draft;
+    }),
+    /consumer.*input\.outputs\.producer\.route.*does not project input state 'outputs'/,
+  );
+});
+
 test('workflow semantic validation rejects unsafe dynamic array target schemas', () => {
   assertSemanticFailure(
     syntheticWorkflow((draft) => {
