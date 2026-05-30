@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import workflowDoc from '../dev-harness.workflow.json' with { type: 'json' };
+import researchCriticWorkflowDoc from '../../workflows/research-critic.workflow.json' with { type: 'json' };
 import { WorkflowInterpreterError } from '../lib/workflow/errors.mjs';
 import { validateWorkflowDocument } from '../lib/validate/workflow-validator.mjs';
 
@@ -150,6 +151,19 @@ function syntheticWorkflow(overrides) {
 
 test('workflow semantic validation accepts the checked-in DevHarness workflow', () => {
   assert.deepEqual(validate(workflowDoc), { ok: true, workflow: 'dev-harness', steps: Object.keys(workflowDoc.workflow.steps).length });
+});
+
+test('research critic save step uses persistence metadata template matching its output schema', () => {
+  const step = researchCriticWorkflowDoc.workflow.steps.save_research_packet;
+
+  assert.equal(step.output.template, 'shared/templates/research-save-metadata-template.md');
+  assert.equal(step.output.schema, 'schemas/research-critic/save-research-packet-output.json');
+  assert.notEqual(step.output.template, 'shared/templates/research-packet-template.md');
+  assert.deepEqual(validateWorkflowDocument(researchCriticWorkflowDoc, { workflowPath: path.join(REPO_ROOT, 'workflows/research-critic.workflow.json'), repositoryRoot: REPO_ROOT }), {
+    ok: true,
+    workflow: 'research-critic',
+    steps: Object.keys(researchCriticWorkflowDoc.workflow.steps).length,
+  });
 });
 
 test('workflow semantic validation rejects invalid worker roles in generic workflows', () => {

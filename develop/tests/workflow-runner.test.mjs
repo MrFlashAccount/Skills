@@ -56,8 +56,8 @@ function writeJson(filePath, value) {
   writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
 }
 
-function runRunner(args) {
-  return spawnSync(process.execPath, ['develop/scripts/workflow-runner.mjs', ...args], { cwd: root, encoding: 'utf8' });
+function runRunner(args, options = {}) {
+  return spawnSync(process.execPath, ['develop/scripts/workflow-runner.mjs', ...args], { cwd: root, encoding: 'utf8', env: { ...process.env, ...(options.env ?? {}) } });
 }
 
 async function runRunnerAsync(args) {
@@ -580,6 +580,45 @@ test('runner: continue does not persist applied output when next render fails', 
   const baton = JSON.parse(batonBefore);
   assert.equal(baton.cursor, 'prepare');
   assert.equal(Object.hasOwn(baton.state, 'prepare'), false);
+});
+
+
+test('runner: continue recovers from post-render durable commit failure without mismatched next state', () => {
+  const runDir = path.join(tempDir, 'durable-commit-pending-failure');
+  const workflowPath = path.join(tempDir, 'durable-commit-pending-failure-workflow.json');
+  const singleWorkflow = structuredClone(workflowDoc);
+  singleWorkflow.workflow.steps.prepare.next = 'done';
+  writeJson(workflowPath, singleWorkflow);
+
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next durable commit failure setup');
+  const batonBefore = readFileSync(path.join(runDir, 'baton.json'), 'utf8');
+  const historyBefore = readFileSync(path.join(runDir, 'history.md'), 'utf8');
+  const lastResponseBefore = readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8');
+
+  const outputPath = path.join(runDir, 'prepare-result.json');
+  writeJson(outputPath, workerOutput('prepared after durable retry'));
+  const failed = runRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', outputPath], {
+    env: { WORKFLOW_RUNNER_FAIL_DURABLE_COMMIT_AFTER: 'pending' },
+  });
+
+  assert.notEqual(failed.status, 0);
+  assert.match(failed.stderr, /injected durable commit failure after pending/);
+  assert.equal(readFileSync(path.join(runDir, 'baton.json'), 'utf8'), batonBefore);
+  assert.equal(readFileSync(path.join(runDir, 'history.md'), 'utf8'), historyBefore);
+  assert.equal(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8'), lastResponseBefore);
+  assert.equal(existsSync(path.join(runDir, '.workflow-runner', 'durable-commit.json')), true);
+
+  const recovered = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'prepare']);
+  assert.notEqual(recovered.status, 0);
+  assert.match(recovered.stderr, /unknown current workflow step id: prepare/);
+  assert.equal(existsSync(path.join(runDir, '.workflow-runner', 'durable-commit.json')), false);
+
+  const baton = JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8'));
+  const lastResponse = JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8'));
+  assert.equal(baton.cursor, 'done');
+  assert.equal(lastResponse.status, 'done');
+  assert.equal(baton.state.prepare.results[0].summary, 'prepared after durable retry');
+  assert.match(readFileSync(path.join(runDir, 'history.md'), 'utf8'), /prepare-result\.json/);
 });
 
 
