@@ -3,6 +3,7 @@ import { WorkflowInterpreterError } from '../workflow/errors.mjs';
 import { readJson } from '../workflow/json-io.mjs';
 import { readOutputSchema } from '../workflow/output-schema-validation.mjs';
 import { assertRoleDirectoryName, listAllowedWorkflowRoles } from '../workflow/roles.mjs';
+import { assertNoReservedWorkflowStepIds } from '../workflow/reserved-state.mjs';
 import { assertWorkflowSchema, workflowSchemas } from '../workflow/schema-validation.mjs';
 import { assertTransitionDescriptorTargets, normalizeTransitionNext } from '../workflow/transitions.mjs';
 
@@ -27,6 +28,15 @@ function assertWorkflowRootTargets(workflow) {
   const blockedStep = workflow.steps[workflow.blocked];
   if (!blockedStep) fail(`workflow blocked target not found: ${workflow.blocked}`);
   if (blockedStep.kind !== 'blocked') fail(`workflow blocked target '${workflow.blocked}' must be a blocked step`);
+}
+
+function assertWorkflowReservedStepIds(workflow) {
+  try {
+    assertNoReservedWorkflowStepIds(workflow);
+  } catch (error) {
+    if (error instanceof WorkflowInterpreterError) fail(error.message);
+    throw error;
+  }
 }
 
 function assertWorkflowStepRoles(workflow, repositoryRoot) {
@@ -248,6 +258,7 @@ export function validateWorkflowDocument(workflowDoc, { workflowPath = 'workflow
   assertWorkflowSchema(workflowDoc);
   const workflow = workflowDoc.workflow;
   assertWorkflowRootTargets(workflow);
+  assertWorkflowReservedStepIds(workflow);
   assertWorkflowStepRoles(workflow, repositoryRoot);
   const warnings = [];
   const schemasByStep = loadStepOutputSchemas({ workflow, workflowPath, repositoryRoot, warnings });

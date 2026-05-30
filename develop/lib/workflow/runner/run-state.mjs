@@ -2,6 +2,7 @@ import { constants } from 'node:fs';
 import { access, mkdir, open, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { startupUserPromptTarget } from '../user-prompt.mjs';
 
 const runnerDir = dirname(fileURLToPath(import.meta.url));
 const skillDir = resolve(runnerDir, '../../..');
@@ -67,7 +68,7 @@ function workflowStart(workflowDoc, workflowPath) {
   return start;
 }
 
-export async function ensureRunFiles(paths) {
+export async function ensureRunFiles(paths, { userPrompt } = {}) {
   await mkdir(paths.runDir, { recursive: true });
   await mkdir(paths.runnerDir, { recursive: true });
   await mkdir(paths.instructionsDir, { recursive: true });
@@ -75,11 +76,16 @@ export async function ensureRunFiles(paths) {
   const batonExists = await exists(paths.batonPath);
   if (!batonExists) {
     const workflowDoc = await readJson(paths.workflowPath, 'workflow');
+    const start = workflowStart(workflowDoc, paths.workflowPath);
     const initialBaton = {
-      cursor: workflowStart(workflowDoc, paths.workflowPath),
+      cursor: start,
       status: 'running',
       state: { artifacts: [], results: [] },
     };
+    if (typeof userPrompt === 'string') {
+      initialBaton.user_prompt = userPrompt;
+      initialBaton.user_prompt_target = startupUserPromptTarget({ workflow: workflowDoc.workflow, start });
+    }
     await writeFile(paths.batonPath, `${JSON.stringify(initialBaton, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
   }
 

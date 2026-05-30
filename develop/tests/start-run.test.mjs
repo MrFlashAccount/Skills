@@ -80,6 +80,20 @@ test('start-run creates run dir, initializes baton/history, and returns steps', 
   assert.equal(readFileSync(path.join(runDir, 'history.md'), 'utf8'), '');
 });
 
+
+
+test('start-run rejects startup user prompt options; workflow-runner next owns rendering', () => {
+  const runDir = path.join(tempDir, 'start-run-user-prompt-rejected');
+
+  const inline = runStart(['--run-dir', runDir, '--user-prompt', 'raw prompt']);
+  assert.notEqual(inline.status, 0);
+  assert.match(inline.stderr, /Unknown option '--user-prompt'|usage: node scripts\/start-run\.mjs --run-dir <dir> \[--workflow <workflow\.json>\]/);
+
+  const file = runStart(['--run-dir', runDir, '--user-prompt-file', '']);
+  assert.notEqual(file.status, 0);
+  assert.match(file.stderr, /Unknown option '--user-prompt-file'|usage: node scripts\/start-run\.mjs --run-dir <dir> \[--workflow <workflow\.json>\]/);
+});
+
 test('start-run resumes existing baton without overwriting it', () => {
   const runDir = path.join(tempDir, 'resume-run');
   rmSync(runDir, { recursive: true, force: true });

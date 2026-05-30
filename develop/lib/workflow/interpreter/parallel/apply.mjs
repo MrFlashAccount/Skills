@@ -5,6 +5,7 @@ import { applyOutputToBatonState } from '../../state.mjs';
 import { responseFor } from '../output/response.mjs';
 import { assertOutputSchemaIfDeclared } from '../output/worker-output.mjs';
 import { joinForParallelTargets } from '../../transition-targets.mjs';
+import { shouldMarkUserPromptInjectedForStep, validateSelectedStartupUserPromptTarget } from '../../user-prompt.mjs';
 
 function readParallelOutputForStep(allOutput, stepId) {
   invariant(allOutput && typeof allOutput === 'object' && !Array.isArray(allOutput), 'parallel output must be an object');
@@ -48,6 +49,13 @@ export function applyParallelOutputs({ workflowPath, workflow, baton, cursorStep
   const parallelOutput = allOutput ?? readJson(outputPath, 'parallel output');
 
   let updatedBaton = structuredClone(baton);
+  const promptRecipientStepId = targets.find((stepId) => shouldMarkUserPromptInjectedForStep({
+    workflow,
+    baton,
+    stepId,
+  }));
+  if (promptRecipientStepId) updatedBaton.user_prompt_injected = true;
+
   for (const stepId of targets) {
     const step = workflow.steps[stepId];
     const rawOutput = readParallelOutputForStep(parallelOutput, stepId);
@@ -70,6 +78,11 @@ export function applyParallelOutputs({ workflowPath, workflow, baton, cursorStep
   const targetStepId = joinForParallelTargets(workflow, targets);
   const targetStep = workflow.steps[targetStepId];
   invariant(targetStep, `transition target not found in workflow: ${targetStepId}`);
+  updatedBaton = validateSelectedStartupUserPromptTarget({
+    workflow,
+    baton: updatedBaton,
+    steps: [{ id: targetStepId, step: targetStep }],
+  });
   updatedBaton.cursor = targetStepId;
   updatedBaton.status = statusForStep(workflow, targetStepId, targetStep);
   if (updatedBaton.status !== 'blocked') delete updatedBaton.blocker;

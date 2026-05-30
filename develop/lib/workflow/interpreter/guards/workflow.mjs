@@ -1,6 +1,7 @@
 import { invariant } from '../../errors.mjs';
 import { statusForStep } from '../../model.mjs';
 import { readJson } from '../../json-io.mjs';
+import { assertNoReservedWorkflowStepIds } from '../../reserved-state.mjs';
 import { assertBatonSchema, assertWorkflowSchema } from '../../schema-validation.mjs';
 import { assertTransitionDescriptorTargets, normalizeTransitionNext } from '../../transitions.mjs';
 
@@ -12,6 +13,7 @@ export function loadWorkflowAndBaton(workflowPath, batonPath) {
   assertBatonSchema(baton);
 
   const workflow = workflowDoc.workflow;
+  assertNoReservedWorkflowStepIds(workflow);
   assertWorkflowRootTargets(workflow);
   assertWorkflowTransitionTargets(workflow);
 

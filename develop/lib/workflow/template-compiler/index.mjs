@@ -15,11 +15,7 @@ function workflowInstruction({ workflow }) {
   return firstNonEmptyString([workflow?.instruction, workflow?.instructions]);
 }
 
-function concreteUserTask({ workflow }) {
-  return firstNonEmptyString([workflow?.userTask, workflow?.userRequest, workflow?.task, workflow?.request]);
-}
-
-function assembleFixedPrompt({ promptLayer, templatePath, workflowInstructionBlock, inlinePrompt, roleBlock, stateBlock, outputContract, userTask, finalReminder }) {
+function assembleFixedPrompt({ promptLayer, templatePath, workflowInstructionBlock, inlinePrompt, roleBlock, stateBlock, outputContract, userPrompt, finalReminder }) {
   assertNoUnsupportedPlaceholders(promptLayer, templatePath);
   const parts = [trimStable(promptLayer)];
 
@@ -28,13 +24,13 @@ function assembleFixedPrompt({ promptLayer, templatePath, workflowInstructionBlo
   if (outputContract) parts.push(outputContract.trimEnd());
   if (stateBlock) parts.push(section('Projected baton state', stateBlock).trimEnd());
   if (inlinePrompt) parts.push(section('Workflow step prompt', inlinePrompt.trim()));
-  if (userTask) parts.push(section('Concrete user task', userTask).trimEnd());
+  if (typeof userPrompt === 'string' && userPrompt.trim().length > 0) parts.push(section('User prompt', userPrompt));
   if (finalReminder) parts.push(finalReminder.trimEnd());
 
   return `${parts.filter(Boolean).join('\n\n')}\n`;
 }
 
-export function renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, step, repositoryRoot, templateBaseDir, includeDiagnostics = false } = {}) {
+export function renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, step, repositoryRoot, templateBaseDir, includeDiagnostics = false, userPrompt } = {}) {
   const root = normalizeRepositoryRoot(repositoryRoot ?? path.resolve(path.dirname(path.resolve(workflowPath)), '..'));
   const input = step.input ?? {};
   const selectors = input.state ?? [];
@@ -46,7 +42,6 @@ export function renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, st
   const outputSchema = readOutputSchema({ workflow, workflowPath, step, repositoryRoot: root });
   const outputContract = outputContractSection(outputTemplate.content, outputTemplate.metadataPath, outputSchema.content, outputSchema.metadataPath);
   const workflowInstructionBlock = workflowInstruction({ workflow });
-  const userTask = concreteUserTask({ workflow });
   const finalReminder = finalOutputReminder(outputContract);
 
   const usesDefaultPrompt = inputTemplate.content === undefined;
@@ -59,7 +54,7 @@ export function renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, st
     roleBlock: inputRole.content,
     stateBlock,
     outputContract,
-    userTask,
+    userPrompt: step.kind === 'worker' && baton.user_prompt_injected !== true ? userPrompt : undefined,
     finalReminder,
   });
   const diagnostics = usesDefaultPrompt

@@ -63,7 +63,7 @@ export function applyWorkflowOutput(workflowPath, batonPath, outputPath) {
       step: cursorStep,
       output: workerOutput,
       attempts: undefined,
-      storeStepOutput: cursorStep.kind === 'approval' && Boolean(cursorStep.output?.schema),
+      storeStepOutput: cursorStep.kind === 'approval',
     });
   }
 

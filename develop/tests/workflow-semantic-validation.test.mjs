@@ -53,6 +53,20 @@ test('workflow semantic validation rejects invalid worker roles in generic workf
   assertSemanticFailure(doc, /step 'worker_step' input\.role 'missing-workflow-role' is not an allowed role/);
 });
 
+test('workflow semantic validation rejects step ids reserved for baton state bookkeeping', () => {
+  for (const reservedStepId of ['artifacts', 'results', 'outputs', 'attempts']) {
+    const doc = genericWorkflowWithWorkerRole('backend');
+    doc.workflow.start = reservedStepId;
+    doc.workflow.steps[reservedStepId] = {
+      ...doc.workflow.steps.worker_step,
+      name: `Reserved ${reservedStepId}`,
+    };
+    delete doc.workflow.steps.worker_step;
+
+    assertSemanticFailure(doc, new RegExp(`workflow step id '${reservedStepId}' is reserved for baton state bookkeeping`));
+  }
+});
+
 test('workflow semantic validation warns when DevHarness described fields lack x-usage', () => {
   const doc = structuredClone(workflowDoc);
   doc.workflow.steps.research_draft.output.schema = 'develop/tests/fixtures/research-draft-missing-x-usage.schema.json';

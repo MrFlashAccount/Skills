@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import { applyWorkflowOutput, renderInterpreterResponse, renderWorkflow } from '../interpreter/index.mjs';
 import { assertSafeStepId, instructionPathForStep, responseStatusForInterpreterResponse, toRunnerResponse } from './host-requests.mjs';
+import { resolveStartupUserPrompt } from '../user-prompt.mjs';
 import { appendHistory, ensureRunFiles, pathExists, persistRunnerResponse, readJson, readText, repositoryRoot, resolveRunPaths, withContinueRunLock, writeJsonAtomic, writeTextAtomic } from './run-state.mjs';
 
 async function persistStepInstructions(paths, interpreterResponse) {
@@ -31,9 +32,10 @@ async function runnerResponseForRendered(paths, rendered, { initialized, resumed
   return response;
 }
 
-export async function next({ runDir, workflowPath, includeDiagnostics = false }) {
+export async function next({ runDir, workflowPath, includeDiagnostics = false, userPrompt, userPromptFile } = {}) {
   const paths = resolveRunPaths({ runDir, workflowPath });
-  const runState = await ensureRunFiles(paths);
+  const startupUserPrompt = (await pathExists(paths.batonPath)) ? undefined : await resolveStartupUserPrompt({ userPrompt, userPromptFile });
+  const runState = await ensureRunFiles(paths, { userPrompt: startupUserPrompt });
   const rendered = renderWorkflow(paths.workflowPath, paths.batonPath, { includeDiagnostics, repositoryRoot });
   return runnerResponseForRendered(paths, rendered, {
     initialized: runState.initialized,

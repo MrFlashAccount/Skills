@@ -6,6 +6,7 @@ import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { projectState } from '../lib/workflow/projection.mjs';
+import { renderStepPrompts } from '../lib/workflow/interpreter/index.mjs';
 import { renderWorkflowPrompt } from '../lib/workflow/prompt-renderer.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -156,6 +157,7 @@ function renderFixture(overrides = {}) {
     repositoryRoot: overrides.repositoryRoot ?? tempDir,
     templateBaseDir: overrides.templateBaseDir,
     includeDiagnostics: overrides.includeDiagnostics,
+    userPrompt: overrides.userPrompt,
   });
 }
 
@@ -206,7 +208,7 @@ test('prompt renderer: rejects input template placeholders as unsupported', () =
   );
 });
 
-test('prompt renderer: appends role output state and task sections in fixed compiled layer order', () => {
+test('prompt renderer: appends role output and state sections in fixed compiled layer order', () => {
   writeRoleMaterial('backend');
   writeFileSync(path.join(tempDir, 'minimal-template.md'), '# Worker step\n');
   writeFileSync(path.join(tempDir, 'minimal-output.md'), '## Required return\nUse this contract.\n');
@@ -225,7 +227,6 @@ test('prompt renderer: appends role output state and task sections in fixed comp
     workflow: {
       ...schemaWorkflowDoc.workflow,
       instruction: 'Use the deterministic workflow renderer.',
-      userTask: 'Fix the customer-visible bug.',
     },
   });
 
@@ -243,14 +244,236 @@ test('prompt renderer: appends role output state and task sections in fixed comp
     '```json',
     '## Workflow step prompt',
     'Do the task.',
-    '## Concrete user task',
-    'Fix the customer-visible bug.',
     '## Final reminder',
     'Return exactly according to the output contract above.',
   ]);
 });
 
 
+
+
+test('prompt renderer: renders raw user prompt only when render context provides it', () => {
+  const rawPrompt = 'Fix the bug as reported.\nDo not infer GitHub context.';
+  const step = {
+    name: 'Worker step',
+    kind: 'worker',
+    input: { prompt: 'Do the task.' },
+    output: { template: 'output.md' },
+    next: 'approval_step',
+  };
+
+  const compiled = renderFixture({
+    label: 'render-initial-user-prompt',
+    stepId: 'worker_step',
+    step,
+    batonDoc: baton({ user_prompt: rawPrompt }),
+    userPrompt: rawPrompt,
+  });
+
+  assert.ok(compiled.prompt.includes(`## User prompt\n\n${rawPrompt}\n`));
+  assertMarkersInOrder(compiled.prompt, [
+    '## Workflow step prompt',
+    'Do the task.',
+    '## User prompt',
+    rawPrompt,
+    '## Final reminder',
+  ]);
+});
+
+test('prompt renderer: ignores render-time user prompt after persisted injection marker', () => {
+  const rawPrompt = 'Already injected prompt must not repeat.';
+  const step = {
+    name: 'Later worker',
+    kind: 'worker',
+    input: { prompt: 'Run later.' },
+    output: { template: 'output.md' },
+    next: 'done',
+  };
+
+  const compiled = renderFixture({
+    label: 'render-user-prompt-marker-guard',
+    stepId: 'later_worker',
+    step,
+    batonDoc: baton({ cursor: 'later_worker', user_prompt: rawPrompt, user_prompt_injected: true }),
+    userPrompt: rawPrompt,
+  });
+
+  assert.doesNotMatch(compiled.prompt, /## User prompt/);
+  assert.equal(compiled.prompt.includes(rawPrompt), false);
+});
+
+test('prompt renderer: ignores render-time user prompt for non-worker steps', () => {
+  const rawPrompt = 'Approval steps must not receive startup prompt.';
+  const step = {
+    name: 'Approval step',
+    kind: 'approval',
+    input: { prompt: 'Approve.' },
+    next: 'done',
+  };
+
+  const compiled = renderFixture({
+    label: 'render-user-prompt-approval-guard',
+    stepId: 'approval_step',
+    step,
+    batonDoc: baton({ cursor: 'approval_step', user_prompt: rawPrompt }),
+    userPrompt: rawPrompt,
+  });
+
+  assert.doesNotMatch(compiled.prompt, /## User prompt/);
+  assert.equal(compiled.prompt.includes(rawPrompt), false);
+});
+
+test('prompt renderer: does not render empty user prompt even when render context provides it', () => {
+  const step = {
+    name: 'Worker step',
+    kind: 'worker',
+    input: { prompt: 'Do the task.' },
+    output: { template: 'output.md' },
+    next: 'done',
+  };
+
+  const compiled = renderFixture({
+    label: 'render-empty-user-prompt',
+    stepId: 'worker_step',
+    step,
+    batonDoc: baton({ user_prompt: '  \n' }),
+    userPrompt: '  \n',
+  });
+
+  assert.doesNotMatch(compiled.prompt, /## User prompt/);
+});
+
+test('prompt renderer: renders provided startup user prompt for worker selected after control steps', () => {
+  const rawPrompt = 'Use the original startup task after approval.';
+  const workflow = {
+    ...schemaWorkflowDoc.workflow,
+    start: 'approval_step',
+  };
+  const step = {
+    name: 'First worker after control',
+    kind: 'worker',
+    input: { prompt: 'Run first worker.' },
+    output: { template: 'output.md' },
+    next: 'done',
+  };
+
+  const compiled = renderFixture({
+    label: 'render-first-worker-after-control-start',
+    workflow,
+    stepId: 'direct_next_worker',
+    step,
+    batonDoc: baton({
+      cursor: 'direct_next_worker',
+      user_prompt: rawPrompt,
+      state: { artifacts: [], results: [], approval_step: { approval: 'approved' } },
+    }),
+    userPrompt: rawPrompt,
+  });
+
+  assert.ok(compiled.prompt.includes(`## User prompt\n\n${rawPrompt}\n`));
+});
+
+test('prompt renderer: does not infer user prompt eligibility from baton by default', () => {
+  const step = {
+    name: 'Direct next worker',
+    kind: 'worker',
+    input: { state: ['results'] },
+    output: { template: 'output.md' },
+    next: 'done',
+  };
+
+  const compiled = renderFixture({
+    label: 'render-later-user-prompt',
+    stepId: 'direct_next_worker',
+    step,
+    batonDoc: baton({
+      cursor: 'direct_next_worker',
+      user_prompt: 'Do not leak me.',
+      state: { artifacts: [], results: [], worker_step: { results: [{ summary: 'already ran first worker' }] } },
+    }),
+  });
+
+  assert.doesNotMatch(compiled.prompt, /## User prompt/);
+  assert.doesNotMatch(compiled.prompt, /Do not leak me\./);
+});
+
+test('prompt renderer: initial parallel workers put user prompt on first worker in response order only', () => {
+  const workflow = {
+    ...schemaWorkflowDoc.workflow,
+    steps: {
+      ...schemaWorkflowDoc.workflow.steps,
+      branch_a: {
+        name: 'Branch A',
+        kind: 'worker',
+        input: { prompt: 'Run branch A.' },
+        output: { template: 'output.md' },
+        next: 'done',
+      },
+      branch_b: {
+        name: 'Branch B',
+        kind: 'worker',
+        input: { prompt: 'Run branch B.' },
+        output: { template: 'output.md' },
+        next: 'done',
+      },
+    },
+  };
+  const rawPrompt = 'Only the first current worker sees this.';
+  const rendered = renderStepPrompts({
+    workflowPath: writeJson('initial-parallel-user-prompt-workflow.json', { workflow }),
+    workflow,
+    baton: baton({ user_prompt: rawPrompt, user_prompt_target: 'branch_b' }),
+    steps: [
+      { id: 'branch_b', action: 'run_worker', step: workflow.steps.branch_b },
+      { id: 'branch_a', action: 'run_worker', step: workflow.steps.branch_a },
+    ],
+    repositoryRoot: tempDir,
+  });
+
+  assert.deepEqual(rendered.map((entry) => entry.id), ['branch_b', 'branch_a']);
+  assert.match(rendered[0].compiledPrompt.prompt, /## User prompt/);
+  assert.equal(rendered[0].compiledPrompt.prompt.includes(rawPrompt), true);
+  assert.doesNotMatch(rendered[1].compiledPrompt.prompt, /## User prompt/);
+  assert.equal(rendered[1].compiledPrompt.prompt.includes(rawPrompt), false);
+});
+
+test('prompt renderer: mixed current approval and worker gives user prompt only to worker', () => {
+  const workflow = {
+    ...schemaWorkflowDoc.workflow,
+    steps: {
+      ...schemaWorkflowDoc.workflow.steps,
+      current_gate: {
+        name: 'Current gate',
+        kind: 'approval',
+        input: { prompt: 'Ask for approval.' },
+        next: 'done',
+      },
+      current_worker: {
+        name: 'Current worker',
+        kind: 'worker',
+        input: { prompt: 'Run current worker.' },
+        output: { template: 'output.md' },
+        next: 'done',
+      },
+    },
+  };
+  const rawPrompt = 'Worker gets startup prompt after a same-batch gate.';
+  const rendered = renderStepPrompts({
+    workflowPath: writeJson('mixed-current-user-prompt-workflow.json', { workflow }),
+    workflow,
+    baton: baton({ user_prompt: rawPrompt, user_prompt_target: 'current_worker' }),
+    steps: [
+      { id: 'current_gate', action: 'wait_for_approval', step: workflow.steps.current_gate },
+      { id: 'current_worker', action: 'run_worker', step: workflow.steps.current_worker },
+    ],
+    repositoryRoot: tempDir,
+  });
+
+  assert.doesNotMatch(rendered[0].compiledPrompt.prompt, /## User prompt/);
+  assert.equal(rendered[0].compiledPrompt.prompt.includes(rawPrompt), false);
+  assert.match(rendered[1].compiledPrompt.prompt, /## User prompt/);
+  assert.equal(rendered[1].compiledPrompt.prompt.includes(rawPrompt), true);
+});
 
 test('prompt renderer: resolves input.role and inlines ROLE.md and RUBRIC.md', () => {
   writeRoleMaterial('custom-backend', {
