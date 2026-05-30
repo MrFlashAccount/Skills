@@ -2,6 +2,7 @@ import { constants } from 'node:fs';
 import { access, mkdir, open, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { workflowFromDocument } from '../schema-validation.mjs';
 import { startupUserPromptTarget } from '../user-prompt.mjs';
 
 const runnerDir = dirname(fileURLToPath(import.meta.url));
@@ -63,8 +64,8 @@ async function createFileIfMissing(path, content) {
 }
 
 function workflowStart(workflowDoc, workflowPath) {
-  const start = workflowDoc?.workflow?.start;
-  if (typeof start !== 'string' || start.length === 0) throw new Error(`workflow missing string workflow.start: ${workflowPath}`);
+  const start = workflowFromDocument(workflowDoc)?.start;
+  if (typeof start !== 'string' || start.length === 0) throw new Error(`workflow missing string start: ${workflowPath}`);
   return start;
 }
 
@@ -84,7 +85,7 @@ export async function ensureRunFiles(paths, { userPrompt } = {}) {
     };
     if (typeof userPrompt === 'string') {
       initialBaton.user_prompt = userPrompt;
-      initialBaton.user_prompt_target = startupUserPromptTarget({ workflow: workflowDoc.workflow, start });
+      initialBaton.user_prompt_target = startupUserPromptTarget({ workflow: workflowFromDocument(workflowDoc), start });
     }
     await writeFile(paths.batonPath, `${JSON.stringify(initialBaton, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
   }

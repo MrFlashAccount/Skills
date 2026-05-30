@@ -1,4 +1,5 @@
 import { applyWorkflowOutput, renderInterpreterResponse, renderWorkflow } from '../interpreter/index.mjs';
+import { workflowFromDocument } from '../schema-validation.mjs';
 import { resolveStartupUserPrompt } from '../user-prompt.mjs';
 import { assertSafeStepId, instructionPathForStep, responseStatusForInterpreterResponse, toRunnerResponse } from './host-requests.mjs';
 import { commitDurableRunState, ensureRunFiles, pathExists, readJson, readText, recoverDurableCommit, repositoryRoot, resolveRunPaths, withContinueRunLock } from './run-state.mjs';
@@ -17,7 +18,7 @@ async function runnerResponseForRendered(paths, rendered, { initialized, resumed
   return {
     ...toRunnerResponse(rendered, {
       runDir: paths.runDir,
-      workflow: workflowDoc.workflow,
+      workflow: workflowFromDocument(workflowDoc),
       workflowPath: paths.workflowPath,
       repositoryRoot,
     }),

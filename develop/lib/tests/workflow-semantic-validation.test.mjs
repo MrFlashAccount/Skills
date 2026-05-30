@@ -150,12 +150,21 @@ function syntheticWorkflow(overrides) {
   return overrides?.(doc) ?? doc;
 }
 
-test('workflow semantic validation accepts the checked-in DevHarness workflow', () => {
-  assert.deepEqual(validate(workflowDoc), { ok: true, workflow: 'dev-harness', steps: Object.keys(workflowDoc.workflow.steps).length });
+test('workflow semantic validation accepts the checked-in flat DevHarness workflow', () => {
+  assert.equal(Object.hasOwn(workflowDoc, 'workflow'), false);
+  assert.deepEqual(validate(workflowDoc), { ok: true, workflow: 'dev-harness', steps: Object.keys(workflowDoc.steps).length });
+});
+
+test('workflow semantic validation accepts legacy wrapped workflow documents for compatibility', () => {
+  const wrapped = syntheticWorkflow();
+  const flat = wrapped.workflow;
+
+  assert.deepEqual(validateSynthetic(flat), { ok: true, workflow: 'synthetic-validation-fixture', steps: Object.keys(flat.steps).length });
+  assert.deepEqual(validateSynthetic(wrapped), { ok: true, workflow: 'synthetic-validation-fixture', steps: Object.keys(flat.steps).length });
 });
 
 test('research critic save step uses persistence metadata template matching its output schema', () => {
-  const step = researchCriticWorkflowDoc.workflow.steps.save_research_packet;
+  const step = researchCriticWorkflowDoc.steps.save_research_packet;
 
   assert.equal(step.output.template, 'shared/templates/research-save-metadata-template.md');
   assert.equal(step.output.schema, 'workflows/research-critic/schemas/save-research-packet-output.json');
@@ -163,16 +172,16 @@ test('research critic save step uses persistence metadata template matching its 
   assert.deepEqual(validateWorkflowDocument(researchCriticWorkflowDoc, { workflowPath: path.join(REPO_ROOT, 'workflows/research-critic/workflow.json'), repositoryRoot: REPO_ROOT }), {
     ok: true,
     workflow: 'research-critic',
-    steps: Object.keys(researchCriticWorkflowDoc.workflow.steps).length,
+    steps: Object.keys(researchCriticWorkflowDoc.steps).length,
   });
 });
 
 test('research critic saved packet output requires projected artifacts and results', () => {
   const workflowPath = path.join(REPO_ROOT, 'workflows/research-critic/workflow.json');
-  const step = researchCriticWorkflowDoc.workflow.steps.save_research_packet;
+  const step = researchCriticWorkflowDoc.steps.save_research_packet;
 
   const missingProjection = validateAgainstOutputSchema({
-    workflow: researchCriticWorkflowDoc.workflow,
+    workflow: researchCriticWorkflowDoc,
     workflowPath,
     schemaRef: step.output.schema,
     repositoryRoot: REPO_ROOT,
@@ -183,7 +192,7 @@ test('research critic saved packet output requires projected artifacts and resul
   assert.match(missingProjection.errors, /results/);
 
   const emptyProjection = validateAgainstOutputSchema({
-    workflow: researchCriticWorkflowDoc.workflow,
+    workflow: researchCriticWorkflowDoc,
     workflowPath,
     schemaRef: step.output.schema,
     repositoryRoot: REPO_ROOT,
@@ -194,7 +203,7 @@ test('research critic saved packet output requires projected artifacts and resul
   assert.match(emptyProjection.errors, /results/);
 
   const withProjection = validateAgainstOutputSchema({
-    workflow: researchCriticWorkflowDoc.workflow,
+    workflow: researchCriticWorkflowDoc,
     workflowPath,
     schemaRef: step.output.schema,
     repositoryRoot: REPO_ROOT,
@@ -210,9 +219,9 @@ test('research critic saved packet output requires projected artifacts and resul
 
 test('research critic save packet output keeps saved and blocked branches exclusive', () => {
   const workflowPath = path.join(REPO_ROOT, 'workflows/research-critic/workflow.json');
-  const step = researchCriticWorkflowDoc.workflow.steps.save_research_packet;
+  const step = researchCriticWorkflowDoc.steps.save_research_packet;
   const schemaContext = {
-    workflow: researchCriticWorkflowDoc.workflow,
+    workflow: researchCriticWorkflowDoc,
     workflowPath,
     schemaRef: step.output.schema,
     repositoryRoot: REPO_ROOT,
@@ -271,7 +280,7 @@ test('workflow semantic validation rejects step ids reserved for baton state boo
 
 test('workflow semantic validation warns when DevHarness described fields lack x-usage', () => {
   const doc = structuredClone(workflowDoc);
-  doc.workflow.steps.research_draft.output.schema = 'develop/lib/tests/fixtures/research-draft-missing-x-usage.schema.json';
+  doc.steps.research_draft.output.schema = 'develop/lib/tests/fixtures/research-draft-missing-x-usage.schema.json';
 
   const result = validate(doc);
 
@@ -282,21 +291,21 @@ test('workflow semantic validation warns when DevHarness described fields lack x
 
 test('workflow semantic validation rejects schema-declared dynamic targets that are not workflow steps', () => {
   const doc = structuredClone(workflowDoc);
-  doc.workflow.steps.review_join.output.schema = 'develop/lib/tests/fixtures/review-join-output-unknown-target.schema.json';
+  doc.steps.review_join.output.schema = 'develop/lib/tests/fixtures/review-join-output-unknown-target.schema.json';
 
   assertSemanticFailure(doc, /review_join.*output\.next.*unknown_step/);
 });
 
 test('workflow semantic validation rejects missing match cases from output schema enums', () => {
   const doc = structuredClone(workflowDoc);
-  delete doc.workflow.steps.research_draft.next.cases.blocked;
+  delete doc.steps.research_draft.next.cases.blocked;
 
   assertSemanticFailure(doc, /research_draft.*next\.cases is missing schema-declared case 'blocked'/);
 });
 
 test('workflow semantic validation rejects unreachable match cases not present in output schema enums', () => {
   const doc = structuredClone(workflowDoc);
-  doc.workflow.steps.research_draft.next.cases.unreachable = 'blocked';
+  doc.steps.research_draft.next.cases.unreachable = 'blocked';
 
   assert.throws(() => validate(doc), /research_draft.*unreachable case 'unreachable'/);
 });
