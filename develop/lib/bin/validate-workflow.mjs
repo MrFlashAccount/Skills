@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import { WorkflowInterpreterError } from '../lib/workflow/errors.mjs';
-import { validateWorkflowFile } from '../lib/validate/workflow-validator.mjs';
+import { WorkflowInterpreterError } from '../workflow/errors.mjs';
+import { validateWorkflowFile } from '../validate/workflow-validator.mjs';
 
 function fail(message) {
   console.error(`validate-workflow: ${message}`);
@@ -9,7 +9,7 @@ function fail(message) {
 
 const workflowPaths = process.argv.slice(2);
 if (workflowPaths.length === 0) {
-  workflowPaths.push('develop/dev-harness.workflow.json', 'workflows/research-critic.workflow.json');
+  workflowPaths.push('skills/dev-harness/workflow.devharness.json', 'workflows/research-critic/workflow.json');
 }
 
 try {

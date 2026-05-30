@@ -6,7 +6,7 @@ import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-schema-check-'));
 writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
 
@@ -151,7 +151,7 @@ function runInspect(label, batonDoc, expectSuccess = true, workflowDoc = schemaW
   const wfPath = writeJson(`${prefix}-workflow.json`, workflowDoc);
   const before = readFileSync(batonPath, 'utf8');
 
-  const result = runNode(['develop/scripts/workflow-interpreter.mjs', 'inspect', wfPath, batonPath]);
+  const result = runNode(['develop/lib/bin/workflow-interpreter.mjs', 'inspect', wfPath, batonPath]);
   const response = expectCliResult(label, result, expectSuccess);
   assert.equal(readFileSync(batonPath, 'utf8'), before, `check '${label}' mutated baton file during inspect`);
   return response;
@@ -164,7 +164,7 @@ function runApply(label, batonDoc, workerOutput, expectSuccess = true, workflowD
   const wfPath = writeJson(`${prefix}-workflow.json`, workflowDoc);
   const before = readFileSync(batonPath, 'utf8');
 
-  const result = runNode(['develop/scripts/workflow-interpreter.mjs', 'apply', wfPath, batonPath, outputPath]);
+  const result = runNode(['develop/lib/bin/workflow-interpreter.mjs', 'apply', wfPath, batonPath, outputPath]);
   const response = expectCliResult(label, result, expectSuccess);
   assert.equal(readFileSync(batonPath, 'utf8'), before, `check '${label}' mutated baton file during apply`);
   return response;
@@ -1124,7 +1124,7 @@ test('cli: removed directive alias is rejected', () => {
   const wfPath = writeJson(`${prefix}-workflow.json`, schemaWorkflowDoc);
   const before = readFileSync(batonPath, 'utf8');
 
-  const result = runNode(['develop/scripts/workflow-interpreter.mjs', 'directive', wfPath, batonPath]);
+  const result = runNode(['develop/lib/bin/workflow-interpreter.mjs', 'directive', wfPath, batonPath]);
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /workflow-interpreter failed schema validation|usage:/);
@@ -1136,7 +1136,7 @@ test('cli: positional paths may begin with dash', () => {
   writeFileSync(path.join(tempDir, '--baton.json'), `${JSON.stringify(baton(), null, 2)}\n`);
 
   const result = runNode(
-    [path.join(root, 'develop/scripts/workflow-interpreter.mjs'), 'inspect', '--workflow.json', '--baton.json'],
+    [path.join(root, 'develop/lib/bin/workflow-interpreter.mjs'), 'inspect', '--workflow.json', '--baton.json'],
     tempDir,
   );
   const response = expectCliResult('inspect-dash-prefixed-paths', result, true);
@@ -1150,38 +1150,38 @@ test('cli: three-position apply without explicit mode is rejected', () => {
   const outputPath = writeJson(`${prefix}-output.json`, output());
   const before = readFileSync(batonPath, 'utf8');
 
-  const result = runNode(['develop/scripts/workflow-interpreter.mjs', wfPath, batonPath, outputPath]);
+  const result = runNode(['develop/lib/bin/workflow-interpreter.mjs', wfPath, batonPath, outputPath]);
 
   assert.equal(result.status, 1);
   assert.match(
     result.stderr,
-    /workflow-interpreter: usage: node scripts\/workflow-interpreter\.mjs inspect <workflow\.json> <baton\.json> \| render \[--diagnostics\] <workflow\.json> <baton\.json> \| apply <workflow\.json> <baton\.json> <worker-output\.json>/,
+    /workflow-interpreter: usage: node develop\/lib\/bin\/workflow-interpreter\.mjs inspect <workflow\.json> <baton\.json> \| render \[--diagnostics\] <workflow\.json> <baton\.json> \| apply <workflow\.json> <baton\.json> <worker-output\.json>/,
   );
   assert.equal(readFileSync(batonPath, 'utf8'), before, 'rejected apply mutated baton file');
 });
 
 test('cli: schema validation rejects wrong arity with mode-specific usage', () => {
-  const inspect = runNode(['develop/scripts/workflow-interpreter.mjs', 'inspect', 'workflow.json']);
-  const apply = runNode(['develop/scripts/workflow-interpreter.mjs', 'apply', 'workflow.json', 'baton.json']);
-  const missingMode = runNode(['develop/scripts/workflow-interpreter.mjs', 'workflow.json', 'baton.json']);
+  const inspect = runNode(['develop/lib/bin/workflow-interpreter.mjs', 'inspect', 'workflow.json']);
+  const apply = runNode(['develop/lib/bin/workflow-interpreter.mjs', 'apply', 'workflow.json', 'baton.json']);
+  const missingMode = runNode(['develop/lib/bin/workflow-interpreter.mjs', 'workflow.json', 'baton.json']);
 
   assert.equal(inspect.status, 1);
-  assert.match(inspect.stderr, /workflow-interpreter: usage: node scripts\/workflow-interpreter\.mjs inspect <workflow\.json> <baton\.json>/);
+  assert.match(inspect.stderr, /workflow-interpreter: usage: node develop\/lib\/bin\/workflow-interpreter\.mjs inspect <workflow\.json> <baton\.json>/);
 
   assert.equal(apply.status, 1);
-  assert.match(apply.stderr, /workflow-interpreter: usage: node scripts\/workflow-interpreter\.mjs apply <workflow\.json> <baton\.json> <worker-output\.json>/);
+  assert.match(apply.stderr, /workflow-interpreter: usage: node develop\/lib\/bin\/workflow-interpreter\.mjs apply <workflow\.json> <baton\.json> <worker-output\.json>/);
 
   assert.equal(missingMode.status, 1);
-  assert.match(missingMode.stderr, /workflow-interpreter: usage: node scripts\/workflow-interpreter\.mjs inspect <workflow\.json> <baton\.json> \| render \[--diagnostics\] <workflow\.json> <baton\.json> \| apply <workflow\.json> <baton\.json> <worker-output\.json>/);
+  assert.match(missingMode.stderr, /workflow-interpreter: usage: node develop\/lib\/bin\/workflow-interpreter\.mjs inspect <workflow\.json> <baton\.json> \| render \[--diagnostics\] <workflow\.json> <baton\.json> \| apply <workflow\.json> <baton\.json> <worker-output\.json>/);
 });
 
 test('cli: unknown explicit mode with apply arity is rejected by argument schema', () => {
-  const result = runNode(['develop/scripts/workflow-interpreter.mjs', 'bogus', 'workflow.json', 'baton.json', 'output.json']);
+  const result = runNode(['develop/lib/bin/workflow-interpreter.mjs', 'bogus', 'workflow.json', 'baton.json', 'output.json']);
 
   assert.equal(result.status, 1);
   assert.match(
     result.stderr,
-    /workflow-interpreter: usage: node scripts\/workflow-interpreter\.mjs inspect <workflow\.json> <baton\.json> \| render \[--diagnostics\] <workflow\.json> <baton\.json> \| apply <workflow\.json> <baton\.json> <worker-output\.json>/,
+    /workflow-interpreter: usage: node develop\/lib\/bin\/workflow-interpreter\.mjs inspect <workflow\.json> <baton\.json> \| render \[--diagnostics\] <workflow\.json> <baton\.json> \| apply <workflow\.json> <baton\.json> <worker-output\.json>/,
   );
 });
 

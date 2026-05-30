@@ -4,17 +4,17 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import workflowDoc from '../dev-harness.workflow.json' with { type: 'json' };
-import researchCriticWorkflowDoc from '../../workflows/research-critic.workflow.json' with { type: 'json' };
-import { WorkflowInterpreterError } from '../lib/workflow/errors.mjs';
-import { validateWorkflowDocument } from '../lib/validate/workflow-validator.mjs';
-import { validateAgainstOutputSchema } from '../lib/workflow/output-schema-validation.mjs';
+import workflowDoc from '../../../skills/dev-harness/workflow.devharness.json' with { type: 'json' };
+import researchCriticWorkflowDoc from '../../../workflows/research-critic/workflow.json' with { type: 'json' };
+import { WorkflowInterpreterError } from '../workflow/errors.mjs';
+import { validateWorkflowDocument } from '../validate/workflow-validator.mjs';
+import { validateAgainstOutputSchema } from '../workflow/output-schema-validation.mjs';
 
-const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-semantic-validation-'));
 
 function validate(doc) {
-  return validateWorkflowDocument(doc, { workflowPath: path.join(REPO_ROOT, 'develop/dev-harness.workflow.json'), repositoryRoot: REPO_ROOT });
+  return validateWorkflowDocument(doc, { workflowPath: path.join(REPO_ROOT, 'skills/dev-harness/workflow.devharness.json'), repositoryRoot: REPO_ROOT });
 }
 
 function validateSynthetic(doc) {
@@ -158,9 +158,9 @@ test('research critic save step uses persistence metadata template matching its 
   const step = researchCriticWorkflowDoc.workflow.steps.save_research_packet;
 
   assert.equal(step.output.template, 'shared/templates/research-save-metadata-template.md');
-  assert.equal(step.output.schema, 'schemas/research-critic/save-research-packet-output.json');
+  assert.equal(step.output.schema, 'workflows/research-critic/schemas/save-research-packet-output.json');
   assert.notEqual(step.output.template, 'shared/templates/research-packet-template.md');
-  assert.deepEqual(validateWorkflowDocument(researchCriticWorkflowDoc, { workflowPath: path.join(REPO_ROOT, 'workflows/research-critic.workflow.json'), repositoryRoot: REPO_ROOT }), {
+  assert.deepEqual(validateWorkflowDocument(researchCriticWorkflowDoc, { workflowPath: path.join(REPO_ROOT, 'workflows/research-critic/workflow.json'), repositoryRoot: REPO_ROOT }), {
     ok: true,
     workflow: 'research-critic',
     steps: Object.keys(researchCriticWorkflowDoc.workflow.steps).length,
@@ -168,7 +168,7 @@ test('research critic save step uses persistence metadata template matching its 
 });
 
 test('research critic saved packet output requires projected artifacts and results', () => {
-  const workflowPath = path.join(REPO_ROOT, 'workflows/research-critic.workflow.json');
+  const workflowPath = path.join(REPO_ROOT, 'workflows/research-critic/workflow.json');
   const step = researchCriticWorkflowDoc.workflow.steps.save_research_packet;
 
   const missingProjection = validateAgainstOutputSchema({
@@ -209,7 +209,7 @@ test('research critic saved packet output requires projected artifacts and resul
 });
 
 test('research critic save packet output keeps saved and blocked branches exclusive', () => {
-  const workflowPath = path.join(REPO_ROOT, 'workflows/research-critic.workflow.json');
+  const workflowPath = path.join(REPO_ROOT, 'workflows/research-critic/workflow.json');
   const step = researchCriticWorkflowDoc.workflow.steps.save_research_packet;
   const schemaContext = {
     workflow: researchCriticWorkflowDoc.workflow,
@@ -271,7 +271,7 @@ test('workflow semantic validation rejects step ids reserved for baton state boo
 
 test('workflow semantic validation warns when DevHarness described fields lack x-usage', () => {
   const doc = structuredClone(workflowDoc);
-  doc.workflow.steps.research_draft.output.schema = 'develop/tests/fixtures/research-draft-missing-x-usage.schema.json';
+  doc.workflow.steps.research_draft.output.schema = 'develop/lib/tests/fixtures/research-draft-missing-x-usage.schema.json';
 
   const result = validate(doc);
 
@@ -282,7 +282,7 @@ test('workflow semantic validation warns when DevHarness described fields lack x
 
 test('workflow semantic validation rejects schema-declared dynamic targets that are not workflow steps', () => {
   const doc = structuredClone(workflowDoc);
-  doc.workflow.steps.review_join.output.schema = 'develop/tests/fixtures/review-join-output-unknown-target.schema.json';
+  doc.workflow.steps.review_join.output.schema = 'develop/lib/tests/fixtures/review-join-output-unknown-target.schema.json';
 
   assertSemanticFailure(doc, /review_join.*output\.next.*unknown_step/);
 });
@@ -448,7 +448,7 @@ test('workflow semantic validation uses approval output.schema for output match 
           name: 'Approve',
           kind: 'approval',
           input: { prompt: 'Choose ship or revise.' },
-          output: { schema: 'develop/tests/fixtures/approval-choice-output.schema.json' },
+          output: { schema: 'develop/lib/tests/fixtures/approval-choice-output.schema.json' },
           next: { match: '${{ output.choice }}', cases: { ship: 'done' } },
         },
         done: { name: 'Done', kind: 'done' },

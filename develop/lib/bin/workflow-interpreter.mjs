@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
-import { validateWorkflowInterpreterCliArgs } from '../lib/workflow/cli-args-validation.mjs';
-import { WorkflowInterpreterError } from '../lib/workflow/errors.mjs';
-import { applyWorkflowOutput, inspectWorkflow, renderWorkflow } from '../lib/workflow/interpreter/index.mjs';
+import { validateWorkflowInterpreterCliArgs } from '../workflow/cli-args-validation.mjs';
+import { WorkflowInterpreterError } from '../workflow/errors.mjs';
+import { applyWorkflowOutput, inspectWorkflow, renderWorkflow } from '../workflow/interpreter/index.mjs';
 
 function fail(message) {
   console.error(`workflow-interpreter: ${message}`);
@@ -29,12 +29,12 @@ function emit(response) {
   console.log(JSON.stringify(response, null, 2));
 }
 
-const DEFAULT_USAGE = 'usage: node scripts/workflow-interpreter.mjs inspect <workflow.json> <baton.json> | render [--diagnostics] <workflow.json> <baton.json> | apply <workflow.json> <baton.json> <worker-output.json>';
+const DEFAULT_USAGE = 'usage: node develop/lib/bin/workflow-interpreter.mjs inspect <workflow.json> <baton.json> | render [--diagnostics] <workflow.json> <baton.json> | apply <workflow.json> <baton.json> <worker-output.json>';
 
 const USAGE_BY_MODE = {
-  inspect: 'usage: node scripts/workflow-interpreter.mjs inspect <workflow.json> <baton.json>',
-  render: 'usage: node scripts/workflow-interpreter.mjs render [--diagnostics] <workflow.json> <baton.json>',
-  apply: 'usage: node scripts/workflow-interpreter.mjs apply <workflow.json> <baton.json> <worker-output.json>',
+  inspect: 'usage: node develop/lib/bin/workflow-interpreter.mjs inspect <workflow.json> <baton.json>',
+  render: 'usage: node develop/lib/bin/workflow-interpreter.mjs render [--diagnostics] <workflow.json> <baton.json>',
+  apply: 'usage: node develop/lib/bin/workflow-interpreter.mjs apply <workflow.json> <baton.json> <worker-output.json>',
 };
 
 const COMMANDS = {

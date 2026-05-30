@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
-import { WorkflowInterpreterError } from '../lib/workflow/errors.mjs';
-import { continueRun, loadInstructions, next } from '../lib/workflow/runner/index.mjs';
+import { WorkflowInterpreterError } from '../workflow/errors.mjs';
+import { continueRun, loadInstructions, next } from '../workflow/runner/index.mjs';
 
 function fail(message) {
   console.error(`workflow-runner: ${message}`);
@@ -9,7 +9,7 @@ function fail(message) {
 }
 
 function usage() {
-  return 'usage: node scripts/workflow-runner.mjs next --run-dir <dir> [--workflow <workflow.json>] [--diagnostics] [--user-prompt <text> | --user-prompt-file <path>] | continue --run-dir <dir> --output <worker-output.json> [--output <step-id=worker-output.json> ...] [--workflow <workflow.json>] [--diagnostics] | instructions --run-dir <dir> --step-id <id>';
+  return 'usage: node develop/lib/bin/workflow-runner.mjs next --run-dir <dir> [--workflow <workflow.json>] [--diagnostics] [--user-prompt <text> | --user-prompt-file <path>] | continue --run-dir <dir> --output <worker-output.json> [--output <step-id=worker-output.json> ...] [--workflow <workflow.json>] [--diagnostics] | instructions --run-dir <dir> --step-id <id>';
 }
 
 function parseCliArgs(argv) {

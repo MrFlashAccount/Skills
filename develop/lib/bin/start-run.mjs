@@ -3,11 +3,11 @@ import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { ensureRunFiles, resolveRunPaths } from '../lib/workflow/runner/run-state.mjs';
+import { ensureRunFiles, resolveRunPaths } from '../workflow/runner/run-state.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
-const skillDir = resolve(scriptDir, '..');
-const defaultWorkflowPath = join(skillDir, 'dev-harness.workflow.json');
+const repositoryRoot = resolve(scriptDir, '../../..');
+const defaultWorkflowPath = join(repositoryRoot, 'skills/dev-harness/workflow.devharness.json');
 
 function fail(message) {
   console.error(`start-run: ${message}`);
@@ -26,7 +26,7 @@ function parseCliArgs(argv) {
       allowPositionals: false,
     }).values;
   } catch (error) {
-    fail(`${error.message}\nusage: node scripts/start-run.mjs --run-dir <dir> [--workflow <workflow.json>]`);
+    fail(`${error.message}\nusage: node develop/lib/bin/start-run.mjs --run-dir <dir> [--workflow <workflow.json>]`);
   }
 }
 
@@ -37,7 +37,7 @@ function requireString(value, name) {
 
 function inspectWorkflow(workflowPath, batonPath) {
   const result = spawnSync(process.execPath, [join(scriptDir, 'workflow-interpreter.mjs'), 'inspect', workflowPath, batonPath], {
-    cwd: skillDir,
+    cwd: repositoryRoot,
     encoding: 'utf8',
   });
 

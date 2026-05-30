@@ -16,7 +16,7 @@
         },
         "output": {
           "template": "shared/templates/research-packet-template.md",
-          "schema": "schemas/research-critic/research-draft-output.json"
+          "schema": "workflows/research-critic/schemas/research-draft-output.json"
         },
         "next": {
           "match": "${{ output.outcome }}",
@@ -61,7 +61,7 @@
         },
         "output": {
           "template": "shared/templates/research-packet-template.md",
-          "schema": "schemas/research-critic/research-draft-output.json"
+          "schema": "workflows/research-critic/schemas/research-draft-output.json"
         },
         "next": {
           "match": "${{ output.outcome }}",
@@ -86,7 +86,7 @@
         },
         "output": {
           "template": "shared/templates/review-verdict-template.md",
-          "schema": "schemas/research-critic/research-attack-output.json"
+          "schema": "workflows/research-critic/schemas/research-attack-output.json"
         },
         "next": {
           "match": "${{ output.outcome }}",
@@ -114,7 +114,7 @@
         },
         "output": {
           "template": "shared/templates/research-packet-template.md",
-          "schema": "schemas/research-critic/research-draft-output.json"
+          "schema": "workflows/research-critic/schemas/research-draft-output.json"
         },
         "next": {
           "match": "${{ output.outcome }}",
@@ -140,7 +140,7 @@
         },
         "output": {
           "template": "shared/templates/research-save-metadata-template.md",
-          "schema": "schemas/research-critic/save-research-packet-output.json"
+          "schema": "workflows/research-critic/schemas/save-research-packet-output.json"
         },
         "next": {
           "match": "${{ output.outcome }}",

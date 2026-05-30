@@ -6,9 +6,9 @@ import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-persist-'));
-const helperPath = path.join(root, 'develop/scripts/persist-run-state.mjs');
+const helperPath = path.join(root, 'develop/lib/bin/persist-run-state.mjs');
 
 function writeJson(filePath, value) {
   mkdirSync(path.dirname(filePath), { recursive: true });

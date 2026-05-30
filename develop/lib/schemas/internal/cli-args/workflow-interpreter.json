@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/MrFlashAccount/Skills/schemas/internal/cli-args/workflow-interpreter",
   "title": "Workflow Interpreter CLI Arguments",
-  "description": "Internal positional argv contract for develop/scripts/workflow-interpreter.mjs after node:util parseArgs normalization.",
+  "description": "Internal positional argv contract for develop/lib/bin/workflow-interpreter.mjs after node:util parseArgs normalization.",
   "oneOf": [
     { "$ref": "#/$defs/inspectMode" },
     { "$ref": "#/$defs/renderMode" },
