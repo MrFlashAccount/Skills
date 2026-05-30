@@ -7,7 +7,7 @@ Canonical validation agent instructions live at `develop/lib/validate/validation
 Run the deterministic validator through the existing CLI wrapper:
 
 ```sh
-node develop/lib/bin/validate-workflow.mjs skills/dev-harness/workflow.devharness.json
+node develop/lib/bin/validate-workflow.mjs workflows/dev-harness/workflow.json
 ```
 
 or:

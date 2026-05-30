@@ -83,7 +83,7 @@ function assertWorkflowStepRoles(workflow, repositoryRoot) {
 }
 
 function isDevHarnessOutputSchema(schemaRef, schema) {
-  return (typeof schemaRef === 'string' && schemaRef.includes('/schemas/dev-harness/'))
+  return (typeof schemaRef === 'string' && schemaRef.includes('workflows/dev-harness/schemas/'))
     || (typeof schema?.$id === 'string' && schema.$id.includes('/schemas/workflow/dev-harness/'));
 }
 

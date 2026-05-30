@@ -9,7 +9,7 @@ function fail(message) {
 
 const workflowPaths = process.argv.slice(2);
 if (workflowPaths.length === 0) {
-  workflowPaths.push('skills/dev-harness/workflow.devharness.json', 'workflows/research-critic/workflow.json');
+  workflowPaths.push('workflows/dev-harness/workflow.json', 'workflows/research-critic/workflow.json');
 }
 
 try {

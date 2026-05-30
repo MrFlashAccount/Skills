@@ -11,7 +11,7 @@ This folder is the canonical validation bundle for the inline workflow runtime. 
 Run the deterministic validator:
 
 ```sh
-node develop/lib/bin/validate-workflow.mjs skills/dev-harness/workflow.devharness.json
+node develop/lib/bin/validate-workflow.mjs workflows/dev-harness/workflow.json
 ```
 
 It is also part of:

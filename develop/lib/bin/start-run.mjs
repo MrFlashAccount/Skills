@@ -7,7 +7,7 @@ import { ensureRunFiles, resolveRunPaths } from '../workflow/runner/run-state.mj
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(scriptDir, '../../..');
-const defaultWorkflowPath = join(repositoryRoot, 'skills/dev-harness/workflow.devharness.json');
+const defaultWorkflowPath = join(repositoryRoot, 'workflows/dev-harness/workflow.json');
 
 function fail(message) {
   console.error(`start-run: ${message}`);

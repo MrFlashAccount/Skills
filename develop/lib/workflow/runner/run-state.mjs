@@ -5,9 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { startupUserPromptTarget } from '../user-prompt.mjs';
 
 const runnerDir = dirname(fileURLToPath(import.meta.url));
-const skillDir = resolve(runnerDir, '../../..');
-export const repositoryRoot = resolve(skillDir, '..');
-export const defaultWorkflowPath = join(skillDir, 'dev-harness.workflow.json');
+export const repositoryRoot = resolve(runnerDir, '../../../..');
+export const defaultWorkflowPath = join(repositoryRoot, 'workflows/dev-harness/workflow.json');
 
 export function resolveRunPaths({ runDir, workflowPath }) {
   const resolvedRunDir = resolve(runDir);

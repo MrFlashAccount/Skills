@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import workflowDoc from '../../../skills/dev-harness/workflow.devharness.json' with { type: 'json' };
+import workflowDoc from '../../../workflows/dev-harness/workflow.json' with { type: 'json' };
 import researchCriticWorkflowDoc from '../../../workflows/research-critic/workflow.json' with { type: 'json' };
 import { WorkflowInterpreterError } from '../workflow/errors.mjs';
 import { validateWorkflowDocument } from '../validate/workflow-validator.mjs';
@@ -14,7 +14,7 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-semantic-validation-'));
 
 function validate(doc) {
-  return validateWorkflowDocument(doc, { workflowPath: path.join(REPO_ROOT, 'skills/dev-harness/workflow.devharness.json'), repositoryRoot: REPO_ROOT });
+  return validateWorkflowDocument(doc, { workflowPath: path.join(REPO_ROOT, 'workflows/dev-harness/workflow.json'), repositoryRoot: REPO_ROOT });
 }
 
 function validateSynthetic(doc) {
