@@ -5,10 +5,7 @@ import { assertBatonSchema, assertWorkflowSchema } from '../../schema-validation
 import { assertProjectableStateSelector, isReservedStateKey, RESERVED_STEP_IDS } from '../../state-keys.mjs';
 import { assertTransitionDescriptorTargets, normalizeTransitionNext } from '../../transitions.mjs';
 
-export function loadWorkflowAndBaton(workflowPath, batonPath) {
-  const workflowDoc = readJson(workflowPath, 'workflow');
-  const baton = readJson(batonPath, 'baton');
-
+function assertLoadedWorkflowAndBaton(workflowDoc, baton, workflowPath) {
   assertWorkflowSchema(workflowDoc);
   assertBatonSchema(baton);
 
@@ -27,6 +24,19 @@ export function loadWorkflowAndBaton(workflowPath, batonPath) {
   );
 
   return { workflow, baton, cursorStep };
+}
+
+export function loadWorkflowAndBaton(workflowPath, batonPath) {
+  const workflowDoc = readJson(workflowPath, 'workflow');
+  const baton = readJson(batonPath, 'baton');
+
+  return assertLoadedWorkflowAndBaton(workflowDoc, baton, workflowPath);
+}
+
+export function loadWorkflowWithBaton(workflowPath, baton) {
+  const workflowDoc = readJson(workflowPath, 'workflow');
+
+  return assertLoadedWorkflowAndBaton(workflowDoc, baton, workflowPath);
 }
 
 function assertWorkflowRuntimeStateBoundary(workflow) {

@@ -543,6 +543,45 @@ test('runner: continue reports missing requested output as an error', () => {
 });
 
 
+test('runner: continue does not persist applied output when next render fails', () => {
+  const runDir = path.join(tempDir, 'render-failure-no-advance');
+  const workflowPath = path.join(tempDir, 'render-failure-no-advance-workflow.json');
+  const renderFailureWorkflow = structuredClone(workflowDoc);
+  renderFailureWorkflow.workflow.steps.prepare.next = 'bad_render';
+  renderFailureWorkflow.workflow.steps.bad_render = {
+    name: 'Bad Render',
+    kind: 'worker',
+    input: {
+      state: ['prepare'],
+      template: 'missing-input-template.md',
+      prompt: 'This step should fail prompt rendering.',
+    },
+    output: { template: 'shared/templates/implementation-plan-template.md' },
+    next: 'done',
+  };
+  writeJson(workflowPath, renderFailureWorkflow);
+
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next render failure setup');
+  const batonBefore = readFileSync(path.join(runDir, 'baton.json'), 'utf8');
+  const historyBefore = readFileSync(path.join(runDir, 'history.md'), 'utf8');
+  const lastResponseBefore = readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8');
+
+  const outputPath = path.join(runDir, 'prepare-result.json');
+  writeJson(outputPath, workerOutput('prepared but should not persist'));
+  const result = runRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', outputPath]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /workflow prompt render failed/);
+  assert.equal(readFileSync(path.join(runDir, 'baton.json'), 'utf8'), batonBefore);
+  assert.equal(readFileSync(path.join(runDir, 'history.md'), 'utf8'), historyBefore);
+  assert.equal(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8'), lastResponseBefore);
+
+  const baton = JSON.parse(batonBefore);
+  assert.equal(baton.cursor, 'prepare');
+  assert.equal(Object.hasOwn(baton.state, 'prepare'), false);
+});
+
+
 test('runner: instructions rejects unknown, unsafe, and missing instructions', () => {
   const runDir = path.join(tempDir, 'instructions-errors');
   const workflowPath = path.join(tempDir, 'instructions-errors-workflow.json');

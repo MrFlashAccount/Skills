@@ -106,10 +106,10 @@ export async function continueRun({ runDir, workflowPath, output, includeDiagnos
     await ensureRunFiles(paths);
     const { outputPath } = await outputPathForCurrentState(paths, normalizeOutputRefs(output));
     const applied = applyWorkflowOutput(paths.workflowPath, paths.batonPath, outputPath);
+    const rendered = renderInterpreterResponse(paths.workflowPath, paths.batonPath, applied, { includeDiagnostics, repositoryRoot });
+
     await writeJsonAtomic(paths.batonPath, applied.baton);
     await appendHistory(paths, { source: 'workflow-runner-continue', baton: applied.baton, output: outputPath });
-
-    const rendered = renderInterpreterResponse(paths.workflowPath, paths.batonPath, applied, { includeDiagnostics, repositoryRoot });
     return runnerResponseForRendered(paths, rendered, { initialized: false, resumed: true });
   });
 }

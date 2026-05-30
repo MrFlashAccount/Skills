@@ -1,6 +1,6 @@
 import { assertResponseSchema } from '../schema-validation.mjs';
 import { isDynamicTransitionNext, isStaticParallelNext, resolveTransition } from '../transitions.mjs';
-import { loadWorkflowAndBaton } from './guards/workflow.mjs';
+import { loadWorkflowAndBaton, loadWorkflowWithBaton } from './guards/workflow.mjs';
 import { hasAppliedOutputForStep, responseFor } from './output/response.mjs';
 import { renderStepPrompts } from './parallel/render.mjs';
 import { applyWorkflowOutput } from './output/apply.mjs';
@@ -26,7 +26,7 @@ export function inspectWorkflow(workflowPath, batonPath) {
 }
 
 export function renderInterpreterResponse(workflowPath, batonPath, response, options = {}) {
-  const { workflow } = loadWorkflowAndBaton(workflowPath, batonPath);
+  const { workflow } = loadWorkflowWithBaton(workflowPath, response.baton);
   const rendered = {
     ...response,
     steps: renderStepPrompts({
