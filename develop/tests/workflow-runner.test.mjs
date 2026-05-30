@@ -162,6 +162,46 @@ test('runner: user prompt is stored, included only in initial worker instruction
   assert.equal(laterInstructions.stdout.includes(rawPrompt), false);
 });
 
+test('runner: user prompt is included in first worker when workflow starts with approval step', () => {
+  const runDir = path.join(tempDir, 'user-prompt-control-start');
+  const workflowPath = path.join(tempDir, 'user-prompt-control-start-workflow.json');
+  const approvalFirstWorkflow = structuredClone(workflowDoc);
+  approvalFirstWorkflow.workflow.start = 'gate';
+  approvalFirstWorkflow.workflow.steps = {
+    gate: {
+      name: 'Gate',
+      kind: 'approval',
+      input: { prompt: 'Approve startup task.' },
+      next: { match: '${{ output.approval }}', cases: { approved: 'prepare', blocked: 'blocked' } },
+    },
+    ...approvalFirstWorkflow.workflow.steps,
+  };
+  writeJson(workflowPath, approvalFirstWorkflow);
+  const rawPrompt = 'Raw task must reach first worker after approval.';
+
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath, '--user-prompt', rawPrompt], 'next approval-first with user prompt');
+  const gateInstructions = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'gate']);
+  assert.equal(gateInstructions.status, 0, gateInstructions.stderr);
+  assert.doesNotMatch(gateInstructions.stdout, /## User prompt/);
+  assert.equal(gateInstructions.stdout.includes(rawPrompt), false);
+
+  const approvalOutput = path.join(runDir, 'gate-output.json');
+  writeJson(approvalOutput, { approval: 'approved' });
+  expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', approvalOutput], 'continue approval-first gate');
+  const firstWorkerInstructions = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'prepare']);
+  assert.equal(firstWorkerInstructions.status, 0, firstWorkerInstructions.stderr);
+  assert.match(firstWorkerInstructions.stdout, /## User prompt/);
+  assert.equal(firstWorkerInstructions.stdout.includes(rawPrompt), true);
+
+  const prepareOutput = path.join(runDir, 'prepare-output.json');
+  writeJson(prepareOutput, workerOutput('prepared'));
+  expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', prepareOutput], 'continue approval-first prepare');
+  const laterInstructions = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'branch_a']);
+  assert.equal(laterInstructions.status, 0, laterInstructions.stderr);
+  assert.doesNotMatch(laterInstructions.stdout, /## User prompt/);
+  assert.equal(laterInstructions.stdout.includes(rawPrompt), false);
+});
+
 test('runner: next resumes existing baton without overwriting user prompt', () => {
   const runDir = path.join(tempDir, 'user-prompt-resume');
   const workflowPath = path.join(tempDir, 'user-prompt-resume-workflow.json');

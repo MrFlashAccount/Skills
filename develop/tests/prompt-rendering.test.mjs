@@ -206,7 +206,7 @@ test('prompt renderer: rejects input template placeholders as unsupported', () =
   );
 });
 
-test('prompt renderer: appends role output state and task sections in fixed compiled layer order', () => {
+test('prompt renderer: appends role output and state sections in fixed compiled layer order', () => {
   writeRoleMaterial('backend');
   writeFileSync(path.join(tempDir, 'minimal-template.md'), '# Worker step\n');
   writeFileSync(path.join(tempDir, 'minimal-output.md'), '## Required return\nUse this contract.\n');
@@ -225,7 +225,6 @@ test('prompt renderer: appends role output state and task sections in fixed comp
     workflow: {
       ...schemaWorkflowDoc.workflow,
       instruction: 'Use the deterministic workflow renderer.',
-      userTask: 'Fix the customer-visible bug.',
     },
   });
 
@@ -243,8 +242,6 @@ test('prompt renderer: appends role output state and task sections in fixed comp
     '```json',
     '## Workflow step prompt',
     'Do the task.',
-    '## Concrete user task',
-    'Fix the customer-visible bug.',
     '## Final reminder',
     'Return exactly according to the output contract above.',
   ]);
@@ -280,6 +277,35 @@ test('prompt renderer: initial worker includes raw top-level user prompt', () =>
   ]);
 });
 
+test('prompt renderer: first worker includes raw top-level user prompt even when workflow start is not that worker', () => {
+  const rawPrompt = 'Use the original startup task after approval.';
+  const workflow = {
+    ...schemaWorkflowDoc.workflow,
+    start: 'approval_step',
+  };
+  const step = {
+    name: 'First worker after control',
+    kind: 'worker',
+    input: { prompt: 'Run first worker.' },
+    output: { template: 'output.md' },
+    next: 'done',
+  };
+
+  const compiled = renderFixture({
+    label: 'render-first-worker-after-control-start',
+    workflow,
+    stepId: 'direct_next_worker',
+    step,
+    batonDoc: baton({
+      cursor: 'direct_next_worker',
+      user_prompt: rawPrompt,
+      state: { artifacts: [], results: [], approval_step: { approval: 'approved' } },
+    }),
+  });
+
+  assert.ok(compiled.prompt.includes(`## User prompt\n\n${rawPrompt}\n`));
+});
+
 test('prompt renderer: later worker omits raw top-level user prompt by default', () => {
   const step = {
     name: 'Direct next worker',
@@ -293,7 +319,11 @@ test('prompt renderer: later worker omits raw top-level user prompt by default',
     label: 'render-later-user-prompt',
     stepId: 'direct_next_worker',
     step,
-    batonDoc: baton({ cursor: 'direct_next_worker', user_prompt: 'Do not leak me.', state: { artifacts: [], results: [] } }),
+    batonDoc: baton({
+      cursor: 'direct_next_worker',
+      user_prompt: 'Do not leak me.',
+      state: { artifacts: [], results: [], worker_step: { results: [{ summary: 'already ran first worker' }] } },
+    }),
   });
 
   assert.doesNotMatch(compiled.prompt, /## User prompt/);

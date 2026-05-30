@@ -3,7 +3,19 @@ import { renderWorkflowPrompt } from '../../prompt-renderer.mjs';
 import { invariant } from '../../errors.mjs';
 import { responseFor } from '../output/response.mjs';
 
+function hasAnyWorkerOutput({ workflow, baton }) {
+  const state = baton?.state ?? {};
+  return Object.entries(workflow?.steps ?? {}).some(([stepId, step]) => step?.kind === 'worker' && Object.hasOwn(state, stepId));
+}
+
+function initialUserPromptStepId({ workflow, baton, steps }) {
+  if (typeof baton?.user_prompt !== 'string') return undefined;
+  if (hasAnyWorkerOutput({ workflow, baton })) return undefined;
+  return steps.find((entry) => entry.step?.kind === 'worker')?.id;
+}
+
 export function renderStepPrompts({ workflowPath, workflow, baton, steps, repositoryRoot, templateBaseDir, includeDiagnostics = false } = {}) {
+  const userPromptStepId = initialUserPromptStepId({ workflow, baton, steps });
   return steps.map((entry) => ({
     ...entry,
     compiledPrompt: renderWorkflowPrompt({
@@ -15,6 +27,7 @@ export function renderStepPrompts({ workflowPath, workflow, baton, steps, reposi
       repositoryRoot,
       templateBaseDir,
       includeDiagnostics,
+      includeInitialUserPrompt: userPromptStepId === entry.id,
     }),
   }));
 }
