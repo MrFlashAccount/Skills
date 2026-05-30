@@ -8,6 +8,7 @@ export function readOutputTemplate({ workflowPath, step, repositoryRoot }) {
     workflowPath,
     templateRef,
     fieldName: 'output',
+    repositoryRoot,
   });
   return { content: resolved.content, metadataPath: templateRef };
 }

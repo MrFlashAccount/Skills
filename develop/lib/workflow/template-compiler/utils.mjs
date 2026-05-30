@@ -7,13 +7,14 @@ export function normalizeRepositoryRoot(repositoryRoot) {
   return path.resolve(repositoryRoot ?? process.cwd());
 }
 
-export function safeReadTemplate({ templateRef, fieldName, workflowPath, missingMessage }) {
+export function safeReadTemplate({ templateRef, fieldName, workflowPath, repositoryRoot, missingMessage }) {
   return readWorkflowFileRef({
     workflowPath,
     fileRef: templateRef,
     fieldName,
     kind: 'template',
     messagePrefix: 'workflow prompt render failed',
+    repositoryRoot,
     missingMessage,
   });
 }

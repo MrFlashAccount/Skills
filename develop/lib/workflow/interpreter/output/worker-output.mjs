@@ -45,7 +45,7 @@ function assertGenericApprovalOutput(hostOutput) {
   }
 }
 
-export function assertOutputSchemaIfDeclared({ workflowPath, workflow, baton, stepId, step, workerOutput }) {
+export function assertOutputSchemaIfDeclared({ workflowPath, workflow, baton, stepId, step, workerOutput, repositoryRoot }) {
   const schemaRef = step.output?.schema;
   if (!schemaRef) {
     if (step.kind === 'approval') assertGenericApprovalOutput(workerOutput);
@@ -53,7 +53,7 @@ export function assertOutputSchemaIfDeclared({ workflowPath, workflow, baton, st
     return { workerOutput, retryResponse: undefined };
   }
 
-  const validation = validateAgainstOutputSchema({ workflow, workflowPath, schemaRef, output: workerOutput });
+  const validation = validateAgainstOutputSchema({ workflow, workflowPath, schemaRef, output: workerOutput, repositoryRoot });
   if (validation.ok) return { workerOutput: validation.output, retryResponse: undefined };
 
   const attempt = outputSchemaAttempt(baton, stepId);

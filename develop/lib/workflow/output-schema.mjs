@@ -18,7 +18,7 @@ export function resolveOutputSchemaPath({
   workflow,
   workflowPath,
   schemaRef,
-  repositoryRoot = process.cwd(),
+  repositoryRoot,
   messagePrefix = 'output schema validation failed',
 }) {
   return resolveWorkflowFileRef({
@@ -27,6 +27,7 @@ export function resolveOutputSchemaPath({
     fieldName: 'output',
     kind: 'schema',
     messagePrefix,
+    repositoryRoot,
     missingMessage: `${messagePrefix}: output.schema not found: ${schemaRef}`,
   });
 }
@@ -35,7 +36,7 @@ export function loadOutputSchema({
   workflow,
   workflowPath,
   schemaRef,
-  repositoryRoot = process.cwd(),
+  repositoryRoot,
   messagePrefix = 'output schema validation failed',
 }) {
   const schemaPath = resolveOutputSchemaPath({ workflow, workflowPath, schemaRef, repositoryRoot, messagePrefix });

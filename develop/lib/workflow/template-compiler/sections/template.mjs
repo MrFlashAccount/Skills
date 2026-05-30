@@ -7,6 +7,7 @@ export function readInputTemplate({ workflowPath, workflow, input, repositoryRoo
     workflowPath,
     templateRef: input.template,
     fieldName: 'input',
+    repositoryRoot,
   });
   return { content: resolved.content, metadataPath: input.template };
 }

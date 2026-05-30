@@ -18,30 +18,35 @@ function readCandidateOutput({ outputPath, step, outputValue }) {
   }
 }
 
-export function applyWorkflowOutput(workflowPath, batonPath, outputPath, outputValue) {
+export function applyWorkflowOutput(workflowPath, batonPath, outputPath, outputValue, options = {}) {
   const { workflow, baton, cursorStep } = loadWorkflowAndBaton(workflowPath, batonPath);
   const staticParallelNext = isStaticParallelNext(cursorStep.next);
   const dynamicNext = isDynamicTransitionNext(cursorStep.next);
-  const canApplyPreparedParallelOutput = hasAppliedOutputForStep(baton, baton.cursor) && (staticParallelNext || dynamicNext);
-  const candidateOutput = canApplyPreparedParallelOutput ? readCandidateOutput({ outputPath, step: cursorStep, outputValue }) : undefined;
-  if (staticParallelNext && isParallelOutputEnvelope(candidateOutput)) {
-    return applyParallelOutputs({ workflowPath, workflow, baton, cursorStep, outputPath, allOutput: candidateOutput });
-  }
-
-  if (dynamicNext && isParallelOutputEnvelope(candidateOutput)) {
+  const hasAppliedCursorOutput = hasAppliedOutputForStep(baton, baton.cursor);
+  let preparedParallelTargets;
+  if (hasAppliedCursorOutput && staticParallelNext) preparedParallelTargets = cursorStep.next;
+  if (hasAppliedCursorOutput && dynamicNext) {
     const priorOutput = baton.state?.[baton.cursor];
     const resolved = resolveTransition({ workflow, baton, stepId: baton.cursor, step: cursorStep, output: priorOutput });
-    if (resolved.targetStepIds) {
-      return applyParallelOutputs({
-        workflowPath,
-        workflow,
-        baton,
-        cursorStep,
-        outputPath,
-        allOutput: candidateOutput,
-        targets: resolved.targetStepIds,
-      });
-    }
+    preparedParallelTargets = resolved.targetStepIds;
+  }
+  const canApplyPreparedParallelOutput = Boolean(preparedParallelTargets);
+  const candidateOutput = canApplyPreparedParallelOutput ? readCandidateOutput({ outputPath, step: cursorStep, outputValue }) : undefined;
+  if (canApplyPreparedParallelOutput && !isParallelOutputEnvelope(candidateOutput)) {
+    throw new Error('parallel output must include object steps');
+  }
+
+  if (canApplyPreparedParallelOutput) {
+    return applyParallelOutputs({
+      workflowPath,
+      workflow,
+      baton,
+      cursorStep,
+      outputPath,
+      allOutput: candidateOutput,
+      targets: dynamicNext ? preparedParallelTargets : undefined,
+      repositoryRoot: options.repositoryRoot,
+    });
   }
 
   const readResult = readWorkerOutputForStep({ outputPath, baton, stepId: baton.cursor, step: cursorStep, allOutput: outputValue ?? candidateOutput });
@@ -53,6 +58,7 @@ export function applyWorkflowOutput(workflowPath, batonPath, outputPath, outputV
     stepId: baton.cursor,
     step: cursorStep,
     workerOutput: readResult.workerOutput,
+    repositoryRoot: options.repositoryRoot,
   });
   if (retryResponse) return retryResponse;
 

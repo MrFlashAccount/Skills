@@ -19,7 +19,7 @@ async function runnerResponseForRendered(paths, rendered, { initialized, resumed
       runDir: paths.runDir,
       workflow: workflowDoc,
       workflowPath: paths.workflowPath,
-      repositoryRoot,
+      repositoryRoot: paths.repositoryRoot,
     }),
     runDir: paths.runDir,
     workflow: paths.workflowPath,
@@ -45,7 +45,7 @@ export async function next({ runDir, workflowPath, includeDiagnostics = false, u
   const startupUserPrompt = (await pathExists(paths.batonPath)) ? undefined : await resolveStartupUserPrompt({ userPrompt, userPromptFile });
   const runState = await ensureRunFiles(paths, { userPrompt: startupUserPrompt });
   await recoverDurableCommit(paths);
-  const rendered = renderWorkflow(paths.workflowPath, paths.batonPath, { includeDiagnostics, repositoryRoot });
+  const rendered = renderWorkflow(paths.workflowPath, paths.batonPath, { includeDiagnostics, repositoryRoot: paths.repositoryRoot });
   return persistNextRunnerResponse(paths, rendered, {
     initialized: runState.initialized,
     resumed: runState.resumed,
@@ -66,10 +66,11 @@ function parseOutputRef(ref) {
   return { stepId, path: text.slice(separator + 1) };
 }
 
-function outputPathForRequest(request, outputRefs) {
+function outputPathForRequest(request, outputRefs, { requireNamed = false } = {}) {
   if (outputRefs.length === 0) throw new Error(`missing host output for workflow step ${request.id}`);
   const parsed = outputRefs.map(parseOutputRef);
   const named = parsed.filter((candidate) => candidate.stepId);
+  if (requireNamed && named.length === 0) throw new Error('parallel host outputs must use --output <step-id>=<path> for each requested step');
   if (named.length > 0) {
     const match = named.find((candidate) => candidate.stepId === request.id || candidate.stepId === request.stepId);
     if (!match?.path) throw new Error(`missing host output for workflow step ${request.id}`);
@@ -86,16 +87,17 @@ async function outputForCurrentState(paths, outputRefs = []) {
 
   const missing = [];
   const requests = lastResponse.requests ?? [];
+  const stepIdForRequest = (request) => request.stepId ?? request.id;
+  const isPreparedParallelContinuation = requests.some((request) => stepIdForRequest(request) !== lastResponse.baton?.cursor);
+  const requireNamedParallelOutputs = requests.length > 1 && isPreparedParallelContinuation;
   const pathsByRequestId = new Map();
   for (const request of requests) {
-    const outputPath = outputPathForRequest(request, outputRefs);
+    const outputPath = outputPathForRequest(request, outputRefs, { requireNamed: requireNamedParallelOutputs });
     pathsByRequestId.set(request.id, outputPath);
     if (!(await pathExists(outputPath))) missing.push(outputPath);
   }
   if (missing.length > 0) throw new Error(`missing host output: ${missing.join(', ')}`);
 
-  const stepIdForRequest = (request) => request.stepId ?? request.id;
-  const isPreparedParallelContinuation = requests.some((request) => stepIdForRequest(request) !== lastResponse.baton?.cursor);
   if (requests.length === 1 && !isPreparedParallelContinuation) {
     return { outputPath: pathsByRequestId.get(requests[0].id), outputValue: undefined, historyOutput: pathsByRequestId.get(requests[0].id) };
   }
@@ -128,8 +130,8 @@ export async function continueRun({ runDir, workflowPath, output, includeDiagnos
     await ensureRunFiles(paths);
     await recoverDurableCommit(paths);
     const { outputPath, outputValue, historyOutput } = await outputForCurrentState(paths, normalizeOutputRefs(output));
-    const applied = applyWorkflowOutput(paths.workflowPath, paths.batonPath, outputPath, outputValue);
-    const rendered = renderInterpreterResponse(paths.workflowPath, paths.batonPath, applied, { includeDiagnostics, repositoryRoot });
+    const applied = applyWorkflowOutput(paths.workflowPath, paths.batonPath, outputPath, outputValue, { repositoryRoot: paths.repositoryRoot });
+    const rendered = renderInterpreterResponse(paths.workflowPath, paths.batonPath, applied, { includeDiagnostics, repositoryRoot: paths.repositoryRoot });
 
     const response = await runnerResponseForRendered(paths, rendered, { initialized: false, resumed: true });
     await commitDurableRunState(paths, {
