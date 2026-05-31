@@ -363,17 +363,31 @@ test('dev harness review join schema keeps outcome and next route consistent', (
     schemaRef: workflowDoc.steps.review_join.output.schema,
     repositoryRoot: REPO_ROOT,
   };
-  const verdict = {
+  const passedVerdict = {
     summary: ['Joined review.'],
     selected_review_steps: ['backend_review'],
+    failed_review_steps: [],
+  };
+  const needsChangesVerdict = {
+    ...passedVerdict,
     failed_review_steps: ['backend_review'],
     required_implementation_steps: ['backend_implementation'],
   };
+  const needsChangesWithoutTargets = {
+    ...passedVerdict,
+    failed_review_steps: ['backend_review'],
+  };
+  const needsChangesWithEmptyTargets = {
+    ...needsChangesWithoutTargets,
+    required_implementation_steps: [],
+  };
 
-  assert.equal(validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'needs_changes', verdict, next: ['backend_implementation'] } }).ok, true);
-  assert.equal(validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'needs_changes', verdict, next: 'done' } }).ok, false);
-  assert.equal(validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'passed', verdict, next: ['backend_implementation'] } }).ok, false);
-  assert.equal(validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'passed', verdict, next: 'done' } }).ok, true);
+  assert.equal(validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'needs_changes', verdict: needsChangesVerdict, next: ['backend_implementation'] } }).ok, true);
+  assert.equal(validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'needs_changes', verdict: needsChangesWithoutTargets, next: ['backend_implementation'] } }).ok, false);
+  assert.equal(validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'needs_changes', verdict: needsChangesWithEmptyTargets, next: ['backend_implementation'] } }).ok, false);
+  assert.equal(validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'needs_changes', verdict: needsChangesVerdict, next: 'done' } }).ok, false);
+  assert.equal(validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'passed', verdict: passedVerdict, next: ['backend_implementation'] } }).ok, false);
+  assert.equal(validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'passed', verdict: passedVerdict, next: 'done' } }).ok, true);
   assert.equal(validateAgainstOutputSchema({
     ...schemaContext,
     output: { outcome: 'blocked', blocker: { summary: 'Blocked.', source_step_id: 'review_join', needed: 'Missing review.' }, next: ['backend_implementation'] },

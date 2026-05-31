@@ -20,8 +20,7 @@
       "required": [
         "summary",
         "selected_review_steps",
-        "failed_review_steps",
-        "required_implementation_steps"
+        "failed_review_steps"
       ],
       "properties": {
         "summary": {
@@ -80,8 +79,7 @@
             ]
           },
           "description": "Producer must list implementation branch ids that must rerun to address joined review findings.",
-          "x-usage": "Use only these implementation branch ids when next requests a rework loop. Do not widen rework from prose alone.",
-          "minItems": 1
+          "x-usage": "Use only these implementation branch ids when next requests a rework loop. Do not widen rework from prose alone."
         }
       },
       "additionalProperties": true,
@@ -218,6 +216,18 @@
           "next"
         ],
         "properties": {
+          "verdict": {
+            "type": "object",
+            "required": [
+              "required_implementation_steps"
+            ],
+            "properties": {
+              "required_implementation_steps": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          },
           "next": {
             "type": "array",
             "minItems": 1,
