@@ -1,7 +1,7 @@
 import { validateJsonSchema } from 'schema-validation';
 import { WorkflowInterpreterError } from '../workflow/errors.mjs';
 import { readJson } from '../workflow/json-io.mjs';
-import { RESERVED_STATE_KEYS, DANGEROUS_OBJECT_KEYS, assertProjectableStateSelector, isDangerousObjectKey, isReservedStateKey } from '../workflow/state-keys.mjs';
+import { RESERVED_STEP_IDS, assertProjectableStateSelector, isReservedStateKey } from '../workflow/state-keys.mjs';
 import { readOutputSchema } from '../workflow/output-schema-validation.mjs';
 import { defaultRepositoryRootForWorkflow } from '../workflow/resource-resolver.mjs';
 import { assertRoleDirectoryName, listAllowedWorkflowRoles } from '../workflow/roles.mjs';
@@ -40,10 +40,7 @@ function assertWorkflowIdentity(workflow) {
 function assertWorkflowStepIds(workflow) {
   for (const stepId of Object.keys(workflow.steps)) {
     if (isReservedStateKey(stepId)) {
-      fail(`workflow step id '${stepId}' is reserved for runtime aggregate state; reserved ids: ${RESERVED_STATE_KEYS.join(', ')}`);
-    }
-    if (isDangerousObjectKey(stepId)) {
-      fail(`workflow step id '${stepId}' is reserved because it is unsafe as a JavaScript object key; reserved ids: ${DANGEROUS_OBJECT_KEYS.join(', ')}`);
+      fail(`workflow step id '${stepId}' is reserved for runtime aggregate state; reserved ids: ${RESERVED_STEP_IDS.join(', ')}`);
     }
   }
 }
@@ -56,7 +53,6 @@ function assertWorkflowInputStateSelectors(workflow) {
       } catch (error) {
         if (!(error instanceof WorkflowInterpreterError)) throw error;
         if (!/top-level workflow step ids only/.test(error.message)) {
-          if (isDangerousObjectKey(selector)) fail(`step '${stepId}' input.state selector '${selector}' is reserved because it is unsafe as a JavaScript object key and cannot reference workflow steps`);
           fail(`step '${stepId}' input.state selector '${selector}' is reserved for runtime aggregate state and cannot reference workflow steps`);
         }
         fail(`step '${stepId}' input.state selector '${selector}' is invalid; v1 supports top-level workflow step ids only`);

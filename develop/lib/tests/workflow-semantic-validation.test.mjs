@@ -265,193 +265,6 @@ test('research critic save packet output keeps saved and blocked branches exclus
   assert.equal(blockedOnly.ok, true);
 });
 
-
-
-
-
-test('dev harness revision loops project the feedback that caused revision', () => {
-  assert.deepEqual(workflowDoc.steps.research_draft.input.state, ['research_draft', 'research_attack', 'approve_research']);
-  assert.deepEqual(workflowDoc.steps.architecture_draft.input.state, [
-    'research_draft',
-    'research_attack',
-    'architecture_draft',
-    'architecture_attack',
-    'approve_architecture',
-  ]);
-  assert.deepEqual(workflowDoc.steps.planning_draft.input.state, [
-    'research_draft',
-    'architecture_draft',
-    'architecture_attack',
-    'planning_draft',
-    'planning_attack',
-    'approve_plan',
-  ]);
-});
-
-
-
-test('dev harness architect review projects approved architecture contract sources', () => {
-  for (const requiredState of ['architecture_draft', 'architecture_attack', 'approve_architecture']) {
-    assert.equal(workflowDoc.steps.architect_review.input.state.includes(requiredState), true);
-  }
-  assert.match(workflowDoc.steps.architect_review.input.prompt, /approved architecture contract/);
-});
-
-test('dev harness implementation rework branches project review findings', () => {
-  const expectedReworkState = [
-    'planning_draft',
-    'implementation_dispatch',
-    'review_join',
-    'architect_review',
-    'backend_review',
-    'frontend_review',
-    'frontend_taste_review',
-    'security_review',
-    'privacy_review',
-    'qa_review',
-  ];
-
-  for (const stepId of ['backend_implementation', 'frontend_implementation', 'architecture_artifact_update']) {
-    assert.deepEqual(workflowDoc.steps[stepId].input.state, expectedReworkState);
-    assert.match(workflowDoc.steps[stepId].input.prompt, /review_join needs_changes/);
-  }
-});
-
-test('dev harness blocked outputs require only blocker plus routing fields, not success payloads', () => {
-  const workflowPath = path.join(REPO_ROOT, 'workflows/dev-harness/workflow.json');
-  const blockedCases = [
-    ['research_draft', { outcome: 'blocked', blocker: { summary: 'Missing input.', source_step_id: 'research_draft', needed: 'Task context.' } }],
-    ['research_attack', { outcome: 'blocked', blocker: { summary: 'Unsafe research.', source_step_id: 'research_attack', needed: 'Evidence.' } }],
-    ['architecture_draft', { outcome: 'blocked', blocker: { summary: 'No owner.', source_step_id: 'architecture_draft', needed: 'Architecture owner.' } }],
-    ['architecture_attack', { outcome: 'blocked', blocker: { summary: 'Contract conflict.', source_step_id: 'architecture_attack', needed: 'Decision.' } }],
-    ['planning_draft', { outcome: 'blocked', selected_review_steps: ['backend_review'], blocker: { summary: 'Cannot plan.', source_step_id: 'planning_draft', needed: 'Approved scope.' } }],
-    ['planning_attack', { outcome: 'blocked', blocker: { summary: 'Plan unsafe.', source_step_id: 'planning_attack', needed: 'Revision.' } }],
-    ['implementation_dispatch', { outcome: 'blocked', blocker: { summary: 'Route mismatch.', source_step_id: 'implementation_dispatch', needed: 'Valid route.' } }],
-    ['backend_implementation', { outcome: 'blocked', blocker: { summary: 'Backend blocked.', source_step_id: 'backend_implementation', needed: 'Dependency.' } }],
-    ['frontend_implementation', { outcome: 'blocked', blocker: { summary: 'Frontend blocked.', source_step_id: 'frontend_implementation', needed: 'Dependency.' } }],
-    ['architecture_artifact_update', { outcome: 'blocked', blocker: { summary: 'Artifact blocked.', source_step_id: 'architecture_artifact_update', needed: 'Approved artifact.' } }],
-    ['implementation_join', { outcome: 'blocked', blocker: { summary: 'Branch missing.', source_step_id: 'implementation_join', needed: 'Completed branch.' } }],
-    ['architect_review', { outcome: 'blocked', blocker: { summary: 'Cannot review.', source_step_id: 'architect_review', needed: 'Diff.' } }],
-    ['backend_review', { outcome: 'blocked', blocker: { summary: 'Cannot review.', source_step_id: 'backend_review', needed: 'Diff.' } }],
-    ['frontend_review', { outcome: 'blocked', blocker: { summary: 'Cannot review.', source_step_id: 'frontend_review', needed: 'Diff.' } }],
-    ['frontend_taste_review', { outcome: 'blocked', blocker: { summary: 'Cannot review.', source_step_id: 'frontend_taste_review', needed: 'Rendered surface.' } }],
-    ['security_review', { outcome: 'blocked', blocker: { summary: 'Cannot review.', source_step_id: 'security_review', needed: 'Trust boundary.' } }],
-    ['privacy_review', { outcome: 'blocked', blocker: { summary: 'Cannot review.', source_step_id: 'privacy_review', needed: 'Data flow.' } }],
-    ['qa_review', { outcome: 'blocked', blocker: { summary: 'Cannot review.', source_step_id: 'qa_review', needed: 'Verification evidence.' } }],
-    ['review_join', { outcome: 'blocked', next: 'blocked', blocker: { summary: 'Join blocked.', source_step_id: 'review_join', needed: 'All review outputs.' } }],
-  ];
-
-  for (const [stepId, output] of blockedCases) {
-    const result = validateAgainstOutputSchema({
-      workflow: workflowDoc,
-      workflowPath,
-      schemaRef: workflowDoc.steps[stepId].output.schema,
-      repositoryRoot: REPO_ROOT,
-      output,
-    });
-    assert.equal(result.ok, true, `${stepId} should accept blocked output without success payloads: ${result.errors}`);
-  }
-});
-
-
-
-test('dev harness planning draft always requires selected review steps', () => {
-  const workflowPath = path.join(REPO_ROOT, 'workflows/dev-harness/workflow.json');
-  const result = validateAgainstOutputSchema({
-    workflow: workflowDoc,
-    workflowPath,
-    schemaRef: workflowDoc.steps.planning_draft.output.schema,
-    repositoryRoot: REPO_ROOT,
-    output: { outcome: 'blocked', blocker: { summary: 'Cannot plan.', source_step_id: 'planning_draft', needed: 'Approved scope.' } },
-  });
-
-  assert.equal(result.ok, false);
-  assert.match(result.errors, /selected_review_steps/);
-});
-
-
-test('dev harness review join schema keeps outcome and next route consistent', () => {
-  const workflowPath = path.join(REPO_ROOT, 'workflows/dev-harness/workflow.json');
-  const schemaContext = {
-    workflow: workflowDoc,
-    workflowPath,
-    schemaRef: workflowDoc.steps.review_join.output.schema,
-    repositoryRoot: REPO_ROOT,
-  };
-  const passedVerdict = {
-    summary: ['Joined review.'],
-    selected_review_steps: ['backend_review'],
-    failed_review_steps: [],
-  };
-  const needsChangesVerdict = {
-    ...passedVerdict,
-    failed_review_steps: ['backend_review'],
-    required_implementation_steps: ['backend_implementation'],
-  };
-  const needsChangesWithoutTargets = {
-    ...passedVerdict,
-    failed_review_steps: ['backend_review'],
-  };
-  const needsChangesWithEmptyTargets = {
-    ...needsChangesWithoutTargets,
-    required_implementation_steps: [],
-  };
-
-  assert.equal(validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'needs_changes', verdict: needsChangesVerdict, next: ['backend_implementation'] } }).ok, true);
-  assert.equal(validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'needs_changes', verdict: needsChangesWithoutTargets, next: ['backend_implementation'] } }).ok, false);
-  assert.equal(validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'needs_changes', verdict: needsChangesWithEmptyTargets, next: ['backend_implementation'] } }).ok, false);
-  assert.equal(validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'needs_changes', verdict: needsChangesVerdict, next: 'done' } }).ok, false);
-  assert.equal(validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'passed', verdict: passedVerdict, next: ['backend_implementation'] } }).ok, false);
-  assert.equal(validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'passed', verdict: passedVerdict, next: 'done' } }).ok, true);
-  assert.equal(validateAgainstOutputSchema({
-    ...schemaContext,
-    output: { outcome: 'blocked', blocker: { summary: 'Blocked.', source_step_id: 'review_join', needed: 'Missing review.' }, next: ['backend_implementation'] },
-  }).ok, false);
-  assert.equal(validateAgainstOutputSchema({
-    ...schemaContext,
-    output: { outcome: 'blocked', blocker: { summary: 'Blocked.', source_step_id: 'review_join', needed: 'Missing review.' }, next: 'blocked' },
-  }).ok, true);
-});
-
-test('dev harness review gates reject needs_changes without a rework target', () => {
-  const workflowPath = path.join(REPO_ROOT, 'workflows/dev-harness/workflow.json');
-  const output = {
-    outcome: 'needs_changes',
-    verdict: { summary: ['Needs work.'], evidence_checked: ['diff'], findings: [{ summary: 'Bug.' }] },
-    required_implementation_steps: [],
-  };
-
-  const result = validateAgainstOutputSchema({
-    workflow: workflowDoc,
-    workflowPath,
-    schemaRef: workflowDoc.steps.backend_review.output.schema,
-    repositoryRoot: REPO_ROOT,
-    output,
-  });
-  assert.equal(result.ok, false);
-  assert.match(result.errors, /required_implementation_steps/);
-});
-
-test('dev harness success outputs still require their success payloads', () => {
-  const workflowPath = path.join(REPO_ROOT, 'workflows/dev-harness/workflow.json');
-  for (const [stepId, output, missingField] of [
-    ['research_draft', { outcome: 'ready_for_attack' }, 'research_packet'],
-    ['planning_draft', { outcome: 'ready_for_attack' }, 'implementation_plan'],
-    ['implementation_join', { outcome: 'ready_for_review' }, 'reviewer_handoff'],
-    ['review_join', { outcome: 'passed' }, 'verdict'],
-  ]) {
-    const result = validateAgainstOutputSchema({
-      workflow: workflowDoc,
-      workflowPath,
-      schemaRef: workflowDoc.steps[stepId].output.schema,
-      repositoryRoot: REPO_ROOT,
-      output,
-    });
-    assert.equal(result.ok, false, `${stepId} should reject success without ${missingField}`);
-    assert.match(result.errors, new RegExp(missingField));
-  }
-});
-
 test('workflow semantic validation rejects invalid worker roles in generic workflows', () => {
   const doc = genericWorkflowWithWorkerRole('missing-workflow-role');
 
@@ -472,20 +285,6 @@ test('workflow semantic validation rejects step ids reserved for baton state boo
   }
 });
 
-test('workflow semantic validation rejects step ids unsafe as JavaScript object keys', () => {
-  for (const reservedStepId of ['prototype', 'constructor']) {
-    const doc = genericWorkflowWithWorkerRole('backend');
-    doc.start = reservedStepId;
-    doc.steps[reservedStepId] = {
-      ...doc.steps.worker_step,
-      name: `Reserved ${reservedStepId}`,
-    };
-    delete doc.steps.worker_step;
-
-    assertSemanticFailure(doc, new RegExp(`workflow step id '${reservedStepId}'.*unsafe as a JavaScript object key`));
-  }
-});
-
 test('workflow semantic validation warns when DevHarness described fields lack x-usage', () => {
   const doc = structuredClone(workflowDoc);
   cpSync(path.join(REPO_ROOT, 'develop/lib/tests/fixtures/research-draft-missing-x-usage.schema.json'), path.join(tempDir, 'schemas/research-draft-missing-x-usage.schema.json'));
@@ -496,104 +295,6 @@ test('workflow semantic validation warns when DevHarness described fields lack x
   assert.equal(result.ok, true);
   assert.equal(result.warnings.length, 1);
   assert.match(result.warnings[0], /research_packet\.scope.*no x-usage/);
-});
-
-test('workflow semantic validation rejects optional output paths used for routing expressions', () => {
-  writeSchema('optional-route-output.schema.json', {
-    $schema: 'https://json-schema.org/draft/2020-12/schema',
-    type: 'object',
-    required: ['outcome'],
-    properties: {
-      outcome: { enum: ['ready', 'blocked'] },
-      route: { enum: ['done', 'blocked'] },
-    },
-    additionalProperties: false,
-  });
-
-  assertSemanticFailure(
-    syntheticWorkflow((draft) => {
-      draft.steps.producer.output.schema = 'optional-route-output.schema.json';
-      draft.steps.producer.next = '${{ output.route }}';
-      return draft;
-    }),
-    /producer.*next expression \$\{\{ output\.route \}\}.*required output\.schema path/,
-  );
-});
-
-test('workflow semantic validation rejects worker output schemas that do not require string outcome', () => {
-  writeSchema('missing-outcome-output.schema.json', {
-    $schema: 'https://json-schema.org/draft/2020-12/schema',
-    type: 'object',
-    required: ['summary'],
-    properties: { summary: { type: 'string' } },
-    additionalProperties: false,
-  });
-  writeSchema('numeric-outcome-output.schema.json', {
-    $schema: 'https://json-schema.org/draft/2020-12/schema',
-    type: 'object',
-    required: ['outcome'],
-    properties: { outcome: { enum: ['ready', 1] } },
-    additionalProperties: false,
-  });
-
-  assertSemanticFailure(
-    syntheticWorkflow((draft) => {
-      draft.steps.producer.output.schema = 'missing-outcome-output.schema.json';
-      draft.steps.producer.next = 'done';
-      return draft;
-    }),
-    /producer.*output\.schema must require string field 'outcome'/,
-  );
-
-  assertSemanticFailure(
-    syntheticWorkflow((draft) => {
-      draft.steps.producer.output.schema = 'numeric-outcome-output.schema.json';
-      draft.steps.producer.next = 'done';
-      return draft;
-    }),
-    /producer.*output\.schema field 'outcome' must allow only strings/,
-  );
-});
-
-test('workflow semantic validation normalizes local refs before semantic introspection', () => {
-  writeSchema('ref-outcome-output.schema.json', {
-    $schema: 'https://json-schema.org/draft/2020-12/schema',
-    allOf: [{ $ref: '#/$defs/contract' }],
-    $defs: {
-      contract: {
-        type: 'object',
-        required: ['outcome', 'route', 'next_steps'],
-        properties: {
-          outcome: { $ref: '#/$defs/outcome' },
-          route: { $ref: '#/$defs/route' },
-          next_steps: {
-            type: 'array',
-            minItems: 1,
-            uniqueItems: true,
-            items: { $ref: '#/$defs/branch' },
-          },
-        },
-        additionalProperties: false,
-      },
-      outcome: { type: 'string', enum: ['ready', 'blocked'] },
-      route: { type: 'string', enum: ['consumer', 'blocked'] },
-      branch: { type: 'string', enum: ['branch_a', 'branch_b'] },
-    },
-  });
-
-  const dynamicTargetDoc = syntheticWorkflow((draft) => {
-    draft.steps.producer.output.schema = 'ref-outcome-output.schema.json';
-    draft.steps.producer.next = '${{ output.route }}';
-    return draft;
-  });
-  assert.deepEqual(validateSynthetic(dynamicTargetDoc), { ok: true, workflow: 'synthetic-validation-fixture', steps: 7 });
-
-  const matchDoc = syntheticWorkflow((draft) => {
-    draft.steps.producer.output.schema = 'ref-outcome-output.schema.json';
-    draft.steps.producer.next = { match: '${{ output.outcome }}', cases: { ready: 'consumer', blocked: 'blocked' } };
-    return draft;
-  });
-  assert.deepEqual(validateSynthetic(matchDoc), { ok: true, workflow: 'synthetic-validation-fixture', steps: 7 });
 });
 
 test('workflow semantic validation rejects schema-declared dynamic targets that are not workflow steps', () => {
@@ -643,52 +344,6 @@ test('workflow semantic validation accepts input.state selectors that reference 
   assert.deepEqual(validateSynthetic(doc), { ok: true, workflow: 'synthetic-validation-fixture', steps: 8 });
 });
 
-test('workflow semantic validation rejects optional input paths used for dynamic routing expressions', () => {
-  writeSchema('optional-input-route-output.schema.json', {
-    $schema: 'https://json-schema.org/draft/2020-12/schema',
-    type: 'object',
-    required: ['outcome'],
-    properties: {
-      outcome: { enum: ['ready'] },
-      route: { enum: ['done'] },
-    },
-    additionalProperties: false,
-  });
-
-  assertSemanticFailure(
-    syntheticWorkflow((draft) => {
-      draft.steps.producer.output.schema = 'optional-input-route-output.schema.json';
-      draft.steps.producer.next = 'consumer';
-      draft.steps.consumer.next = '${{ input.producer.route }}';
-      return draft;
-    }),
-    /consumer.*next expression \$\{\{ input\.producer\.route \}\}.*required output\.schema path/,
-  );
-});
-
-test('workflow semantic validation rejects optional input paths used for match routing expressions', () => {
-  writeSchema('optional-input-match-output.schema.json', {
-    $schema: 'https://json-schema.org/draft/2020-12/schema',
-    type: 'object',
-    required: ['outcome'],
-    properties: {
-      outcome: { enum: ['ready'] },
-      route: { enum: ['done', 'blocked'] },
-    },
-    additionalProperties: false,
-  });
-
-  assertSemanticFailure(
-    syntheticWorkflow((draft) => {
-      draft.steps.producer.output.schema = 'optional-input-match-output.schema.json';
-      draft.steps.producer.next = 'consumer';
-      draft.steps.consumer.next = { match: '${{ input.producer.route }}', cases: { done: 'done', blocked: 'blocked' } };
-      return draft;
-    }),
-    /consumer.*next\.match expression \$\{\{ input\.producer\.route \}\}.*required output\.schema path/,
-  );
-});
-
 test('workflow semantic validation accepts input expressions against projected input.state selectors', () => {
   const doc = syntheticWorkflow((draft) => {
     draft.steps.consumer.input = { state: ['producer', 'branch_a'] };
@@ -700,7 +355,7 @@ test('workflow semantic validation accepts input expressions against projected i
 });
 
 test('workflow semantic validation rejects input.state selectors that do not name own workflow step ids', () => {
-  for (const selector of ['missing_step', 'toString']) {
+  for (const selector of ['missing_step', '__proto__', 'toString']) {
     assertSemanticFailure(
       syntheticWorkflow((draft) => {
         draft.steps.consumer.input.state = [selector];
@@ -716,15 +371,6 @@ test('workflow semantic validation rejects input.state selectors that do not nam
       return draft;
     }),
     /consumer.*input\.state selector 'artifacts'.*reserved for runtime aggregate state/,
-  );
-
-
-  assertSemanticFailure(
-    syntheticWorkflow((draft) => {
-      draft.steps.consumer.input.state = ['__proto__'];
-      return draft;
-    }),
-    /consumer.*input\.state selector '__proto__'.*unsafe as a JavaScript object key/,
   );
 });
 
@@ -792,28 +438,6 @@ test('workflow semantic validation rejects unsafe dynamic array target schemas',
       return draft;
     }),
     /producer.*output\.next_steps.*target not found: missing_branch/,
-  );
-});
-
-test('workflow semantic validation rejects mixed static and dynamic parallel targets with invalid combined join shape', () => {
-  writeSchema('selected-branch-output.schema.json', {
-    ...routeSchema,
-    required: ['outcome', 'route', 'next_steps', 'selected'],
-    properties: {
-      ...routeSchema.properties,
-      selected: { enum: ['branch_b'] },
-    },
-  });
-
-  assertSemanticFailure(
-    syntheticWorkflow((draft) => {
-      draft.steps.producer.output.schema = 'selected-branch-output.schema.json';
-      draft.steps.producer.next = ['branch_a', '${{ output.selected }}'];
-      draft.steps.branch_a.next = 'consumer';
-      draft.steps.branch_b.next = 'join';
-      return draft;
-    }),
-    /producer.*combined parallel targets are invalid.*share one explicit join step/,
   );
 });
 

@@ -1,17 +1,18 @@
-import { readFileSync } from 'node:fs';
-import { readJson } from '../../json-io.mjs';
 import { WorkflowInterpreterError } from '../../errors.mjs';
 import { assertWorkerOutputSchema } from '../../schema-validation.mjs';
 import { validateAgainstOutputSchema, OUTPUT_SCHEMA_MAX_ATTEMPTS } from '../../output-schema-validation.mjs';
 import { invalidJsonOutputRetry, outputSchemaAttempt, responseForOutputSchemaRetry } from '../loop/guard.mjs';
 
-export function readWorkerOutputForStep({ outputPath, baton, stepId, step, allOutput }) {
-  if (!step.output?.schema) return { workerOutput: allOutput ?? readJson(outputPath, 'worker output'), retryResponse: undefined };
-  try {
-    return { workerOutput: JSON.parse(readFileSync(outputPath, 'utf8')), retryResponse: undefined };
-  } catch (error) {
-    return { workerOutput: undefined, retryResponse: invalidJsonOutputRetry({ baton, stepId, step, error }) };
+export function readWorkerOutputForStep({ outputPath, baton, stepId, step, allOutput, outputParseError }) {
+  if (!step.output?.schema) {
+    if (allOutput === undefined) throw new WorkflowInterpreterError(`missing worker output value from ${outputPath}`);
+    return { workerOutput: allOutput, retryResponse: undefined };
   }
+  if (outputParseError) {
+    return { workerOutput: undefined, retryResponse: invalidJsonOutputRetry({ baton, stepId, step, error: outputParseError }) };
+  }
+  if (allOutput === undefined) throw new WorkflowInterpreterError(`missing worker output value from ${outputPath}`);
+  return { workerOutput: allOutput, retryResponse: undefined };
 }
 
 function assertGenericApprovalOutput(hostOutput) {

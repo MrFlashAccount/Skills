@@ -7,11 +7,11 @@ export { resolveOutputSchemaPath };
 
 export const OUTPUT_SCHEMA_MAX_ATTEMPTS = 3;
 
-export function readOutputSchema({ workflow, workflowPath, schemaRef, repositoryRoot }) {
+export function readOutputSchema({ workflow, workflowPath, schemaRef, repositoryRoot = process.cwd() }) {
   return loadOutputSchema({ workflow, workflowPath, schemaRef, repositoryRoot }).schema;
 }
 
-export function validateAgainstOutputSchema({ workflow, workflowPath, schemaRef, output, repositoryRoot }) {
+export function validateAgainstOutputSchema({ workflow, workflowPath, schemaRef, output, repositoryRoot = process.cwd() }) {
   const schema = readOutputSchema({ workflow, workflowPath, schemaRef, repositoryRoot });
   let validation;
   try {
@@ -20,16 +20,7 @@ export function validateAgainstOutputSchema({ workflow, workflowPath, schemaRef,
     throw new WorkflowInterpreterError(`output schema validation failed: invalid output schema '${schemaRef}': ${error.message}`);
   }
 
-  if (validation.ok) {
-    const reservedErrors = [];
-    if (!output || typeof output !== 'object' || Array.isArray(output)) reservedErrors.push('/ must be object');
-    else {
-      if (Object.hasOwn(output, 'artifacts') && !Array.isArray(output.artifacts)) reservedErrors.push('/artifacts must be array');
-      if (Object.hasOwn(output, 'results') && !Array.isArray(output.results)) reservedErrors.push('/results must be array');
-    }
-    if (reservedErrors.length > 0) return { ok: false, errors: reservedErrors.join('; ') };
-    return { ok: true, output: structuredClone(output), errors: [] };
-  }
+  if (validation.ok) return { ok: true, output: structuredClone(output), errors: [] };
   return { ok: false, errors: formatSchemaErrors(validation.errors) };
 }
 

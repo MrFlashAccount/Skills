@@ -1,6 +1,5 @@
 import { invariant } from '../../errors.mjs';
 import { statusForStep } from '../../model.mjs';
-import { readJson } from '../../json-io.mjs';
 import { applyOutputToBatonState } from '../../state.mjs';
 import { responseFor } from '../output/response.mjs';
 import { assertOutputSchemaIfDeclared } from '../output/worker-output.mjs';
@@ -45,7 +44,8 @@ function validateOutputKindForParallel(step, output, stepId) {
 
 export function applyParallelOutputs({ workflowPath, workflow, baton, cursorStep, outputPath, allOutput, targets: resolvedTargets, repositoryRoot }) {
   const targets = parallelTargetsForStep(cursorStep, resolvedTargets);
-  const parallelOutput = allOutput ?? readJson(outputPath, 'parallel output');
+  if (allOutput === undefined) throw new Error(`missing parallel output value from ${outputPath}`);
+  const parallelOutput = allOutput;
   assertParallelOutputShape(targets, parallelOutput);
 
   let updatedBaton = structuredClone(baton);
