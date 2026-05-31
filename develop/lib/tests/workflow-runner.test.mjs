@@ -153,6 +153,21 @@ test('runner: next rejects workflow whose first worker id is reserved baton stat
   assert.match(result.stderr, /workflow step id 'artifacts' is reserved for runtime aggregate state/);
 });
 
+test('runner: next rejects dynamic transition without output schema coverage before rendering', () => {
+  const runDir = path.join(tempDir, 'dynamic-next-missing-schema');
+  const workflowPath = path.join(tempDir, 'dynamic-next-missing-schema-workflow.json');
+  const dynamicWorkflow = structuredClone(workflowDoc);
+  dynamicWorkflow.steps.prepare.next = '${{ output.outcome }}';
+  writeJson(workflowPath, dynamicWorkflow);
+
+  const result = runRunner(['next', '--run-dir', runDir, '--workflow', workflowPath]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /step 'prepare' next expression \$\{\{ output\.outcome \}\} has no schema-covered path/);
+  assert.equal(existsSync(path.join(runDir, '.workflow-runner', 'instructions', 'prepare.md')), false);
+  assert.equal(existsSync(path.join(runDir, '.workflow-runner', 'last-response.json')), false);
+});
+
 test('runner: user prompt is stored, included only in initial worker instructions, and preserved on continue', () => {
   const runDir = path.join(tempDir, 'user-prompt-runtime');
   const workflowPath = path.join(tempDir, 'user-prompt-runtime-workflow.json');
@@ -1559,6 +1574,68 @@ test('runner: next resolves external workflow package shared resources from repo
   assert.equal(response.requests[0].stepId, 'prepare');
 });
 
+test('runner: next uses semantic workflow validation and rejects schema-declared dynamic targets that are not workflow steps', () => {
+  const runDir = path.join(tempDir, 'runtime-semantic-dynamic-target');
+  const workflowPath = path.join(tempDir, 'runtime-semantic-dynamic-target-workflow.json');
+  const schemaPath = path.join(tempDir, 'runtime-semantic-dynamic-target.schema.json');
+  writeJson(schemaPath, {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome', 'route'],
+    properties: {
+      outcome: { enum: ['ready', 'blocked'] },
+      route: { enum: ['done', 'missing_step'] },
+    },
+    additionalProperties: false,
+  });
+  const dynamicWorkflow = structuredClone(workflowDoc);
+  dynamicWorkflow.steps.prepare.output = { template: 'output.md', schema: path.basename(schemaPath) };
+  dynamicWorkflow.steps.prepare.next = '${{ output.route }}';
+  writeJson(workflowPath, dynamicWorkflow);
+
+  const result = runRunner(['next', '--run-dir', runDir, '--workflow', workflowPath]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /prepare.*next expression.*missing_step/);
+});
+
+test('runner: continue rejects explicit workflow mismatch with last-response context', () => {
+  const runDir = path.join(tempDir, 'continue-workflow-mismatch');
+  const workflowPath = path.join(tempDir, 'continue-workflow-mismatch-a.json');
+  const otherWorkflowPath = path.join(tempDir, 'continue-workflow-mismatch-b.json');
+  const singleWorkflow = structuredClone(workflowDoc);
+  singleWorkflow.steps.prepare.next = 'done';
+  writeJson(workflowPath, singleWorkflow);
+  writeJson(otherWorkflowPath, singleWorkflow);
+
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next workflow mismatch setup');
+  const outputPath = path.join(runDir, 'prepared.json');
+  writeJson(outputPath, workerOutput('prepared'));
+
+  const mismatched = runRunner(['continue', '--run-dir', runDir, '--workflow', otherWorkflowPath, '--output', outputPath]);
+
+  assert.notEqual(mismatched.status, 0);
+  assert.match(mismatched.stderr, /requested workflow does not match last-response workflow context/);
+  assert.equal(JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8')).cursor, 'prepare');
+});
+
+test('runner: instructions rejects explicit workflow mismatch with last-response context', () => {
+  const runDir = path.join(tempDir, 'instructions-workflow-mismatch');
+  const workflowPath = path.join(tempDir, 'instructions-workflow-mismatch-a.json');
+  const otherWorkflowPath = path.join(tempDir, 'instructions-workflow-mismatch-b.json');
+  const singleWorkflow = structuredClone(workflowDoc);
+  singleWorkflow.steps.prepare.next = 'done';
+  writeJson(workflowPath, singleWorkflow);
+  writeJson(otherWorkflowPath, singleWorkflow);
+
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next instructions workflow mismatch setup');
+
+  const mismatched = runRunner(['instructions', '--run-dir', runDir, '--workflow', otherWorkflowPath, '--step-id', 'prepare']);
+
+  assert.notEqual(mismatched.status, 0);
+  assert.match(mismatched.stderr, /requested workflow does not match last-response workflow context/);
+});
+
 test('runner: continue rejects stale last-response after baton advances', () => {
   const runDir = path.join(tempDir, 'continue-stale-last-response');
   const workflowPath = path.join(tempDir, 'continue-stale-last-response-workflow.json');
@@ -1593,7 +1670,7 @@ test('runner: instructions rejects stale last-response requests after baton adva
   const stale = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'prepare']);
 
   assert.notEqual(stale.status, 0);
-  assert.match(stale.stderr, /unknown current workflow step id: prepare/);
+  assert.match(stale.stderr, /stale last runner response/);
 });
 
 test('runner: instructions rejects unknown, unsafe, and missing instructions', () => {

@@ -4,9 +4,12 @@ import { readOutputSchema } from './output-schema-validation.mjs';
 import { defaultRepositoryRootForWorkflow } from './resource-resolver.mjs';
 import { WorkflowDTO } from '../dtos/WorkflowDTO.mjs';
 import { listAllowedWorkflowRoles } from './WorkflowRuntimeReader.mjs';
+import { assertWorkflowSchema } from '../entities/workflow-helpers/schema-validation.mjs';
 
 export function read(path) {
-  return new WorkflowDTO(readWorkflowJson(path, 'workflow'));
+  const workflow = readWorkflowJson(path, 'workflow');
+  assertWorkflowSchema(workflow);
+  return new WorkflowDTO(workflow);
 }
 
 export function readOutputSchemas({ workflow, workflowPath, repositoryRoot = defaultRepositoryRootForWorkflow(workflowPath) }) {

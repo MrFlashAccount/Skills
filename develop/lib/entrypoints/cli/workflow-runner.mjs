@@ -9,7 +9,7 @@ function fail(message) {
 }
 
 function usage() {
-  return 'usage: node develop/lib/bin/workflow-runner.mjs next --run-dir <dir> [--workflow <workflow.json>] [--diagnostics] [--user-prompt <text> | --user-prompt-file <path>] | continue --run-dir <dir> --output <worker-output.json> [--output <step-id=worker-output.json> ...] [--workflow <workflow.json>] [--diagnostics] | instructions --run-dir <dir> --step-id <id>';
+  return 'usage: node develop/lib/bin/workflow-runner.mjs next --run-dir <dir> [--workflow <workflow.json>] [--diagnostics] [--user-prompt <text> | --user-prompt-file <path>] | continue --run-dir <dir> --output <worker-output.json> [--output <step-id=worker-output.json> ...] [--workflow <workflow.json>] [--diagnostics] | instructions --run-dir <dir> --step-id <id> [--workflow <workflow.json>]';
 }
 
 function parseCliArgs(argv) {
@@ -35,7 +35,7 @@ function parseCliArgs(argv) {
     if (mode !== 'instructions' && parsed.values['step-id']) fail(usage());
     if (mode !== 'continue' && parsed.values.output?.length) fail(usage());
     if (mode !== 'next' && (parsed.values['user-prompt'] !== undefined || parsed.values['user-prompt-file'] !== undefined)) fail(usage());
-    if (mode === 'instructions' && (parsed.values.workflow || parsed.values.diagnostics || parsed.values.output?.length)) fail(usage());
+    if (mode === 'instructions' && (parsed.values.diagnostics || parsed.values.output?.length)) fail(usage());
     return { mode, values: parsed.values };
   } catch (error) {
     fail(`${error.message}\n${usage()}`);
@@ -47,6 +47,7 @@ try {
   if (mode === 'instructions') {
     const instructions = await loadInstructions({
       runDir: values['run-dir'],
+      workflowPath: values.workflow,
       stepId: values['step-id'],
     });
     process.stdout.write(instructions);

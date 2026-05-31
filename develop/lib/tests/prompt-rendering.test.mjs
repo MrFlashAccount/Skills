@@ -14,6 +14,45 @@ import { loadWorkflowResources } from '../persistence/WorkflowRuntimeReader.mjs'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'prompt-rendering-check-'));
 writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
+writeFileSync(path.join(tempDir, 'worker-output.schema.json'), `${JSON.stringify({
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  required: ['outcome'],
+  properties: {
+    outcome: { enum: ['ready', 'retry', 'blocked'] },
+    artifacts: { type: 'array' },
+    results: { type: 'array' },
+    blocker: { type: 'object' },
+    summary: { type: 'string' },
+  },
+  additionalProperties: false,
+}, null, 2)}\n`);
+writeFileSync(path.join(tempDir, 'review-output.schema.json'), `${JSON.stringify({
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  required: ['outcome'],
+  properties: {
+    outcome: { enum: ['ready', 'blocked'] },
+    artifacts: { type: 'array' },
+    results: { type: 'array' },
+    blocker: { type: 'object' },
+    summary: { type: 'string' },
+  },
+  additionalProperties: false,
+}, null, 2)}\n`);
+writeFileSync(path.join(tempDir, 'approval-output.schema.json'), `${JSON.stringify({
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  required: ['approval'],
+  properties: {
+    approval: { enum: ['approved', 'rejected', 'blocked'] },
+    artifacts: { type: 'array' },
+    results: { type: 'array' },
+    blocker: { type: 'object' },
+    choice: { enum: ['approved', 'blocked'] },
+  },
+  additionalProperties: false,
+}, null, 2)}\n`);
 mkdirSync(path.join(tempDir, 'templates'), { recursive: true });
 writeFileSync(path.join(tempDir, 'templates', 'implementation-plan-template.md'), '## Implementation plan\nReturn implementation plan.\n');
 writeFileSync(path.join(tempDir, 'templates', 'research-packet-template.md'), '## Research packet\nReturn research packet.\n');
@@ -23,8 +62,15 @@ function outputContract(name = 'worker') {
   const templates = {
     worker: 'templates/implementation-plan-template.md',
     research: 'templates/research-packet-template.md',
+    review: 'templates/review-verdict-template.md',
   };
-  return { template: templates[name] ?? 'templates/review-verdict-template.md' };
+  const schemas = {
+    worker: 'worker-output.schema.json',
+    research: 'worker-output.schema.json',
+    review: 'review-output.schema.json',
+    approval: 'approval-output.schema.json',
+  };
+  return { template: templates[name] ?? 'templates/review-verdict-template.md', schema: schemas[name] ?? 'worker-output.schema.json' };
 }
 
 const schemaWorkflowDoc = {
@@ -1042,7 +1088,7 @@ test('CLI render: fixture returns compiledPrompt and does not mutate baton', () 
   writeFileSync(path.join(tempDir, outputTemplateRef), '## Required return\nUse this contract.\n');
   const workflowDoc = structuredClone(schemaWorkflowDoc);
   delete workflowDoc.steps.worker_step.input.role;
-  workflowDoc.steps.worker_step.output = { template: outputTemplateRef };
+  workflowDoc.steps.worker_step.output = { template: outputTemplateRef, schema: 'worker-output.schema.json' };
   const workflowPath = writeJson('fixture-render-workflow.json', workflowDoc);
   const batonPath = writeJson('fixture-render-baton.json', baton({ state: { artifacts: [], results: [], worker_step: { outcome: 'ready', summary: 'ready' } } }));
   const before = readFileSync(batonPath, 'utf8');

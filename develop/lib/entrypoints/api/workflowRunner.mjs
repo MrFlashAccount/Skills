@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { applyWorkflowOutput } from '../../use-cases/ApplyWorkflowOutput.mjs';
 import { renderAppliedResponse } from '../../use-cases/ContinueRun.mjs';
@@ -127,10 +128,18 @@ function assertLastResponseMatchesCurrentBaton(lastResponse, currentBaton) {
   }
 }
 
+function assertLastResponseMatchesWorkflowPath(lastResponse, workflowPath) {
+  if (typeof lastResponse.workflow !== 'string' || lastResponse.workflow.length === 0) return;
+  if (resolve(lastResponse.workflow) !== resolve(workflowPath)) {
+    throw new Error('stale last runner response: requested workflow does not match last-response workflow context; run workflow-runner next with the requested workflow before continue');
+  }
+}
+
 async function outputForCurrentState(paths, outputRefs = []) {
   await recoverDurableCommit(paths);
   const lastResponse = await readJson(paths.lastResponsePath, 'last runner response');
   if (lastResponse.status !== 'needs_host_actions') throw new Error(`last runner response is '${lastResponse.status}', not needs_host_actions`);
+  assertLastResponseMatchesWorkflowPath(lastResponse, paths.workflowPath);
   assertLastResponseMatchesCurrentBaton(lastResponse, await readJson(paths.batonPath, 'baton'));
 
   const missing = [];
@@ -197,12 +206,14 @@ export async function continueRun({ runDir, workflowPath, output, includeDiagnos
   });
 }
 
-export async function loadInstructions({ runDir, stepId }) {
+export async function loadInstructions({ runDir, workflowPath, stepId }) {
   assertSafeStepId(stepId);
   const paths = resolveRunPaths({ runDir });
   await recoverDurableCommit(paths);
   const lastResponse = await readJson(paths.lastResponsePath, 'last runner response');
   if (lastResponse.status !== 'needs_host_actions') throw new Error(`unknown current workflow step id: ${stepId}`);
+  if (workflowPath) assertLastResponseMatchesWorkflowPath(lastResponse, resolveRunPaths({ runDir, workflowPath }).workflowPath);
+  assertLastResponseMatchesCurrentBaton(lastResponse, await readJson(paths.batonPath, 'baton'));
   const runtimePaths = typeof lastResponse.workflow === 'string' && lastResponse.workflow.length > 0
     ? resolveRunPaths({ runDir, workflowPath: lastResponse.workflow })
     : paths;

@@ -171,7 +171,7 @@ function normalizeSchemaForSemanticIntrospection(schema, rootSchema = schema, re
   return normalized;
 }
 
-function validateOutputSchemaDocument(schema, schemaRef, workflow, _runtimeContext, warnings, { stepId, step } = {}) {
+function validateOutputSchemaDocument(schema, schemaRef, workflow, _runtimeContext, warnings, { stepId, step, requireWorkerOutcomeContract = true } = {}) {
   let validation;
   try {
     validation = validateJsonSchema(schema, {}, { schemas: workflowSchemas });
@@ -182,7 +182,7 @@ function validateOutputSchemaDocument(schema, schemaRef, workflow, _runtimeConte
   void validation;
 
   const normalizedSchema = normalizeSchemaForSemanticIntrospection(schema);
-  if (step?.kind === 'worker') assertWorkerOutputSchemaContract({ stepId, schema: normalizedSchema });
+  if (requireWorkerOutcomeContract && step?.kind === 'worker') assertWorkerOutputSchemaContract({ stepId, schema: normalizedSchema });
   if (isDevHarnessOutputSchema(schemaRef, schema)) collectFieldAnnotationWarnings(schema, schemaRef, warnings);
   return normalizedSchema;
 }
@@ -192,14 +192,17 @@ function outputSchemaForStep(outputSchemas, stepId, schemaRef) {
   return loaded?.schema ?? loaded;
 }
 
-function normalizeStepOutputSchemas({ workflow, outputSchemas = new Map(), warnings }) {
+function normalizeStepOutputSchemas({ workflow, outputSchemas = new Map(), warnings, requireSchemaPresence = true, requireWorkerOutcomeContract = true }) {
   const schemasByStep = new Map();
   for (const [stepId, step] of Object.entries(workflow.steps)) {
     const schemaRef = step.output?.schema;
     if (!schemaRef) continue;
     const schema = outputSchemaForStep(outputSchemas, stepId, schemaRef);
-    if (!schema) fail(`step '${stepId}' output.schema '${schemaRef}' was not provided to Workflow.validate()`);
-    const normalizedSchema = validateOutputSchemaDocument(schema, schemaRef, workflow, undefined, warnings, { stepId, step });
+    if (!schema) {
+      if (requireSchemaPresence) fail(`step '${stepId}' output.schema '${schemaRef}' was not provided to Workflow.validate()`);
+      continue;
+    }
+    const normalizedSchema = validateOutputSchemaDocument(schema, schemaRef, workflow, undefined, warnings, { stepId, step, requireWorkerOutcomeContract });
     schemasByStep.set(stepId, normalizedSchema);
   }
   return schemasByStep;
@@ -277,6 +280,89 @@ function schemaForPath(schema, pathSegments) {
   return candidates.flatMap((item) => schemaVariants(item));
 }
 
+
+function mergeSelectorAnalysis(target, source) {
+  for (const value of source.directValues) target.directValues.add(value);
+  for (const value of source.itemValues) target.itemValues.add(value);
+  target.arraySchemas.push(...source.arraySchemas);
+  return target;
+}
+
+function selectorAnalysis({ directValues = new Set(), itemValues = new Set(), arraySchemas = [] } = {}) {
+  return { directValues, itemValues, arraySchemas };
+}
+
+function assertClosedStringValueSchema(schema, errorContext) {
+  if (!schema || typeof schema !== 'object' || Array.isArray(schema)) {
+    fail(`${errorContext} must resolve from a closed string enum/const schema`);
+  }
+  if (schema.const !== undefined) {
+    if (typeof schema.const !== 'string') fail(`${errorContext} schema allows non-string value ${JSON.stringify(schema.const)}`);
+    return selectorAnalysis({ directValues: new Set([schema.const]) });
+  }
+  if (Array.isArray(schema.enum)) {
+    if (schema.enum.length === 0) fail(`${errorContext} enum schema must declare at least one string value`);
+    for (const value of schema.enum) {
+      if (typeof value !== 'string') fail(`${errorContext} schema allows non-string value ${JSON.stringify(value)}`);
+    }
+    return selectorAnalysis({ directValues: new Set(schema.enum) });
+  }
+  if (Array.isArray(schema.anyOf) || Array.isArray(schema.oneOf)) {
+    const variants = schema.anyOf ?? schema.oneOf;
+    if (variants.length === 0) fail(`${errorContext} union schema must declare at least one closed string enum/const branch`);
+    return variants.reduce((acc, variant) => mergeSelectorAnalysis(acc, assertClosedStringValueSchema(variant, errorContext)), selectorAnalysis());
+  }
+  if (Array.isArray(schema.allOf)) {
+    const finiteBranches = schema.allOf
+      .map((variant) => {
+        try {
+          return assertClosedStringValueSchema(variant, errorContext);
+        } catch (error) {
+          if (error instanceof WorkflowRuntimeError && /open string schema|must resolve from a closed string enum\/const schema/.test(error.message)) return undefined;
+          throw error;
+        }
+      })
+      .filter(Boolean);
+    if (finiteBranches.length === 0) fail(`${errorContext} must resolve from a closed string enum/const schema`);
+    return finiteBranches.reduce((acc, branch) => mergeSelectorAnalysis(acc, branch), selectorAnalysis());
+  }
+  if (schema.type === 'string' || (Array.isArray(schema.type) && schema.type.includes('string'))) {
+    fail(`${errorContext} open string schema must be constrained with enum or const values`);
+  }
+  if (schema.type !== undefined) fail(`${errorContext} schema allows non-string type ${JSON.stringify(schema.type)}`);
+  fail(`${errorContext} must resolve from a closed string enum/const schema`);
+}
+
+function assertClosedDynamicTargetSchema(schema, errorContext) {
+  if (!schema || typeof schema !== 'object' || Array.isArray(schema)) {
+    fail(`${errorContext} must resolve from a closed string enum/const or array item enum/const schema`);
+  }
+  if (schema.type === 'array' || schema.items) {
+    const itemAnalysis = assertClosedStringValueSchema(schema.items, `${errorContext} array item`);
+    return selectorAnalysis({ itemValues: itemAnalysis.directValues, arraySchemas: [schema] });
+  }
+  if (Array.isArray(schema.anyOf) || Array.isArray(schema.oneOf)) {
+    const variants = schema.anyOf ?? schema.oneOf;
+    if (variants.length === 0) fail(`${errorContext} union schema must declare at least one closed string enum/const or array item enum/const branch`);
+    return variants.reduce((acc, variant) => mergeSelectorAnalysis(acc, assertClosedDynamicTargetSchema(variant, errorContext)), selectorAnalysis());
+  }
+  if (Array.isArray(schema.allOf)) {
+    const finiteBranches = schema.allOf
+      .map((variant) => {
+        try {
+          return assertClosedDynamicTargetSchema(variant, errorContext);
+        } catch (error) {
+          if (error instanceof WorkflowRuntimeError && /open string schema|must resolve from a closed string enum\/const/.test(error.message)) return undefined;
+          throw error;
+        }
+      })
+      .filter(Boolean);
+    if (finiteBranches.length === 0) fail(`${errorContext} must resolve from a closed string enum/const or array item enum/const schema`);
+    return finiteBranches.reduce((acc, branch) => mergeSelectorAnalysis(acc, branch), selectorAnalysis());
+  }
+  return assertClosedStringValueSchema(schema, errorContext);
+}
+
 function collectStringValues(schema, values = new Set()) {
   for (const candidate of schemaVariants(schema)) {
     if (typeof candidate.const === 'string') values.add(candidate.const);
@@ -332,20 +418,17 @@ function assertExpressionSchemaAvailable({ workflow, schemasByStep, stepId, step
   return resolved;
 }
 
-function assertDynamicTargetSchema({ workflow, schemasByStep, stepId, step, expression, field, requireSchemaCoverage = true }) {
+function assertDynamicTargetSchema({ workflow, schemasByStep, stepId, step, expression, field, requireSchemaCoverage = true, requireExpressionRequiredPaths = true, allowOpenTransitionSchemas = false }) {
   const resolved = assertExpressionSchemaAvailable({ workflow, schemasByStep, stepId, step, expression, field, requireSchemaCoverage });
   if (!resolved) return;
-  assertSchemaRequiresExpressionPath({ stepId, expression, field, rootSchema: resolved.rootSchema, pathSegments: resolved.requiredPath });
-  const aggregate = resolved.schema.reduce((acc, schema) => {
-    const next = possibleStringTargetsForSchema(schema);
-    for (const value of next.possible) acc.possible.add(value);
-    for (const value of next.directValues) acc.directValues.add(value);
-    for (const value of next.itemValues) acc.itemValues.add(value);
-    acc.arraySchemas.push(...next.arraySchemas);
-    return acc;
-  }, { possible: new Set(), directValues: new Set(), itemValues: new Set(), arraySchemas: [] });
-
-  if (aggregate.possible.size === 0) fail(`step '${stepId}' ${field} expression ${expression.source} must resolve from a string enum/const or array item enum/const schema`);
+  if (requireExpressionRequiredPaths) assertSchemaRequiresExpressionPath({ stepId, expression, field, rootSchema: resolved.rootSchema, pathSegments: resolved.requiredPath });
+  let aggregate;
+  try {
+    aggregate = resolved.schema.reduce((acc, schema) => mergeSelectorAnalysis(acc, assertClosedDynamicTargetSchema(schema, `step '${stepId}' ${field} expression ${expression.source}`)), selectorAnalysis());
+  } catch (error) {
+    if (allowOpenTransitionSchemas && error instanceof WorkflowRuntimeError) return undefined;
+    throw error;
+  }
 
   for (const target of aggregate.directValues) {
     if (!Object.hasOwn(workflow.steps, target)) fail(`step '${stepId}' ${field} expression ${expression.source} schema allows unknown target '${target}'`);
@@ -371,19 +454,25 @@ function assertDynamicTargetSchema({ workflow, schemasByStep, stepId, step, expr
   return aggregate;
 }
 
-function assertMatchCasesSchema({ workflow, schemasByStep, stepId, step, descriptor, field, requireSchemaCoverage = true }) {
+function assertMatchCasesSchema({ workflow, schemasByStep, stepId, step, descriptor, field, requireSchemaCoverage = true, requireExpressionRequiredPaths = true, allowUnreachableCases = false, allowOpenTransitionSchemas = false }) {
   const resolved = assertExpressionSchemaAvailable({ workflow, schemasByStep, stepId, step, expression: descriptor.expression, field, requireSchemaCoverage });
   if (!resolved) return;
-  assertSchemaRequiresExpressionPath({ stepId, expression: descriptor.expression, field: `${field}.match`, rootSchema: resolved.rootSchema, pathSegments: resolved.requiredPath });
-  const possibleCaseKeys = new Set();
-  for (const schema of resolved.schema) collectStringValues(schema, possibleCaseKeys);
-
-  if (possibleCaseKeys.size === 0) fail(`step '${stepId}' ${field}.match expression ${descriptor.expression.source} must resolve from a string enum/const schema`);
+  if (requireExpressionRequiredPaths) assertSchemaRequiresExpressionPath({ stepId, expression: descriptor.expression, field: `${field}.match`, rootSchema: resolved.rootSchema, pathSegments: resolved.requiredPath });
+  let possibleCaseKeys;
+  try {
+    const aggregate = resolved.schema.reduce((acc, schema) => mergeSelectorAnalysis(acc, assertClosedStringValueSchema(schema, `step '${stepId}' ${field}.match expression ${descriptor.expression.source}`)), selectorAnalysis());
+    possibleCaseKeys = aggregate.directValues;
+  } catch (error) {
+    if (allowOpenTransitionSchemas && error instanceof WorkflowRuntimeError) return undefined;
+    throw error;
+  }
   for (const key of possibleCaseKeys) {
     if (!Object.hasOwn(descriptor.cases, key)) fail(`step '${stepId}' ${field}.cases is missing schema-declared case '${key}'`);
   }
-  for (const key of Object.keys(descriptor.cases)) {
-    if (!possibleCaseKeys.has(key)) fail(`step '${stepId}' ${field}.cases declares unreachable case '${key}' not present in the selector schema`);
+  if (!allowUnreachableCases) {
+    for (const key of Object.keys(descriptor.cases)) {
+      if (!possibleCaseKeys.has(key)) fail(`step '${stepId}' ${field}.cases declares unreachable case '${key}' not present in the selector schema`);
+    }
   }
 
   return possibleCaseKeys;
@@ -423,7 +512,7 @@ function assertParallelItemCombinations({ workflow, stepId, itemTargetSets }) {
   }
 }
 
-function assertTransitionSemantics(workflow, schemasByStep, { requireSchemaCoverage = true } = {}) {
+function assertTransitionSemantics(workflow, schemasByStep, { requireSchemaCoverage = true, requireExpressionRequiredPaths = true, allowUnreachableCases = false, allowOpenTransitionSchemas = false } = {}) {
   for (const [stepId, step] of Object.entries(workflow.steps)) {
     if (!Object.hasOwn(step, 'next')) continue;
     let descriptor;
@@ -436,11 +525,11 @@ function assertTransitionSemantics(workflow, schemasByStep, { requireSchemaCover
     }
 
     if (descriptor.kind === 'dynamic-target') {
-      assertDynamicTargetSchema({ workflow, schemasByStep, stepId, step, expression: descriptor.expression, field: 'next', requireSchemaCoverage });
+      assertDynamicTargetSchema({ workflow, schemasByStep, stepId, step, expression: descriptor.expression, field: 'next', requireSchemaCoverage, requireExpressionRequiredPaths, allowOpenTransitionSchemas });
       continue;
     }
     if (descriptor.kind === 'match-cases') {
-      assertMatchCasesSchema({ workflow, schemasByStep, stepId, step, descriptor, field: 'next', requireSchemaCoverage });
+      assertMatchCasesSchema({ workflow, schemasByStep, stepId, step, descriptor, field: 'next', requireSchemaCoverage, requireExpressionRequiredPaths, allowUnreachableCases, allowOpenTransitionSchemas });
       continue;
     }
     if (descriptor.kind === 'parallel-items') {
@@ -449,10 +538,10 @@ function assertTransitionSemantics(workflow, schemasByStep, { requireSchemaCover
         if (item.kind === 'static-target') {
           itemTargetSets.push([[item.target]]);
         } else if (item.kind === 'dynamic-target') {
-          const aggregate = assertDynamicTargetSchema({ workflow, schemasByStep, stepId, step, expression: item.expression, field: fieldPath('next', index), requireSchemaCoverage });
+          const aggregate = assertDynamicTargetSchema({ workflow, schemasByStep, stepId, step, expression: item.expression, field: fieldPath('next', index), requireSchemaCoverage, requireExpressionRequiredPaths, allowOpenTransitionSchemas });
           if (aggregate) itemTargetSets.push(targetSetsForDynamicTarget(aggregate));
         } else if (item.kind === 'match-cases') {
-          const possibleCaseKeys = assertMatchCasesSchema({ workflow, schemasByStep, stepId, step, descriptor: item, field: fieldPath('next', index), requireSchemaCoverage });
+          const possibleCaseKeys = assertMatchCasesSchema({ workflow, schemasByStep, stepId, step, descriptor: item, field: fieldPath('next', index), requireSchemaCoverage, requireExpressionRequiredPaths, allowUnreachableCases, allowOpenTransitionSchemas });
           if (possibleCaseKeys) itemTargetSets.push(targetSetsForMatchCases(possibleCaseKeys, item.cases));
         }
       }
@@ -469,8 +558,19 @@ function validateWorkflowDocument(workflow, options = {}) {
   assertWorkflowInputStateSelectors(workflow);
   assertWorkflowStepRoles(workflow, options.allowedRoles ?? []);
   const warnings = [];
-  const schemasByStep = normalizeStepOutputSchemas({ workflow, outputSchemas: options.outputSchemas, warnings });
-  assertTransitionSemantics(workflow, schemasByStep);
+  const schemasByStep = normalizeStepOutputSchemas({
+    workflow,
+    outputSchemas: options.outputSchemas,
+    warnings,
+    requireSchemaPresence: options.requireSchemaPresence ?? true,
+    requireWorkerOutcomeContract: options.requireWorkerOutcomeContract ?? true,
+  });
+  assertTransitionSemantics(workflow, schemasByStep, {
+    requireSchemaCoverage: options.requireSchemaCoverage ?? true,
+    requireExpressionRequiredPaths: options.requireExpressionRequiredPaths ?? true,
+    allowUnreachableCases: options.allowUnreachableCases ?? false,
+    allowOpenTransitionSchemas: options.allowOpenTransitionSchemas ?? false,
+  });
   const result = { ok: true, workflow: workflow.name, steps: Object.keys(workflow.steps).length };
   if (warnings.length > 0) result.warnings = warnings;
   return result;
@@ -497,17 +597,6 @@ export class Workflow {
       if (!Object.hasOwn(step, 'next')) continue;
       assertTransitionDescriptorTargets(this.data, stepId, normalizeTransitionNext(step.next));
     }
-    return { ok: true };
-  }
-
-  validateForRuntime(options = {}) {
-    assertWorkflowSchema(this.data);
-    assertWorkflowIdentity(this.data);
-    assertWorkflowStepIds(this.data);
-    assertWorkflowRootTargets(this.data);
-    assertWorkflowInputStateSelectors(this.data);
-    assertWorkflowStepRoles(this.data, options.allowedRoles ?? []);
-    this.validateStaticTransitions();
     return { ok: true };
   }
 

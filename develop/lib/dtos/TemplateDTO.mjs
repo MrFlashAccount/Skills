@@ -1,18 +1,20 @@
-/** Boundary DTO for template render inputs loaded by persistence. */
-import { assertOptionalString, assertPlainObject, cloneFrozen } from './_dto-utils.mjs';
+/**
+ * @typedef {object} TemplateDTOData
+ * @property {string} [ref] Template reference selected by caller/persistence.
+ * @property {string} [content] Inline template content.
+ * @property {string} [workflowPath] Workflow path used for relative template resolution.
+ */
+import { cloneFrozen } from './_dto-utils.mjs';
 
+/** Boundary DTO for template render inputs loaded by persistence. */
 export class TemplateDTO {
+  /** @param {TemplateDTOData} data */
   constructor(data) {
-    const template = assertPlainObject(data, 'TemplateDTO');
-    assertOptionalString(template.ref, 'TemplateDTO.ref');
-    assertOptionalString(template.content, 'TemplateDTO.content');
-    assertOptionalString(template.workflowPath, 'TemplateDTO.workflowPath');
-    if (template.ref === undefined && template.content === undefined && template.workflowPath === undefined) {
-      throw new TypeError('TemplateDTO requires at least one boundary field: ref, content, or workflowPath');
-    }
-    this.data = cloneFrozen(template);
+    /** @type {Readonly<TemplateDTOData>} */
+    this.data = cloneFrozen(data);
   }
 
+  /** @returns {TemplateDTOData} */
   toJSON() {
     return structuredClone(this.data);
   }

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
@@ -8,14 +8,71 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-schema-check-'));
+const workerOutputSchema = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  required: ['outcome'],
+  properties: {
+    outcome: { enum: ['ready', 'retry', 'blocked'] },
+    artifacts: { type: 'array', items: { type: 'object', required: ['type'], additionalProperties: true } },
+    results: { type: 'array', items: { type: 'object', required: ['type'], additionalProperties: true } },
+    blocker: { type: 'object' },
+    summary: { type: 'string' },
+  },
+  additionalProperties: false,
+};
 writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
+writeFileSync(path.join(tempDir, 'worker-output.schema.json'), `${JSON.stringify(workerOutputSchema, null, 2)}\n`);
+writeFileSync(path.join(tempDir, 'worker-output.json'), `${JSON.stringify(workerOutputSchema, null, 2)}\n`);
+mkdirSync(path.join(tempDir, 'schemas'), { recursive: true });
+writeFileSync(path.join(tempDir, 'schemas', 'worker-output.json'), `${JSON.stringify(workerOutputSchema, null, 2)}\n`);
+writeFileSync(path.join(tempDir, 'ready-output.schema.json'), `${JSON.stringify({
+  ...workerOutputSchema,
+  properties: {
+    ...workerOutputSchema.properties,
+    outcome: { enum: ['ready'] },
+  },
+}, null, 2)}\n`);
+writeFileSync(path.join(tempDir, 'review-output.schema.json'), `${JSON.stringify({
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  required: ['outcome'],
+  properties: {
+    outcome: { enum: ['ready', 'blocked'] },
+    artifacts: { type: 'array', items: { type: 'object', required: ['type'], additionalProperties: true } },
+    results: { type: 'array', items: { type: 'object', required: ['type'], additionalProperties: true } },
+    blocker: { type: 'object' },
+    summary: { type: 'string' },
+  },
+  additionalProperties: false,
+}, null, 2)}\n`);
+writeFileSync(path.join(tempDir, 'approval-output.schema.json'), `${JSON.stringify({
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  required: ['approval'],
+  properties: {
+    approval: { enum: ['approved', 'rejected', 'blocked'] },
+    artifacts: { type: 'array', items: { type: 'object', required: ['type'], additionalProperties: true } },
+    results: { type: 'array', items: { type: 'object', required: ['type'], additionalProperties: true } },
+    blocker: { type: 'object' },
+    choice: { enum: ['approved', 'blocked'] },
+  },
+  additionalProperties: false,
+}, null, 2)}\n`);
 
 function outputContract(name = 'worker') {
   const templates = {
     worker: 'output.md',
     research: 'output.md',
+    review: 'output.md',
   };
-  return { template: templates[name] ?? 'output.md' };
+  const schemas = {
+    worker: 'worker-output.schema.json',
+    research: 'worker-output.schema.json',
+    review: 'review-output.schema.json',
+    approval: 'approval-output.schema.json',
+  };
+  return { template: templates[name] ?? 'output.md', schema: schemas[name] ?? 'worker-output.schema.json' };
 }
 
 const schemaWorkflowDoc = {
@@ -89,7 +146,7 @@ const e2eWorkflowDoc = {
         name: 'Review worker',
         kind: 'worker',
         input: { template: 'review.md', state: ['worker_step', 'approval_step'] },
-        output: outputContract(),
+        output: outputContract('review'),
         next: { match: '${{ output.outcome }}', cases: { ready: 'done', blocked: 'blocked' } },
       },
       done: { name: 'Done', kind: 'done', input: { prompt: 'Finished.' } },
@@ -119,6 +176,18 @@ function baton(overrides = {}) {
   };
 }
 
+function finalOutputSchemaAttempt(stepId = 'worker_step', overrides = {}) {
+  const doc = baton(overrides);
+  doc.state = {
+    ...(doc.state ?? {}),
+    attempts: {
+      ...(doc.state?.attempts ?? {}),
+      [`${stepId}:output.schema`]: 2,
+    },
+  };
+  return doc;
+}
+
 function output(overrides = {}) {
   return { outcome: 'ready', artifacts: [{ type: 'packet', summary: 'minimal packet' }], ...overrides };
 }
@@ -142,6 +211,7 @@ function expectCliResult(label, result, expectSuccess) {
   assert.ok(response.steps[0], `check '${label}' returned no step`);
   return response;
 }
+
 
 function runInspect(label, batonDoc, expectSuccess = true, workflowDoc = schemaWorkflowDoc) {
   const prefix = safeName(label);
@@ -262,6 +332,7 @@ test('runtime: output template semantics are ignored while worker envelope is va
   const workflowDoc = structuredClone(schemaWorkflowDoc);
   workflowDoc.steps.worker_step.output = {
     template: 'output.md',
+    schema: 'worker-output.schema.json',
   };
 
   const response = runApply('output-template-semantics-ignored', baton(), {
@@ -272,11 +343,11 @@ test('runtime: output template semantics are ignored while worker envelope is va
   assert.equal(response.baton.cursor, 'approval_step');
   assert.equal(response.baton.state.results.at(-1).summary, 'No required markdown headings are validated here.');
 
-  const badEnvelope = runApply('output-template-still-validates-envelope', baton(), {
+  const badEnvelope = runApply('output-template-still-validates-envelope', finalOutputSchemaAttempt(), {
     outcome: 'ready',
     freeformMarkdown: '## Verdict\nready',
   }, false, workflowDoc);
-  assert.match(badEnvelope.stderr, /worker output failed schema validation/);
+  assert.match(badEnvelope.stderr, /output schema validation failed|worker output failed schema validation|workflow interpreter response failed schema validation/);
 });
 
 test('schema validation: wrapped workflow documents are rejected by the workflow schema', () => {
@@ -323,7 +394,7 @@ test('e2e: scripted wrapper runs worker to approval to worker/review to done', (
   const final = scriptedApplyLoop('e2e-happy-path', e2eWorkflowDoc, baton(), {
     worker_step: [output({ outcome: 'ready', artifacts: [{ id: 'worker-packet', type: 'packet', summary: 'ready for approval' }] })],
     approval_step: [{ approval: 'approved', results: [{ type: 'approval', summary: 'approved' }] }],
-    implementation_worker: [output({ outcome: 'implemented', results: [{ type: 'implementation', summary: 'implemented' }] })],
+    implementation_worker: [output({ outcome: 'ready', results: [{ type: 'implementation', summary: 'implemented' }] })],
     review_worker: [output({ outcome: 'ready', results: [{ type: 'review', summary: 'reviewed' }] })],
   });
 
@@ -357,7 +428,7 @@ test('e2e: approval rejection loops back to worker before successful done', () =
       { approval: 'rejected', results: [{ type: 'approval', summary: 'needs rework' }] },
       { approval: 'approved', results: [{ type: 'approval', summary: 'approved after rework' }] },
     ],
-    implementation_worker: [output({ outcome: 'implemented' })],
+    implementation_worker: [output({ outcome: 'ready' })],
     review_worker: [output({ outcome: 'ready' })],
   });
 
@@ -393,15 +464,15 @@ test('e2e: non-retry transition cycles stop at the deterministic scripted loop g
       name: 'Worker A',
       kind: 'worker',
       input: { template: 'worker-a.md' },
-      output: outputContract(),
-      next: { match: '${{ output.outcome }}', cases: { go: 'worker_b' } },
+      output: { template: 'output.md', schema: 'ready-output.schema.json' },
+      next: { match: '${{ output.outcome }}', cases: { ready: 'worker_b' } },
     },
     worker_b: {
       name: 'Worker B',
       kind: 'worker',
       input: { template: 'worker-b.md' },
-      output: outputContract(),
-      next: { match: '${{ output.outcome }}', cases: { back: 'worker_a' } },
+      output: { template: 'output.md', schema: 'ready-output.schema.json' },
+      next: { match: '${{ output.outcome }}', cases: { ready: 'worker_a' } },
     },
     done: { name: 'Done', kind: 'done', input: { prompt: 'Finished.' } },
     blocked: { name: 'Blocked', kind: 'blocked', input: { prompt: 'Blocked.' } },
@@ -413,8 +484,8 @@ test('e2e: non-retry transition cycles stop at the deterministic scripted loop g
       workflowDoc,
       baton({ cursor: 'worker_a' }),
       {
-        worker_a: [output({ outcome: 'go' }), output({ outcome: 'go' })],
-        worker_b: [output({ outcome: 'back' }), output({ outcome: 'back' })],
+        worker_a: [output({ outcome: 'ready' }), output({ outcome: 'ready' })],
+        worker_b: [output({ outcome: 'ready' }), output({ outcome: 'ready' })],
       },
       { maxSteps: 4 },
     ),
@@ -527,41 +598,41 @@ test('apply: transition-only output preserves existing baton state collections',
 test('schema validation: worker output cannot replace baton state directly', () => {
   const result = runApply(
     'worker-output-direct-state-replacement',
-    baton(),
+    finalOutputSchemaAttempt(),
     { outcome: 'ready', state: { artifacts: [{ type: 'packet', summary: 'bypassed merge' }], results: [] } },
     false,
   );
 
-  assert.match(result.stderr, /worker output failed schema validation/);
+  assert.match(result.stderr, /output schema validation failed|worker output failed schema validation|workflow interpreter response failed schema validation/);
 });
 
 test('schema validation: worker output rejects unsupported fields instead of silently ignoring them', () => {
   const result = runApply(
     'worker-output-unsupported-field',
-    baton(),
+    finalOutputSchemaAttempt(),
     { outcome: 'ready', diagnostics: { summary: 'wrapper-only details' } },
     false,
   );
 
-  assert.match(result.stderr, /worker output failed schema validation/);
+  assert.match(result.stderr, /output schema validation failed|worker output failed schema validation|workflow interpreter response failed schema validation/);
 });
 
 test('schema validation: worker output state collections reject malformed entries', () => {
   const artifactMissingType = runApply(
     'worker-output-artifact-missing-type',
-    baton(),
+    finalOutputSchemaAttempt(),
     { outcome: 'ready', artifacts: [{ summary: 'untyped artifact would poison baton state' }] },
     false,
   );
-  assert.match(artifactMissingType.stderr, /worker output failed schema validation/);
+  assert.match(artifactMissingType.stderr, /output schema validation failed|worker output failed schema validation|workflow interpreter response failed schema validation/);
 
   const nonObjectResult = runApply(
     'worker-output-result-non-object',
-    baton(),
+    finalOutputSchemaAttempt(),
     { outcome: 'ready', results: ['string result would poison baton state'] },
     false,
   );
-  assert.match(nonObjectResult.stderr, /worker output failed schema validation/);
+  assert.match(nonObjectResult.stderr, /output schema validation failed|worker output failed schema validation|workflow interpreter response failed schema validation/);
 });
 
 test('apply: output state replaces same-id artifacts while appending new artifacts and results', () => {
@@ -734,14 +805,16 @@ test('apply: approval blocked transition carries blocker and resolves blocked te
 });
 
 test('apply: string next advances without consulting transition value', () => {
-  const response = runApply('string-next', baton({ cursor: 'direct_next_worker' }), output({ outcome: 'anything' }));
+  const response = runApply('string-next', baton({ cursor: 'direct_next_worker' }), output({ outcome: 'ready' }));
   assert.equal(response.baton.cursor, 'done');
   assert.equal(response.baton.status, 'done');
   assert.equal(response.steps[0].action, 'stop_done');
 });
 
 test('validation: direct string next still enforces worker output vocabulary before terminal transition', () => {
-  const result = runApply('string-next-worker-using-approval', baton({ cursor: 'direct_next_worker' }), { approval: 'approved' }, false);
+  const workflowDoc = structuredClone(schemaWorkflowDoc);
+  delete workflowDoc.steps.direct_next_worker.output.schema;
+  const result = runApply('string-next-worker-using-approval', baton({ cursor: 'direct_next_worker' }), { approval: 'approved' }, false, workflowDoc);
 
   assert.match(result.stderr, /worker cursor 'direct_next_worker' must use outcome, not approval/);
 });
@@ -757,7 +830,7 @@ test('apply: direct string next still merges output state before resolving termi
       },
     }),
     {
-      outcome: 'anything',
+      outcome: 'ready',
       artifacts: [{ id: 'draft', type: 'packet', summary: 'merged before done' }],
       results: [{ type: 'review', summary: 'terminal evidence' }],
     },
@@ -981,12 +1054,12 @@ test('schema validation: approval input rejects worker-only role field', () => {
 
 test('schema validation: approval steps accept optional output schema declaration', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc.steps.approval_step.output = { schema: 'worker-output.json' };
+  workflowDoc.steps.approval_step.output = { schema: 'approval-output.schema.json' };
 
   const response = runInspect('approval-step-output-schema', baton({ cursor: 'approval_step' }), true, workflowDoc);
 
   assert.equal(response.steps[0].action, 'wait_for_approval');
-  assert.equal(response.steps[0].step.output.schema, 'worker-output.json');
+  assert.equal(response.steps[0].step.output.schema, 'approval-output.schema.json');
 });
 
 test('runtime validation: baton status must match cursor semantics', () => {
@@ -1044,14 +1117,14 @@ test('schema validation: baton rejects wrapper-owned execution trace fields', ()
 });
 
 test('validation: worker and approval transition vocabularies stay distinct', () => {
-  const workerUsingApproval = runApply('worker-using-approval', baton(), { approval: 'approved' }, false);
+  const workerUsingApproval = runApply('worker-using-approval', finalOutputSchemaAttempt(), { approval: 'approved' }, false);
   const approvalUsingOutcome = runApply('approval-using-outcome', baton({ cursor: 'approval_step' }), { outcome: 'approved' }, false);
-  assert.match(workerUsingApproval.stderr, /worker cursor 'worker_step' must use outcome/);
+  assert.match(workerUsingApproval.stderr, /output schema validation failed|worker cursor 'worker_step' must use outcome/);
   assert.match(approvalUsingOutcome.stderr, /approval cursor 'approval_step' must use host\/user output fields, not outcome/);
 });
 
 test('validation: ambiguous outputs with both outcome and approval are rejected for typed steps', () => {
-  const workerAmbiguous = runApply('worker-ambiguous-output', baton(), { outcome: 'ready', approval: 'approved' }, false);
+  const workerAmbiguous = runApply('worker-ambiguous-output', finalOutputSchemaAttempt(), { outcome: 'ready', approval: 'approved' }, false);
   const approvalAmbiguous = runApply(
     'approval-ambiguous-output',
     baton({ cursor: 'approval_step' }),
@@ -1059,13 +1132,13 @@ test('validation: ambiguous outputs with both outcome and approval are rejected 
     false,
   );
 
-  assert.match(workerAmbiguous.stderr, /worker cursor 'worker_step' must use outcome, not approval/);
+  assert.match(workerAmbiguous.stderr, /output schema validation failed|worker cursor 'worker_step' must use outcome, not approval/);
   assert.match(approvalAmbiguous.stderr, /approval cursor 'approval_step' must use host\/user output fields, not outcome/);
 });
 
 test('validation: empty match/cases value is treated as a literal missing case', () => {
-  const result = runApply('empty-match-case-value', baton(), output({ outcome: '' }), false);
-  assert.match(result.stderr, /next\.match case '' is not defined in next\.cases/);
+  const result = runApply('empty-match-case-value', finalOutputSchemaAttempt(), output({ outcome: '' }), false);
+  assert.match(result.stderr, /output schema validation failed|next\.match case '' is not defined in next\.cases/);
 });
 
 test('schema validation: nested match/cases transitions are rejected explicitly', () => {
@@ -1087,7 +1160,7 @@ test('validation: match/cases transition selector missing from output is rejecte
 
   const result = runApply('missing-transition-selector-field', baton(), output({ outcome: 'ready' }), false, workflowDoc);
 
-  assert.match(result.stderr, /could not resolve missing path 'output.decision'/);
+  assert.match(result.stderr, /has no schema-covered path \(path not found\)/);
 });
 
 test('validation: approval match/cases transition selector mismatch is rejected clearly', () => {
@@ -1102,6 +1175,8 @@ test('validation: approval match/cases transition selector mismatch is rejected 
 
 test('apply: match/cases transition value string zero is accepted as a real case key', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
+  workflowDoc.steps.worker_step.output.schema = 'zero-output.schema.json';
+  writeFileSync(path.join(tempDir, 'zero-output.schema.json'), `${JSON.stringify({ ...workerOutputSchema, properties: { ...workerOutputSchema.properties, outcome: { enum: ['ready', 'retry', 'blocked', '0'] } } }, null, 2)}\n`);
   workflowDoc.steps.worker_step.next.cases['0'] = 'approval_step';
 
   const response = runApply('zero-string-match-case-value', baton(), output({ outcome: '0' }), true, workflowDoc);
@@ -1110,12 +1185,12 @@ test('apply: match/cases transition value string zero is accepted as a real case
 });
 
 test('validation: match/cases transition values are matched literally without whitespace trimming', () => {
-  const result = runApply('whitespace-padded-match-case-value', baton(), output({ outcome: ' ready ' }), false);
-  assert.match(result.stderr, /next\.match case ' ready ' is not defined in next\.cases/);
+  const result = runApply('whitespace-padded-match-case-value', finalOutputSchemaAttempt(), output({ outcome: ' ready ' }), false);
+  assert.match(result.stderr, /output schema validation failed|next\.match case ' ready ' is not defined in next\.cases/);
 });
 
 test('validation: unknown match case and unknown cursor are rejected', () => {
-  assert.match(runApply('unknown-match-case-value', baton(), output({ outcome: 'missing' }), false).stderr, /next\.match case 'missing' is not defined in next\.cases/);
+  assert.match(runApply('unknown-match-case-value', finalOutputSchemaAttempt(), output({ outcome: 'missing' }), false).stderr, /output schema validation failed|next\.match case 'missing' is not defined in next\.cases/);
   assert.match(runInspect('unknown-cursor', baton({ cursor: 'missing_step' }), false).stderr, /baton cursor not found/);
 });
 

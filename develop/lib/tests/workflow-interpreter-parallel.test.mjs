@@ -9,6 +9,17 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-parallel-check-'));
 writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
+writeFileSync(path.join(tempDir, 'loop-output.schema.json'), `${JSON.stringify({
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  required: ['outcome'],
+  properties: {
+    outcome: { enum: ['ready', 'retry'] },
+    artifacts: { type: 'array' },
+    results: { type: 'array' },
+  },
+  additionalProperties: false,
+}, null, 2)}\n`);
 const renderWorkflowPaths = [];
 
 function outputContract() {
@@ -264,7 +275,7 @@ test('runtime: repeated sequential loop execution still overwrites latest per-st
     name: 'Worker step',
     kind: 'worker',
     input: { prompt: 'Run worker.' },
-    output: outputContract(),
+    output: { ...outputContract(), schema: 'loop-output.schema.json' },
     next: { match: '${{ output.outcome }}', cases: { ready: 'join', retry: 'worker_step' } },
   };
 

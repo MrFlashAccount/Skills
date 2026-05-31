@@ -1,15 +1,21 @@
-/** Boundary DTO for use-case result returned to entrypoints/API callers. */
-import { assertPlainObject, cloneFrozen } from './_dto-utils.mjs';
+/**
+ * @typedef {object} WorkflowResultDTOData
+ * @property {boolean} [ok] Success marker returned by use-cases.
+ * @property {string} [status] Runtime status returned by use-cases.
+ * @property {number|Array<unknown>|Record<string, unknown>} [steps] Step count or step projection returned by use-cases.
+ * @property {Record<string, unknown>} [baton] Baton projection returned by use-cases.
+ */
+import { cloneFrozen } from './_dto-utils.mjs';
 
+/** Boundary DTO for use-case result returned to entrypoints/API callers. */
 export class WorkflowResultDTO {
+  /** @param {WorkflowResultDTOData} data */
   constructor(data) {
-    const result = assertPlainObject(data, 'WorkflowResultDTO');
-    if (!('ok' in result) && !('status' in result) && !('steps' in result) && !('baton' in result)) {
-      throw new TypeError('WorkflowResultDTO requires a concrete result field: ok, status, steps, or baton');
-    }
-    this.data = cloneFrozen(result);
+    /** @type {Readonly<WorkflowResultDTOData>} */
+    this.data = cloneFrozen(data);
   }
 
+  /** @returns {WorkflowResultDTOData} */
   toJSON() {
     return structuredClone(this.data);
   }

@@ -13,6 +13,13 @@ import { loadWorkflowResources } from '../persistence/WorkflowRuntimeReader.mjs'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-output-schema-check-'));
 writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
+writeFileSync(path.join(tempDir, 'worker-output.schema.json'), `${JSON.stringify({
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  required: ['outcome'],
+  properties: { outcome: { enum: ['ready', 'blocked'] }, results: { type: 'array' }, artifacts: { type: 'array' } },
+  additionalProperties: true,
+}, null, 2)}\n`);
 
 const workflowDoc = {
     name: 'output-schema-spec',
@@ -25,7 +32,7 @@ const workflowDoc = {
         name: 'Worker step',
         kind: 'worker',
         input: { prompt: 'Run worker.' },
-        output: { template: 'output.md' },
+        output: { template: 'output.md', schema: 'worker-output.schema.json' },
         next: { match: '${{ output.outcome }}', cases: { ready: 'done', blocked: 'blocked' } },
       },
       consumer_step: {
@@ -89,6 +96,7 @@ function workflowWithSchema(label, schema) {
   const schemaPath = writeJson(`${safeName(label)}.schema.json`, schema);
   const doc = structuredClone(workflowDoc);
   doc.steps.worker_step.output.schema = path.basename(schemaPath);
+  doc.steps.worker_step.next.cases = { ready: doc.steps.worker_step.next.cases.ready };
   return doc;
 }
 
@@ -218,6 +226,7 @@ test('output.schema: CLI apply allows workflow-relative traversal to repo shared
 
   const doc = structuredClone(workflowDoc);
   doc.steps.worker_step.output = { template: 'output.md', schema: '../../shared/shared.schema.json' };
+  doc.steps.worker_step.next.cases = { ready: 'done' };
   const workflowPath = path.join(workflowDir, 'workflow.json');
   const batonPath = path.join(workflowDir, 'baton.json');
   const outputPath = path.join(workflowDir, 'output.json');
@@ -361,6 +370,7 @@ test('output.schema: invalid approval output retries the approval step with sche
   const doc = structuredClone(workflowDoc);
   doc.start = 'consumer_step';
   doc.steps.consumer_step.output = { schema: path.basename(schemaPath) };
+  doc.steps.consumer_step.next.cases = { approved: 'done' };
 
   const retry = runApply('output-schema-approval-invalid-retry', baton({ cursor: 'consumer_step' }), { approval: 'rejected' }, true, doc);
 
@@ -398,7 +408,10 @@ test('output.schema: reserved aggregate fields must keep array envelope shape', 
 test('output.schema: schema-declared outputs still must be object envelopes', () => {
   const doc = workflowWithSchema('root-envelope-object', {
     $schema: 'https://json-schema.org/draft/2020-12/schema',
-    const: 'ready',
+    type: 'object',
+    required: ['outcome'],
+    properties: { outcome: { const: 'ready' } },
+    additionalProperties: false,
   });
   doc.steps.worker_step.next = ['consumer_step'];
   doc.steps.consumer_step.next = 'done';
@@ -429,7 +442,7 @@ test('output.schema: invalid output retries with validation feedback then succee
 
 test('output.schema: structured step output is projected by step id into downstream prompt', () => {
   const doc = workflowWithSchema('structured-output-step-id-projection', structuredSchema);
-  doc.steps.worker_step.next = { match: '${{ output.outcome }}', cases: { ready: 'consumer_step', blocked: 'blocked' } };
+  doc.steps.worker_step.next = { match: '${{ output.outcome }}', cases: { ready: 'consumer_step' } };
 
   const applyResponse = runApply('output-schema-structured-project-apply', baton(), {
     outcome: 'ready',
@@ -461,7 +474,7 @@ test('output.schema: projected structured output renders schema field notes befo
   schemaWithFieldNotes.properties.payload['x-usage'] = 'Use this payload as the authoritative downstream input.';
   schemaWithFieldNotes.properties.artifacts.description = 'Artifacts emitted while preparing the payload.';
   const doc = workflowWithSchema('structured-output-field-notes', schemaWithFieldNotes);
-  doc.steps.worker_step.next = { match: '${{ output.outcome }}', cases: { ready: 'consumer_step', blocked: 'blocked' } };
+  doc.steps.worker_step.next = { match: '${{ output.outcome }}', cases: { ready: 'consumer_step' } };
   const generationPromptDoc = structuredClone(doc);
   writeFileSync(path.join(tempDir, 'field-notes-output.md'), 'Return schema JSON.\n');
   generationPromptDoc.steps.worker_step.output.template = 'field-notes-output.md';
@@ -542,10 +555,13 @@ test('output.schema: invalid output exhausts retry limit deterministically', () 
 });
 
 test('output.schema: absent schema preserves previous envelope behavior without storing outputs mirror', () => {
+  const doc = structuredClone(workflowDoc);
+  delete doc.steps.worker_step.output.schema;
+  doc.steps.worker_step.next = 'done';
   const response = runApply('output-schema-absent-unchanged', baton(), {
     outcome: 'ready',
     results: [{ type: 'plain', summary: 'generic worker-output envelope' }],
-  });
+  }, true, doc);
 
   assert.equal(response.baton.cursor, 'done');
   assert.equal(Object.hasOwn(response.baton.state, 'outputs'), false);
@@ -555,7 +571,8 @@ test('output.schema: absent schema preserves previous envelope behavior without 
 
 test('output.schema: non-structured worker output is projected by step id into downstream prompt', () => {
   const doc = structuredClone(workflowDoc);
-  doc.steps.worker_step.next = { match: '${{ output.outcome }}', cases: { ready: 'consumer_step', blocked: 'blocked' } };
+  delete doc.steps.worker_step.output.schema;
+  doc.steps.worker_step.next = 'consumer_step';
 
   const applyResponse = runApply('output-schema-plain-project-apply', baton(), {
     outcome: 'ready',
