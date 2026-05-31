@@ -265,6 +265,193 @@ test('research critic save packet output keeps saved and blocked branches exclus
   assert.equal(blockedOnly.ok, true);
 });
 
+
+
+
+
+test('dev harness revision loops project the feedback that caused revision', () => {
+  assert.deepEqual(workflowDoc.steps.research_draft.input.state, ['research_draft', 'research_attack', 'approve_research']);
+  assert.deepEqual(workflowDoc.steps.architecture_draft.input.state, [
+    'research_draft',
+    'research_attack',
+    'architecture_draft',
+    'architecture_attack',
+    'approve_architecture',
+  ]);
+  assert.deepEqual(workflowDoc.steps.planning_draft.input.state, [
+    'research_draft',
+    'architecture_draft',
+    'architecture_attack',
+    'planning_draft',
+    'planning_attack',
+    'approve_plan',
+  ]);
+});
+
+
+
+test('dev harness architect review projects approved architecture contract sources', () => {
+  for (const requiredState of ['architecture_draft', 'architecture_attack', 'approve_architecture']) {
+    assert.equal(workflowDoc.steps.architect_review.input.state.includes(requiredState), true);
+  }
+  assert.match(workflowDoc.steps.architect_review.input.prompt, /approved architecture contract/);
+});
+
+test('dev harness implementation rework branches project review findings', () => {
+  const expectedReworkState = [
+    'planning_draft',
+    'implementation_dispatch',
+    'review_join',
+    'architect_review',
+    'backend_review',
+    'frontend_review',
+    'frontend_taste_review',
+    'security_review',
+    'privacy_review',
+    'qa_review',
+  ];
+
+  for (const stepId of ['backend_implementation', 'frontend_implementation', 'architecture_artifact_update']) {
+    assert.deepEqual(workflowDoc.steps[stepId].input.state, expectedReworkState);
+    assert.match(workflowDoc.steps[stepId].input.prompt, /review_join needs_changes/);
+  }
+});
+
+test('dev harness blocked outputs require only blocker plus routing fields, not success payloads', () => {
+  const workflowPath = path.join(REPO_ROOT, 'workflows/dev-harness/workflow.json');
+  const blockedCases = [
+    ['research_draft', { outcome: 'blocked', blocker: { summary: 'Missing input.', source_step_id: 'research_draft', needed: 'Task context.' } }],
+    ['research_attack', { outcome: 'blocked', blocker: { summary: 'Unsafe research.', source_step_id: 'research_attack', needed: 'Evidence.' } }],
+    ['architecture_draft', { outcome: 'blocked', blocker: { summary: 'No owner.', source_step_id: 'architecture_draft', needed: 'Architecture owner.' } }],
+    ['architecture_attack', { outcome: 'blocked', blocker: { summary: 'Contract conflict.', source_step_id: 'architecture_attack', needed: 'Decision.' } }],
+    ['planning_draft', { outcome: 'blocked', selected_review_steps: ['backend_review'], blocker: { summary: 'Cannot plan.', source_step_id: 'planning_draft', needed: 'Approved scope.' } }],
+    ['planning_attack', { outcome: 'blocked', blocker: { summary: 'Plan unsafe.', source_step_id: 'planning_attack', needed: 'Revision.' } }],
+    ['implementation_dispatch', { outcome: 'blocked', blocker: { summary: 'Route mismatch.', source_step_id: 'implementation_dispatch', needed: 'Valid route.' } }],
+    ['backend_implementation', { outcome: 'blocked', blocker: { summary: 'Backend blocked.', source_step_id: 'backend_implementation', needed: 'Dependency.' } }],
+    ['frontend_implementation', { outcome: 'blocked', blocker: { summary: 'Frontend blocked.', source_step_id: 'frontend_implementation', needed: 'Dependency.' } }],
+    ['architecture_artifact_update', { outcome: 'blocked', blocker: { summary: 'Artifact blocked.', source_step_id: 'architecture_artifact_update', needed: 'Approved artifact.' } }],
+    ['implementation_join', { outcome: 'blocked', blocker: { summary: 'Branch missing.', source_step_id: 'implementation_join', needed: 'Completed branch.' } }],
+    ['architect_review', { outcome: 'blocked', blocker: { summary: 'Cannot review.', source_step_id: 'architect_review', needed: 'Diff.' } }],
+    ['backend_review', { outcome: 'blocked', blocker: { summary: 'Cannot review.', source_step_id: 'backend_review', needed: 'Diff.' } }],
+    ['frontend_review', { outcome: 'blocked', blocker: { summary: 'Cannot review.', source_step_id: 'frontend_review', needed: 'Diff.' } }],
+    ['frontend_taste_review', { outcome: 'blocked', blocker: { summary: 'Cannot review.', source_step_id: 'frontend_taste_review', needed: 'Rendered surface.' } }],
+    ['security_review', { outcome: 'blocked', blocker: { summary: 'Cannot review.', source_step_id: 'security_review', needed: 'Trust boundary.' } }],
+    ['privacy_review', { outcome: 'blocked', blocker: { summary: 'Cannot review.', source_step_id: 'privacy_review', needed: 'Data flow.' } }],
+    ['qa_review', { outcome: 'blocked', blocker: { summary: 'Cannot review.', source_step_id: 'qa_review', needed: 'Verification evidence.' } }],
+    ['review_join', { outcome: 'blocked', next: 'blocked', blocker: { summary: 'Join blocked.', source_step_id: 'review_join', needed: 'All review outputs.' } }],
+  ];
+
+  for (const [stepId, output] of blockedCases) {
+    const result = validateAgainstOutputSchema({
+      workflow: workflowDoc,
+      workflowPath,
+      schemaRef: workflowDoc.steps[stepId].output.schema,
+      repositoryRoot: REPO_ROOT,
+      output,
+    });
+    assert.equal(result.ok, true, `${stepId} should accept blocked output without success payloads: ${result.errors}`);
+  }
+});
+
+
+
+test('dev harness planning draft always requires selected review steps', () => {
+  const workflowPath = path.join(REPO_ROOT, 'workflows/dev-harness/workflow.json');
+  const result = validateAgainstOutputSchema({
+    workflow: workflowDoc,
+    workflowPath,
+    schemaRef: workflowDoc.steps.planning_draft.output.schema,
+    repositoryRoot: REPO_ROOT,
+    output: { outcome: 'blocked', blocker: { summary: 'Cannot plan.', source_step_id: 'planning_draft', needed: 'Approved scope.' } },
+  });
+
+  assert.equal(result.ok, false);
+  assert.match(result.errors, /selected_review_steps/);
+});
+
+
+test('dev harness review join schema keeps outcome and next route consistent', () => {
+  const workflowPath = path.join(REPO_ROOT, 'workflows/dev-harness/workflow.json');
+  const schemaContext = {
+    workflow: workflowDoc,
+    workflowPath,
+    schemaRef: workflowDoc.steps.review_join.output.schema,
+    repositoryRoot: REPO_ROOT,
+  };
+  const passedVerdict = {
+    summary: ['Joined review.'],
+    selected_review_steps: ['backend_review'],
+    failed_review_steps: [],
+  };
+  const needsChangesVerdict = {
+    ...passedVerdict,
+    failed_review_steps: ['backend_review'],
+    required_implementation_steps: ['backend_implementation'],
+  };
+  const needsChangesWithoutTargets = {
+    ...passedVerdict,
+    failed_review_steps: ['backend_review'],
+  };
+  const needsChangesWithEmptyTargets = {
+    ...needsChangesWithoutTargets,
+    required_implementation_steps: [],
+  };
+
+  assert.equal(validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'needs_changes', verdict: needsChangesVerdict, next: ['backend_implementation'] } }).ok, true);
+  assert.equal(validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'needs_changes', verdict: needsChangesWithoutTargets, next: ['backend_implementation'] } }).ok, false);
+  assert.equal(validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'needs_changes', verdict: needsChangesWithEmptyTargets, next: ['backend_implementation'] } }).ok, false);
+  assert.equal(validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'needs_changes', verdict: needsChangesVerdict, next: 'done' } }).ok, false);
+  assert.equal(validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'passed', verdict: passedVerdict, next: ['backend_implementation'] } }).ok, false);
+  assert.equal(validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'passed', verdict: passedVerdict, next: 'done' } }).ok, true);
+  assert.equal(validateAgainstOutputSchema({
+    ...schemaContext,
+    output: { outcome: 'blocked', blocker: { summary: 'Blocked.', source_step_id: 'review_join', needed: 'Missing review.' }, next: ['backend_implementation'] },
+  }).ok, false);
+  assert.equal(validateAgainstOutputSchema({
+    ...schemaContext,
+    output: { outcome: 'blocked', blocker: { summary: 'Blocked.', source_step_id: 'review_join', needed: 'Missing review.' }, next: 'blocked' },
+  }).ok, true);
+});
+
+test('dev harness review gates reject needs_changes without a rework target', () => {
+  const workflowPath = path.join(REPO_ROOT, 'workflows/dev-harness/workflow.json');
+  const output = {
+    outcome: 'needs_changes',
+    verdict: { summary: ['Needs work.'], evidence_checked: ['diff'], findings: [{ summary: 'Bug.' }] },
+    required_implementation_steps: [],
+  };
+
+  const result = validateAgainstOutputSchema({
+    workflow: workflowDoc,
+    workflowPath,
+    schemaRef: workflowDoc.steps.backend_review.output.schema,
+    repositoryRoot: REPO_ROOT,
+    output,
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.errors, /required_implementation_steps/);
+});
+
+test('dev harness success outputs still require their success payloads', () => {
+  const workflowPath = path.join(REPO_ROOT, 'workflows/dev-harness/workflow.json');
+  for (const [stepId, output, missingField] of [
+    ['research_draft', { outcome: 'ready_for_attack' }, 'research_packet'],
+    ['planning_draft', { outcome: 'ready_for_attack' }, 'implementation_plan'],
+    ['implementation_join', { outcome: 'ready_for_review' }, 'reviewer_handoff'],
+    ['review_join', { outcome: 'passed' }, 'verdict'],
+  ]) {
+    const result = validateAgainstOutputSchema({
+      workflow: workflowDoc,
+      workflowPath,
+      schemaRef: workflowDoc.steps[stepId].output.schema,
+      repositoryRoot: REPO_ROOT,
+      output,
+    });
+    assert.equal(result.ok, false, `${stepId} should reject success without ${missingField}`);
+    assert.match(result.errors, new RegExp(missingField));
+  }
+});
+
 test('workflow semantic validation rejects invalid worker roles in generic workflows', () => {
   const doc = genericWorkflowWithWorkerRole('missing-workflow-role');
 

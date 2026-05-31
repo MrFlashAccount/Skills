@@ -4,7 +4,6 @@
   "type": "object",
   "required": [
     "outcome",
-    "verdict",
     "next"
   ],
   "properties": {
@@ -22,8 +21,7 @@
       "required": [
         "summary",
         "selected_review_steps",
-        "failed_review_steps",
-        "required_implementation_steps"
+        "failed_review_steps"
       ],
       "properties": {
         "summary": {
@@ -177,5 +175,288 @@
   },
   "additionalProperties": false,
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/dev-harness/review-join-output"
+  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/dev-harness/review-join-output",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "passed"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "verdict",
+          "next"
+        ],
+        "properties": {
+          "next": {
+            "const": "done"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "needs_changes"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "verdict",
+          "next"
+        ],
+        "properties": {
+          "verdict": {
+            "type": "object",
+            "required": [
+              "required_implementation_steps"
+            ],
+            "properties": {
+              "required_implementation_steps": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          },
+          "next": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "backend_implementation",
+                "frontend_implementation",
+                "architecture_artifact_update"
+              ]
+            }
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "required": [
+                "verdict"
+              ],
+              "properties": {
+                "verdict": {
+                  "type": "object",
+                  "required": [
+                    "required_implementation_steps"
+                  ],
+                  "properties": {
+                    "required_implementation_steps": {
+                      "contains": {
+                        "const": "backend_implementation"
+                      },
+                      "type": "array"
+                    }
+                  }
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "next": {
+                  "contains": {
+                    "const": "backend_implementation"
+                  },
+                  "type": "array"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "next"
+              ],
+              "properties": {
+                "next": {
+                  "contains": {
+                    "const": "backend_implementation"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "verdict": {
+                  "type": "object",
+                  "properties": {
+                    "required_implementation_steps": {
+                      "contains": {
+                        "const": "backend_implementation"
+                      },
+                      "type": "array"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "verdict"
+              ],
+              "properties": {
+                "verdict": {
+                  "type": "object",
+                  "required": [
+                    "required_implementation_steps"
+                  ],
+                  "properties": {
+                    "required_implementation_steps": {
+                      "contains": {
+                        "const": "frontend_implementation"
+                      },
+                      "type": "array"
+                    }
+                  }
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "next": {
+                  "contains": {
+                    "const": "frontend_implementation"
+                  },
+                  "type": "array"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "next"
+              ],
+              "properties": {
+                "next": {
+                  "contains": {
+                    "const": "frontend_implementation"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "verdict": {
+                  "type": "object",
+                  "properties": {
+                    "required_implementation_steps": {
+                      "contains": {
+                        "const": "frontend_implementation"
+                      },
+                      "type": "array"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "verdict"
+              ],
+              "properties": {
+                "verdict": {
+                  "type": "object",
+                  "required": [
+                    "required_implementation_steps"
+                  ],
+                  "properties": {
+                    "required_implementation_steps": {
+                      "contains": {
+                        "const": "architecture_artifact_update"
+                      },
+                      "type": "array"
+                    }
+                  }
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "next": {
+                  "contains": {
+                    "const": "architecture_artifact_update"
+                  },
+                  "type": "array"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "next"
+              ],
+              "properties": {
+                "next": {
+                  "contains": {
+                    "const": "architecture_artifact_update"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "verdict": {
+                  "type": "object",
+                  "properties": {
+                    "required_implementation_steps": {
+                      "contains": {
+                        "const": "architecture_artifact_update"
+                      },
+                      "type": "array"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "blocked"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "blocker",
+          "next"
+        ],
+        "properties": {
+          "next": {
+            "const": "blocked"
+          }
+        }
+      }
+    }
+  ]
 }

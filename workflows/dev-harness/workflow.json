@@ -10,7 +10,12 @@
       "kind": "worker",
       "input": {
         "role": "researcher",
-        "prompt": "Read the task context, gather local/project evidence, identify constraints, risks, open questions, and architecture-sensitive pressure. Return outcome ready_for_attack when the research_packet is ready, or blocked with blocker.source_step_id = research_draft when implementation-critical input is missing."
+        "prompt": "Read the task context, gather local/project evidence, identify constraints, risks, open questions, and architecture-sensitive pressure. Return outcome ready_for_attack when the research_packet is ready, or blocked with blocker.source_step_id = research_draft when implementation-critical input is missing. When revising after research_attack feedback or approve_research rejection, read projected feedback from input.research_attack and input.approve_research and address it explicitly while preserving approved constraints.",
+        "state": [
+          "research_draft",
+          "research_attack",
+          "approve_research"
+        ]
       },
       "output": {
         "template": "../../shared/templates/research-packet-template.md",
@@ -73,9 +78,12 @@
         "role": "architect",
         "state": [
           "research_draft",
-          "research_attack"
+          "research_attack",
+          "architecture_draft",
+          "architecture_attack",
+          "approve_architecture"
         ],
-        "prompt": "Produce the minimal architecture decision or structural contract required by the approved research. If architecture work is not needed, record the explicit no-artifact decision in architecture_contract. Return ready_for_attack or blocked with blocker.source_step_id = architecture_draft."
+        "prompt": "Produce the minimal architecture decision or structural contract required by the approved research. If architecture work is not needed, record the explicit no-artifact decision in architecture_contract. Return ready_for_attack or blocked with blocker.source_step_id = architecture_draft. When revising after architecture_attack feedback or approve_architecture rejection, read projected feedback from input.architecture_attack and input.approve_architecture and address it explicitly while preserving approved research constraints."
       },
       "output": {
         "template": "../../shared/templates/architecture-proposal-template.md",
@@ -140,9 +148,12 @@
         "state": [
           "research_draft",
           "architecture_draft",
-          "architecture_attack"
+          "architecture_attack",
+          "planning_draft",
+          "planning_attack",
+          "approve_plan"
         ],
-        "prompt": "Produce the implementation plan contract for approval from approved research and architecture. The step id remains planning_draft for compatibility, but once approve_plan approves this output, downstream steps must treat it as the final approved plan contract. selected_implementation_steps must contain only unique canonical implementation step ids needed for the plan: backend_implementation, frontend_implementation, architecture_artifact_update. implementation_route must be the normalized route for exactly that unique selected set: backend, frontend, architecture, backend_frontend, backend_architecture, frontend_architecture, or all. Collapse overlapping same-role work into one canonical task; do not create duplicate backend/frontend/architecture workers. If duplicate same-role work cannot be safely collapsed, return blocked with blocker.source_step_id = planning_draft. selected_review_steps must explicitly contain the unique reviewers that must run after implementation; implementation_join must not invent or recompute reviewers. Keep review_plan.reviewers aligned with selected_review_steps. Return ready_for_attack or blocked with blocker.source_step_id = planning_draft."
+        "prompt": "Produce the implementation plan contract for approval from approved research and architecture. The step id remains planning_draft for compatibility, but once approve_plan approves this output, downstream steps must treat it as the final approved plan contract. selected_implementation_steps must contain only unique canonical implementation step ids needed for the plan: backend_implementation, frontend_implementation, architecture_artifact_update. implementation_route must be the normalized route for exactly that unique selected set: backend, frontend, architecture, backend_frontend, backend_architecture, frontend_architecture, or all. Collapse overlapping same-role work into one canonical task; do not create duplicate backend/frontend/architecture workers. If duplicate same-role work cannot be safely collapsed, return blocked with blocker.source_step_id = planning_draft. selected_review_steps must explicitly contain the unique reviewers that must run after implementation; implementation_join must not invent or recompute reviewers. Keep review_plan.reviewers aligned with selected_review_steps. Return ready_for_attack or blocked with blocker.source_step_id = planning_draft. When revising after planning_attack feedback or approve_plan rejection, read projected feedback from input.planning_attack and input.approve_plan and address it explicitly while preserving approved research and architecture constraints."
       },
       "output": {
         "template": "../../shared/templates/implementation-plan-template.md",
@@ -251,9 +262,17 @@
         "role": "backend",
         "state": [
           "planning_draft",
-          "implementation_dispatch"
+          "implementation_dispatch",
+          "review_join",
+          "architect_review",
+          "backend_review",
+          "frontend_review",
+          "frontend_taste_review",
+          "security_review",
+          "privacy_review",
+          "qa_review"
         ],
-        "prompt": "Implement only the backend slice selected in the approved plan contract planning_draft.selected_implementation_steps. This workflow supports at most one backend_implementation worker; handle all backend work for the approved plan here and do not spawn duplicate backend workers. Read prior step outputs from projected input.<step_id> fields only; do not rely on artifacts/results globals. Preserve frozen research, architecture, execution plan, and user constraints. Return implemented or blocked with blocker.source_step_id = backend_implementation."
+        "prompt": "Implement only the backend slice selected in the approved plan contract planning_draft.selected_implementation_steps. This workflow supports at most one backend_implementation worker; handle all backend work for the approved plan here and do not spawn duplicate backend workers. Read prior step outputs from projected input.<step_id> fields only; do not rely on artifacts/results globals. Preserve frozen research, architecture, execution plan, and user constraints. Return implemented or blocked with blocker.source_step_id = backend_implementation. When rerun from review_join needs_changes, read projected input.review_join and reviewer outputs, apply only the required changes for this step, and preserve all approved contracts."
       },
       "output": {
         "template": "../../shared/templates/implementer-handoff-template.md",
@@ -268,9 +287,17 @@
         "role": "frontend",
         "state": [
           "planning_draft",
-          "implementation_dispatch"
+          "implementation_dispatch",
+          "review_join",
+          "architect_review",
+          "backend_review",
+          "frontend_review",
+          "frontend_taste_review",
+          "security_review",
+          "privacy_review",
+          "qa_review"
         ],
-        "prompt": "Implement only the frontend slice selected in the approved plan contract planning_draft.selected_implementation_steps. This workflow supports at most one frontend_implementation worker; handle all frontend work for the approved plan here and do not spawn duplicate frontend workers. Read prior step outputs from projected input.<step_id> fields only; do not rely on artifacts/results globals. Preserve frozen research, architecture, execution plan, and user constraints. Return implemented or blocked with blocker.source_step_id = frontend_implementation."
+        "prompt": "Implement only the frontend slice selected in the approved plan contract planning_draft.selected_implementation_steps. This workflow supports at most one frontend_implementation worker; handle all frontend work for the approved plan here and do not spawn duplicate frontend workers. Read prior step outputs from projected input.<step_id> fields only; do not rely on artifacts/results globals. Preserve frozen research, architecture, execution plan, and user constraints. Return implemented or blocked with blocker.source_step_id = frontend_implementation. When rerun from review_join needs_changes, read projected input.review_join and reviewer outputs, apply only the required changes for this step, and preserve all approved contracts."
       },
       "output": {
         "template": "../../shared/templates/implementer-handoff-template.md",
@@ -285,9 +312,17 @@
         "role": "architect",
         "state": [
           "planning_draft",
-          "implementation_dispatch"
+          "implementation_dispatch",
+          "review_join",
+          "architect_review",
+          "backend_review",
+          "frontend_review",
+          "frontend_taste_review",
+          "security_review",
+          "privacy_review",
+          "qa_review"
         ],
-        "prompt": "Update only approved architecture artifacts or architecture handoff notes selected in the approved plan contract planning_draft.selected_implementation_steps. This workflow supports at most one architecture_artifact_update worker; collapse all approved architecture artifact work into this step. Do not redesign. Read prior step outputs from projected input.<step_id> fields only. Return implemented or blocked with blocker.source_step_id = architecture_artifact_update."
+        "prompt": "Update only approved architecture artifacts or architecture handoff notes selected in the approved plan contract planning_draft.selected_implementation_steps. This workflow supports at most one architecture_artifact_update worker; collapse all approved architecture artifact work into this step. Do not redesign. Read prior step outputs from projected input.<step_id> fields only. Return implemented or blocked with blocker.source_step_id = architecture_artifact_update. When rerun from review_join needs_changes, read projected input.review_join and reviewer outputs, apply only the required changes for this step, and preserve all approved contracts."
       },
       "output": {
         "template": "../../shared/templates/implementer-handoff-template.md",
@@ -342,13 +377,16 @@
         "role": "architect",
         "state": [
           "planning_draft",
+          "architecture_draft",
+          "architecture_attack",
+          "approve_architecture",
           "implementation_join",
           "review_dispatch",
           "backend_implementation",
           "frontend_implementation",
           "architecture_artifact_update"
         ],
-        "prompt": "Review implementation against approved architecture decision, ownership seams, dependency direction, compatibility surfaces, and artifact obligations. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = architect_review."
+        "prompt": "Review implementation against approved architecture decision, ownership seams, dependency direction, compatibility surfaces, and artifact obligations. Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = architect_review. Read projected architecture_draft, architecture_attack, and approve_architecture when present; fail on drift between the approved architecture contract and implementation/review evidence."
       },
       "output": {
         "template": "../../shared/templates/review-verdict-template.md",

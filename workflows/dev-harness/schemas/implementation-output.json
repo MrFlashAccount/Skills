@@ -3,10 +3,7 @@
   "description": "Producer output contract for a DevHarness implementation worker after applying its assigned slice.",
   "type": "object",
   "required": [
-    "outcome",
-    "implementation_handoff",
-    "changed_files",
-    "verification"
+    "outcome"
   ],
   "properties": {
     "outcome": {
@@ -153,5 +150,43 @@
   },
   "additionalProperties": false,
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/dev-harness/implementation-output"
+  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/dev-harness/implementation-output",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "implemented"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "implementation_handoff",
+          "changed_files",
+          "verification"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "blocked"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "blocker"
+        ]
+      }
+    }
+  ]
 }

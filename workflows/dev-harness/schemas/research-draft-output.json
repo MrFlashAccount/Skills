@@ -3,8 +3,7 @@
   "description": "Producer output contract for the DevHarness research draft gate before critic attack.",
   "type": "object",
   "required": [
-    "outcome",
-    "research_packet"
+    "outcome"
   ],
   "properties": {
     "outcome": {
@@ -143,5 +142,41 @@
   },
   "additionalProperties": false,
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/dev-harness/research-draft-output"
+  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/dev-harness/research-draft-output",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "ready_for_attack"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "research_packet"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "blocked"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "blocker"
+        ]
+      }
+    }
+  ]
 }
