@@ -66,17 +66,46 @@ function parseOutputRef(ref) {
   return { stepId, path: text.slice(separator + 1) };
 }
 
-function outputPathForRequest(request, outputRefs, { requireNamed = false } = {}) {
-  if (outputRefs.length === 0) throw new Error(`missing host output for workflow step ${request.id}`);
-  const parsed = outputRefs.map(parseOutputRef);
+function requestAliases(request) {
+  return [request.id, request.stepId].filter((value, index, values) => typeof value === 'string' && value.length > 0 && values.indexOf(value) === index);
+}
+
+function requestIdForOutputStepId(requests, stepId) {
+  for (const request of requests) {
+    if (requestAliases(request).includes(stepId)) return request.id;
+  }
+  return undefined;
+}
+
+function assertNamedOutputRefsMatchRequests(parsed, requests) {
   const named = parsed.filter((candidate) => candidate.stepId);
+  if (named.length === 0) return;
+  if (named.length !== parsed.length) throw new Error('host outputs must not mix named and unnamed --output refs');
+
+  const seenStepIds = new Set();
+  const seenRequestIds = new Set();
+  for (const candidate of named) {
+    if (seenStepIds.has(candidate.stepId)) throw new Error(`duplicate host output for workflow step ${candidate.stepId}`);
+    seenStepIds.add(candidate.stepId);
+
+    const requestId = requestIdForOutputStepId(requests, candidate.stepId);
+    if (!requestId) throw new Error(`unknown host output for workflow step ${candidate.stepId}`);
+    if (seenRequestIds.has(requestId)) throw new Error(`duplicate host output for workflow step ${requestId}`);
+    seenRequestIds.add(requestId);
+  }
+}
+
+function outputPathForRequest(request, parsedOutputRefs, { requireNamed = false } = {}) {
+  if (parsedOutputRefs.length === 0) throw new Error(`missing host output for workflow step ${request.id}`);
+  const named = parsedOutputRefs.filter((candidate) => candidate.stepId);
   if (requireNamed && named.length === 0) throw new Error('parallel host outputs must use --output <step-id>=<path> for each requested step');
   if (named.length > 0) {
-    const match = named.find((candidate) => candidate.stepId === request.id || candidate.stepId === request.stepId);
+    const aliases = requestAliases(request);
+    const match = named.find((candidate) => aliases.includes(candidate.stepId));
     if (!match?.path) throw new Error(`missing host output for workflow step ${request.id}`);
     return match.path;
   }
-  if (outputRefs.length === 1) return parsed[0].path;
+  if (parsedOutputRefs.length === 1) return parsedOutputRefs[0].path;
   throw new Error('parallel host outputs must use --output <step-id>=<path> for each requested step');
 }
 
@@ -90,9 +119,12 @@ async function outputForCurrentState(paths, outputRefs = []) {
   const stepIdForRequest = (request) => request.stepId ?? request.id;
   const isPreparedParallelContinuation = requests.some((request) => stepIdForRequest(request) !== lastResponse.baton?.cursor);
   const requireNamedParallelOutputs = requests.length > 1 && isPreparedParallelContinuation;
+  const parsedOutputRefs = outputRefs.map(parseOutputRef);
+  assertNamedOutputRefsMatchRequests(parsedOutputRefs, requests);
+
   const pathsByRequestId = new Map();
   for (const request of requests) {
-    const outputPath = outputPathForRequest(request, outputRefs, { requireNamed: requireNamedParallelOutputs });
+    const outputPath = outputPathForRequest(request, parsedOutputRefs, { requireNamed: requireNamedParallelOutputs });
     pathsByRequestId.set(request.id, outputPath);
     if (!(await pathExists(outputPath))) missing.push(outputPath);
   }

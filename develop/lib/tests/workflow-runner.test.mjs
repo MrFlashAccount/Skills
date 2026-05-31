@@ -1031,6 +1031,78 @@ test('runner: continue rejects one unnamed output for multiple parallel branches
   assert.equal(Object.hasOwn(baton.state, 'branch_b'), false);
 });
 
+test('runner: continue rejects unknown named output for parallel branches without advancing', () => {
+  const runDir = path.join(tempDir, 'parallel-unknown-named-output-rejected');
+  const workflowPath = path.join(tempDir, 'parallel-unknown-named-output-rejected-workflow.json');
+  writeJson(workflowPath, workflowDoc);
+
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next parallel unknown output setup');
+  const prepareOutput = path.join(runDir, 'prepare-output.json');
+  writeJson(prepareOutput, workerOutput('prepared'));
+  expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', prepareOutput], 'continue prepare unknown output setup');
+  const batonBefore = readFileSync(path.join(runDir, 'baton.json'), 'utf8');
+
+  const branchA = path.join(runDir, 'branch-a-output.json');
+  const branchB = path.join(runDir, 'branch-b-output.json');
+  const ghost = path.join(runDir, 'ghost-output.json');
+  writeJson(branchA, workerOutput('branch a complete'));
+  writeJson(branchB, workerOutput('branch b complete'));
+  writeJson(ghost, workerOutput('ghost should be rejected'));
+  const result = runRunner([
+    'continue',
+    '--run-dir',
+    runDir,
+    '--workflow',
+    workflowPath,
+    '--output',
+    `branch_a=${branchA}`,
+    '--output',
+    `branch_b=${branchB}`,
+    '--output',
+    `ghost=${ghost}`,
+  ]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /unknown host output for workflow step ghost/);
+  assert.equal(readFileSync(path.join(runDir, 'baton.json'), 'utf8'), batonBefore);
+});
+
+test('runner: continue rejects duplicate named output for parallel branches without advancing', () => {
+  const runDir = path.join(tempDir, 'parallel-duplicate-named-output-rejected');
+  const workflowPath = path.join(tempDir, 'parallel-duplicate-named-output-rejected-workflow.json');
+  writeJson(workflowPath, workflowDoc);
+
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next parallel duplicate output setup');
+  const prepareOutput = path.join(runDir, 'prepare-output.json');
+  writeJson(prepareOutput, workerOutput('prepared'));
+  expectRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', prepareOutput], 'continue prepare duplicate output setup');
+  const batonBefore = readFileSync(path.join(runDir, 'baton.json'), 'utf8');
+
+  const branchA = path.join(runDir, 'branch-a-output.json');
+  const branchADuplicate = path.join(runDir, 'branch-a-duplicate-output.json');
+  const branchB = path.join(runDir, 'branch-b-output.json');
+  writeJson(branchA, workerOutput('branch a complete'));
+  writeJson(branchADuplicate, workerOutput('duplicate branch a should be rejected'));
+  writeJson(branchB, workerOutput('branch b complete'));
+  const result = runRunner([
+    'continue',
+    '--run-dir',
+    runDir,
+    '--workflow',
+    workflowPath,
+    '--output',
+    `branch_a=${branchA}`,
+    '--output',
+    `branch_a=${branchADuplicate}`,
+    '--output',
+    `branch_b=${branchB}`,
+  ]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /duplicate host output for workflow step branch_a/);
+  assert.equal(readFileSync(path.join(runDir, 'baton.json'), 'utf8'), batonBefore);
+});
+
 test('runner: dynamic parallel with one branch still applies branch output as parallel envelope', () => {
   const runDir = path.join(tempDir, 'dynamic-single-branch-parallel');
   const workflowPath = path.join(tempDir, 'dynamic-single-branch-parallel-workflow.json');
@@ -1287,6 +1359,29 @@ test('runner: continue recovers from post-render durable commit failure without 
     assert.equal(baton.state.prepare.results[0].summary, `prepared after durable ${failurePoint} retry`);
     assert.match(readFileSync(path.join(runDir, 'history.md'), 'utf8'), /prepare-result\.json/);
   }
+});
+
+test('runner: durable commit recovery rejects symlinked history without reading outside target', () => {
+  const runDir = path.join(tempDir, 'durable-commit-history-symlink-escape');
+  const workflowPath = path.join(tempDir, 'durable-commit-history-symlink-escape-workflow.json');
+  const singleWorkflow = structuredClone(workflowDoc);
+  singleWorkflow.steps.prepare.next = 'done';
+  writeJson(workflowPath, singleWorkflow);
+
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next durable history symlink escape setup');
+  const outsideSecret = path.join(tempDir, 'durable-commit-history-outside-secret.txt');
+  writeFileSync(outsideSecret, 'outside secret must not be read or overwritten\n');
+  rmSync(path.join(runDir, 'history.md'), { force: true });
+  symlinkSync(outsideSecret, path.join(runDir, 'history.md'), 'file');
+  const outputPath = path.join(runDir, 'prepare-result.json');
+  writeJson(outputPath, workerOutput('prepared'));
+
+  const result = runRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', outputPath]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /workflow history.*symlink|symlink.*history/);
+  assert.equal(readFileSync(outsideSecret, 'utf8'), 'outside secret must not be read or overwritten\n');
+  assert.equal(existsSync(path.join(runDir, '.workflow-runner', 'durable-commit.json')), false);
 });
 
 test('runner: durable commit recovery rejects instruction paths outside instructions dir', () => {

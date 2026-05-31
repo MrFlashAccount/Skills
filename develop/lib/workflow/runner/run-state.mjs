@@ -51,7 +51,17 @@ export async function readJson(path, name) {
   }
 }
 
+async function assertManagedFileIsNotSymlink(path, name = 'workflow run-state file') {
+  try {
+    if ((await lstat(path)).isSymbolicLink()) throw new Error(`${name} is unsafe because it is a symlink: ${path}`);
+  } catch (error) {
+    if (error?.code === 'ENOENT') return;
+    throw error;
+  }
+}
+
 async function createFileIfMissing(path, content) {
+  await assertManagedFileIsNotSymlink(path);
   let handle;
   try {
     handle = await open(path, 'wx', 0o600);
@@ -59,7 +69,10 @@ async function createFileIfMissing(path, content) {
     await handle.sync();
     return true;
   } catch (error) {
-    if (error?.code === 'EEXIST') return false;
+    if (error?.code === 'EEXIST') {
+      await assertManagedFileIsNotSymlink(path);
+      return false;
+    }
     throw error;
   } finally {
     if (handle) await handle.close();
@@ -78,6 +91,7 @@ export async function ensureRunFiles(paths, { userPrompt } = {}) {
   await mkdir(paths.instructionsDir, { recursive: true });
 
   const batonExists = await exists(paths.batonPath);
+  if (batonExists) await assertManagedFileIsNotSymlink(paths.batonPath, 'workflow baton');
   if (!batonExists) {
     const workflowDoc = await readJson(paths.workflowPath, 'workflow');
     const start = workflowStart(workflowDoc, paths.workflowPath);
@@ -128,6 +142,7 @@ export async function withContinueRunLock(paths, callback) {
 }
 
 export async function writeJsonAtomic(path, value) {
+  await assertManagedFileIsNotSymlink(path);
   await mkdir(dirname(path), { recursive: true });
   const tempPath = join(dirname(path), `.${basename(path)}.${process.pid}.${Date.now()}.tmp`);
   const handle = await open(tempPath, 'wx', 0o600);
@@ -147,6 +162,7 @@ export async function writeJsonAtomic(path, value) {
 }
 
 export async function writeTextAtomic(path, value) {
+  await assertManagedFileIsNotSymlink(path);
   await mkdir(dirname(path), { recursive: true });
   const tempPath = join(dirname(path), `.${basename(path)}.${process.pid}.${Date.now()}.tmp`);
   const handle = await open(tempPath, 'wx', 0o600);
@@ -167,6 +183,7 @@ export async function writeTextAtomic(path, value) {
 
 export async function readText(path, name) {
   try {
+    await assertManagedFileIsNotSymlink(path, name);
     return await readFile(path, 'utf8');
   } catch (error) {
     throw new Error(`cannot read ${name} from ${path}: ${error.message}`);
@@ -234,6 +251,7 @@ async function validateInstructionCommit(paths, instructions) {
 
 async function readTextIfExists(path) {
   try {
+    await assertManagedFileIsNotSymlink(path);
     return { exists: true, content: await readFile(path, 'utf8') };
   } catch (error) {
     if (error?.code === 'ENOENT') return { exists: false, content: undefined };
@@ -242,6 +260,7 @@ async function readTextIfExists(path) {
 }
 
 async function restoreTextSnapshot(path, snapshot) {
+  await assertManagedFileIsNotSymlink(path);
   if (snapshot.exists) await writeTextAtomic(path, snapshot.content);
   else await rm(path, { force: true });
 }
@@ -266,6 +285,7 @@ async function restoreDurableTargets(paths, snapshot) {
 
 export async function recoverDurableCommit(paths) {
   if (!(await exists(paths.durableCommitPath))) return false;
+  await assertManagedFileIsNotSymlink(paths.durableCommitPath, 'pending durable workflow commit');
   const commit = await readJson(paths.durableCommitPath, 'pending durable workflow commit');
   if (commit?.version !== 1) throw new Error(`unsupported durable workflow commit version in ${paths.durableCommitPath}`);
   await validateInstructionCommit(paths, commit.instructions);
@@ -304,6 +324,7 @@ export async function commitDurableRunState(paths, { response, baton, instructio
 }
 
 export async function appendHistory(paths, entry) {
+  await assertManagedFileIsNotSymlink(paths.historyPath, 'workflow history');
   const handle = await open(paths.historyPath, 'a', 0o600);
   try {
     await handle.writeFile(historyEntry(entry), 'utf8');

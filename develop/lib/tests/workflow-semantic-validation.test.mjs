@@ -285,6 +285,20 @@ test('workflow semantic validation rejects step ids reserved for baton state boo
   }
 });
 
+test('workflow semantic validation rejects step ids unsafe as JavaScript object keys', () => {
+  for (const reservedStepId of ['prototype', 'constructor']) {
+    const doc = genericWorkflowWithWorkerRole('backend');
+    doc.start = reservedStepId;
+    doc.steps[reservedStepId] = {
+      ...doc.steps.worker_step,
+      name: `Reserved ${reservedStepId}`,
+    };
+    delete doc.steps.worker_step;
+
+    assertSemanticFailure(doc, new RegExp(`workflow step id '${reservedStepId}'.*unsafe as a JavaScript object key`));
+  }
+});
+
 test('workflow semantic validation warns when DevHarness described fields lack x-usage', () => {
   const doc = structuredClone(workflowDoc);
   cpSync(path.join(REPO_ROOT, 'develop/lib/tests/fixtures/research-draft-missing-x-usage.schema.json'), path.join(tempDir, 'schemas/research-draft-missing-x-usage.schema.json'));
@@ -295,6 +309,63 @@ test('workflow semantic validation warns when DevHarness described fields lack x
   assert.equal(result.ok, true);
   assert.equal(result.warnings.length, 1);
   assert.match(result.warnings[0], /research_packet\.scope.*no x-usage/);
+});
+
+test('workflow semantic validation rejects optional output paths used for routing expressions', () => {
+  writeSchema('optional-route-output.schema.json', {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome'],
+    properties: {
+      outcome: { enum: ['ready', 'blocked'] },
+      route: { enum: ['done', 'blocked'] },
+    },
+    additionalProperties: false,
+  });
+
+  assertSemanticFailure(
+    syntheticWorkflow((draft) => {
+      draft.steps.producer.output.schema = 'optional-route-output.schema.json';
+      draft.steps.producer.next = '${{ output.route }}';
+      return draft;
+    }),
+    /producer.*next expression \$\{\{ output\.route \}\}.*required output\.schema path/,
+  );
+});
+
+test('workflow semantic validation rejects worker output schemas that do not require string outcome', () => {
+  writeSchema('missing-outcome-output.schema.json', {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['summary'],
+    properties: { summary: { type: 'string' } },
+    additionalProperties: false,
+  });
+  writeSchema('numeric-outcome-output.schema.json', {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome'],
+    properties: { outcome: { enum: ['ready', 1] } },
+    additionalProperties: false,
+  });
+
+  assertSemanticFailure(
+    syntheticWorkflow((draft) => {
+      draft.steps.producer.output.schema = 'missing-outcome-output.schema.json';
+      draft.steps.producer.next = 'done';
+      return draft;
+    }),
+    /producer.*output\.schema must require string field 'outcome'/,
+  );
+
+  assertSemanticFailure(
+    syntheticWorkflow((draft) => {
+      draft.steps.producer.output.schema = 'numeric-outcome-output.schema.json';
+      draft.steps.producer.next = 'done';
+      return draft;
+    }),
+    /producer.*output\.schema field 'outcome' must allow only strings/,
+  );
 });
 
 test('workflow semantic validation rejects schema-declared dynamic targets that are not workflow steps', () => {
@@ -344,6 +415,52 @@ test('workflow semantic validation accepts input.state selectors that reference 
   assert.deepEqual(validateSynthetic(doc), { ok: true, workflow: 'synthetic-validation-fixture', steps: 8 });
 });
 
+test('workflow semantic validation rejects optional input paths used for dynamic routing expressions', () => {
+  writeSchema('optional-input-route-output.schema.json', {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome'],
+    properties: {
+      outcome: { enum: ['ready'] },
+      route: { enum: ['done'] },
+    },
+    additionalProperties: false,
+  });
+
+  assertSemanticFailure(
+    syntheticWorkflow((draft) => {
+      draft.steps.producer.output.schema = 'optional-input-route-output.schema.json';
+      draft.steps.producer.next = 'consumer';
+      draft.steps.consumer.next = '${{ input.producer.route }}';
+      return draft;
+    }),
+    /consumer.*next expression \$\{\{ input\.producer\.route \}\}.*required output\.schema path/,
+  );
+});
+
+test('workflow semantic validation rejects optional input paths used for match routing expressions', () => {
+  writeSchema('optional-input-match-output.schema.json', {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome'],
+    properties: {
+      outcome: { enum: ['ready'] },
+      route: { enum: ['done', 'blocked'] },
+    },
+    additionalProperties: false,
+  });
+
+  assertSemanticFailure(
+    syntheticWorkflow((draft) => {
+      draft.steps.producer.output.schema = 'optional-input-match-output.schema.json';
+      draft.steps.producer.next = 'consumer';
+      draft.steps.consumer.next = { match: '${{ input.producer.route }}', cases: { done: 'done', blocked: 'blocked' } };
+      return draft;
+    }),
+    /consumer.*next\.match expression \$\{\{ input\.producer\.route \}\}.*required output\.schema path/,
+  );
+});
+
 test('workflow semantic validation accepts input expressions against projected input.state selectors', () => {
   const doc = syntheticWorkflow((draft) => {
     draft.steps.consumer.input = { state: ['producer', 'branch_a'] };
@@ -355,7 +472,7 @@ test('workflow semantic validation accepts input expressions against projected i
 });
 
 test('workflow semantic validation rejects input.state selectors that do not name own workflow step ids', () => {
-  for (const selector of ['missing_step', '__proto__', 'toString']) {
+  for (const selector of ['missing_step', 'toString']) {
     assertSemanticFailure(
       syntheticWorkflow((draft) => {
         draft.steps.consumer.input.state = [selector];
@@ -371,6 +488,15 @@ test('workflow semantic validation rejects input.state selectors that do not nam
       return draft;
     }),
     /consumer.*input\.state selector 'artifacts'.*reserved for runtime aggregate state/,
+  );
+
+
+  assertSemanticFailure(
+    syntheticWorkflow((draft) => {
+      draft.steps.consumer.input.state = ['__proto__'];
+      return draft;
+    }),
+    /consumer.*input\.state selector '__proto__'.*unsafe as a JavaScript object key/,
   );
 });
 
@@ -438,6 +564,28 @@ test('workflow semantic validation rejects unsafe dynamic array target schemas',
       return draft;
     }),
     /producer.*output\.next_steps.*target not found: missing_branch/,
+  );
+});
+
+test('workflow semantic validation rejects mixed static and dynamic parallel targets with invalid combined join shape', () => {
+  writeSchema('selected-branch-output.schema.json', {
+    ...routeSchema,
+    required: ['outcome', 'route', 'next_steps', 'selected'],
+    properties: {
+      ...routeSchema.properties,
+      selected: { enum: ['branch_b'] },
+    },
+  });
+
+  assertSemanticFailure(
+    syntheticWorkflow((draft) => {
+      draft.steps.producer.output.schema = 'selected-branch-output.schema.json';
+      draft.steps.producer.next = ['branch_a', '${{ output.selected }}'];
+      draft.steps.branch_a.next = 'consumer';
+      draft.steps.branch_b.next = 'join';
+      return draft;
+    }),
+    /producer.*combined parallel targets are invalid.*share one explicit join step/,
   );
 });
 

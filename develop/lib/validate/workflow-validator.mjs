@@ -1,7 +1,7 @@
 import { validateJsonSchema } from 'schema-validation';
 import { WorkflowInterpreterError } from '../workflow/errors.mjs';
 import { readJson } from '../workflow/json-io.mjs';
-import { RESERVED_STEP_IDS, assertProjectableStateSelector, isReservedStateKey } from '../workflow/state-keys.mjs';
+import { RESERVED_STATE_KEYS, DANGEROUS_OBJECT_KEYS, assertProjectableStateSelector, isDangerousObjectKey, isReservedStateKey } from '../workflow/state-keys.mjs';
 import { readOutputSchema } from '../workflow/output-schema-validation.mjs';
 import { defaultRepositoryRootForWorkflow } from '../workflow/resource-resolver.mjs';
 import { assertRoleDirectoryName, listAllowedWorkflowRoles } from '../workflow/roles.mjs';
@@ -40,7 +40,10 @@ function assertWorkflowIdentity(workflow) {
 function assertWorkflowStepIds(workflow) {
   for (const stepId of Object.keys(workflow.steps)) {
     if (isReservedStateKey(stepId)) {
-      fail(`workflow step id '${stepId}' is reserved for runtime aggregate state; reserved ids: ${RESERVED_STEP_IDS.join(', ')}`);
+      fail(`workflow step id '${stepId}' is reserved for runtime aggregate state; reserved ids: ${RESERVED_STATE_KEYS.join(', ')}`);
+    }
+    if (isDangerousObjectKey(stepId)) {
+      fail(`workflow step id '${stepId}' is reserved because it is unsafe as a JavaScript object key; reserved ids: ${DANGEROUS_OBJECT_KEYS.join(', ')}`);
     }
   }
 }
@@ -53,6 +56,7 @@ function assertWorkflowInputStateSelectors(workflow) {
       } catch (error) {
         if (!(error instanceof WorkflowInterpreterError)) throw error;
         if (!/top-level workflow step ids only/.test(error.message)) {
+          if (isDangerousObjectKey(selector)) fail(`step '${stepId}' input.state selector '${selector}' is reserved because it is unsafe as a JavaScript object key and cannot reference workflow steps`);
           fail(`step '${stepId}' input.state selector '${selector}' is reserved for runtime aggregate state and cannot reference workflow steps`);
         }
         fail(`step '${stepId}' input.state selector '${selector}' is invalid; v1 supports top-level workflow step ids only`);
@@ -110,7 +114,7 @@ function collectFieldAnnotationWarnings(schema, schemaRef, warnings, pathSegment
   if (schema.items) collectFieldAnnotationWarnings(schema.items, schemaRef, warnings, [...pathSegments, 'items']);
 }
 
-function validateOutputSchemaDocument(schema, schemaRef, workflow, workflowPath, repositoryRoot, warnings) {
+function validateOutputSchemaDocument(schema, schemaRef, workflow, workflowPath, repositoryRoot, warnings, { stepId, step } = {}) {
   let validation;
   try {
     validation = validateJsonSchema(schema, {}, { schemas: workflowSchemas });
@@ -119,6 +123,7 @@ function validateOutputSchemaDocument(schema, schemaRef, workflow, workflowPath,
   }
   // Validation result is irrelevant here: compiling the schema is the check.
   void validation;
+  if (step?.kind === 'worker') assertWorkerOutputSchemaContract({ stepId, schema });
   if (isDevHarnessOutputSchema(schemaRef, schema)) collectFieldAnnotationWarnings(schema, schemaRef, warnings);
 }
 
@@ -134,10 +139,60 @@ function loadStepOutputSchemas({ workflow, workflowPath, repositoryRoot, warning
       if (error instanceof WorkflowInterpreterError) fail(`step '${stepId}' ${error.message}`);
       throw error;
     }
-    validateOutputSchemaDocument(schema, schemaRef, workflow, workflowPath, repositoryRoot, warnings);
+    validateOutputSchemaDocument(schema, schemaRef, workflow, workflowPath, repositoryRoot, warnings, { stepId, step });
     schemasByStep.set(stepId, schema);
   }
   return schemasByStep;
+}
+
+
+function schemaRequiresPath(schema, pathSegments) {
+  if (!schema || typeof schema !== 'object' || Array.isArray(schema) || pathSegments.length === 0) return false;
+  const [segment, ...rest] = pathSegments;
+
+  const directRequired = Array.isArray(schema.required)
+    && schema.required.includes(segment)
+    && schema.properties
+    && typeof schema.properties === 'object'
+    && Object.hasOwn(schema.properties, segment)
+    && (rest.length === 0 || schemaRequiresPath(schema.properties[segment], rest));
+
+  const allOfRequired = Array.isArray(schema.allOf) && schema.allOf.some((item) => schemaRequiresPath(item, pathSegments));
+  const oneOfRequired = Array.isArray(schema.oneOf) && schema.oneOf.length > 0 && schema.oneOf.every((item) => schemaRequiresPath(item, pathSegments));
+  const anyOfRequired = Array.isArray(schema.anyOf) && schema.anyOf.length > 0 && schema.anyOf.every((item) => schemaRequiresPath(item, pathSegments));
+
+  return directRequired || allOfRequired || oneOfRequired || anyOfRequired;
+}
+
+function schemaAllowsNonString(schema) {
+  if (!schema || typeof schema !== 'object' || Array.isArray(schema)) return true;
+  if (schema.const !== undefined) return typeof schema.const !== 'string';
+  if (Array.isArray(schema.enum)) return schema.enum.some((value) => typeof value !== 'string');
+  if (schema.type !== undefined) {
+    if (schema.type === 'string') return false;
+    if (Array.isArray(schema.type)) return schema.type.some((type) => type !== 'string');
+    return true;
+  }
+  if (Array.isArray(schema.allOf)) return schema.allOf.every((item) => schemaAllowsNonString(item));
+  if (Array.isArray(schema.oneOf)) return schema.oneOf.some((item) => schemaAllowsNonString(item));
+  if (Array.isArray(schema.anyOf)) return schema.anyOf.some((item) => schemaAllowsNonString(item));
+  return true;
+}
+
+function assertSchemaRequiresExpressionPath({ stepId, expression, field, rootSchema, pathSegments = expression.path }) {
+  if (!schemaRequiresPath(rootSchema, pathSegments)) {
+    fail(`step '${stepId}' ${field} expression ${expression.source} must reference a required output.schema path`);
+  }
+}
+
+function assertWorkerOutputSchemaContract({ stepId, schema }) {
+  if (!schemaRequiresPath(schema, ['outcome'])) {
+    fail(`step '${stepId}' output.schema must require string field 'outcome' for worker outputs`);
+  }
+  const outcomeSchemas = schemaForPath(schema, ['outcome']);
+  if (outcomeSchemas.length === 0 || outcomeSchemas.some((outcomeSchema) => schemaAllowsNonString(outcomeSchema))) {
+    fail(`step '${stepId}' output.schema field 'outcome' must allow only strings`);
+  }
 }
 
 function schemaVariants(schema) {
@@ -191,7 +246,7 @@ function schemaForExpression({ workflow, schemasByStep, stepId, step, expression
   if (expression.root === 'output') {
     const schema = schemasByStep.get(stepId);
     if (!schema) return { schema: undefined, reason: `step '${stepId}' has no output.schema for ${expression.source}` };
-    return { schema: schemaForPath(schema, expression.path), reason: undefined };
+    return { schema: schemaForPath(schema, expression.path), rootSchema: schema, requiredPath: expression.path, reason: undefined };
   }
 
   const [stateKey, ...rest] = expression.path;
@@ -201,7 +256,7 @@ function schemaForExpression({ workflow, schemasByStep, stepId, step, expression
   }
   const producerSchema = schemasByStep.get(stateKey);
   if (!producerSchema) return { schema: undefined, reason: `projected input '${stateKey}' has no output.schema for ${expression.source}` };
-  return { schema: schemaForPath(producerSchema, rest), reason: undefined };
+  return { schema: schemaForPath(producerSchema, rest), rootSchema: producerSchema, requiredPath: rest, reason: undefined };
 }
 
 function approvalOutputExpressionMayBeUnchecked({ schemasByStep, stepId, step, expression }) {
@@ -214,13 +269,14 @@ function assertExpressionSchemaAvailable({ workflow, schemasByStep, stepId, step
     if (approvalOutputExpressionMayBeUnchecked({ schemasByStep, stepId, step, expression })) return undefined;
     fail(`step '${stepId}' ${field} expression ${expression.source} has no schema-covered path (${resolved.reason ?? 'path not found'})`);
   }
-  return resolved.schema;
+  return resolved;
 }
 
 function assertDynamicTargetSchema({ workflow, schemasByStep, stepId, step, expression, field }) {
-  const schemas = assertExpressionSchemaAvailable({ workflow, schemasByStep, stepId, step, expression, field });
-  if (!schemas) return;
-  const aggregate = schemas.reduce((acc, schema) => {
+  const resolved = assertExpressionSchemaAvailable({ workflow, schemasByStep, stepId, step, expression, field });
+  if (!resolved) return;
+  assertSchemaRequiresExpressionPath({ stepId, expression, field, rootSchema: resolved.rootSchema, pathSegments: resolved.requiredPath });
+  const aggregate = resolved.schema.reduce((acc, schema) => {
     const next = possibleStringTargetsForSchema(schema);
     for (const value of next.possible) acc.possible.add(value);
     for (const value of next.directValues) acc.directValues.add(value);
@@ -234,7 +290,7 @@ function assertDynamicTargetSchema({ workflow, schemasByStep, stepId, step, expr
   for (const target of aggregate.directValues) {
     if (!Object.hasOwn(workflow.steps, target)) fail(`step '${stepId}' ${field} expression ${expression.source} schema allows unknown target '${target}'`);
   }
-  if (aggregate.itemValues.size === 0) return;
+  if (aggregate.itemValues.size === 0) return aggregate;
 
   for (const arraySchema of aggregate.arraySchemas) {
     if (arraySchema.minItems === undefined || arraySchema.minItems < 1) {
@@ -251,13 +307,16 @@ function assertDynamicTargetSchema({ workflow, schemasByStep, stepId, step, expr
     if (error instanceof WorkflowInterpreterError) fail(`step '${stepId}' ${field} expression ${expression.source} array target schema is not a valid parallel fan-out: ${error.message}`);
     throw error;
   }
+
+  return aggregate;
 }
 
 function assertMatchCasesSchema({ workflow, schemasByStep, stepId, step, descriptor, field }) {
-  const schemas = assertExpressionSchemaAvailable({ workflow, schemasByStep, stepId, step, expression: descriptor.expression, field });
-  if (!schemas) return;
+  const resolved = assertExpressionSchemaAvailable({ workflow, schemasByStep, stepId, step, expression: descriptor.expression, field });
+  if (!resolved) return;
+  assertSchemaRequiresExpressionPath({ stepId, expression: descriptor.expression, field: `${field}.match`, rootSchema: resolved.rootSchema, pathSegments: resolved.requiredPath });
   const possibleCaseKeys = new Set();
-  for (const schema of schemas) collectStringValues(schema, possibleCaseKeys);
+  for (const schema of resolved.schema) collectStringValues(schema, possibleCaseKeys);
 
   if (possibleCaseKeys.size === 0) fail(`step '${stepId}' ${field}.match expression ${descriptor.expression.source} must resolve from a string enum/const schema`);
   for (const key of possibleCaseKeys) {
@@ -265,6 +324,42 @@ function assertMatchCasesSchema({ workflow, schemasByStep, stepId, step, descrip
   }
   for (const key of Object.keys(descriptor.cases)) {
     if (!possibleCaseKeys.has(key)) fail(`step '${stepId}' ${field}.cases declares unreachable case '${key}' not present in the selector schema`);
+  }
+
+  return possibleCaseKeys;
+}
+
+function targetSetsForMatchCases(possibleCaseKeys, cases) {
+  return [...possibleCaseKeys].map((key) => {
+    const target = cases[key];
+    return typeof target === 'string' ? [target] : [...target];
+  });
+}
+
+function targetSetsForDynamicTarget(aggregate) {
+  const sets = [...aggregate.directValues].map((target) => [target]);
+  if (aggregate.itemValues.size > 0) sets.push([...aggregate.itemValues]);
+  return sets;
+}
+
+function combineTargetSets(leftSets, rightSets) {
+  const combined = [];
+  for (const left of leftSets) {
+    for (const right of rightSets) combined.push([...left, ...right]);
+  }
+  return combined;
+}
+
+function assertParallelItemCombinations({ workflow, stepId, itemTargetSets }) {
+  let combinations = [[]];
+  for (const targetSets of itemTargetSets) combinations = combineTargetSets(combinations, targetSets);
+  for (const targets of combinations) {
+    try {
+      assertTransitionDescriptorTargets(workflow, stepId, { kind: 'static-parallel', targets });
+    } catch (error) {
+      if (error instanceof WorkflowInterpreterError) fail(`step '${stepId}' next combined parallel targets are invalid: ${error.message}`);
+      throw error;
+    }
   }
 }
 
@@ -289,13 +384,19 @@ function assertTransitionSemantics(workflow, schemasByStep) {
       continue;
     }
     if (descriptor.kind === 'parallel-items') {
+      const itemTargetSets = [];
       for (const [index, item] of descriptor.items.entries()) {
-        if (item.kind === 'dynamic-target') {
-          assertDynamicTargetSchema({ workflow, schemasByStep, stepId, step, expression: item.expression, field: fieldPath('next', index) });
+        if (item.kind === 'static-target') {
+          itemTargetSets.push([[item.target]]);
+        } else if (item.kind === 'dynamic-target') {
+          const aggregate = assertDynamicTargetSchema({ workflow, schemasByStep, stepId, step, expression: item.expression, field: fieldPath('next', index) });
+          if (aggregate) itemTargetSets.push(targetSetsForDynamicTarget(aggregate));
         } else if (item.kind === 'match-cases') {
-          assertMatchCasesSchema({ workflow, schemasByStep, stepId, step, descriptor: item, field: fieldPath('next', index) });
+          const possibleCaseKeys = assertMatchCasesSchema({ workflow, schemasByStep, stepId, step, descriptor: item, field: fieldPath('next', index) });
+          if (possibleCaseKeys) itemTargetSets.push(targetSetsForMatchCases(possibleCaseKeys, item.cases));
         }
       }
+      assertParallelItemCombinations({ workflow, stepId, itemTargetSets });
     }
   }
 }

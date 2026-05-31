@@ -386,6 +386,23 @@ test('output.schema: reserved aggregate fields must keep array envelope shape', 
   assert.match(retry.steps[0].step.input.prompt, /\/artifacts must be array/);
 });
 
+
+test('output.schema: schema-declared outputs still must be object envelopes', () => {
+  const doc = workflowWithSchema('root-envelope-object', {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    const: 'ready',
+  });
+  doc.steps.worker_step.next = ['consumer_step'];
+  doc.steps.consumer_step.next = 'done';
+
+  const retry = runApply('output-schema-root-envelope-object', baton(), 'ready', true, doc);
+
+  assert.equal(retry.baton.cursor, 'worker_step');
+  assert.equal(retry.steps[0].action, 'run_worker');
+  assert.equal(retry.baton.state.attempts['worker_step:output.schema'], 1);
+  assert.match(retry.steps[0].step.input.prompt, /\/ must be object/);
+});
+
 test('output.schema: invalid output retries with validation feedback then succeeds', () => {
   const doc = workflowWithSchema('retry-structured-output', structuredSchema);
 
