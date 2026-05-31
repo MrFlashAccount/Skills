@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
@@ -75,6 +75,21 @@ test('persist helper atomically replaces baton and appends readable history', ()
   const status = JSON.parse(result.stdout);
   assert.equal(status.ok, true);
   assert.equal(status.baton, path.join(runDir, 'baton.json'));
+});
+
+test('persist helper rejects symlinked history without appending outside run dir', () => {
+  const runDir = path.join(tempDir, 'symlink-history-run');
+  mkdirSync(runDir, { recursive: true });
+  const outsideHistory = path.join(tempDir, 'outside-history.md');
+  writeFileSync(outsideHistory, 'outside must stay private\n');
+  symlinkSync(outsideHistory, path.join(runDir, 'history.md'), 'file');
+  const inputPath = writeJson(path.join(tempDir, 'symlink-history-baton.json'), baton({ cursor: 'architecture' }));
+
+  const result = runPersist(['--run-dir', runDir, '--baton', inputPath, '--decision', 'must not escape']);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /symlinked run-state file|symlink/);
+  assert.equal(readFileSync(outsideHistory, 'utf8'), 'outside must stay private\n');
 });
 
 test('persist helper appends history entries across calls', () => {

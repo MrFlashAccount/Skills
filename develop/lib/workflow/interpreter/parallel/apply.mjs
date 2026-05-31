@@ -39,14 +39,14 @@ function validateOutputKindForParallel(step, output, stepId) {
 
   if (step.kind === 'worker') {
     invariant(!('approval' in output), `worker cursor '${stepId}' must use outcome, not approval`);
-    invariant('outcome' in output, `worker cursor '${stepId}' must include string outcome`);
+    invariant(typeof output.outcome === 'string', `worker cursor '${stepId}' must include string outcome`);
   }
 }
 
 export function applyParallelOutputs({ workflowPath, workflow, baton, cursorStep, outputPath, allOutput, targets: resolvedTargets, repositoryRoot }) {
   const targets = parallelTargetsForStep(cursorStep, resolvedTargets);
-  assertParallelOutputShape(targets, allOutput ?? readJson(outputPath, 'parallel output'));
   const parallelOutput = allOutput ?? readJson(outputPath, 'parallel output');
+  assertParallelOutputShape(targets, parallelOutput);
 
   let updatedBaton = structuredClone(baton);
   const promptRecipientStepId = targets.find((stepId) => shouldMarkUserPromptInjectedForStep({

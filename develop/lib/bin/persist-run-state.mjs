@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { mkdir, open, readFile, rename, rm } from 'node:fs/promises';
+import { lstat, mkdir, open, readFile, rename, rm } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { WorkflowInterpreterError } from '../workflow/errors.mjs';
@@ -84,7 +84,25 @@ function historyEntry({ baton, steps, source, output, decision }) {
   return lines.join('\n');
 }
 
+async function assertManagedFileIsNotSymlink(path) {
+  try {
+    if ((await lstat(path)).isSymbolicLink()) throw new Error(`refusing to use symlinked run-state file: ${path}`);
+  } catch (error) {
+    if (error?.code === 'ENOENT') return;
+    throw error;
+  }
+}
+
+async function assertRunDirIsDirectory(path) {
+  try {
+    if ((await lstat(path)).isSymbolicLink()) throw new Error(`refusing to use symlinked run dir: ${path}`);
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error;
+  }
+}
+
 async function writeFileAtomic(path, content) {
+  await assertManagedFileIsNotSymlink(path);
   const dir = dirname(path);
   const tempPath = join(dir, `.${basename(path)}.${process.pid}.${Date.now()}.tmp`);
   const handle = await open(tempPath, 'wx', 0o600);
@@ -105,6 +123,7 @@ async function writeFileAtomic(path, content) {
 }
 
 async function appendFileDurably(path, content) {
+  await assertManagedFileIsNotSymlink(path);
   const handle = await open(path, 'a', 0o600);
   try {
     await handle.writeFile(content, 'utf8');
@@ -137,6 +156,7 @@ const baton = responsePath ? input.baton : input;
 const steps = responsePath ? input.steps : undefined;
 requireObject(baton, 'baton');
 
+await assertRunDirIsDirectory(runDir);
 await mkdir(runDir, { recursive: true });
 
 const persistedBatonPath = join(runDir, 'baton.json');

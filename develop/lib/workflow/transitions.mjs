@@ -24,7 +24,7 @@ function validateOutputKind(step, output, stepId) {
 
   if (step.kind === 'worker') {
     invariant(!('approval' in output), `worker cursor '${stepId}' must use outcome, not approval`);
-    invariant('outcome' in output, `worker cursor '${stepId}' must include string outcome`);
+    invariant(typeof output.outcome === 'string', `worker cursor '${stepId}' must include string outcome`);
   }
 }
 

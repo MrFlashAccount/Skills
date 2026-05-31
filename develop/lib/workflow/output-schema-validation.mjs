@@ -22,8 +22,11 @@ export function validateAgainstOutputSchema({ workflow, workflowPath, schemaRef,
 
   if (validation.ok) {
     const reservedErrors = [];
-    if (Object.hasOwn(output, 'artifacts') && !Array.isArray(output.artifacts)) reservedErrors.push('/artifacts must be array');
-    if (Object.hasOwn(output, 'results') && !Array.isArray(output.results)) reservedErrors.push('/results must be array');
+    if (!output || typeof output !== 'object' || Array.isArray(output)) reservedErrors.push('/ must be object');
+    else {
+      if (Object.hasOwn(output, 'artifacts') && !Array.isArray(output.artifacts)) reservedErrors.push('/artifacts must be array');
+      if (Object.hasOwn(output, 'results') && !Array.isArray(output.results)) reservedErrors.push('/results must be array');
+    }
     if (reservedErrors.length > 0) return { ok: false, errors: reservedErrors.join('; ') };
     return { ok: true, output: structuredClone(output), errors: [] };
   }
