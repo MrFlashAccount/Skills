@@ -3,7 +3,8 @@
   "description": "Producer output contract for the DevHarness planning draft that proposes implementation and review routes.",
   "type": "object",
   "required": [
-    "outcome"
+    "outcome",
+    "selected_review_steps"
   ],
   "properties": {
     "outcome": {

@@ -324,7 +324,7 @@ test('dev harness blocked outputs require only blocker plus routing fields, not 
     ['research_attack', { outcome: 'blocked', blocker: { summary: 'Unsafe research.', source_step_id: 'research_attack', needed: 'Evidence.' } }],
     ['architecture_draft', { outcome: 'blocked', blocker: { summary: 'No owner.', source_step_id: 'architecture_draft', needed: 'Architecture owner.' } }],
     ['architecture_attack', { outcome: 'blocked', blocker: { summary: 'Contract conflict.', source_step_id: 'architecture_attack', needed: 'Decision.' } }],
-    ['planning_draft', { outcome: 'blocked', blocker: { summary: 'Cannot plan.', source_step_id: 'planning_draft', needed: 'Approved scope.' } }],
+    ['planning_draft', { outcome: 'blocked', selected_review_steps: ['backend_review'], blocker: { summary: 'Cannot plan.', source_step_id: 'planning_draft', needed: 'Approved scope.' } }],
     ['planning_attack', { outcome: 'blocked', blocker: { summary: 'Plan unsafe.', source_step_id: 'planning_attack', needed: 'Revision.' } }],
     ['implementation_dispatch', { outcome: 'blocked', blocker: { summary: 'Route mismatch.', source_step_id: 'implementation_dispatch', needed: 'Valid route.' } }],
     ['backend_implementation', { outcome: 'blocked', blocker: { summary: 'Backend blocked.', source_step_id: 'backend_implementation', needed: 'Dependency.' } }],
@@ -353,6 +353,21 @@ test('dev harness blocked outputs require only blocker plus routing fields, not 
   }
 });
 
+
+
+test('dev harness planning draft always requires selected review steps', () => {
+  const workflowPath = path.join(REPO_ROOT, 'workflows/dev-harness/workflow.json');
+  const result = validateAgainstOutputSchema({
+    workflow: workflowDoc,
+    workflowPath,
+    schemaRef: workflowDoc.steps.planning_draft.output.schema,
+    repositoryRoot: REPO_ROOT,
+    output: { outcome: 'blocked', blocker: { summary: 'Cannot plan.', source_step_id: 'planning_draft', needed: 'Approved scope.' } },
+  });
+
+  assert.equal(result.ok, false);
+  assert.match(result.errors, /selected_review_steps/);
+});
 
 
 test('dev harness review join schema keeps outcome and next route consistent', () => {
