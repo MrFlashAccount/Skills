@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { evaluatePathExpression, parsePathExpression } from '../workflow/expressions/index.mjs';
-import { WorkflowInterpreterError } from '../workflow/errors.mjs';
+import { evaluatePathExpression, parsePathExpression } from '../entities/Template/expressions/index.mjs';
+import { WorkflowInterpreterError } from '../entities/Workflow/errors.mjs';
 
 const validParserCases = [
   ['spaced output path', '${{ output.next }}', ['output', 'next']],

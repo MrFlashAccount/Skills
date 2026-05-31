@@ -6,9 +6,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import workflowDoc from '../../../workflows/dev-harness/workflow.json' with { type: 'json' };
 import researchCriticWorkflowDoc from '../../../workflows/research-critic/workflow.json' with { type: 'json' };
-import { WorkflowInterpreterError } from '../workflow/errors.mjs';
-import { validateWorkflowDocument } from '../validate/workflow-validator.mjs';
-import { validateAgainstOutputSchema } from '../workflow/output-schema-validation.mjs';
+import { WorkflowInterpreterError } from '../entities/Workflow/errors.mjs';
+import { validateWorkflowDocument } from '../use-cases/workflow-validator.mjs';
+import { validateAgainstOutputSchema } from '../dtos/output-schema-validation.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-semantic-validation-'));

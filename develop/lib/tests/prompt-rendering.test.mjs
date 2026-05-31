@@ -5,10 +5,10 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { projectState } from '../workflow/projection.mjs';
-import { renderStepPrompts } from '../workflow/interpreter/index.mjs';
-import { renderWorkflowPrompt } from '../workflow/prompt-renderer.mjs';
-import { validateAgainstOutputSchema } from '../workflow/output-schema-validation.mjs';
+import { projectState } from '../entities/Template/projection.mjs';
+import { renderStepPrompts } from '../use-cases/interpreter/index.mjs';
+import { renderWorkflowPrompt } from '../entities/Template/prompt-renderer.mjs';
+import { validateAgainstOutputSchema } from '../dtos/output-schema-validation.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'prompt-rendering-check-'));
