@@ -192,10 +192,6 @@ function outputSchemaForStep(outputSchemas, stepId, schemaRef) {
   return loaded?.schema ?? loaded;
 }
 
-function allDeclaredOutputSchemasProvided(workflow, outputSchemas) {
-  return Object.entries(workflow.steps).every(([stepId, step]) => !step.output?.schema || Boolean(outputSchemaForStep(outputSchemas, stepId, step.output.schema)));
-}
-
 function normalizeStepOutputSchemas({ workflow, outputSchemas = new Map(), warnings }) {
   const schemasByStep = new Map();
   for (const [stepId, step] of Object.entries(workflow.steps)) {
@@ -511,7 +507,6 @@ export class Workflow {
     assertWorkflowRootTargets(this.data);
     assertWorkflowInputStateSelectors(this.data);
     assertWorkflowStepRoles(this.data, options.allowedRoles ?? []);
-    if (allDeclaredOutputSchemasProvided(this.data, options.outputSchemas ?? new Map())) return this.validate(options);
     this.validateStaticTransitions();
     return { ok: true };
   }
