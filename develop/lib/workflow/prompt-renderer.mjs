@@ -1,1 +1,1 @@
-export { renderWorkflowPrompt } from './template-compiler/index.mjs';
+export { renderWorkflowPrompt } from '../entities/Template.mjs';

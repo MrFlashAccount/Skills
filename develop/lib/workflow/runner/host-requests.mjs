@@ -63,7 +63,7 @@ export function buildHostRequests(interpreterResponse, { runDir, workflow, workf
     });
 }
 
-export function toRunnerResponse(interpreterResponse, options) {
+export function toHostResponse(interpreterResponse, options) {
   const status = responseStatusForInterpreterResponse(interpreterResponse);
   const response = {
     status,
