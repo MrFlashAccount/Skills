@@ -3,15 +3,15 @@
 ## Status
 
 - PR: #108 research workflow JSON contract updates
-- State: implemented for the generic workflow interpreter
-- Scope boundary: generic workflow interpreter; no DevHarness-specific runtime semantics
-- Implementation status: `render` CLI mode, state projection, prompt rendering, renderer-owned default prompt layering, output schema validation, and deterministic tests are present
+- State: implemented in the v3 workflow runtime layers
+- Scope boundary: generic workflow runtime; no DevHarness-specific runtime semantics
+- Implementation status: entrypoints, persistence, use-cases, entities, DTOs, prompt rendering, output schema validation, and deterministic tests are present
 
 ## Problem
 
-The workflow interpreter can identify the current `step` and return executable step entries, but the next boundary is still implicit: something must turn the current workflow step plus baton state into a ready prompt for a child worker or approval surface.
+The v3 runtime identifies the current `Step` through the `Workflow` and `Baton` entities, then renders executable step instructions through `Step`/`Template` behavior coordinated by use-cases. The boundary is explicit: entrypoints and persistence own IO, use-cases coordinate runtime flow, entities own workflow/baton/step/template behavior, and DTOs carry boundary data.
 
-That boundary should be a deterministic prompt-rendering stage, not an orchestrator shortcut and not interpreter transition logic. The renderer compiles a prompt from:
+Prompt rendering is deterministic runtime behavior, not an orchestrator shortcut and not transition logic. `Step` prepares render context and `Template` renders prompt text from:
 
 - the current workflow `step`;
 - optional step `input.template` and inline `input.prompt`;
@@ -41,20 +41,21 @@ In scope for #89:
 - No real subagent launch.
 - No LLM/model/network tests.
 - No compatibility layer for old workflow shapes.
-- No DevHarness-specific interpreter branches.
+- No DevHarness-specific runtime branches.
 - No `format`, `sections`, or runtime worker-output validation changes inside `output`; output contracts remain markdown templates referenced by `template`, with optional `schema` prompt injection only.
 
-## Existing baseline to preserve
+## Current v3 ownership baseline
 
-Current files already establish these contracts:
+Current files establish these contracts:
 
-- `workflows/dev-harness/workflow.json` declares worker and approval steps with `input.state`, optional `input.template`, optional `input.prompt`, optional worker `input.role`, and worker `output.template`.
-- `develop/lib/schemas/workflow.json` requires flat workflow documents (`name`, `version`, `start`, `done`, `blocked`, `steps` at the JSON root), rejects wrapped workflow documents, rejects step-level extension fields, and allows workflow-scoped extensions only.
-- `develop/lib/workflow/interpreter/index.mjs` chooses the current `step`, validates transition targets, applies output, and returns the unified `{ baton, steps[] }` response for `inspect`/`apply`; `render` keeps compiled prompts inside the deterministic runner layer without making host requests carry full prompt text.
-- `develop/lib/workflow/executable-steps.mjs` exposes step entries shaped as `{ id, action, step }` before rendering prompts.
-- `develop/lib/workflow/projection.mjs` projects only explicit top-level `input.state` selectors, skips selectors that are valid workflow step ids but absent from the current `baton.state`, and rejects nested selectors.
-- `develop/lib/workflow/prompt-renderer.mjs` loads local markdown templates, assembles fallback prompts, appends omitted role/output/state/step-prompt/user-prompt/reminder sections in the compiled layer order, and returns prompt metadata plus opt-in diagnostics.
-- `develop/lib/workflow/state.mjs` applies worker/approval output to baton state after the worker returns.
+- `develop/lib/entrypoints/` owns CLI/API parsing and host-facing response shape. It resolves run arguments, calls persistence, invokes use-cases, and returns instruction text or JSON responses.
+- `develop/lib/persistence/` owns filesystem/resource IO: workflow files, baton/run-state files, instruction files, templates, output schemas, role material, durable commits, and host-request storage paths.
+- `develop/lib/use-cases/` owns process orchestration across entities. `RunNext`, `ContinueRun`, `ApplyWorkflowOutput`, `LoadInstructions`, `ValidateWorkflow`, and `InspectWorkflow` receive DTO/raw boundary data, construct entities, call entity methods, and return boundary results without direct filesystem access.
+- `develop/lib/entities/Workflow.mjs` owns workflow validation, topology, step lookup, transition semantics, output schema semantics, and baton cursor inference.
+- `develop/lib/entities/Baton.mjs` owns runtime state/cursor/status consistency, pending-output access, and safe state updates.
+- `develop/lib/entities/Step.mjs` owns step-level input projection, transition descriptors, concrete target resolution, output application intent, instruction-request validation, and render-context preparation.
+- `develop/lib/entities/Template.mjs` plus template compiler helpers own prompt/template rendering mechanics.
+- `develop/lib/dtos/` owns boundary shapes only: workflow, baton/run-state, step, template, instruction, output, and workflow-result DTOs.
 - `shared/templates/README.md` says shared templates are output templates and do not define orchestration or worker spawning.
 
 ## Contract
@@ -95,7 +96,7 @@ Renderer-relevant fields:
 | `output.schema` | worker, optional | JSON schema file to inject near the output contract as concise valid-JSON/self-check instructions. Plain refs are workflow-package-local; `shared/...` refs are explicit shared resources. |
 | `instruction` / `instructions` | workflow root, optional runtime prompt capability | Workflow-level instruction appended under the top wrapper before role/output/context layers. It is optional and should not be used for generic orchestration notes that pollute every step prompt; prefer `description`/registry metadata for non-runtime guidance or step-specific `input.prompt` text when only one step needs it. |
 | `baton.user_prompt` | baton root, optional | Raw startup user prompt stored at run start; must contain non-whitespace text when present. |
-| `baton.user_prompt_injected` | baton root, optional | Runner/interpreter marker set after the selected startup-prompt worker output has been applied; prevents reinjection after completion/resume or workflow drift while allowing repeated renders of the same uncompleted worker to preserve the prompt. |
+| `baton.user_prompt_injected` | baton root, optional | Runner/runtime marker set after the selected startup-prompt worker output has been applied; prevents reinjection after completion/resume or workflow drift while allowing repeated renders of the same uncompleted worker to preserve the prompt. |
 
 ### `input.state`
 
@@ -127,14 +128,14 @@ Do not silently ignore a declared `input.template`; missing declared templates f
 
 `output.template` is a markdown output contract. The renderer loads the referenced markdown file and appends it as strict worker return instructions.
 
-`output.schema` is optional prompt guidance. When present, the renderer resolves it using the same canonical workflow-file resolver as output templates: refs are relative to the directory containing the active `workflow.json`. It verifies the file is parseable JSON and injects an instruction to return valid JSON matching that schema. When a validation command or tool is available in the agent/subagent context, the injected instruction requires preflight validation of the generated JSON against the schema before the final answer, fixing validation errors and repeating for a bounded number of attempts. The harness/orchestrator still validates the final returned JSON again after the answer, so agent-side validation is preflight, not the final authority. If no validation command or tool is available in that context, the agent should still return strict schema-matching JSON and expect harness-level validation. The renderer does not validate future worker output while rendering. The interpreter/harness validates the returned worker JSON against this schema during `apply`.
+`output.schema` is optional prompt guidance. When present, the renderer resolves it using the same canonical workflow-file resolver as output templates: refs are relative to the directory containing the active `workflow.json`. It verifies the file is parseable JSON and injects an instruction to return valid JSON matching that schema. When a validation command or tool is available in the agent/subagent context, the injected instruction requires preflight validation of the generated JSON against the schema before the final answer, fixing validation errors and repeating for a bounded number of attempts. The harness/orchestrator still validates the final returned JSON again after the answer, so agent-side validation is preflight, not the final authority. If no validation command or tool is available in that context, the agent should still return strict schema-matching JSON and expect harness-level validation. The renderer does not validate future worker output while rendering. The runtime/harness validates the returned worker JSON against this schema during `apply`.
 
 Rules:
 
 - keep `template` as the existing markdown contract field;
 - allow optional `schema` as a JSON schema path relative to the workflow file;
 - DevHarness may use `output.schema` on research and implementation-plan worker steps to require reviewer selection state such as `review_plan.reviewers`; this validates/stores the structured output only and does not implement reviewer routing or fan-out;
-- reject missing or invalid-JSON schema files with deterministic `WorkflowInterpreterError`;
+- reject missing or invalid-JSON schema files with deterministic `WorkflowRuntimeError`;
 - do not introduce `format`, `sections`, or similar output contract fields;
 - do not validate returned markdown headings at render time;
 - steps without `output.schema` keep worker-output envelope validation in the existing `worker-output` schema.
@@ -142,7 +143,7 @@ Rules:
 
 ### Harness-side output schema validation
 
-During `apply`, worker steps with `output.schema` use that schema as the authoritative validation gate for the returned JSON. The returned value must parse as JSON; non-JSON output is treated as a schema-validation failure for retry purposes. On a validation failure, the interpreter returns the same worker step again, increments `baton.state.attempts["<stepId>:output.schema"]`, and appends a compact deterministic validation-feedback prompt to the directive step input. After three failed attempts, `apply` fails with a deterministic `WorkflowInterpreterError`.
+During `apply`, worker steps with `output.schema` use that schema as the authoritative validation gate for the returned JSON. The returned value must parse as JSON; non-JSON output is treated as a schema-validation failure for retry purposes. On a validation failure, the runtime returns the same worker step again, increments `baton.state.attempts["<stepId>:output.schema"]`, and appends a compact deterministic validation-feedback prompt to the directive step input. After three failed attempts, `apply` fails with a deterministic `WorkflowRuntimeError`.
 
 On success, every worker output is stored under `baton.state[stepId]` for later state projection. Validated structured JSON is also mirrored under legacy `baton.state.outputs[stepId]` for compatibility. `artifacts` and `results`, when present in the output, continue to merge into the existing top-level baton state. Steps without `output.schema` keep the previous worker-output envelope validation while still making the full envelope projectable by step id.
 
@@ -156,7 +157,7 @@ Renderer behavior:
 - resolve role files from `roles/<input.role>/ROLE.md` and `roles/<input.role>/RUBRIC.md` under the repository root;
 - inline both files into the fixed `## Role material` section, with deterministic `<!-- role material: ... -->` source comments;
 - append a `## Role material` section when `input.role` is present; input templates do not consume role variables;
-- fail with a deterministic `WorkflowInterpreterError` when either required role material file is missing or escapes the repository root;
+- fail with a deterministic `WorkflowRuntimeError` when either required role material file is missing or escapes the repository root;
 - do not infer capabilities, map roles to subagent agents, or make role required for worker steps unless a separate schema decision is approved.
 
 ### Compiled prompt result shape
@@ -179,7 +180,7 @@ Notes:
 
 - `prompt` is the final rendered instruction text. Runtime host requests should expose a short instruction reference/load command instead of embedding this full text.
 - `metadata` is optional launch/support data only; it must not require orchestration decisions.
-- `diagnostics` is optional and should only be emitted when the caller opts in and diagnostics are present. Hard failures should throw `WorkflowInterpreterError` or a sibling workflow renderer error and surface through CLI stderr.
+- `diagnostics` is optional and should only be emitted when the caller opts in and diagnostics are present. Hard failures should throw `WorkflowRuntimeError` or a sibling workflow renderer error and surface through CLI stderr.
 - Avoid adding this to the existing `inspect` output by default unless Sergey approves response-shape expansion. A separate CLI mode avoids breaking the current directive contract. Keep debug step fields (`stepId`, `action`, `kind`, `name`) in `directive`, not duplicated in `compiledPrompt`.
 
 ## `projectState` behavior
@@ -249,7 +250,7 @@ renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, step, repositoryRo
 
 ### Inputs
 
-The renderer receives already-validated workflow/baton/step data plus an optional render-time `userPrompt` string. The interpreter/runner decides whether startup `baton.user_prompt` is eligible for the current worker and passes it in only then; approval/user-gate answers are different interactions and are not startup `userPrompt`. The template compiler also guards the section to worker steps, so direct approval/later-step callers cannot accidentally render it. The renderer may be called by `inspect`-adjacent code after `loadWorkflowAndBaton`, but it must not call `resolveTransition` or `applyOutputToBatonState`.
+The renderer receives already-validated workflow/baton/step data plus an optional render-time `userPrompt` string. The runner/runtime decides whether startup `baton.user_prompt` is eligible for the current worker and passes it in only then; approval/user-gate answers are different interactions and are not startup `userPrompt`. The template compiler also guards the section to worker steps, so direct approval/later-step callers cannot accidentally render it. The renderer may be called by `inspect`-adjacent code after `loadWorkflowAndBaton`, but it must not call `resolveTransition` or `applyOutputToBatonState`.
 
 ### Template resolution
 
@@ -281,7 +282,7 @@ After that top layer, the renderer always concatenates fixed sections in this or
 3. `## Output contract` if `output.template` exists;
 4. `## Projected baton state` if `input.state` selected anything;
 5. `## Workflow step prompt` if `input.prompt` exists;
-6. `## User prompt` from the optional render-time `userPrompt` value, only when the interpreter/runner has selected this worker as the one startup prompt recipient and that selected worker output has not yet set `baton.user_prompt_injected`; repeated renders before completion preserve the section for the same worker;
+6. `## User prompt` from the optional render-time `userPrompt` value, only when the runner/runtime has selected this worker as the one startup prompt recipient and that selected worker output has not yet set `baton.user_prompt_injected`; repeated renders before completion preserve the section for the same worker;
 7. final reminder when an output contract exists.
 
 This keeps the output contract high for primacy, places context before the executable step/user request, and keeps a short output-contract reminder at the bottom for recency. It intentionally does not preserve compatibility with older placeholder templates.
@@ -341,7 +342,7 @@ Interpreter remains responsible for current-step selection and post-output trans
 Preferred CLI surface: add a new mode beside `inspect` and `apply`:
 
 ```bash
-node develop/lib/bin/workflow-interpreter.mjs render [--diagnostics] <workflow.json> <baton.json>
+node develop/lib/bin/workflow-runner.mjs next --run-dir <dir> --workflow <workflow.json> [--diagnostics]
 ```
 
 Output shape:
@@ -405,10 +406,10 @@ Unit tests:
 
 CLI/smoke tests:
 
-- `render` on a minimal fixture returns `compiledPrompt.prompt` and does not mutate baton file.
-- `render` on Dev Harness fixture succeeds through renderer-owned prompt layering and fails clearly if a declared input template is missing.
-- `render --diagnostics` includes non-fatal diagnostics while plain `render` omits them.
-- `inspect` output remains unchanged unless Sergey approves adding compiled prompt there.
+- `runner render path on a minimal fixture returns `compiledPrompt.prompt` and does not mutate baton file.
+- `runner render path on Dev Harness fixture succeeds through renderer-owned prompt layering and fails clearly if a declared input template is missing.
+- ``next --diagnostics` includes non-fatal diagnostics while plain `render` omits them.
+- host response shape keeps instruction load references instead of embedding full prompt text.
 - `apply` without `output.schema` behavior remains unchanged.
 - `apply` stores each worker output under `baton.state[stepId]`, mirrors structured `output.schema` outputs under `baton.state.outputs[stepId]`, and keeps `artifacts`/`results` aggregation intact.
 - `apply` with invalid structured output retries with validation feedback, then fails deterministically after the bounded attempt limit.
@@ -419,19 +420,16 @@ Schema tests:
 - `input.state` remains a unique string array.
 - optional schema for compiled prompt response rejects extra top-level fields if a schema is added.
 
-## Migration plan
+## Maintenance plan
 
-Minimal migration path:
+Keep the v3 split stable:
 
-1. Add renderer modules under `develop/lib/workflow/`, likely:
-   - `projection.mjs` for `projectState`;
-   - `prompt-renderer.mjs` for static template loading and fixed-layer assembly;
-   - optional `path-resolution.mjs` if shared with JSON/template IO.
-2. Add a schema only if compiled prompt responses become part of the stable directive/response contract; this slice keeps `compiledPrompt` limited to `render` output.
-3. Add `render` CLI mode without changing `inspect` output.
-4. Remove the obsolete base input template reference from `workflows/dev-harness/workflow.json` and rely on renderer-owned prompt layering unless a step declares a custom template.
-5. Keep `output.template` as markdown, but store/copy workflow-used templates under the workflow package and reference them relative to `workflow.json`.
-6. Do not change transition application or baton merge semantics.
+1. Put new CLI/API behavior in `entrypoints/`; do not let it leak into entities.
+2. Put filesystem/resource loading and durable writes in `persistence/`; use-cases and entities stay IO-free.
+3. Put orchestration that combines workflow, baton, step, template, output, and instruction DTOs in named `use-cases/` files.
+4. Put workflow invariants in `Workflow`, runtime-state invariants in `Baton`, step/run validation and render-context preparation in `Step`, and rendering mechanics in `Template`/template compiler helpers.
+5. Keep `output.template` as markdown and `output.schema` as JSON schema resources resolved by persistence before use-cases need them.
+6. Preserve host requests as instruction references/load commands; do not embed full prompt text in host requests by default.
 
 ## Blunt design critique
 
@@ -451,14 +449,15 @@ The renderer should be easy to delete or replace: read static markdown, project 
 
 Boundary pressure to watch:
 
-- If renderer starts looking at `next`, it is becoming interpreter logic.
+- If renderer starts looking at `next`, it is becoming transition/runtime logic.
 - If renderer starts choosing agents, it is becoming orchestrator logic.
 - If renderer starts interpreting markdown output templates as schemas, it is violating #87.
 - If renderer starts inferring state from baton instead of `input.state`, it is leaking context by default.
 - If renderer accepts placeholders, it will become an undocumented programming language before there is a concrete need.
 
-## Open questions for Sergey approval
+## Settled v3 decisions
 
-1. CLI shape: PR #94 uses `render <workflow.json> <baton.json>` and leaves `inspect`/`apply` response shapes unchanged.
-2. Missing declared input templates: PR #94 fails hard when a declared template is missing; Dev Harness no longer declares the removed base input template.
-3. Compiled prompt location: PR #94 keeps `compiledPrompt` only in the new render response; future directive embedding remains a separate approval decision.
+1. Runtime ownership follows `entrypoints -> persistence -> use-cases -> entities -> dtos`.
+2. Prompt rendering lives under `Step`/`Template` responsibilities: `Step` prepares context; `Template` renders text.
+3. Host requests expose load-instructions commands/references rather than full compiled prompts.
+4. Missing declared templates, schemas, role material, and invalid instruction requests fail deterministically at the owning boundary.

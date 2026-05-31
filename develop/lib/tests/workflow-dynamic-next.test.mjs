@@ -10,38 +10,74 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../.
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-dynamic-next-'));
 writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
 
-const dynamicOutputSchema = {
-  $schema: 'https://json-schema.org/draft/2020-12/schema',
-  type: 'object',
-  required: ['outcome'],
-  properties: {
-    outcome: { type: 'string' },
-    next: { type: 'string' },
-    selected_steps: { type: 'array', items: { type: 'string' } },
-    dynamic_value: {},
-    route: {
-      type: 'object',
-      properties: { next: { type: 'string' } },
-      additionalProperties: false,
+function schemaDoc({ required = ['outcome'], properties = {} } = {}) {
+  return {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required,
+    properties: {
+      outcome: { enum: ['ready', 'blocked'] },
+      artifacts: { type: 'array' },
+      results: { type: 'array' },
+      blocker: { type: 'object' },
+      next: { enum: ['review_a', 'review_b', 'join'] },
+      ...properties,
     },
-    steps: {
-      type: 'object',
-      properties: { next: { type: 'string' } },
-      additionalProperties: false,
-    },
-    artifacts: { type: 'array' },
-    results: { type: 'array' },
-    blocker: { type: 'object' },
-  },
-  additionalProperties: false,
-};
-writeFileSync(path.join(tempDir, 'dynamic-output-schema.json'), `${JSON.stringify(dynamicOutputSchema, null, 2)}\n`);
-
-function outputContract() {
-  return { template: 'output.md', schema: 'dynamic-output-schema.json' };
+    additionalProperties: false,
+  };
 }
 
-function workflow(next = '${{ output.next }}') {
+const nonStringSchema = { anyOf: [{ type: 'null' }, { type: 'number' }, { type: 'boolean' }, { type: 'object' }, { type: 'array' }] };
+const dynamicValueSchema = { anyOf: [{ enum: ['review_a'] }, nonStringSchema] };
+const dynamicMatchValueSchema = { anyOf: [{ enum: ['ready'] }, nonStringSchema] };
+
+const outputSchemas = {
+  'base-output-schema.json': schemaDoc(),
+  'ready-output-schema.json': schemaDoc({ properties: { outcome: { const: 'ready' } } }),
+  'next-output-schema.json': schemaDoc({ required: ['outcome', 'next'], properties: { next: { enum: ['review_a', 'review_b'] } } }),
+  'open-next-output-schema.json': schemaDoc({ required: ['outcome', 'next'], properties: { next: { anyOf: [{ enum: ['review_a'] }, { type: 'string' }] } } }),
+  'next-unknown-output-schema.json': schemaDoc({ required: ['outcome', 'next'], properties: { next: { enum: ['review_a', 'missing'] } } }),
+  'route-next-output-schema.json': schemaDoc({
+    required: ['outcome', 'route'],
+    properties: { route: { type: 'object', required: ['next'], properties: { next: { enum: ['review_a', 'review_b'] } }, additionalProperties: false } },
+  }),
+  'steps-next-output-schema.json': schemaDoc({
+    required: ['outcome', 'steps'],
+    properties: { steps: { type: 'object', required: ['next'], properties: { next: { enum: ['review_a', 'review_b'] } }, additionalProperties: false } },
+  }),
+  'selected-steps-output-schema.json': schemaDoc({
+    required: ['outcome', 'selected_steps'],
+    properties: { selected_steps: { type: 'array', minItems: 1, uniqueItems: true, items: { enum: ['review_a', 'review_b'] } } },
+  }),
+  'dynamic-value-output-schema.json': schemaDoc({ required: ['outcome', 'dynamic_value'], properties: { dynamic_value: dynamicValueSchema } }),
+  'dynamic-match-value-output-schema.json': schemaDoc({ required: ['outcome', 'dynamic_value'], properties: { dynamic_value: dynamicMatchValueSchema } }),
+  'planning-draft-output-schema.json': schemaDoc({
+    required: ['outcome', 'selected_reviewers', 'route'],
+    properties: {
+      selected_reviewers: { type: 'array', minItems: 1, uniqueItems: true, items: { enum: ['review_a', 'review_b'] } },
+      route: { enum: ['review', 'blocked'] },
+    },
+  }),
+};
+
+for (const [fileName, schema] of Object.entries(outputSchemas)) {
+  writeFileSync(path.join(tempDir, fileName), `${JSON.stringify(schema, null, 2)}\n`);
+}
+
+function outputContract(schema = 'base-output-schema.json') {
+  return { template: 'output.md', schema };
+}
+
+function schemaForNext(next) {
+  if (next === '${{ output.next }}') return 'next-output-schema.json';
+  if (next === '${{ output.route.next }}') return 'route-next-output-schema.json';
+  if (next === '${{ output.steps.next }}') return 'steps-next-output-schema.json';
+  if (next === '${{ output.selected_steps }}') return 'selected-steps-output-schema.json';
+  if (next === '${{ output.dynamic_value }}') return 'dynamic-value-output-schema.json';
+  return 'base-output-schema.json';
+}
+
+function workflow(next = '${{ output.next }}', selectorSchema = schemaForNext(next)) {
   return {
       name: 'dynamic-next-spec',
       version: 1,
@@ -53,10 +89,10 @@ function workflow(next = '${{ output.next }}') {
           name: 'Selector',
           kind: 'worker',
           input: { state: ['planning_draft'], prompt: 'Select next.' },
-          output: outputContract(),
+          output: outputContract(selectorSchema),
           next,
         },
-        planning_draft: { name: 'Planning draft', kind: 'worker', input: {}, output: outputContract(), next: 'selector' },
+        planning_draft: { name: 'Planning draft', kind: 'worker', input: {}, output: outputContract('planning-draft-output-schema.json'), next: 'selector' },
         review_a: { name: 'Review A', kind: 'worker', input: {}, output: outputContract(), next: 'join' },
         review_b: { name: 'Review B', kind: 'worker', input: {}, output: outputContract(), next: 'join' },
         join: { name: 'Join', kind: 'worker', input: {}, output: outputContract(), next: 'done' },
@@ -162,15 +198,22 @@ test('dynamic input path not projected errors deterministically', () => {
   const workflowDoc = workflow('${{ input.planning_draft.selected_reviewers }}');
   workflowDoc.steps.selector.input.state = [];
   const result = runApply('input-not-projected', baton(), { outcome: 'ready' }, false, workflowDoc);
-  assert.match(result.stderr, /could not resolve missing path 'input.planning_draft'/);
+  assert.match(result.stderr, /does not project input state 'planning_draft'/);
 });
 
 test('dynamic next rejects missing paths and invalid resolved values', () => {
   assert.match(
     runApply('missing-output-path', baton(), { outcome: 'ready' }, false, workflow('${{ output.missing_next }}')).stderr,
-    /could not resolve missing path 'output.missing_next'/,
+    /has no schema-covered path \(path not found\)/,
   );
-  assert.match(runApply('empty-string', baton(), { outcome: 'ready', next: '' }, false).stderr, /dynamic next resolved to an empty string/);
+  assert.match(
+    runApply('open-string-target-schema', baton(), { outcome: 'ready', next: 'review_a' }, false, workflow('${{ output.next }}', 'open-next-output-schema.json')).stderr,
+    /next expression .* open string schema must be constrained with enum or const values/,
+  );
+  assert.match(
+    runApply('empty-string', baton({ state: { ...baton().state, attempts: { 'selector:output.schema': 2 } } }), { outcome: 'ready', next: '' }, false).stderr,
+    /output schema validation failed.*next must be equal to one of the allowed values/s,
+  );
 
   for (const [label, dynamic_value] of [
     ['null-value', null],
@@ -180,20 +223,23 @@ test('dynamic next rejects missing paths and invalid resolved values', () => {
   ]) {
     assert.match(
       runApply(label, baton(), { outcome: 'ready', dynamic_value }, false, workflow('${{ output.dynamic_value }}')).stderr,
-      /dynamic next must resolve to a string step id or array of step ids|must resolve to non-empty string step ids/,
+      /next expression .* schema allows non-string type/,
     );
   }
 });
 
 test('dynamic next rejects unknown target, empty arrays, and duplicate ids', () => {
-  assert.match(runApply('unknown-target', baton(), { outcome: 'ready', next: 'missing' }, false).stderr, /target not found: missing/);
   assert.match(
-    runApply('empty-array', baton(), { outcome: 'ready', selected_steps: [] }, false, workflow('${{ output.selected_steps }}')).stderr,
-    /must resolve to a non-empty array/,
+    runApply('unknown-target-schema', baton(), { outcome: 'ready', next: 'review_a' }, false, workflow('${{ output.next }}', 'next-unknown-output-schema.json')).stderr,
+    /schema allows unknown target 'missing'/,
   );
   assert.match(
-    runApply('duplicate-array', baton(), { outcome: 'ready', selected_steps: ['review_a', 'review_a'] }, false, workflow('${{ output.selected_steps }}')).stderr,
-    /duplicate target 'review_a'/,
+    runApply('empty-array', baton({ state: { ...baton().state, attempts: { 'selector:output.schema': 2 } } }), { outcome: 'ready', selected_steps: [] }, false, workflow('${{ output.selected_steps }}')).stderr,
+    /output schema validation failed.*selected_steps must NOT have fewer than 1 items/s,
+  );
+  assert.match(
+    runApply('duplicate-array', baton({ state: { ...baton().state, attempts: { 'selector:output.schema': 2 } } }), { outcome: 'ready', selected_steps: ['review_a', 'review_a'] }, false, workflow('${{ output.selected_steps }}')).stderr,
+    /output schema validation failed.*selected_steps must NOT have duplicate items/s,
   );
 });
 
@@ -248,10 +294,16 @@ test('match/cases rejects missing cases and non-string match results', () => {
   const matchWorkflow = workflow({ match: '${{ output.outcome }}', cases: { ready: 'review_b' } });
   assert.match(
     runApply('match-cases-missing-case', baton(), { outcome: 'blocked' }, false, matchWorkflow).stderr,
-    /next\.match case 'blocked' is not defined in next\.cases/,
+    /next\.cases is missing schema-declared case 'blocked'/,
   );
 
-  const nonStringWorkflow = workflow({ match: '${{ output.dynamic_value }}', cases: { ready: 'review_b' } });
+  const openStringWorkflow = workflow({ match: '${{ output.next }}', cases: { review_a: 'review_b' } }, 'open-next-output-schema.json');
+  assert.match(
+    runApply('match-open-string-schema', baton(), { outcome: 'ready', next: 'review_a' }, false, openStringWorkflow).stderr,
+    /next\.match expression .* open string schema must be constrained with enum or const values/,
+  );
+
+  const nonStringWorkflow = workflow({ match: '${{ output.dynamic_value }}', cases: { ready: 'review_b' } }, 'dynamic-match-value-output-schema.json');
   for (const [label, dynamic_value] of [
     ['match-null', null],
     ['match-number', 7],
@@ -261,7 +313,7 @@ test('match/cases rejects missing cases and non-string match results', () => {
   ]) {
     assert.match(
       runApply(label, baton(), { outcome: 'ready', dynamic_value }, false, nonStringWorkflow).stderr,
-      /next\.match must resolve to a string case key/,
+      /next\.match expression .* schema allows non-string type/,
     );
   }
 });
@@ -282,22 +334,22 @@ test('match/cases array target rejects empty, duplicate, unknown, and nested arr
 
 
 test('top-level next array supports static plus match/cases string target', () => {
-  const workflowDoc = workflow(['review_a', { match: '${{ output.outcome }}', cases: { ready: 'review_b', blocked: 'blocked' } }]);
+  const workflowDoc = workflow(['review_a', { match: '${{ output.outcome }}', cases: { ready: 'review_b' } }], 'ready-output-schema.json');
   const response = runApply('top-array-static-match-string', baton(), { outcome: 'ready' }, true, workflowDoc);
   assert.deepEqual(response.steps.map((step) => step.id), ['review_a', 'review_b']);
 });
 
 test('top-level next array flattens match/cases array target', () => {
-  const workflowDoc = workflow(['review_a', { match: '${{ output.outcome }}', cases: { ready: ['review_b'], blocked: 'blocked' } }]);
+  const workflowDoc = workflow(['review_a', { match: '${{ output.outcome }}', cases: { ready: ['review_b'] } }], 'ready-output-schema.json');
   const response = runApply('top-array-match-array-flatten', baton(), { outcome: 'ready' }, true, workflowDoc);
   assert.deepEqual(response.steps.map((step) => step.id), ['review_a', 'review_b']);
 });
 
 test('top-level next array rejects duplicates and unknown ids after flattening', () => {
-  const duplicateWorkflow = workflow(['review_a', { match: '${{ output.outcome }}', cases: { ready: ['review_a', 'review_b'] } }]);
+  const duplicateWorkflow = workflow(['review_a', { match: '${{ output.outcome }}', cases: { ready: ['review_a', 'review_b'] } }], 'ready-output-schema.json');
   assert.match(runApply('top-array-flatten-duplicate', baton(), { outcome: 'ready' }, false, duplicateWorkflow).stderr, /duplicate target 'review_a'/);
 
-  const unknownWorkflow = workflow(['review_a', { match: '${{ output.outcome }}', cases: { ready: ['review_b', 'missing'] } }]);
+  const unknownWorkflow = workflow(['review_a', { match: '${{ output.outcome }}', cases: { ready: ['review_b', 'missing'] } }], 'ready-output-schema.json');
   assert.match(runApply('top-array-flatten-unknown', baton(), { outcome: 'ready' }, false, unknownWorkflow).stderr, /target not found: missing/);
 });
 
@@ -335,10 +387,10 @@ test('match/cases rejects nested match/cases inside case arrays explicitly', () 
 });
 
 test('old next.by/map is rejected while static and direct dynamic next still work', () => {
-  const literal = runApply('literal-next', baton(), { outcome: 'ready', next: 'ignored' }, true, workflow('review_a'));
+  const literal = runApply('literal-next', baton(), { outcome: 'ready', next: 'review_a' }, true, workflow('review_a'));
   assert.equal(literal.baton.cursor, 'review_a');
 
-  const staticParallel = runApply('static-parallel-next', baton(), { outcome: 'ready', next: 'ignored' }, true, workflow(['review_a', 'review_b']));
+  const staticParallel = runApply('static-parallel-next', baton(), { outcome: 'ready', next: 'review_a' }, true, workflow(['review_a', 'review_b']));
   assert.deepEqual(staticParallel.steps.map((step) => step.id), ['review_a', 'review_b']);
 
   const directDynamic = runApply('direct-dynamic-next-still-works', baton(), { outcome: 'ready', next: 'review_a' });

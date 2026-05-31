@@ -8,31 +8,82 @@
     "plan": {
       "name": "Plan",
       "kind": "worker",
-      "input": { "prompt": "Plan the work." },
-      "output": { "template": "output.md" },
+      "input": {
+        "prompt": "Plan the work."
+      },
+      "output": {
+        "template": "output.md"
+      },
       "next": "approval_gate"
     },
     "approval_gate": {
       "name": "Approval Gate",
       "kind": "approval",
-      "input": { "state": ["plan"], "prompt": "Approve the plan." },
-      "next": { "match": "${{ output.approval }}", "cases": { "approved": "implement", "rejected": "plan", "blocked": "blocked" } }
+      "input": {
+        "state": [
+          "plan"
+        ],
+        "prompt": "Approve the plan."
+      },
+      "next": {
+        "match": "${{ output.approval }}",
+        "cases": {
+          "approved": "implement",
+          "rejected": "plan",
+          "blocked": "blocked"
+        }
+      }
     },
     "implement": {
       "name": "Implement",
       "kind": "worker",
-      "input": { "state": ["plan", "approval_gate"], "prompt": "Implement the approved plan." },
-      "output": { "template": "output.md" },
+      "input": {
+        "state": [
+          "plan",
+          "approval_gate"
+        ],
+        "prompt": "Implement the approved plan."
+      },
+      "output": {
+        "template": "output.md"
+      },
       "next": "review"
     },
     "review": {
       "name": "Review",
       "kind": "worker",
-      "input": { "state": ["implement"], "prompt": "Review implementation." },
-      "output": { "template": "output.md" },
-      "next": { "match": "${{ output.outcome }}", "cases": { "ready": "done", "retry": "implement", "blocked": "blocked" } }
+      "input": {
+        "state": [
+          "implement"
+        ],
+        "prompt": "Review implementation."
+      },
+      "output": {
+        "template": "output.md",
+        "schema": "schemas/routing-review.schema.json"
+      },
+      "next": {
+        "match": "${{ output.outcome }}",
+        "cases": {
+          "ready": "done",
+          "retry": "implement",
+          "blocked": "blocked"
+        }
+      }
     },
-    "done": { "name": "Done", "kind": "done", "input": { "prompt": "Finished." } },
-    "blocked": { "name": "Blocked", "kind": "blocked", "input": { "prompt": "Blocked." } }
+    "done": {
+      "name": "Done",
+      "kind": "done",
+      "input": {
+        "prompt": "Finished."
+      }
+    },
+    "blocked": {
+      "name": "Blocked",
+      "kind": "blocked",
+      "input": {
+        "prompt": "Blocked."
+      }
+    }
   }
 }

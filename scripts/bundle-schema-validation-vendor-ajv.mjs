@@ -1,4 +1,12 @@
+import { readFile, writeFile } from 'node:fs/promises';
 import { build } from 'esbuild';
+
+const outfile = 'shared/scripts/schema-validation/vendor/ajv.mjs';
+
+const normalizeBundledModulePaths = (bundle) =>
+  bundle
+    .replaceAll(/(?<=\/\/ )(?:(?:\.\.\/)+)?node_modules\//g, 'node_modules/')
+    .replaceAll(/(?<=")(?:(?:\.\.\/)+)?node_modules\//g, 'node_modules/');
 
 await build({
   stdin: {
@@ -10,7 +18,7 @@ await build({
   bundle: true,
   platform: 'node',
   format: 'esm',
-  outfile: 'shared/scripts/schema-validation/vendor/ajv.mjs',
+  outfile,
   banner: {
     js: [
       '// Generated vendor bundle for Ajv 2020.',
@@ -18,3 +26,6 @@ await build({
     ].join('\n'),
   },
 });
+
+const bundle = await readFile(outfile, 'utf8');
+await writeFile(outfile, normalizeBundledModulePaths(bundle));
