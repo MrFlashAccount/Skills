@@ -3,8 +3,7 @@
   "description": "Producer output contract for DevHarness review gates that pass, request changes, or block implemented work.",
   "type": "object",
   "required": [
-    "outcome",
-    "verdict"
+    "outcome"
   ],
   "properties": {
     "outcome": {
@@ -67,7 +66,8 @@
         ]
       },
       "description": "Producer must list implementation branch ids that must rerun when review requires rework.",
-      "x-usage": "Use only these branch ids when rerunning implementation for required changes. Do not add branches from prose alone."
+      "x-usage": "Use only these branch ids when rerunning implementation for required changes. Do not add branches from prose alone.",
+      "minItems": 1
     },
     "artifacts": {
       "type": "array",
@@ -133,5 +133,59 @@
   },
   "additionalProperties": false,
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/dev-harness/gate-review-verdict-output"
+  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/dev-harness/gate-review-verdict-output",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "passed"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "verdict"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "needs_changes"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "verdict",
+          "required_implementation_steps"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "blocked"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "blocker"
+        ]
+      }
+    }
+  ]
 }

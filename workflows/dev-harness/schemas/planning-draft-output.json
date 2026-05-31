@@ -3,12 +3,7 @@
   "description": "Producer output contract for the DevHarness planning draft that proposes implementation and review routes.",
   "type": "object",
   "required": [
-    "outcome",
-    "implementation_plan",
-    "selected_implementation_steps",
-    "implementation_route",
-    "selected_review_steps",
-    "review_plan"
+    "outcome"
   ],
   "properties": {
     "outcome": {
@@ -350,6 +345,44 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/dev-harness/planning-draft-output",
   "allOf": [
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "ready_for_attack"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "implementation_plan",
+          "selected_implementation_steps",
+          "implementation_route",
+          "selected_review_steps",
+          "review_plan"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "blocked"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "blocker"
+        ]
+      }
+    },
     {
       "if": {
         "properties": {

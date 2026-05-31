@@ -3,9 +3,7 @@
   "description": "Producer output contract for joining DevHarness review branch verdicts and selecting the next loop target.",
   "type": "object",
   "required": [
-    "outcome",
-    "verdict",
-    "next"
+    "outcome"
   ],
   "properties": {
     "outcome": {
@@ -82,7 +80,8 @@
             ]
           },
           "description": "Producer must list implementation branch ids that must rerun to address joined review findings.",
-          "x-usage": "Use only these implementation branch ids when next requests a rework loop. Do not widen rework from prose alone."
+          "x-usage": "Use only these implementation branch ids when next requests a rework loop. Do not widen rework from prose alone.",
+          "minItems": 1
         }
       },
       "additionalProperties": true,
@@ -177,5 +176,85 @@
   },
   "additionalProperties": false,
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/dev-harness/review-join-output"
+  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/dev-harness/review-join-output",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "passed"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "verdict",
+          "next"
+        ],
+        "properties": {
+          "next": {
+            "const": "done"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "needs_changes"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "verdict",
+          "next"
+        ],
+        "properties": {
+          "next": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "backend_implementation",
+                "frontend_implementation",
+                "architecture_artifact_update"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "blocked"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "blocker",
+          "next"
+        ],
+        "properties": {
+          "next": {
+            "const": "blocked"
+          }
+        }
+      }
+    }
+  ]
 }

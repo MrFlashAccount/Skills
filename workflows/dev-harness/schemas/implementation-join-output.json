@@ -3,8 +3,7 @@
   "description": "Producer output contract for joining implementation branch outputs before review dispatch.",
   "type": "object",
   "required": [
-    "outcome",
-    "reviewer_handoff"
+    "outcome"
   ],
   "properties": {
     "outcome": {
@@ -140,5 +139,41 @@
   },
   "additionalProperties": false,
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/dev-harness/implementation-join-output"
+  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/dev-harness/implementation-join-output",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "ready_for_review"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "reviewer_handoff"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "blocked"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "blocker"
+        ]
+      }
+    }
+  ]
 }
