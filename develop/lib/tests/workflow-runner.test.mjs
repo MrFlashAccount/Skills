@@ -1559,6 +1559,22 @@ test('runner: next resolves external workflow package shared resources from repo
   assert.equal(response.requests[0].stepId, 'prepare');
 });
 
+test('runner: instructions rejects stale last-response requests after baton advances', () => {
+  const runDir = path.join(tempDir, 'instructions-stale-request');
+  const workflowPath = path.join(tempDir, 'instructions-stale-request-workflow.json');
+  const singleWorkflow = structuredClone(workflowDoc);
+  singleWorkflow.steps.prepare.next = 'done';
+  writeJson(workflowPath, singleWorkflow);
+
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next stale instructions setup');
+  writeJson(path.join(runDir, 'baton.json'), { cursor: 'done', status: 'done', state: { artifacts: [], results: [], prepare: workerOutput('prepared') } });
+
+  const stale = runRunner(['instructions', '--run-dir', runDir, '--step-id', 'prepare']);
+
+  assert.notEqual(stale.status, 0);
+  assert.match(stale.stderr, /unknown current workflow step id: prepare/);
+});
+
 test('runner: instructions rejects unknown, unsafe, and missing instructions', () => {
   const runDir = path.join(tempDir, 'instructions-errors');
   const workflowPath = path.join(tempDir, 'instructions-errors-workflow.json');

@@ -4,6 +4,7 @@ import { runNext } from '../../use-cases/RunNext.mjs';
 import { loadInstructions as loadInstructionsUseCase } from '../../use-cases/LoadInstructions.mjs';
 import { resolveStartupUserPrompt } from '../../use-cases/user-prompt.mjs';
 import { loadWorkflowRuntime, readWorkerOutputText } from '../../persistence/WorkflowRuntimeReader.mjs';
+import { read as readInstructionDTO } from '../../persistence/InstructionFileReader.mjs';
 import { assertSafeStepId, instructionPathForStep, responseStatusForInterpreterResponse, toHostResponse } from '../../persistence/runner/host-requests.mjs';
 import { commitDurableRunState, ensureRunFiles, pathExists, readJson, readText, recoverDurableCommit, repositoryRoot, resolveRunPaths, withContinueRunLock } from '../../persistence/runner/run-state.mjs';
 
@@ -194,7 +195,19 @@ export async function loadInstructions({ runDir, stepId }) {
   await recoverDurableCommit(paths);
   const lastResponse = await readJson(paths.lastResponsePath, 'last runner response');
   if (lastResponse.status !== 'needs_host_actions') throw new Error(`unknown current workflow step id: ${stepId}`);
-  loadInstructionsUseCase({ batonData: { requests: lastResponse.requests ?? [] }, stepId, instructionDTO: { stepId } });
+  const runtimePaths = typeof lastResponse.workflow === 'string' && lastResponse.workflow.length > 0
+    ? resolveRunPaths({ runDir, workflowPath: lastResponse.workflow })
+    : paths;
+  const runtime = loadWorkflowRuntime({ workflowPath: runtimePaths.workflowPath, batonPath: paths.batonPath });
+  const instructionPath = instructionPathForStep(paths.instructionsDir, stepId);
+  loadInstructionsUseCase({
+    workflowDTO: runtime.workflow,
+    runStateDTO: { baton: runtime.baton, requests: lastResponse.requests ?? [], responseStatus: lastResponse.status },
+    instructionDTO: { path: instructionPath, content: '' },
+    resources: runtime.resources,
+    stepId,
+  });
 
-  return readText(instructionPathForStep(paths.instructionsDir, stepId), `instructions for workflow step ${stepId}`);
+  const instruction = await readInstructionDTO(instructionPath, `instructions for workflow step ${stepId}`);
+  return instruction.toJSON().content;
 }

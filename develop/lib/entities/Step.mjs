@@ -245,6 +245,26 @@ export class Step {
     return { ok: true };
   }
 
+  validateInstructionRequest({ workflow, baton, runState = {}, stepId } = {}) {
+    const batonData = typeof baton?.toJSON === 'function' ? baton.toJSON() : baton;
+    const workflowDoc = workflowData(workflow);
+    const requests = runState.requests ?? batonData?.requests ?? [];
+    const request = requests.find((candidate) => candidate?.stepId === stepId || candidate?.id === stepId);
+    invariant(request, `unknown current workflow step id: ${stepId}`);
+
+    const requestStepId = request.stepId ?? request.id;
+    invariant(typeof requestStepId === 'string' && requestStepId.length > 0, `unknown current workflow step id: ${stepId}`);
+    invariant(workflowDoc.steps?.[requestStepId], `unknown current workflow step id: ${stepId}`);
+
+    if (requestStepId === this.id) return { ok: true, stepId: requestStepId };
+    if (batonData?.state && Object.hasOwn(batonData.state, this.id) && Object.hasOwn(this.data, 'next')) {
+      const resolved = this.resolveConcreteTargets(batonData, workflowDoc, batonData.state[this.id]);
+      if (resolved.targetStepIds?.includes(requestStepId)) return { ok: true, stepId: requestStepId };
+    }
+
+    throw new Error(`unknown current workflow step id: ${stepId}`);
+  }
+
   prepareRenderContext({ workflow, baton, userPrompt } = {}) {
     return { workflow: workflowData(workflow), baton, stepId: this.id, step: this.toJSON(), input: this.resolveInputs(baton), userPrompt };
   }
