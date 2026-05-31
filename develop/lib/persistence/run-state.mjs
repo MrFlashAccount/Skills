@@ -321,7 +321,7 @@ export async function appendHistory(paths, entry) {
   }
 }
 
-export async function persistRunnerResponse(paths, response) {
+export async function persistRunResponse(paths, response) {
   await writeJsonAtomic(paths.lastResponsePath, response);
   await appendHistory(paths, { source: 'workflow-runner', baton: response.baton, requests: response.requests });
 }

@@ -1,4 +1,3 @@
-import { readJson, readText } from '../../../persistence/json-io.mjs';
 import { isDynamicTransitionNext, isStaticParallelNext, resolveTransition } from '../../../entities/Workflow/transitions.mjs';
 import { loadWorkflowAndBaton } from '../guards/workflow.mjs';
 import { applyNextTransition } from '../transition/next.mjs';
@@ -7,7 +6,7 @@ import { applyParallelOutputs } from '../parallel/apply.mjs';
 import { hasAppliedOutputForStep } from './response.mjs';
 import { assertOutputSchemaIfDeclared, isParallelOutputEnvelope, readWorkerOutputForStep } from './worker-output.mjs';
 
-function readCandidateOutput({ outputPath, step, outputValue }) {
+function readCandidateOutput({ outputPath, step, outputValue, readJson, readText }) {
   if (outputValue !== undefined) return outputValue;
   if (!step.output?.schema) return readJson(outputPath, 'worker output');
   try {
@@ -18,7 +17,7 @@ function readCandidateOutput({ outputPath, step, outputValue }) {
 }
 
 export function applyWorkflowOutput(workflowPath, batonPath, outputPath, outputValue, options = {}) {
-  const { workflow, baton, cursorStep } = loadWorkflowAndBaton(workflowPath, batonPath);
+  const { workflow, baton, cursorStep } = loadWorkflowAndBaton(workflowPath, batonPath, { readJson: options.resourceAdapters?.readJson });
   const staticParallelNext = isStaticParallelNext(cursorStep.next);
   const dynamicNext = isDynamicTransitionNext(cursorStep.next);
   const hasAppliedCursorOutput = hasAppliedOutputForStep(baton, baton.cursor);
@@ -30,7 +29,10 @@ export function applyWorkflowOutput(workflowPath, batonPath, outputPath, outputV
     preparedParallelTargets = resolved.targetStepIds;
   }
   const canApplyPreparedParallelOutput = Boolean(preparedParallelTargets);
-  const candidateOutput = canApplyPreparedParallelOutput ? readCandidateOutput({ outputPath, step: cursorStep, outputValue }) : undefined;
+  const readJson = options.resourceAdapters?.readJson;
+  const readText = options.resourceAdapters?.readText;
+  if (typeof readJson !== 'function' || typeof readText !== 'function') throw new Error('workflow runtime missing output readers');
+  const candidateOutput = canApplyPreparedParallelOutput ? readCandidateOutput({ outputPath, step: cursorStep, outputValue, readJson, readText }) : undefined;
   if (canApplyPreparedParallelOutput && !isParallelOutputEnvelope(candidateOutput)) {
     throw new Error('parallel output must include object steps');
   }
@@ -45,10 +47,12 @@ export function applyWorkflowOutput(workflowPath, batonPath, outputPath, outputV
       allOutput: candidateOutput,
       targets: dynamicNext ? preparedParallelTargets : undefined,
       repositoryRoot: options.repositoryRoot,
+      readJson,
+      loadOutputSchema: options.resourceAdapters?.loadOutputSchema,
     });
   }
 
-  const readResult = readWorkerOutputForStep({ outputPath, baton, stepId: baton.cursor, step: cursorStep, allOutput: outputValue ?? candidateOutput });
+  const readResult = readWorkerOutputForStep({ outputPath, baton, stepId: baton.cursor, step: cursorStep, allOutput: outputValue ?? candidateOutput, readJson, readText });
   if (readResult.retryResponse) return readResult.retryResponse;
   const { workerOutput, retryResponse } = assertOutputSchemaIfDeclared({
     workflowPath,
@@ -58,6 +62,7 @@ export function applyWorkflowOutput(workflowPath, batonPath, outputPath, outputV
     step: cursorStep,
     workerOutput: readResult.workerOutput,
     repositoryRoot: options.repositoryRoot,
+    loadOutputSchema: options.resourceAdapters?.loadOutputSchema,
   });
   if (retryResponse) return retryResponse;
 

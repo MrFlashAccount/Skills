@@ -1,10 +1,7 @@
 import { validateJsonSchema } from 'schema-validation';
 import { WorkflowInterpreterError } from '../entities/Workflow/errors.mjs';
-import { readJson } from '../persistence/json-io.mjs';
 import { RESERVED_STATE_KEYS, DANGEROUS_OBJECT_KEYS, assertProjectableStateSelector, isDangerousObjectKey, isReservedStateKey } from '../entities/Baton/state-keys.mjs';
 import { readOutputSchema } from '../dtos/output-schema-validation.mjs';
-import { defaultRepositoryRootForWorkflow } from '../persistence/resource-resolver.mjs';
-import { assertRoleDirectoryName, listAllowedWorkflowRoles } from '../persistence/role-material.mjs';
 import { assertWorkflowSchema, workflowSchemas } from '../dtos/schema-validation.mjs';
 import { assertTransitionDescriptorTargets, normalizeTransitionNext } from '../entities/Workflow/transitions.mjs';
 
@@ -68,8 +65,8 @@ function assertWorkflowInputStateSelectors(workflow) {
   }
 }
 
-function assertWorkflowStepRoles(workflow, repositoryRoot) {
-  const allowedRoles = new Set(listAllowedWorkflowRoles({ repositoryRoot }));
+function assertWorkflowStepRoles(workflow, { repositoryRoot, listAllowedWorkflowRoles, assertRoleDirectoryName }) {
+  const allowedRoles = new Set(typeof listAllowedWorkflowRoles === 'function' ? listAllowedWorkflowRoles({ repositoryRoot }) : []);
   for (const [stepId, step] of Object.entries(workflow.steps)) {
     if (step.kind !== 'worker') continue;
     const role = step.input?.role;
@@ -180,14 +177,14 @@ function validateOutputSchemaDocument(schema, schemaRef, workflow, workflowPath,
   return normalizedSchema;
 }
 
-function loadStepOutputSchemas({ workflow, workflowPath, repositoryRoot, warnings }) {
+function loadStepOutputSchemas({ workflow, workflowPath, repositoryRoot, warnings, loadOutputSchema }) {
   const schemasByStep = new Map();
   for (const [stepId, step] of Object.entries(workflow.steps)) {
     const schemaRef = step.output?.schema;
     if (!schemaRef) continue;
     let schema;
     try {
-      schema = readOutputSchema({ workflow, workflowPath, schemaRef, repositoryRoot });
+      schema = readOutputSchema({ workflow, workflowPath, schemaRef, repositoryRoot, loadOutputSchema });
     } catch (error) {
       if (error instanceof WorkflowInterpreterError) fail(`step '${stepId}' ${error.message}`);
       throw error;
@@ -454,15 +451,15 @@ function assertTransitionSemantics(workflow, schemasByStep) {
   }
 }
 
-export function validateWorkflowDocument(workflow, { workflowPath = 'workflow.json', repositoryRoot } = {}) {
+export function validateWorkflowDocument(workflow, { workflowPath = 'workflow.json', repositoryRoot, resourceAdapters = {} } = {}) {
   assertWorkflowSchema(workflow);
   assertWorkflowIdentity(workflow);
   assertWorkflowStepIds(workflow);
   assertWorkflowRootTargets(workflow);
   assertWorkflowInputStateSelectors(workflow);
-  assertWorkflowStepRoles(workflow, repositoryRoot ?? process.cwd());
+  assertWorkflowStepRoles(workflow, { repositoryRoot: repositoryRoot ?? process.cwd(), listAllowedWorkflowRoles: resourceAdapters.listAllowedWorkflowRoles, assertRoleDirectoryName: resourceAdapters.assertRoleDirectoryName });
   const warnings = [];
-  const schemasByStep = loadStepOutputSchemas({ workflow, workflowPath, repositoryRoot, warnings });
+  const schemasByStep = loadStepOutputSchemas({ workflow, workflowPath, repositoryRoot, warnings, loadOutputSchema: resourceAdapters.loadOutputSchema });
   assertTransitionSemantics(workflow, schemasByStep);
   const result = { ok: true, workflow: workflow.name, steps: Object.keys(workflow.steps).length };
   if (warnings.length > 0) result.warnings = warnings;
@@ -470,10 +467,13 @@ export function validateWorkflowDocument(workflow, { workflowPath = 'workflow.js
 }
 
 export function validateWorkflowFile(workflowPath, options = {}) {
-  const workflowDoc = readJson(workflowPath, 'workflow');
+  const { resourceAdapters = {} } = options;
+  if (typeof resourceAdapters.readJson !== 'function' || typeof resourceAdapters.defaultRepositoryRootForWorkflow !== 'function') throw new WorkflowInterpreterError('workflow validation failed: missing workflow file adapters');
+  const workflowDoc = resourceAdapters.readJson(workflowPath, 'workflow');
   return validateWorkflowDocument(workflowDoc, {
-    repositoryRoot: defaultRepositoryRootForWorkflow(workflowPath),
+    repositoryRoot: resourceAdapters.defaultRepositoryRootForWorkflow(workflowPath),
     ...options,
+    resourceAdapters,
     workflowPath,
   });
 }

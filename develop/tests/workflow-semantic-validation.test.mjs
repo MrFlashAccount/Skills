@@ -4,23 +4,24 @@ import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import workflowDoc from '../../../workflows/dev-harness/workflow.json' with { type: 'json' };
-import researchCriticWorkflowDoc from '../../../workflows/research-critic/workflow.json' with { type: 'json' };
-import { WorkflowInterpreterError } from '../entities/Workflow/errors.mjs';
-import { validateWorkflowDocument } from '../use-cases/workflow-validator.mjs';
-import { validateAgainstOutputSchema } from '../dtos/output-schema-validation.mjs';
+import workflowDoc from '../../workflows/dev-harness/workflow.json' with { type: 'json' };
+import researchCriticWorkflowDoc from '../../workflows/research-critic/workflow.json' with { type: 'json' };
+import { WorkflowInterpreterError } from '../lib/entities/Workflow/errors.mjs';
+import { validateWorkflowDocument } from '../lib/use-cases/workflow-validator.mjs';
+import { validateAgainstOutputSchema } from '../lib/dtos/output-schema-validation.mjs';
+import { resourceAdapters } from './helpers/resource-adapters.mjs';
 
-const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-semantic-validation-'));
 mkdirSync(path.join(tempDir, 'schemas'), { recursive: true });
 cpSync(path.join(REPO_ROOT, 'workflows/dev-harness/schemas'), path.join(tempDir, 'schemas'), { recursive: true });
 
 function validate(doc) {
-  return validateWorkflowDocument(doc, { workflowPath: path.join(REPO_ROOT, 'workflows/dev-harness/workflow.json'), repositoryRoot: REPO_ROOT });
+  return validateWorkflowDocument(doc, { resourceAdapters, workflowPath: path.join(REPO_ROOT, 'workflows/dev-harness/workflow.json'), repositoryRoot: REPO_ROOT });
 }
 
 function validateSynthetic(doc) {
-  return validateWorkflowDocument(doc, { workflowPath: path.join(tempDir, 'workflow.json'), repositoryRoot: REPO_ROOT });
+  return validateWorkflowDocument(doc, { resourceAdapters, workflowPath: path.join(tempDir, 'workflow.json'), repositoryRoot: REPO_ROOT });
 }
 
 function assertSemanticFailure(doc, pattern) {
@@ -176,7 +177,7 @@ test('research critic save step uses persistence metadata template matching its 
   assert.equal(step.output.template, '../../shared/templates/research-save-metadata-template.md');
   assert.equal(step.output.schema, 'schemas/save-research-packet-output.json');
   assert.notEqual(step.output.template, '../../shared/templates/research-packet-template.md');
-  assert.deepEqual(validateWorkflowDocument(researchCriticWorkflowDoc, { workflowPath: path.join(REPO_ROOT, 'workflows/research-critic/workflow.json'), repositoryRoot: REPO_ROOT }), {
+  assert.deepEqual(validateWorkflowDocument(researchCriticWorkflowDoc, { resourceAdapters, workflowPath: path.join(REPO_ROOT, 'workflows/research-critic/workflow.json'), repositoryRoot: REPO_ROOT }), {
     ok: true,
     workflow: 'research-critic',
     steps: Object.keys(researchCriticWorkflowDoc.steps).length,
@@ -187,7 +188,7 @@ test('research critic saved packet output requires projected artifacts and resul
   const workflowPath = path.join(REPO_ROOT, 'workflows/research-critic/workflow.json');
   const step = researchCriticWorkflowDoc.steps.save_research_packet;
 
-  const missingProjection = validateAgainstOutputSchema({
+  const missingProjection = validateAgainstOutputSchema({ resourceAdapters,
     workflow: researchCriticWorkflowDoc,
     workflowPath,
     schemaRef: step.output.schema,
@@ -198,7 +199,7 @@ test('research critic saved packet output requires projected artifacts and resul
   assert.match(missingProjection.errors, /artifacts/);
   assert.match(missingProjection.errors, /results/);
 
-  const emptyProjection = validateAgainstOutputSchema({
+  const emptyProjection = validateAgainstOutputSchema({ resourceAdapters,
     workflow: researchCriticWorkflowDoc,
     workflowPath,
     schemaRef: step.output.schema,
@@ -209,7 +210,7 @@ test('research critic saved packet output requires projected artifacts and resul
   assert.match(emptyProjection.errors, /artifacts/);
   assert.match(emptyProjection.errors, /results/);
 
-  const withProjection = validateAgainstOutputSchema({
+  const withProjection = validateAgainstOutputSchema({ resourceAdapters,
     workflow: researchCriticWorkflowDoc,
     workflowPath,
     schemaRef: step.output.schema,
@@ -234,7 +235,7 @@ test('research critic save packet output keeps saved and blocked branches exclus
     repositoryRoot: REPO_ROOT,
   };
 
-  const blockedWithProjection = validateAgainstOutputSchema({
+  const blockedWithProjection = validateAgainstOutputSchema({ resourceAdapters,
     ...schemaContext,
     output: {
       outcome: 'blocked',
@@ -246,7 +247,7 @@ test('research critic save packet output keeps saved and blocked branches exclus
   });
   assert.equal(blockedWithProjection.ok, false);
 
-  const savedWithBlocker = validateAgainstOutputSchema({
+  const savedWithBlocker = validateAgainstOutputSchema({ resourceAdapters,
     ...schemaContext,
     output: {
       outcome: 'saved',
@@ -258,7 +259,7 @@ test('research critic save packet output keeps saved and blocked branches exclus
   });
   assert.equal(savedWithBlocker.ok, false);
 
-  const blockedOnly = validateAgainstOutputSchema({
+  const blockedOnly = validateAgainstOutputSchema({ resourceAdapters,
     ...schemaContext,
     output: { outcome: 'blocked', blocker: { summary: 'Cannot save.', source_step_id: 'save_research_packet', needed: 'Writable target.' } },
   });
@@ -342,7 +343,7 @@ test('dev harness blocked outputs require only blocker plus routing fields, not 
   ];
 
   for (const [stepId, output] of blockedCases) {
-    const result = validateAgainstOutputSchema({
+    const result = validateAgainstOutputSchema({ resourceAdapters,
       workflow: workflowDoc,
       workflowPath,
       schemaRef: workflowDoc.steps[stepId].output.schema,
@@ -357,7 +358,7 @@ test('dev harness blocked outputs require only blocker plus routing fields, not 
 
 test('dev harness planning draft always requires selected review steps', () => {
   const workflowPath = path.join(REPO_ROOT, 'workflows/dev-harness/workflow.json');
-  const result = validateAgainstOutputSchema({
+  const result = validateAgainstOutputSchema({ resourceAdapters,
     workflow: workflowDoc,
     workflowPath,
     schemaRef: workflowDoc.steps.planning_draft.output.schema,
@@ -397,17 +398,17 @@ test('dev harness review join schema keeps outcome and next route consistent', (
     required_implementation_steps: [],
   };
 
-  assert.equal(validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'needs_changes', verdict: needsChangesVerdict, next: ['backend_implementation'] } }).ok, true);
-  assert.equal(validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'needs_changes', verdict: needsChangesWithoutTargets, next: ['backend_implementation'] } }).ok, false);
-  assert.equal(validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'needs_changes', verdict: needsChangesWithEmptyTargets, next: ['backend_implementation'] } }).ok, false);
-  assert.equal(validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'needs_changes', verdict: needsChangesVerdict, next: 'done' } }).ok, false);
-  assert.equal(validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'passed', verdict: passedVerdict, next: ['backend_implementation'] } }).ok, false);
-  assert.equal(validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'passed', verdict: passedVerdict, next: 'done' } }).ok, true);
-  assert.equal(validateAgainstOutputSchema({
+  assert.equal(validateAgainstOutputSchema({ resourceAdapters, ...schemaContext, output: { outcome: 'needs_changes', verdict: needsChangesVerdict, next: ['backend_implementation'] } }).ok, true);
+  assert.equal(validateAgainstOutputSchema({ resourceAdapters, ...schemaContext, output: { outcome: 'needs_changes', verdict: needsChangesWithoutTargets, next: ['backend_implementation'] } }).ok, false);
+  assert.equal(validateAgainstOutputSchema({ resourceAdapters, ...schemaContext, output: { outcome: 'needs_changes', verdict: needsChangesWithEmptyTargets, next: ['backend_implementation'] } }).ok, false);
+  assert.equal(validateAgainstOutputSchema({ resourceAdapters, ...schemaContext, output: { outcome: 'needs_changes', verdict: needsChangesVerdict, next: 'done' } }).ok, false);
+  assert.equal(validateAgainstOutputSchema({ resourceAdapters, ...schemaContext, output: { outcome: 'passed', verdict: passedVerdict, next: ['backend_implementation'] } }).ok, false);
+  assert.equal(validateAgainstOutputSchema({ resourceAdapters, ...schemaContext, output: { outcome: 'passed', verdict: passedVerdict, next: 'done' } }).ok, true);
+  assert.equal(validateAgainstOutputSchema({ resourceAdapters,
     ...schemaContext,
     output: { outcome: 'blocked', blocker: { summary: 'Blocked.', source_step_id: 'review_join', needed: 'Missing review.' }, next: ['backend_implementation'] },
   }).ok, false);
-  assert.equal(validateAgainstOutputSchema({
+  assert.equal(validateAgainstOutputSchema({ resourceAdapters,
     ...schemaContext,
     output: { outcome: 'blocked', blocker: { summary: 'Blocked.', source_step_id: 'review_join', needed: 'Missing review.' }, next: 'blocked' },
   }).ok, true);
@@ -421,7 +422,7 @@ test('dev harness review gates reject needs_changes without a rework target', ()
     required_implementation_steps: [],
   };
 
-  const result = validateAgainstOutputSchema({
+  const result = validateAgainstOutputSchema({ resourceAdapters,
     workflow: workflowDoc,
     workflowPath,
     schemaRef: workflowDoc.steps.backend_review.output.schema,
@@ -440,7 +441,7 @@ test('dev harness success outputs still require their success payloads', () => {
     ['implementation_join', { outcome: 'ready_for_review' }, 'reviewer_handoff'],
     ['review_join', { outcome: 'passed' }, 'verdict'],
   ]) {
-    const result = validateAgainstOutputSchema({
+    const result = validateAgainstOutputSchema({ resourceAdapters,
       workflow: workflowDoc,
       workflowPath,
       schemaRef: workflowDoc.steps[stepId].output.schema,
@@ -488,7 +489,7 @@ test('workflow semantic validation rejects step ids unsafe as JavaScript object 
 
 test('workflow semantic validation warns when DevHarness described fields lack x-usage', () => {
   const doc = structuredClone(workflowDoc);
-  cpSync(path.join(REPO_ROOT, 'develop/lib/tests/fixtures/research-draft-missing-x-usage.schema.json'), path.join(tempDir, 'schemas/research-draft-missing-x-usage.schema.json'));
+  cpSync(path.join(REPO_ROOT, 'develop/tests/fixtures/research-draft-missing-x-usage.schema.json'), path.join(tempDir, 'schemas/research-draft-missing-x-usage.schema.json'));
   doc.steps.research_draft.output.schema = 'schemas/research-draft-missing-x-usage.schema.json';
 
   const result = validateSynthetic(doc);
@@ -598,7 +599,7 @@ test('workflow semantic validation normalizes local refs before semantic introsp
 
 test('workflow semantic validation rejects schema-declared dynamic targets that are not workflow steps', () => {
   const doc = structuredClone(workflowDoc);
-  cpSync(path.join(REPO_ROOT, 'develop/lib/tests/fixtures/review-join-output-unknown-target.schema.json'), path.join(tempDir, 'schemas/review-join-output-unknown-target.schema.json'));
+  cpSync(path.join(REPO_ROOT, 'develop/tests/fixtures/review-join-output-unknown-target.schema.json'), path.join(tempDir, 'schemas/review-join-output-unknown-target.schema.json'));
   doc.steps.review_join.output.schema = 'schemas/review-join-output-unknown-target.schema.json';
 
   assertSemanticFailure(doc, /review_join.*output\.next.*unknown_step/);
@@ -830,7 +831,7 @@ test('workflow semantic validation rejects dynamic array target schemas with inv
 
 
 test('workflow semantic validation uses approval output.schema for output match cases when declared', () => {
-  cpSync(path.join(REPO_ROOT, 'develop/lib/tests/fixtures/approval-choice-output.schema.json'), path.join(tempDir, 'approval-choice-output.schema.json'));
+  cpSync(path.join(REPO_ROOT, 'develop/tests/fixtures/approval-choice-output.schema.json'), path.join(tempDir, 'approval-choice-output.schema.json'));
   const doc = {
       name: 'approval-schema-routing-fixture',
       version: 1,

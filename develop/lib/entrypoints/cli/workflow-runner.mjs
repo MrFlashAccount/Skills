@@ -2,6 +2,21 @@
 import { parseArgs } from 'node:util';
 import { WorkflowInterpreterError } from '../../entities/Workflow/errors.mjs';
 import { continueRun, loadInstructions, next } from '../../use-cases/runner/index.mjs';
+import { loadOutputSchema } from '../../persistence/output-schema.mjs';
+import { readJson, readText } from '../../persistence/json-io.mjs';
+import { readWorkflowFileRef } from '../../persistence/resource-resolver.mjs';
+import { assertRoleDirectoryName, readRoleMaterialFile } from '../../persistence/role-material.mjs';
+import {
+  commitDurableRunState,
+  createHistoryFileIfMissing,
+  createJsonFileIfMissing,
+  ensureRunStorage,
+  managedJsonFileExists,
+  pathExists,
+  recoverDurableCommit,
+  resolveRunPaths,
+  withContinueRunLock,
+} from '../../persistence/run-state.mjs';
 
 function fail(message) {
   console.error(`workflow-runner: ${message}`);
@@ -42,12 +57,31 @@ function parseCliArgs(argv) {
   }
 }
 
+const resourceAdapters = {
+  loadOutputSchema,
+  readJson,
+  readText,
+  readWorkflowFileRef,
+  assertRoleDirectoryName,
+  readRoleMaterialFile,
+  commitDurableRunState,
+  createHistoryFileIfMissing,
+  createJsonFileIfMissing,
+  ensureRunStorage,
+  managedJsonFileExists,
+  pathExists,
+  recoverDurableCommit,
+  resolveRunPaths,
+  withContinueRunLock,
+};
+
 try {
   const { mode, values } = parseCliArgs(process.argv.slice(2));
   if (mode === 'instructions') {
     const instructions = await loadInstructions({
       runDir: values['run-dir'],
       stepId: values['step-id'],
+      resourceAdapters,
     });
     process.stdout.write(instructions);
   } else {
@@ -59,6 +93,7 @@ try {
       output: values.output,
       userPrompt: values['user-prompt'],
       userPromptFile: values['user-prompt-file'],
+      resourceAdapters,
     });
     console.log(JSON.stringify(response, null, 2));
   }

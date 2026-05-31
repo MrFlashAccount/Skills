@@ -1,18 +1,18 @@
 import { validateJsonSchema } from 'schema-validation';
 import { WorkflowInterpreterError } from '../entities/Workflow/errors.mjs';
-import { loadOutputSchema, resolveOutputSchemaPath } from '../persistence/output-schema.mjs';
 import { formatSchemaErrors, workflowSchemas } from './schema-validation.mjs';
 
-export { resolveOutputSchemaPath };
 
 export const OUTPUT_SCHEMA_MAX_ATTEMPTS = 3;
 
-export function readOutputSchema({ workflow, workflowPath, schemaRef, repositoryRoot }) {
-  return loadOutputSchema({ workflow, workflowPath, schemaRef, repositoryRoot }).schema;
+export function readOutputSchema({ workflow, workflowPath, schemaRef, repositoryRoot, loadOutputSchema, resourceAdapters = {} }) {
+  const loader = loadOutputSchema ?? resourceAdapters.loadOutputSchema;
+  if (typeof loader !== 'function') throw new WorkflowInterpreterError(`output schema validation failed: missing output schema loader for '${schemaRef}'`);
+  return loader({ workflow, workflowPath, schemaRef, repositoryRoot }).schema;
 }
 
-export function validateAgainstOutputSchema({ workflow, workflowPath, schemaRef, output, repositoryRoot }) {
-  const schema = readOutputSchema({ workflow, workflowPath, schemaRef, repositoryRoot });
+export function validateAgainstOutputSchema({ workflow, workflowPath, schemaRef, output, repositoryRoot, schema, loadOutputSchema, resourceAdapters = {} }) {
+  schema ??= readOutputSchema({ workflow, workflowPath, schemaRef, repositoryRoot, loadOutputSchema, resourceAdapters });
   let validation;
   try {
     validation = validateJsonSchema(schema, output, { schemas: workflowSchemas });

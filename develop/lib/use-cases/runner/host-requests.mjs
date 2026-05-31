@@ -1,5 +1,4 @@
 import { join } from 'node:path';
-import { loadOutputSchema } from '../../persistence/output-schema.mjs';
 
 const TERMINAL_ACTIONS = new Set(['stop_done', 'stop_blocked']);
 const SAFE_STEP_ID = /^[A-Za-z0-9_.-]+$/;
@@ -31,9 +30,10 @@ export function responseStatusForInterpreterResponse(interpreterResponse) {
   return 'needs_host_actions';
 }
 
-function resolvedOutputSchemaForStep(step, { workflow, workflowPath, repositoryRoot = process.cwd() }) {
+function resolvedOutputSchemaForStep(step, { workflow, workflowPath, repositoryRoot = process.cwd(), loadOutputSchema }) {
   const schemaRef = step.step?.output?.schema;
   if (step.action !== 'wait_for_approval' || !schemaRef) return undefined;
+  if (typeof loadOutputSchema !== 'function') throw new Error('workflow runner missing output schema loader');
   const resolved = loadOutputSchema({ workflow, workflowPath, schemaRef, repositoryRoot });
   return {
     ref: schemaRef,
@@ -41,7 +41,7 @@ function resolvedOutputSchemaForStep(step, { workflow, workflowPath, repositoryR
   };
 }
 
-export function buildHostRequests(interpreterResponse, { runDir, workflow, workflowPath, repositoryRoot }) {
+export function buildHostRequests(interpreterResponse, { runDir, workflow, workflowPath, repositoryRoot, loadOutputSchema }) {
   const status = responseStatusForInterpreterResponse(interpreterResponse);
   if (status !== 'needs_host_actions') return [];
 
@@ -54,7 +54,7 @@ export function buildHostRequests(interpreterResponse, { runDir, workflow, workf
         action: step.action,
         loadInstructionsCommand: loadInstructionsCommandForStep(runDir, step.id),
       };
-      const resolvedOutputSchema = resolvedOutputSchemaForStep(step, { workflow, workflowPath, repositoryRoot });
+      const resolvedOutputSchema = resolvedOutputSchemaForStep(step, { workflow, workflowPath, repositoryRoot, loadOutputSchema });
       if (resolvedOutputSchema) {
         request.outputSchema = resolvedOutputSchema.ref;
         request.resolvedOutputSchema = resolvedOutputSchema;
@@ -63,7 +63,7 @@ export function buildHostRequests(interpreterResponse, { runDir, workflow, workf
     });
 }
 
-export function toRunnerResponse(interpreterResponse, options) {
+export function buildRunResponse(interpreterResponse, options) {
   const status = responseStatusForInterpreterResponse(interpreterResponse);
   const response = {
     status,

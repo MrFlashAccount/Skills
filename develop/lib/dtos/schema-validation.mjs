@@ -1,8 +1,8 @@
-import batonSchema from '../schemas/baton.json' with { type: 'json' };
-import workflowInterpreterCliArgsSchema from '../schemas/internal/cli-args/workflow-interpreter.json' with { type: 'json' };
-import workerOutputSchema from '../schemas/worker-output.json' with { type: 'json' };
-import workflowInterpreterResponseSchema from '../schemas/workflow-interpreter-response.json' with { type: 'json' };
-import workflowSchema from '../schemas/workflow.json' with { type: 'json' };
+import batonSchema from './schemas/baton.json' with { type: 'json' };
+import workflowInterpreterCliArgsSchema from './schemas/internal/cli-args/workflow-interpreter.json' with { type: 'json' };
+import workerOutputSchema from './schemas/worker-output.json' with { type: 'json' };
+import workflowInterpreterResponseSchema from './schemas/workflow-interpreter-response.json' with { type: 'json' };
+import workflowSchema from './schemas/workflow.json' with { type: 'json' };
 import reviewerSelectionOutputSchema from '../../../workflows/dev-harness/schemas/reviewer-selection-output.json' with { type: 'json' };
 import { validateJsonSchema } from 'schema-validation';
 import { WorkflowInterpreterError } from '../entities/Workflow/errors.mjs';

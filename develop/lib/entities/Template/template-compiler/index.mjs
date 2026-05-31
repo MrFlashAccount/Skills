@@ -4,7 +4,6 @@ import { projectState } from '../projection.mjs';
 import { normalizeRepositoryRoot, section, trimStable } from './utils.mjs';
 import { readInputRole } from './sections/role.mjs';
 import { assertNoUnsupportedPlaceholders, defaultPrompt, readInputTemplate } from './sections/template.mjs';
-import { defaultRepositoryRootForWorkflow } from '../../../persistence/resource-resolver.mjs';
 
 function firstNonEmptyString(candidates) {
   const value = candidates.find((candidate) => typeof candidate === 'string' && candidate.trim().length > 0);
@@ -30,16 +29,17 @@ function assembleFixedPrompt({ promptLayer, templatePath, workflowInstructionBlo
   return `${parts.filter(Boolean).join('\n\n')}\n`;
 }
 
-export function renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, step, repositoryRoot, templateBaseDir, includeDiagnostics = false, userPrompt } = {}) {
-  const root = normalizeRepositoryRoot(repositoryRoot ?? defaultRepositoryRootForWorkflow(workflowPath));
+export function renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, step, repositoryRoot, templateBaseDir, includeDiagnostics = false, userPrompt, resourceAdapters = {} } = {}) {
+  const root = normalizeRepositoryRoot(repositoryRoot ?? resourceAdapters.defaultRepositoryRootForWorkflow?.(workflowPath));
   const input = step.input ?? {};
   const selectors = input.state ?? [];
   const projection = projectState({ batonState: baton.state ?? {}, selectors, stepId });
-  const stateBlock = projectedStateBlock({ workflow, workflowPath, projection, repositoryRoot: root, readOutputSchema });
-  const inputTemplate = readInputTemplate({ workflowPath, workflow, input, repositoryRoot: root, templateBaseDir });
-  const inputRole = readInputRole({ input, repositoryRoot: root });
-  const outputTemplate = readOutputTemplate({ workflowPath, step, repositoryRoot: root });
-  const outputSchema = readOutputSchema({ workflow, workflowPath, step, repositoryRoot: root });
+  const outputSchemaReader = (args) => readOutputSchema({ ...args, loadOutputSchema: resourceAdapters.loadOutputSchema });
+  const stateBlock = projectedStateBlock({ workflow, workflowPath, projection, repositoryRoot: root, readOutputSchema: outputSchemaReader });
+  const inputTemplate = readInputTemplate({ workflowPath, workflow, input, repositoryRoot: root, templateBaseDir, readWorkflowFileRef: resourceAdapters.readWorkflowFileRef });
+  const inputRole = readInputRole({ input, repositoryRoot: root, assertRoleDirectoryName: resourceAdapters.assertRoleDirectoryName, readRoleMaterialFile: resourceAdapters.readRoleMaterialFile });
+  const outputTemplate = readOutputTemplate({ workflowPath, step, repositoryRoot: root, readWorkflowFileRef: resourceAdapters.readWorkflowFileRef });
+  const outputSchema = outputSchemaReader({ workflow, workflowPath, step, repositoryRoot: root });
   const outputContract = outputContractSection(outputTemplate.content, outputTemplate.metadataPath, outputSchema.content, outputSchema.metadataPath);
   const workflowInstructionBlock = workflowInstruction({ workflow });
   const finalReminder = finalOutputReminder(outputContract);

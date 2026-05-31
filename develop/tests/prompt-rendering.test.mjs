@@ -5,12 +5,13 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { projectState } from '../entities/Template/projection.mjs';
-import { renderStepPrompts } from '../use-cases/interpreter/index.mjs';
-import { renderWorkflowPrompt } from '../entities/Template/prompt-renderer.mjs';
-import { validateAgainstOutputSchema } from '../dtos/output-schema-validation.mjs';
+import { projectState } from '../lib/entities/Template/projection.mjs';
+import { renderStepPrompts } from '../lib/use-cases/interpreter/index.mjs';
+import { renderWorkflowPrompt } from '../lib/entities/Template/prompt-renderer.mjs';
+import { validateAgainstOutputSchema } from '../lib/dtos/output-schema-validation.mjs';
+import { resourceAdapters } from './helpers/resource-adapters.mjs';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'prompt-rendering-check-'));
 writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
 mkdirSync(path.join(tempDir, 'templates'), { recursive: true });
@@ -166,7 +167,7 @@ test('state projection: reserved runtime aggregate selectors are rejected even w
 
 function renderFixture(overrides = {}) {
   const workflowPath = writeJson(`${safeName(overrides.label ?? 'render')}-workflow.json`, overrides.workflowDoc ?? schemaWorkflowDoc);
-  return renderWorkflowPrompt({
+  return renderWorkflowPrompt({ resourceAdapters,
     workflowPath,
     workflow: overrides.workflow ?? schemaWorkflowDoc,
     baton: overrides.batonDoc ?? baton(),
@@ -471,7 +472,7 @@ test('prompt renderer: initial parallel workers put user prompt on first worker 
     },
   };
   const rawPrompt = 'Only the first current worker sees this.';
-  const rendered = renderStepPrompts({
+  const rendered = renderStepPrompts({ resourceAdapters,
     workflowPath: writeJson('initial-parallel-user-prompt-workflow.json', workflow),
     workflow,
     baton: baton({ user_prompt: rawPrompt, user_prompt_target: 'branch_b' }),
@@ -510,7 +511,7 @@ test('prompt renderer: mixed current approval and worker gives user prompt only 
     },
   };
   const rawPrompt = 'Worker gets startup prompt after a same-batch gate.';
-  const rendered = renderStepPrompts({
+  const rendered = renderStepPrompts({ resourceAdapters,
     workflowPath: writeJson('mixed-current-user-prompt-workflow.json', workflow),
     workflow,
     baton: baton({ user_prompt: rawPrompt, user_prompt_target: 'current_worker' }),
@@ -690,7 +691,7 @@ test('workflow resource refs resolve from the workflow package directory after p
   const workflowPath = path.join(workflowDir, 'workflow.json');
   writeFileSync(workflowPath, `${JSON.stringify(workflow, null, 2)}\n`);
 
-  const render = (nextWorkflowPath) => renderWorkflowPrompt({
+  const render = (nextWorkflowPath) => renderWorkflowPrompt({ resourceAdapters,
     workflowPath: nextWorkflowPath,
     workflow,
     baton: baton(),
@@ -701,18 +702,18 @@ test('workflow resource refs resolve from the workflow package directory after p
 
   const compiled = render(workflowPath);
   assertMarkersInOrder(compiled.prompt, ['# Local input template', '<!-- output template: templates/output.md -->', '## Local output template', '<!-- output schema: schemas/output.schema.json -->']);
-  assert.equal(validateAgainstOutputSchema({ workflow, workflowPath, schemaRef: 'schemas/output.schema.json', output: { outcome: 'ready' }, repositoryRoot: repoDir }).ok, true);
+  assert.equal(validateAgainstOutputSchema({ resourceAdapters, workflow, workflowPath, schemaRef: 'schemas/output.schema.json', output: { outcome: 'ready' }, repositoryRoot: repoDir }).ok, true);
 
   cpSync(workflowDir, copiedWorkflowDir, { recursive: true });
   const copiedWorkflowPath = path.join(copiedWorkflowDir, 'workflow.json');
   const copied = render(copiedWorkflowPath);
   assertMarkersInOrder(copied.prompt, ['# Local input template', '## Local output template', '"const": "ready"']);
-  assert.equal(validateAgainstOutputSchema({ workflow, workflowPath: copiedWorkflowPath, schemaRef: 'schemas/output.schema.json', output: { outcome: 'ready' }, repositoryRoot: repoDir }).ok, true);
+  assert.equal(validateAgainstOutputSchema({ resourceAdapters, workflow, workflowPath: copiedWorkflowPath, schemaRef: 'schemas/output.schema.json', output: { outcome: 'ready' }, repositoryRoot: repoDir }).ok, true);
 
   mkdirSync(path.join(repoDir, 'workflows', 'portable', 'schemas'), { recursive: true });
   writeFileSync(path.join(repoDir, 'workflows', 'portable', 'schemas', 'output.schema.json'), JSON.stringify({ type: 'object' }));
   assert.throws(
-    () => validateAgainstOutputSchema({ workflow, workflowPath, schemaRef: 'workflows/portable/schemas/output.schema.json', output: { outcome: 'ready' }, repositoryRoot: repoDir }),
+    () => validateAgainstOutputSchema({ resourceAdapters, workflow, workflowPath, schemaRef: 'workflows/portable/schemas/output.schema.json', output: { outcome: 'ready' }, repositoryRoot: repoDir }),
     /output\.schema not found: workflows\/portable\/schemas\/output\.schema\.json/,
   );
 });
@@ -741,7 +742,7 @@ test('prompt renderer: default repository boundary allows workflow package share
   doc.steps.worker_step.output = { template: 'output.md', schema: '../../shared/shared.schema.json' };
   writeFileSync(workflowPath, `${JSON.stringify(doc, null, 2)}\n`);
 
-  const rendered = renderWorkflowPrompt({
+  const rendered = renderWorkflowPrompt({ resourceAdapters,
     workflowPath,
     workflow: doc,
     baton: baton(),
@@ -783,7 +784,7 @@ test('prompt renderer: shared template refs are explicit and reusable across wor
     },
   };
 
-  const render = (workflowDir) => renderWorkflowPrompt({
+  const render = (workflowDir) => renderWorkflowPrompt({ resourceAdapters,
     workflowPath: path.join(workflowDir, 'workflow.json'),
     workflow,
     baton: baton(),
@@ -798,7 +799,7 @@ test('prompt renderer: shared template refs are explicit and reusable across wor
   const rootFallbackWorkflow = structuredClone(workflow);
   rootFallbackWorkflow.steps.worker_step.output.template = 'root-only-output.md';
   assert.throws(
-    () => renderWorkflowPrompt({
+    () => renderWorkflowPrompt({ resourceAdapters,
       workflowPath: path.join(firstWorkflowDir, 'workflow.json'),
       workflow: rootFallbackWorkflow,
       baton: baton(),
@@ -838,14 +839,14 @@ test('prompt renderer: workflow resource refs cannot escape repository root', ()
   const inputWorkflow = structuredClone(baseWorkflow);
   inputWorkflow.steps.worker_step.input.template = escapedTemplate;
   assert.throws(
-    () => renderWorkflowPrompt({ workflowPath, workflow: inputWorkflow, baton: baton(), stepId: 'worker_step', step: inputWorkflow.steps.worker_step, repositoryRoot: repoDir }),
+    () => renderWorkflowPrompt({ resourceAdapters, workflowPath, workflow: inputWorkflow, baton: baton(), stepId: 'worker_step', step: inputWorkflow.steps.worker_step, repositoryRoot: repoDir }),
     /input template escapes repository root/,
   );
 
   const outputWorkflow = structuredClone(baseWorkflow);
   outputWorkflow.steps.worker_step.output = { template: escapedTemplate };
   assert.throws(
-    () => renderWorkflowPrompt({ workflowPath, workflow: outputWorkflow, baton: baton(), stepId: 'worker_step', step: outputWorkflow.steps.worker_step, repositoryRoot: repoDir }),
+    () => renderWorkflowPrompt({ resourceAdapters, workflowPath, workflow: outputWorkflow, baton: baton(), stepId: 'worker_step', step: outputWorkflow.steps.worker_step, repositoryRoot: repoDir }),
     /output template escapes repository root/,
   );
 
@@ -853,7 +854,7 @@ test('prompt renderer: workflow resource refs cannot escape repository root', ()
   const escapedSchema = path.relative(workflowDir, path.join(outsideDir, 'secret.schema.json'));
   schemaWorkflow.steps.worker_step.output = { schema: escapedSchema };
   assert.throws(
-    () => validateAgainstOutputSchema({ workflow: schemaWorkflow, workflowPath, schemaRef: escapedSchema, output: {}, repositoryRoot: repoDir }),
+    () => validateAgainstOutputSchema({ resourceAdapters, workflow: schemaWorkflow, workflowPath, schemaRef: escapedSchema, output: {}, repositoryRoot: repoDir }),
     /output schema escapes repository root/,
   );
 
@@ -863,7 +864,7 @@ test('prompt renderer: workflow resource refs cannot escape repository root', ()
     const symlinkWorkflow = structuredClone(baseWorkflow);
     symlinkWorkflow.steps.worker_step.input.template = 'linked-secret.md';
     assert.throws(
-      () => renderWorkflowPrompt({ workflowPath, workflow: symlinkWorkflow, baton: baton(), stepId: 'worker_step', step: symlinkWorkflow.steps.worker_step, repositoryRoot: repoDir }),
+      () => renderWorkflowPrompt({ resourceAdapters, workflowPath, workflow: symlinkWorkflow, baton: baton(), stepId: 'worker_step', step: symlinkWorkflow.steps.worker_step, repositoryRoot: repoDir }),
       /input template escapes repository root/,
     );
   } finally {

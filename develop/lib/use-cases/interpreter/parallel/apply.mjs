@@ -1,6 +1,5 @@
 import { invariant } from '../../../entities/Workflow/errors.mjs';
 import { statusForStep } from '../../../entities/Step/model.mjs';
-import { readJson } from '../../../persistence/json-io.mjs';
 import { applyOutputToBatonState } from '../../../entities/Baton/state.mjs';
 import { responseFor } from '../output/response.mjs';
 import { assertOutputSchemaIfDeclared } from '../output/worker-output.mjs';
@@ -43,7 +42,7 @@ function validateOutputKindForParallel(step, output, stepId) {
   }
 }
 
-export function applyParallelOutputs({ workflowPath, workflow, baton, cursorStep, outputPath, allOutput, targets: resolvedTargets, repositoryRoot }) {
+export function applyParallelOutputs({ workflowPath, workflow, baton, cursorStep, outputPath, allOutput, targets: resolvedTargets, repositoryRoot, readJson, loadOutputSchema }) {
   const targets = parallelTargetsForStep(cursorStep, resolvedTargets);
   const parallelOutput = allOutput ?? readJson(outputPath, 'parallel output');
   assertParallelOutputShape(targets, parallelOutput);
@@ -67,6 +66,7 @@ export function applyParallelOutputs({ workflowPath, workflow, baton, cursorStep
       step,
       workerOutput: rawOutput,
       repositoryRoot,
+      loadOutputSchema,
     });
     invariant(!retryResponse, `parallel step '${stepId}' output failed schema validation and cannot be retried inside a parallel group`);
     validateOutputKindForParallel(step, workerOutput, stepId);

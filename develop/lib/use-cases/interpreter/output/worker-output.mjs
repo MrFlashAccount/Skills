@@ -1,10 +1,9 @@
-import { readJson, readText } from '../../../persistence/json-io.mjs';
 import { WorkflowInterpreterError } from '../../../entities/Workflow/errors.mjs';
 import { assertWorkerOutputSchema } from '../../../dtos/schema-validation.mjs';
 import { validateAgainstOutputSchema, OUTPUT_SCHEMA_MAX_ATTEMPTS } from '../../../dtos/output-schema-validation.mjs';
 import { invalidJsonOutputRetry, outputSchemaAttempt, responseForOutputSchemaRetry } from '../loop/guard.mjs';
 
-export function readWorkerOutputForStep({ outputPath, baton, stepId, step, allOutput }) {
+export function readWorkerOutputForStep({ outputPath, baton, stepId, step, allOutput, readJson, readText }) {
   if (!step.output?.schema) return { workerOutput: allOutput ?? readJson(outputPath, 'worker output'), retryResponse: undefined };
   try {
     return { workerOutput: JSON.parse(readText(outputPath, 'worker output')), retryResponse: undefined };
@@ -44,7 +43,7 @@ function assertGenericApprovalOutput(hostOutput) {
   }
 }
 
-export function assertOutputSchemaIfDeclared({ workflowPath, workflow, baton, stepId, step, workerOutput, repositoryRoot }) {
+export function assertOutputSchemaIfDeclared({ workflowPath, workflow, baton, stepId, step, workerOutput, repositoryRoot, loadOutputSchema }) {
   const schemaRef = step.output?.schema;
   if (!schemaRef) {
     if (step.kind === 'approval') assertGenericApprovalOutput(workerOutput);
@@ -52,7 +51,7 @@ export function assertOutputSchemaIfDeclared({ workflowPath, workflow, baton, st
     return { workerOutput, retryResponse: undefined };
   }
 
-  const validation = validateAgainstOutputSchema({ workflow, workflowPath, schemaRef, output: workerOutput, repositoryRoot });
+  const validation = validateAgainstOutputSchema({ workflow, workflowPath, schemaRef, output: workerOutput, repositoryRoot, loadOutputSchema });
   if (validation.ok) return { workerOutput: validation.output, retryResponse: undefined };
 
   const attempt = outputSchemaAttempt(baton, stepId);

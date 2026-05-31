@@ -1,8 +1,8 @@
 # Workflow semantic validation
 
-Canonical validation docs moved to `develop/lib/validate/workflow-validation.md`.
+Canonical validation docs moved to `develop/lib/entrypoints/cli/validate-docs/workflow-validation.md`.
 
-Canonical validation agent instructions live at `develop/lib/validate/validation-agent-instructions.md`.
+Canonical validation agent instructions live at `develop/lib/entrypoints/cli/validate-docs/validation-agent-instructions.md`.
 
 Run the deterministic validator through the existing CLI wrapper:
 

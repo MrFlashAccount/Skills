@@ -1,9 +1,9 @@
-import { assertRoleDirectoryName, readRoleMaterialFile } from '../../../../persistence/role-material.mjs';
 import { trimStable } from '../utils.mjs';
 
-export function readInputRole({ input, repositoryRoot }) {
+export function readInputRole({ input, repositoryRoot, assertRoleDirectoryName, readRoleMaterialFile }) {
   const role = input?.role;
   if (!role) return { content: '', metadataPaths: [] };
+  if (typeof assertRoleDirectoryName !== 'function' || typeof readRoleMaterialFile !== 'function') throw new Error('workflow prompt render failed: missing role material reader');
   assertRoleDirectoryName(role, { errorPrefix: 'workflow prompt render failed' });
   const roleFile = readRoleMaterialFile({ repositoryRoot, role, fileName: 'ROLE.md' });
   const rubricFile = readRoleMaterialFile({ repositoryRoot, role, fileName: 'RUBRIC.md' });

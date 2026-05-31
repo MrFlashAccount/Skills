@@ -19,14 +19,14 @@ function preparedParallelStep({ workflow, baton, cursorStep }) {
   return { step: { ...cursorStep, next: resolved.targetStepIds }, parallelTargets: true };
 }
 
-export function inspectWorkflow(workflowPath, batonPath) {
-  const { workflow, baton, cursorStep } = loadWorkflowAndBaton(workflowPath, batonPath);
+export function inspectWorkflow(workflowPath, batonPath, options = {}) {
+  const { workflow, baton, cursorStep } = loadWorkflowAndBaton(workflowPath, batonPath, { readJson: options.resourceAdapters?.readJson });
   const prepared = preparedParallelStep({ workflow, baton, cursorStep });
   return responseFor(baton, baton.cursor, prepared.step, workflow, { parallelTargets: prepared.parallelTargets });
 }
 
 export function renderInterpreterResponse(workflowPath, batonPath, response, options = {}) {
-  const { workflow } = loadWorkflowWithBaton(workflowPath, response.baton);
+  const { workflow } = loadWorkflowWithBaton(workflowPath, response.baton, { readJson: options.resourceAdapters?.readJson });
   const rendered = {
     ...response,
     steps: renderStepPrompts({
@@ -37,6 +37,7 @@ export function renderInterpreterResponse(workflowPath, batonPath, response, opt
       repositoryRoot: options.repositoryRoot,
       templateBaseDir: options.templateBaseDir,
       includeDiagnostics: options.includeDiagnostics,
+      resourceAdapters: options.resourceAdapters,
     }),
   };
   assertResponseSchema(rendered);
@@ -44,7 +45,7 @@ export function renderInterpreterResponse(workflowPath, batonPath, response, opt
 }
 
 export function renderWorkflow(workflowPath, batonPath, options = {}) {
-  const { workflow, baton, cursorStep } = loadWorkflowAndBaton(workflowPath, batonPath);
+  const { workflow, baton, cursorStep } = loadWorkflowAndBaton(workflowPath, batonPath, { readJson: options.resourceAdapters?.readJson });
   const prepared = preparedParallelStep({ workflow, baton, cursorStep });
   const response = responseFor(baton, baton.cursor, prepared.step, workflow, { parallelTargets: prepared.parallelTargets });
   return renderInterpreterResponse(workflowPath, batonPath, response, options);

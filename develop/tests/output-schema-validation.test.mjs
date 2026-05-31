@@ -5,11 +5,12 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { WorkflowInterpreterError } from '../entities/Workflow/errors.mjs';
-import { renderWorkflowPrompt } from '../entities/Template/prompt-renderer.mjs';
-import { validateAgainstOutputSchema } from '../dtos/output-schema-validation.mjs';
+import { WorkflowInterpreterError } from '../lib/entities/Workflow/errors.mjs';
+import { renderWorkflowPrompt } from '../lib/entities/Template/prompt-renderer.mjs';
+import { validateAgainstOutputSchema } from '../lib/dtos/output-schema-validation.mjs';
+import { resourceAdapters } from './helpers/resource-adapters.mjs';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-output-schema-check-'));
 writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
 
@@ -135,7 +136,7 @@ test('output.schema: workflow-package schema ref resolves consistently for valid
   doc.steps.worker_step.output = { schema: schemaRef };
   writeFileSync(workflowPath, `${JSON.stringify(doc, null, 2)}\n`);
 
-  const validation = validateAgainstOutputSchema({
+  const validation = validateAgainstOutputSchema({ resourceAdapters,
     workflow: doc,
     workflowPath,
     schemaRef,
@@ -144,7 +145,7 @@ test('output.schema: workflow-package schema ref resolves consistently for valid
   });
   assert.equal(validation.ok, true);
 
-  const rendered = renderWorkflowPrompt({
+  const rendered = renderWorkflowPrompt({ resourceAdapters,
     workflowPath,
     workflow: doc,
     baton: baton(),
@@ -284,7 +285,7 @@ test('output.schema: invalid JSON Schema throws controlled workflow error', () =
   });
 
   assert.throws(
-    () => validateAgainstOutputSchema({
+    () => validateAgainstOutputSchema({ resourceAdapters,
       workflow: doc,
       workflowPath: path.join(tempDir, 'invalid-json-schema-controlled-error-workflow.json'),
       schemaRef: doc.steps.worker_step.output.schema,
@@ -458,7 +459,7 @@ test('output.schema: projected structured output renders schema field notes befo
   writeFileSync(path.join(tempDir, 'field-notes-output.md'), 'Return schema JSON.\n');
   generationPromptDoc.steps.worker_step.output.template = 'field-notes-output.md';
   const workerWorkflowPath = writeJson('output-schema-field-notes-worker-workflow.json', generationPromptDoc);
-  const workerRenderResponse = renderWorkflowPrompt({
+  const workerRenderResponse = renderWorkflowPrompt({ resourceAdapters,
     workflowPath: workerWorkflowPath,
     workflow: generationPromptDoc,
     baton: baton(),
@@ -476,7 +477,7 @@ test('output.schema: projected structured output renders schema field notes befo
     payload: { ok: true },
   }, true, doc);
   const workflowPath = writeJson('output-schema-field-notes-workflow.json', doc);
-  const renderResponse = renderWorkflowPrompt({
+  const renderResponse = renderWorkflowPrompt({ resourceAdapters,
     workflowPath,
     workflow: doc,
     baton: applyResponse.baton,

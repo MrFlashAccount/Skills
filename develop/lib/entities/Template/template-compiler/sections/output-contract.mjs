@@ -1,7 +1,6 @@
-import { loadOutputSchema } from '../../../../persistence/output-schema.mjs';
 import { safeReadTemplate, section, trimStable } from '../utils.mjs';
 
-export function readOutputTemplate({ workflowPath, step, repositoryRoot }) {
+export function readOutputTemplate({ workflowPath, step, repositoryRoot, readWorkflowFileRef }) {
   const templateRef = step.output?.template;
   if (!templateRef) return { content: '', metadataPath: undefined };
   const resolved = safeReadTemplate({
@@ -9,13 +8,15 @@ export function readOutputTemplate({ workflowPath, step, repositoryRoot }) {
     templateRef,
     fieldName: 'output',
     repositoryRoot,
+    readWorkflowFileRef,
   });
   return { content: resolved.content, metadataPath: templateRef };
 }
 
-export function readOutputSchema({ workflow, workflowPath, step, repositoryRoot }) {
+export function readOutputSchema({ workflow, workflowPath, step, repositoryRoot, loadOutputSchema }) {
   const schemaRef = step.output?.schema;
   if (!schemaRef) return { content: '', metadataPath: undefined, schema: undefined };
+  if (typeof loadOutputSchema !== 'function') throw new Error('workflow prompt render failed: missing output schema loader');
   const { schema } = loadOutputSchema({
     workflow,
     workflowPath,

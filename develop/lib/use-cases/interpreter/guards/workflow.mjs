@@ -1,6 +1,5 @@
 import { invariant } from '../../../entities/Workflow/errors.mjs';
 import { statusForStep } from '../../../entities/Step/model.mjs';
-import { readJson } from '../../../persistence/json-io.mjs';
 import { assertNoReservedWorkflowStepIds } from '../../../entities/Workflow/reserved-state.mjs';
 import { assertBatonSchema, assertWorkflowSchema } from '../../../dtos/schema-validation.mjs';
 import { assertProjectableStateSelector, isReservedStateKey, RESERVED_STEP_IDS } from '../../../entities/Baton/state-keys.mjs';
@@ -28,14 +27,16 @@ function assertLoadedWorkflowAndBaton(workflowDoc, baton, workflowPath) {
   return { workflow, baton, cursorStep };
 }
 
-export function loadWorkflowAndBaton(workflowPath, batonPath) {
+export function loadWorkflowAndBaton(workflowPath, batonPath, { readJson } = {}) {
+  if (typeof readJson !== 'function') throw new Error('workflow runtime missing JSON reader');
   const workflowDoc = readJson(workflowPath, 'workflow');
   const baton = readJson(batonPath, 'baton');
 
   return assertLoadedWorkflowAndBaton(workflowDoc, baton, workflowPath);
 }
 
-export function loadWorkflowWithBaton(workflowPath, baton) {
+export function loadWorkflowWithBaton(workflowPath, baton, { readJson } = {}) {
+  if (typeof readJson !== 'function') throw new Error('workflow runtime missing JSON reader');
   const workflowDoc = readJson(workflowPath, 'workflow');
 
   return assertLoadedWorkflowAndBaton(workflowDoc, baton, workflowPath);

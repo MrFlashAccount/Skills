@@ -1,7 +1,6 @@
 import { applyWorkflowOutput, renderInterpreterResponse, renderWorkflow } from '../interpreter/index.mjs';
 import { resolveStartupUserPrompt, startupUserPromptTarget } from '../../entities/Baton/user-prompt.mjs';
-import { assertSafeStepId, instructionPathForStep, responseStatusForInterpreterResponse, toRunnerResponse } from './host-requests.mjs';
-import { commitDurableRunState, createHistoryFileIfMissing, createJsonFileIfMissing, ensureRunStorage, managedJsonFileExists, pathExists, readJson, readText, recoverDurableCommit, repositoryRoot, resolveRunPaths, withContinueRunLock } from '../../persistence/run-state.mjs';
+import { assertSafeStepId, instructionPathForStep, responseStatusForInterpreterResponse, buildRunResponse } from './host-requests.mjs';
 
 
 function workflowStart(workflowDoc, workflowPath) {
@@ -10,7 +9,8 @@ function workflowStart(workflowDoc, workflowPath) {
   return start;
 }
 
-async function ensureRunFiles(paths, { userPrompt } = {}) {
+async function ensureRunFiles(paths, { userPrompt, adapters } = {}) {
+  const { ensureRunStorage, managedJsonFileExists, readJson, createJsonFileIfMissing, createHistoryFileIfMissing } = adapters;
   await ensureRunStorage(paths);
   const batonExists = await managedJsonFileExists(paths.batonPath, 'workflow baton');
   if (!batonExists) {
@@ -40,14 +40,16 @@ function stepInstructionsFor(paths, interpreterResponse) {
   });
 }
 
-async function runnerResponseForRendered(paths, rendered, { initialized, resumed }) {
+async function runnerResponseForRendered(paths, rendered, { initialized, resumed, adapters }) {
+  const { readJson, loadOutputSchema } = adapters;
   const workflowDoc = await readJson(paths.workflowPath, 'workflow');
   return {
-    ...toRunnerResponse(rendered, {
+    ...buildRunResponse(rendered, {
       runDir: paths.runDir,
       workflow: workflowDoc,
       workflowPath: paths.workflowPath,
       repositoryRoot: paths.repositoryRoot,
+      loadOutputSchema,
     }),
     runDir: paths.runDir,
     workflow: paths.workflowPath,
@@ -56,7 +58,8 @@ async function runnerResponseForRendered(paths, rendered, { initialized, resumed
   };
 }
 
-async function persistNextRunnerResponse(paths, rendered, runState) {
+async function persistNextRunState(paths, rendered, runState) {
+  const { commitDurableRunState } = runState.adapters;
   const response = await runnerResponseForRendered(paths, rendered, runState);
   await commitDurableRunState(paths, {
     response,
@@ -68,15 +71,16 @@ async function persistNextRunnerResponse(paths, rendered, runState) {
   return response;
 }
 
-export async function next({ runDir, workflowPath, includeDiagnostics = false, userPrompt, userPromptFile } = {}) {
-  const paths = resolveRunPaths({ runDir, workflowPath });
-  const startupUserPrompt = (await pathExists(paths.batonPath)) ? undefined : await resolveStartupUserPrompt({ userPrompt, userPromptFile });
-  const runState = await ensureRunFiles(paths, { userPrompt: startupUserPrompt });
-  await recoverDurableCommit(paths);
-  const rendered = renderWorkflow(paths.workflowPath, paths.batonPath, { includeDiagnostics, repositoryRoot: paths.repositoryRoot });
-  return persistNextRunnerResponse(paths, rendered, {
+export async function next({ runDir, workflowPath, includeDiagnostics = false, userPrompt, userPromptFile, resourceAdapters: adapters } = {}) {
+  const paths = adapters.resolveRunPaths({ runDir, workflowPath });
+  const startupUserPrompt = (await adapters.pathExists(paths.batonPath)) ? undefined : await resolveStartupUserPrompt({ userPrompt, userPromptFile });
+  const runState = await ensureRunFiles(paths, { userPrompt: startupUserPrompt, adapters });
+  await adapters.recoverDurableCommit(paths);
+  const rendered = renderWorkflow(paths.workflowPath, paths.batonPath, { includeDiagnostics, repositoryRoot: paths.repositoryRoot, resourceAdapters: adapters });
+  return persistNextRunState(paths, rendered, {
     initialized: runState.initialized,
     resumed: runState.resumed,
+    adapters,
   });
 }
 
@@ -137,7 +141,8 @@ function outputPathForRequest(request, parsedOutputRefs, { requireNamed = false 
   throw new Error('parallel host outputs must use --output <step-id>=<path> for each requested step');
 }
 
-async function outputForCurrentState(paths, outputRefs = []) {
+async function outputForCurrentState(paths, outputRefs = [], adapters) {
+  const { recoverDurableCommit, readJson, pathExists } = adapters;
   await recoverDurableCommit(paths);
   const lastResponse = await readJson(paths.lastResponsePath, 'last runner response');
   if (lastResponse.status !== 'needs_host_actions') throw new Error(`last runner response is '${lastResponse.status}', not needs_host_actions`);
@@ -173,28 +178,28 @@ async function outputForCurrentState(paths, outputRefs = []) {
   return { outputPath: '<parallel host outputs>', outputValue: { steps }, historyOutput: historyOutput.join(', ') };
 }
 
-async function resolveContinueRunPaths({ runDir, workflowPath }) {
-  if (workflowPath) return resolveRunPaths({ runDir, workflowPath });
+async function resolveContinueRunPaths({ runDir, workflowPath, adapters }) {
+  if (workflowPath) return adapters.resolveRunPaths({ runDir, workflowPath });
 
-  const paths = resolveRunPaths({ runDir });
-  await recoverDurableCommit(paths);
-  const lastResponse = await readJson(paths.lastResponsePath, 'last runner response');
+  const paths = adapters.resolveRunPaths({ runDir });
+  await adapters.recoverDurableCommit(paths);
+  const lastResponse = await adapters.readJson(paths.lastResponsePath, 'last runner response');
   if (typeof lastResponse.workflow !== 'string' || lastResponse.workflow.length === 0) return paths;
-  return resolveRunPaths({ runDir, workflowPath: lastResponse.workflow });
+  return adapters.resolveRunPaths({ runDir, workflowPath: lastResponse.workflow });
 }
 
-export async function continueRun({ runDir, workflowPath, output, includeDiagnostics = false }) {
-  const lockPaths = resolveRunPaths({ runDir });
-  return withContinueRunLock(lockPaths, async () => {
-    const paths = await resolveContinueRunPaths({ runDir, workflowPath });
-    await ensureRunFiles(paths);
-    await recoverDurableCommit(paths);
-    const { outputPath, outputValue, historyOutput } = await outputForCurrentState(paths, normalizeOutputRefs(output));
-    const applied = applyWorkflowOutput(paths.workflowPath, paths.batonPath, outputPath, outputValue, { repositoryRoot: paths.repositoryRoot });
-    const rendered = renderInterpreterResponse(paths.workflowPath, paths.batonPath, applied, { includeDiagnostics, repositoryRoot: paths.repositoryRoot });
+export async function continueRun({ runDir, workflowPath, output, includeDiagnostics = false, resourceAdapters: adapters } = {}) {
+  const lockPaths = adapters.resolveRunPaths({ runDir });
+  return adapters.withContinueRunLock(lockPaths, async () => {
+    const paths = await resolveContinueRunPaths({ runDir, workflowPath, adapters });
+    await ensureRunFiles(paths, { adapters });
+    await adapters.recoverDurableCommit(paths);
+    const { outputPath, outputValue, historyOutput } = await outputForCurrentState(paths, normalizeOutputRefs(output), adapters);
+    const applied = applyWorkflowOutput(paths.workflowPath, paths.batonPath, outputPath, outputValue, { repositoryRoot: paths.repositoryRoot, resourceAdapters: adapters });
+    const rendered = renderInterpreterResponse(paths.workflowPath, paths.batonPath, applied, { includeDiagnostics, repositoryRoot: paths.repositoryRoot, resourceAdapters: adapters });
 
-    const response = await runnerResponseForRendered(paths, rendered, { initialized: false, resumed: true });
-    await commitDurableRunState(paths, {
+    const response = await runnerResponseForRendered(paths, rendered, { initialized: false, resumed: true, adapters });
+    await adapters.commitDurableRunState(paths, {
       response,
       baton: applied.baton,
       instructions: stepInstructionsFor(paths, rendered),
@@ -204,13 +209,13 @@ export async function continueRun({ runDir, workflowPath, output, includeDiagnos
   });
 }
 
-export async function loadInstructions({ runDir, stepId }) {
+export async function loadInstructions({ runDir, stepId, resourceAdapters: adapters } = {}) {
   assertSafeStepId(stepId);
-  const paths = resolveRunPaths({ runDir });
-  await recoverDurableCommit(paths);
-  const lastResponse = await readJson(paths.lastResponsePath, 'last runner response');
+  const paths = adapters.resolveRunPaths({ runDir });
+  await adapters.recoverDurableCommit(paths);
+  const lastResponse = await adapters.readJson(paths.lastResponsePath, 'last runner response');
   const request = (lastResponse.requests ?? []).find((candidate) => candidate.stepId === stepId || candidate.id === stepId);
   if (lastResponse.status !== 'needs_host_actions' || !request) throw new Error(`unknown current workflow step id: ${stepId}`);
 
-  return readText(instructionPathForStep(paths.instructionsDir, stepId), `instructions for workflow step ${stepId}`);
+  return adapters.readText(instructionPathForStep(paths.instructionsDir, stepId), `instructions for workflow step ${stepId}`);
 }

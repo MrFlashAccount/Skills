@@ -1,13 +1,14 @@
 import { WorkflowInterpreterError } from '../../../Workflow/errors.mjs';
 import { safeReadTemplate } from '../utils.mjs';
 
-export function readInputTemplate({ workflowPath, workflow, input, repositoryRoot, templateBaseDir }) {
+export function readInputTemplate({ workflowPath, workflow, input, repositoryRoot, templateBaseDir, readWorkflowFileRef }) {
   if (!input?.template) return { content: undefined, metadataPath: undefined };
   const resolved = safeReadTemplate({
     workflowPath,
     templateRef: input.template,
     fieldName: 'input',
     repositoryRoot,
+    readWorkflowFileRef,
   });
   return { content: resolved.content, metadataPath: input.template };
 }

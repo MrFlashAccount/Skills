@@ -6,9 +6,10 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { next as runnerNext } from '../use-cases/runner/index.mjs';
+import { next as runnerNext } from '../lib/use-cases/runner/index.mjs';
+import { resourceAdapters } from './helpers/resource-adapters.mjs';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-runner-check-'));
 writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
 
@@ -243,14 +244,14 @@ test('runner: API next rejects empty user prompt before persisting baton', async
 
   const emptyRunDir = path.join(tempDir, 'api-empty-user-prompt-next');
   await assert.rejects(
-    runnerNext({ runDir: emptyRunDir, workflowPath, userPrompt: '' }),
+    runnerNext({ resourceAdapters, runDir: emptyRunDir, workflowPath, userPrompt: '' }),
     /--user-prompt must not be empty or whitespace-only/,
   );
   assert.equal(existsSync(path.join(emptyRunDir, 'baton.json')), false);
 
   const whitespaceRunDir = path.join(tempDir, 'api-whitespace-user-prompt-next');
   await assert.rejects(
-    runnerNext({ runDir: whitespaceRunDir, workflowPath, userPrompt: '  \n\t' }),
+    runnerNext({ resourceAdapters, runDir: whitespaceRunDir, workflowPath, userPrompt: '  \n\t' }),
     /--user-prompt must not be empty or whitespace-only/,
   );
   assert.equal(existsSync(path.join(whitespaceRunDir, 'baton.json')), false);

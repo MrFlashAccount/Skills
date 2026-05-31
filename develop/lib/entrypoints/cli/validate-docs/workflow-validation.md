@@ -6,7 +6,7 @@ This folder is the canonical validation bundle for the inline workflow runtime. 
 
 - Deterministic use-case module: `develop/lib/use-cases/workflow-validator.mjs`
 - CLI wrapper: `develop/lib/bin/validate-workflow.mjs`
-- Agent instructions: `develop/lib/validate/validation-agent-instructions.md`
+- Agent instructions: `develop/lib/entrypoints/cli/validate-docs/validation-agent-instructions.md`
 
 Run the deterministic validator:
 

@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
 import { validateWorkflowInterpreterCliArgs } from '../../dtos/cli-args-validation.mjs';
-import { defaultRepositoryRootForWorkflow } from '../../persistence/resource-resolver.mjs';
+import { defaultRepositoryRootForWorkflow, readWorkflowFileRef } from '../../persistence/resource-resolver.mjs';
+import { loadOutputSchema } from '../../persistence/output-schema.mjs';
+import { readJson, readText } from '../../persistence/json-io.mjs';
+import { assertRoleDirectoryName, readRoleMaterialFile } from '../../persistence/role-material.mjs';
 import { WorkflowInterpreterError } from '../../entities/Workflow/errors.mjs';
 import { applyWorkflowOutput, inspectWorkflow, renderWorkflow } from '../../use-cases/interpreter/index.mjs';
 
@@ -38,10 +41,12 @@ const USAGE_BY_MODE = {
   apply: 'usage: node develop/lib/bin/workflow-interpreter.mjs apply <workflow.json> <baton.json> <worker-output.json>',
 };
 
+const resourceAdapters = { loadOutputSchema, defaultRepositoryRootForWorkflow, readWorkflowFileRef, readJson, readText, assertRoleDirectoryName, readRoleMaterialFile };
+
 const COMMANDS = {
-  inspect: ({ workflowPath, batonPath }) => inspectWorkflow(workflowPath, batonPath),
-  render: ({ workflowPath, batonPath, includeDiagnostics }) => renderWorkflow(workflowPath, batonPath, { includeDiagnostics, repositoryRoot: defaultRepositoryRootForWorkflow(workflowPath) }),
-  apply: ({ workflowPath, batonPath, outputPath }) => applyWorkflowOutput(workflowPath, batonPath, outputPath, undefined, { repositoryRoot: defaultRepositoryRootForWorkflow(workflowPath) }),
+  inspect: ({ workflowPath, batonPath }) => inspectWorkflow(workflowPath, batonPath, { resourceAdapters }),
+  render: ({ workflowPath, batonPath, includeDiagnostics }) => renderWorkflow(workflowPath, batonPath, { includeDiagnostics, repositoryRoot: defaultRepositoryRootForWorkflow(workflowPath), resourceAdapters }),
+  apply: ({ workflowPath, batonPath, outputPath }) => applyWorkflowOutput(workflowPath, batonPath, outputPath, undefined, { repositoryRoot: defaultRepositoryRootForWorkflow(workflowPath), resourceAdapters }),
 };
 
 function usageForArgs(args) {

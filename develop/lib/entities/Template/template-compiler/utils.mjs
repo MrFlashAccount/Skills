@@ -1,13 +1,12 @@
 import path from 'node:path';
-import { readWorkflowFileRef } from '../../../persistence/resource-resolver.mjs';
 export { isInside, workflowSkillBase } from '../path-utils.mjs';
-export { readWorkflowFileRef, workflowResourceBase } from '../../../persistence/resource-resolver.mjs';
 
 export function normalizeRepositoryRoot(repositoryRoot) {
   return path.resolve(repositoryRoot ?? process.cwd());
 }
 
-export function safeReadTemplate({ templateRef, fieldName, workflowPath, repositoryRoot, missingMessage }) {
+export function safeReadTemplate({ templateRef, fieldName, workflowPath, repositoryRoot, missingMessage, readWorkflowFileRef }) {
+  if (typeof readWorkflowFileRef !== 'function') throw new Error('workflow prompt render failed: missing workflow file reader');
   return readWorkflowFileRef({
     workflowPath,
     fileRef: templateRef,

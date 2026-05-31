@@ -4,7 +4,7 @@ import { invariant } from '../../../entities/Workflow/errors.mjs';
 import { responseFor } from '../output/response.mjs';
 import { assertStartupUserPromptTargetRenderable, markUserPromptInjectedForStep, selectedUserPromptStepId, validateSelectedStartupUserPromptTarget } from '../../../entities/Baton/user-prompt.mjs';
 
-export function renderStepPrompts({ workflowPath, workflow, baton, steps, repositoryRoot, templateBaseDir, includeDiagnostics = false } = {}) {
+export function renderStepPrompts({ workflowPath, workflow, baton, steps, repositoryRoot, templateBaseDir, includeDiagnostics = false, resourceAdapters = {} } = {}) {
   assertStartupUserPromptTargetRenderable({ workflow, baton, steps });
   const userPromptStepId = selectedUserPromptStepId({ workflow, baton });
   const rendered = steps.map((entry) => ({
@@ -19,6 +19,7 @@ export function renderStepPrompts({ workflowPath, workflow, baton, steps, reposi
       templateBaseDir,
       includeDiagnostics,
       userPrompt: userPromptStepId === entry.id ? baton.user_prompt : undefined,
+      resourceAdapters,
     }),
   }));
   return rendered;

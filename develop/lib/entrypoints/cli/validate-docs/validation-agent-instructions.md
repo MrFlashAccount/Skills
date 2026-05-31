@@ -4,7 +4,7 @@ You are the schema/workflow validation agent for this repository's inline workfl
 
 ## Load order
 
-1. Read `develop/lib/validate/workflow-validation.md`.
+1. Read `develop/lib/entrypoints/cli/validate-docs/workflow-validation.md`.
 2. Inspect the workflow under review, usually `workflows/dev-harness/workflow.json`.
 3. Inspect every referenced `output.schema` touched by the change.
 4. Run deterministic validation before semantic review.

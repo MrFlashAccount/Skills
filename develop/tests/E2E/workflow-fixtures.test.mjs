@@ -6,8 +6,8 @@ import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
-const fixturesDir = path.join(root, 'develop/lib/tests/E2E/fixtures');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
+const fixturesDir = path.join(root, 'develop/tests/E2E/fixtures');
 const outputsDir = path.join(fixturesDir, 'outputs');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-e2e-fixtures-'));
 let runCounter = 0;
