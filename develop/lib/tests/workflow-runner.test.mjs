@@ -1559,6 +1559,27 @@ test('runner: next resolves external workflow package shared resources from repo
   assert.equal(response.requests[0].stepId, 'prepare');
 });
 
+test('runner: continue rejects stale last-response after baton advances', () => {
+  const runDir = path.join(tempDir, 'continue-stale-last-response');
+  const workflowPath = path.join(tempDir, 'continue-stale-last-response-workflow.json');
+  const singleWorkflow = structuredClone(workflowDoc);
+  singleWorkflow.steps.prepare.next = 'done';
+  writeJson(workflowPath, singleWorkflow);
+
+  expectRunner(['next', '--run-dir', runDir, '--workflow', workflowPath], 'next stale continue setup');
+  const lastResponseBefore = readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8');
+  writeJson(path.join(runDir, 'baton.json'), { cursor: 'done', status: 'done', state: { artifacts: [], results: [], prepare: workerOutput('prepared elsewhere') } });
+  const outputPath = path.join(runDir, 'prepared.json');
+  writeJson(outputPath, workerOutput('old prepared output'));
+
+  const stale = runRunner(['continue', '--run-dir', runDir, '--workflow', workflowPath, '--output', outputPath]);
+
+  assert.notEqual(stale.status, 0);
+  assert.match(stale.stderr, /stale last runner response/);
+  assert.equal(JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8')).cursor, 'done');
+  assert.equal(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8'), lastResponseBefore);
+});
+
 test('runner: instructions rejects stale last-response requests after baton advances', () => {
   const runDir = path.join(tempDir, 'instructions-stale-request');
   const workflowPath = path.join(tempDir, 'instructions-stale-request-workflow.json');

@@ -14,7 +14,7 @@ function preparedParallelStep({ workflow, baton, cursorStep }) {
 }
 
 export function inspectWorkflow({ workflowDoc, batonDoc, resources } = {}) {
-  const { workflow, baton, cursorStep } = assertLoadedWorkflowAndBaton(workflowDoc, batonDoc, { allowedRoles: resources?.allowedRoles });
+  const { workflow, baton, cursorStep } = assertLoadedWorkflowAndBaton(workflowDoc, batonDoc, { allowedRoles: resources?.allowedRoles, outputSchemas: resources?.outputSchemas });
   const prepared = preparedParallelStep({ workflow, baton, cursorStep });
   return responseFor(baton, baton.cursor, prepared.step, workflow, { parallelTargets: prepared.parallelTargets });
 }

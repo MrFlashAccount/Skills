@@ -17,7 +17,7 @@ function parseCandidateOutput({ outputContent, outputValue }) {
 }
 
 export function applyWorkflowOutput({ workflowDoc, batonDoc, outputContent, outputValue, resources } = {}) {
-  const { workflow, baton, cursorStep } = assertLoadedWorkflowAndBaton(workflowDoc, batonDoc, { allowedRoles: resources?.allowedRoles });
+  const { workflow, baton, cursorStep } = assertLoadedWorkflowAndBaton(workflowDoc, batonDoc, { allowedRoles: resources?.allowedRoles, outputSchemas: resources?.outputSchemas });
   const staticParallelNext = isStaticParallelNext(cursorStep.next);
   const dynamicNext = isDynamicTransitionNext(cursorStep.next);
   const hasAppliedCursorOutput = hasAppliedOutputForStep(baton, baton.cursor);

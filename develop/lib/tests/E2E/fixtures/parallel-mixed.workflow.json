@@ -8,32 +8,79 @@
     "prepare": {
       "name": "Prepare",
       "kind": "worker",
-      "input": { "prompt": "Prepare branch inputs." },
-      "output": { "template": "output.md" },
-      "next": ["lint", { "match": "${{ output.outcome }}", "cases": { "ready": "build", "blocked": "blocked" } }]
+      "input": {
+        "prompt": "Prepare branch inputs."
+      },
+      "output": {
+        "template": "output.md",
+        "schema": "schemas/routing-ready.schema.json"
+      },
+      "next": [
+        "lint",
+        {
+          "match": "${{ output.outcome }}",
+          "cases": {
+            "ready": "build"
+          }
+        }
+      ]
     },
     "lint": {
       "name": "Lint",
       "kind": "worker",
-      "input": { "state": ["prepare"], "prompt": "Run lint branch." },
-      "output": { "template": "output.md" },
+      "input": {
+        "state": [
+          "prepare"
+        ],
+        "prompt": "Run lint branch."
+      },
+      "output": {
+        "template": "output.md"
+      },
       "next": "join"
     },
     "build": {
       "name": "Build",
       "kind": "worker",
-      "input": { "state": ["prepare"], "prompt": "Run build branch." },
-      "output": { "template": "output.md" },
+      "input": {
+        "state": [
+          "prepare"
+        ],
+        "prompt": "Run build branch."
+      },
+      "output": {
+        "template": "output.md"
+      },
       "next": "join"
     },
     "join": {
       "name": "Join",
       "kind": "worker",
-      "input": { "state": ["lint", "build"], "prompt": "Synthesize branch outputs." },
-      "output": { "template": "output.md" },
+      "input": {
+        "state": [
+          "lint",
+          "build"
+        ],
+        "prompt": "Synthesize branch outputs."
+      },
+      "output": {
+        "template": "output.md"
+      },
       "next": "done"
     },
-    "done": { "name": "Done", "kind": "done", "input": { "prompt": "Finished." } },
-    "blocked": { "name": "Blocked", "kind": "blocked", "input": { "prompt": "Blocked." } }
+    "done": {
+      "name": "Done",
+      "kind": "done",
+      "input": {
+        "prompt": "Finished."
+      }
+    },
+    "blocked": {
+      "name": "Blocked",
+      "kind": "blocked",
+      "input": {
+        "prompt": "Blocked."
+      }
+    }
   }
 }

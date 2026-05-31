@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util';
 import { applyWorkflowOutput } from '../../use-cases/ApplyWorkflowOutput.mjs';
 import { renderAppliedResponse } from '../../use-cases/ContinueRun.mjs';
 import { runNext } from '../../use-cases/RunNext.mjs';
@@ -120,10 +121,17 @@ function outputPathForRequest(request, parsedOutputRefs, { requireNamed = false 
   throw new Error('parallel host outputs must use --output <step-id>=<path> for each requested step');
 }
 
+function assertLastResponseMatchesCurrentBaton(lastResponse, currentBaton) {
+  if (!isDeepStrictEqual(lastResponse.baton, currentBaton)) {
+    throw new Error('stale last runner response: persisted baton no longer matches last-response context; run workflow-runner next before continue');
+  }
+}
+
 async function outputForCurrentState(paths, outputRefs = []) {
   await recoverDurableCommit(paths);
   const lastResponse = await readJson(paths.lastResponsePath, 'last runner response');
   if (lastResponse.status !== 'needs_host_actions') throw new Error(`last runner response is '${lastResponse.status}', not needs_host_actions`);
+  assertLastResponseMatchesCurrentBaton(lastResponse, await readJson(paths.batonPath, 'baton'));
 
   const missing = [];
   const requests = lastResponse.requests ?? [];
