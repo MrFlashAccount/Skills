@@ -1,18 +1,19 @@
-/**
- * Boundary DTO for workflow runtime data.
- * DTOs intentionally own cloning/shape transport only; entities own behavior.
- */
+/** Boundary DTO for a workflow step crossing into Step entity ownership. */
+import { assertPlainObject, assertString, cloneFrozen } from './_dto-utils.mjs';
+
 export class StepDTO {
-  constructor(data = {}) {
-    this.data = structuredClone(data);
-    Object.freeze(this.data);
+  constructor(data) {
+    const input = assertPlainObject(data, 'StepDTO');
+    if ('step' in input) {
+      assertString(input.id, 'StepDTO.id');
+      assertPlainObject(input.step, 'StepDTO.step');
+    } else {
+      assertString(input.kind, 'StepDTO.kind');
+    }
+    this.data = cloneFrozen(input);
   }
 
   toJSON() {
     return structuredClone(this.data);
   }
-}
-
-export function toStepDTO(data) {
-  return data instanceof StepDTO ? data : new StepDTO(data);
 }

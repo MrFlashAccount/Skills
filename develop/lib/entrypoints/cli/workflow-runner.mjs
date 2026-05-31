@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
-import { WorkflowInterpreterError } from '../../workflow/errors.mjs';
+import { WorkflowInterpreterError } from '../../entities/errors.mjs';
 import { continueRun, loadInstructions, next } from '../api/workflowRunner.mjs';
 
 function fail(message) {

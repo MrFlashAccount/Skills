@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
-import { validateWorkflowInterpreterCliArgs } from '../../workflow/cli-args-validation.mjs';
-import { defaultRepositoryRootForWorkflow } from '../../workflow/resource-resolver.mjs';
-import { WorkflowInterpreterError } from '../../workflow/errors.mjs';
+import { validateWorkflowInterpreterCliArgs } from './cli-args-validation.mjs';
+import { WorkflowInterpreterError } from '../../entities/errors.mjs';
 import { applyWorkflowOutput, inspectWorkflow, renderWorkflow } from '../../use-cases/WorkflowInterpreter.mjs';
+import { loadWorkflowRuntime, readWorkerOutputText } from '../../persistence/WorkflowRuntimeReader.mjs';
 
 function fail(message) {
   console.error(`workflow-interpreter: ${message}`);
@@ -39,9 +39,18 @@ const USAGE_BY_MODE = {
 };
 
 const COMMANDS = {
-  inspect: ({ workflowPath, batonPath }) => inspectWorkflow(workflowPath, batonPath),
-  render: ({ workflowPath, batonPath, includeDiagnostics }) => renderWorkflow(workflowPath, batonPath, { includeDiagnostics, repositoryRoot: defaultRepositoryRootForWorkflow(workflowPath) }),
-  apply: ({ workflowPath, batonPath, outputPath }) => applyWorkflowOutput(workflowPath, batonPath, outputPath, undefined, { repositoryRoot: defaultRepositoryRootForWorkflow(workflowPath) }),
+  inspect: ({ workflowPath, batonPath }) => {
+    const runtime = loadWorkflowRuntime({ workflowPath, batonPath });
+    return inspectWorkflow({ workflowDoc: runtime.workflow, batonDoc: runtime.baton, resources: runtime.resources });
+  },
+  render: ({ workflowPath, batonPath, includeDiagnostics }) => {
+    const runtime = loadWorkflowRuntime({ workflowPath, batonPath });
+    return renderWorkflow({ workflowDoc: runtime.workflow, batonDoc: runtime.baton, resources: runtime.resources, includeDiagnostics });
+  },
+  apply: ({ workflowPath, batonPath, outputPath }) => {
+    const runtime = loadWorkflowRuntime({ workflowPath, batonPath });
+    return applyWorkflowOutput({ workflowDoc: runtime.workflow, batonDoc: runtime.baton, outputContent: readWorkerOutputText({ outputPath }), resources: runtime.resources });
+  },
 };
 
 function usageForArgs(args) {

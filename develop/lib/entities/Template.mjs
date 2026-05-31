@@ -2,16 +2,16 @@
  * Template entity owns prompt rendering and expression compilation mechanics.
  * It receives render context; file/resource loading stays in persistence/legacy adapters.
  */
-import { parsePathExpression } from '../workflow/expressions/index.mjs';
-import { renderWorkflowPrompt as renderCompiledWorkflowPrompt } from '../workflow/template-compiler/index.mjs';
+import { parsePathExpression } from './step-helpers/expressions/index.mjs';
+import { renderWorkflowPrompt as renderCompiledWorkflowPrompt } from './template-compiler/index.mjs';
 
-function dtoData(dto) {
+function cloneBoundaryData(dto) {
   return typeof dto?.toJSON === 'function' ? dto.toJSON() : structuredClone(dto ?? {});
 }
 
 export class Template {
-  constructor(templateDTO = {}) {
-    this.data = dtoData(templateDTO);
+  constructor(templateData = {}) {
+    this.data = cloneBoundaryData(templateData);
     Object.freeze(this.data);
   }
 
@@ -32,5 +32,5 @@ export class Template {
 }
 
 export function renderWorkflowPrompt(context = {}) {
-  return new Template(context.templateDTO ?? {}).render(context);
+  return new Template(context.templateData ?? {}).render(context);
 }

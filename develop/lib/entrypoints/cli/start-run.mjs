@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { ensureRunFiles, resolveRunPaths } from '../../workflow/runner/run-state.mjs';
+import { ensureRunFiles, resolveRunPaths } from '../../persistence/runner/run-state.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(scriptDir, '../../..');

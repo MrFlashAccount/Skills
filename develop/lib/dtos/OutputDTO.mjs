@@ -1,18 +1,13 @@
-/**
- * Boundary DTO for workflow runtime data.
- * DTOs intentionally own cloning/shape transport only; entities own behavior.
- */
+/** Boundary DTO for host/worker output crossing into runtime use-cases. */
+import { assertPlainObject, cloneFrozen } from './_dto-utils.mjs';
+
 export class OutputDTO {
-  constructor(data = {}) {
-    this.data = structuredClone(data);
-    Object.freeze(this.data);
+  constructor(data) {
+    const output = assertPlainObject(data, 'OutputDTO');
+    this.data = cloneFrozen(output);
   }
 
   toJSON() {
     return structuredClone(this.data);
   }
-}
-
-export function toOutputDTO(data) {
-  return data instanceof OutputDTO ? data : new OutputDTO(data);
 }

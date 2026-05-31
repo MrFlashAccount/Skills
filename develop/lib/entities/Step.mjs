@@ -2,10 +2,10 @@
  * Step entity owns step-level input projection, transition descriptors,
  * concrete transition resolution, and output application intent.
  */
-import { parsePathExpression, readPath } from '../workflow/expressions/index.mjs';
-import { invariant } from '../workflow/errors.mjs';
-import { projectState } from '../workflow/projection.mjs';
-import { assertParallelTargets, assertTransitionTarget } from '../workflow/transition-targets.mjs';
+import { parsePathExpression, readPath } from './step-helpers/expressions/index.mjs';
+import { invariant } from './errors.mjs';
+import { projectState } from './step-helpers/projection.mjs';
+import { assertParallelTargets, assertTransitionTarget } from './step-helpers/transition-targets.mjs';
 
 const NEXT_KIND = Object.freeze({
   STATIC_TARGET: 'static-target',
@@ -15,7 +15,7 @@ const NEXT_KIND = Object.freeze({
   PARALLEL_ITEMS: 'parallel-items',
 });
 
-function dtoData(dto) {
+function cloneBoundaryData(dto) {
   return typeof dto?.toJSON === 'function' ? dto.toJSON() : structuredClone(dto);
 }
 
@@ -214,8 +214,8 @@ export function resolveTransition({ workflow, baton, stepId, step, output }) {
 }
 
 export class Step {
-  constructor(stepDTO) {
-    const data = dtoData(stepDTO);
+  constructor(stepData) {
+    const data = cloneBoundaryData(stepData);
     this.id = data.id;
     this.data = data.step ? { id: data.id, ...data.step } : data;
     Object.freeze(this.data);

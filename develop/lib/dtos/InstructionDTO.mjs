@@ -1,18 +1,15 @@
-/**
- * Boundary DTO for workflow runtime data.
- * DTOs intentionally own cloning/shape transport only; entities own behavior.
- */
+/** Boundary DTO for instruction file content. */
+import { assertPlainObject, assertString, cloneFrozen } from './_dto-utils.mjs';
+
 export class InstructionDTO {
-  constructor(data = {}) {
-    this.data = structuredClone(data);
-    Object.freeze(this.data);
+  constructor(data) {
+    const instruction = assertPlainObject(data, 'InstructionDTO');
+    assertString(instruction.path, 'InstructionDTO.path');
+    assertString(instruction.content, 'InstructionDTO.content', { allowEmpty: true });
+    this.data = cloneFrozen(instruction);
   }
 
   toJSON() {
     return structuredClone(this.data);
   }
-}
-
-export function toInstructionDTO(data) {
-  return data instanceof InstructionDTO ? data : new InstructionDTO(data);
 }

@@ -2,8 +2,8 @@
 import { lstat, mkdir, open, readFile, rename, rm } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { WorkflowInterpreterError } from '../../workflow/errors.mjs';
-import { assertBatonSchema, assertResponseSchema } from '../../workflow/schema-validation.mjs';
+import { WorkflowInterpreterError } from '../../entities/errors.mjs';
+import { assertBatonSchema, assertResponseSchema } from '../../entities/workflow-helpers/schema-validation.mjs';
 
 function fail(message) {
   console.error(`persist-run-state: ${message}`);

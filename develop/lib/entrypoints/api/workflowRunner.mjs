@@ -1,7 +1,8 @@
 import { applyWorkflowOutput, renderInterpreterResponse, renderWorkflow } from '../../use-cases/WorkflowInterpreter.mjs';
-import { resolveStartupUserPrompt } from '../../workflow/user-prompt.mjs';
-import { assertSafeStepId, instructionPathForStep, responseStatusForInterpreterResponse, toHostResponse } from '../../workflow/runner/host-requests.mjs';
-import { commitDurableRunState, ensureRunFiles, pathExists, readJson, readText, recoverDurableCommit, repositoryRoot, resolveRunPaths, withContinueRunLock } from '../../workflow/runner/run-state.mjs';
+import { resolveStartupUserPrompt } from '../../use-cases/user-prompt.mjs';
+import { loadWorkflowRuntime, readWorkerOutputText } from '../../persistence/WorkflowRuntimeReader.mjs';
+import { assertSafeStepId, instructionPathForStep, responseStatusForInterpreterResponse, toHostResponse } from '../../persistence/runner/host-requests.mjs';
+import { commitDurableRunState, ensureRunFiles, pathExists, readJson, readText, recoverDurableCommit, repositoryRoot, resolveRunPaths, withContinueRunLock } from '../../persistence/runner/run-state.mjs';
 
 function stepInstructionsFor(paths, interpreterResponse) {
   if (responseStatusForInterpreterResponse(interpreterResponse) !== 'needs_host_actions') return [];
@@ -42,10 +43,16 @@ async function persistNextHostResponse(paths, rendered, runState) {
 
 export async function next({ runDir, workflowPath, includeDiagnostics = false, userPrompt, userPromptFile } = {}) {
   const paths = resolveRunPaths({ runDir, workflowPath });
-  const startupUserPrompt = (await pathExists(paths.batonPath)) ? undefined : await resolveStartupUserPrompt({ userPrompt, userPromptFile });
+  const hasExistingBaton = await pathExists(paths.batonPath);
+  if (!hasExistingBaton && userPromptFile !== undefined && String(userPromptFile).trim().length === 0) {
+    throw new Error('--user-prompt-file path must not be empty or whitespace-only');
+  }
+  const userPromptFileContent = (!hasExistingBaton && userPromptFile !== undefined) ? await readText(userPromptFile, '--user-prompt-file') : undefined;
+  const startupUserPrompt = hasExistingBaton ? undefined : resolveStartupUserPrompt({ userPrompt, userPromptFileContent });
   const runState = await ensureRunFiles(paths, { userPrompt: startupUserPrompt });
   await recoverDurableCommit(paths);
-  const rendered = renderWorkflow(paths.workflowPath, paths.batonPath, { includeDiagnostics, repositoryRoot: paths.repositoryRoot });
+  const runtime = loadWorkflowRuntime({ workflowPath: paths.workflowPath, batonPath: paths.batonPath });
+  const rendered = renderWorkflow({ workflowDoc: runtime.workflow, batonDoc: runtime.baton, resources: runtime.resources, includeDiagnostics });
   return persistNextHostResponse(paths, rendered, {
     initialized: runState.initialized,
     resumed: runState.resumed,
@@ -162,8 +169,10 @@ export async function continueRun({ runDir, workflowPath, output, includeDiagnos
     await ensureRunFiles(paths);
     await recoverDurableCommit(paths);
     const { outputPath, outputValue, historyOutput } = await outputForCurrentState(paths, normalizeOutputRefs(output));
-    const applied = applyWorkflowOutput(paths.workflowPath, paths.batonPath, outputPath, outputValue, { repositoryRoot: paths.repositoryRoot });
-    const rendered = renderInterpreterResponse(paths.workflowPath, paths.batonPath, applied, { includeDiagnostics, repositoryRoot: paths.repositoryRoot });
+    const runtime = loadWorkflowRuntime({ workflowPath: paths.workflowPath, batonPath: paths.batonPath });
+    const outputContent = outputValue === undefined ? readWorkerOutputText({ outputPath }) : undefined;
+    const applied = applyWorkflowOutput({ workflowDoc: runtime.workflow, batonDoc: runtime.baton, outputContent, outputValue, resources: runtime.resources });
+    const rendered = renderInterpreterResponse({ workflowDoc: runtime.workflow, response: applied, resources: runtime.resources, includeDiagnostics });
 
     const response = await runnerResponseForRendered(paths, rendered, { initialized: false, resumed: true });
     await commitDurableRunState(paths, {

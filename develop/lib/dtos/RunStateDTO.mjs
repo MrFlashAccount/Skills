@@ -1,18 +1,14 @@
-/**
- * Boundary DTO for workflow runtime data.
- * DTOs intentionally own cloning/shape transport only; entities own behavior.
- */
+/** Boundary DTO for persisted run-state projection. */
+import { assertPlainObject, cloneFrozen } from './_dto-utils.mjs';
+
 export class RunStateDTO {
-  constructor(data = {}) {
-    this.data = structuredClone(data);
-    Object.freeze(this.data);
+  constructor(data) {
+    const runState = assertPlainObject(data, 'RunStateDTO');
+    assertPlainObject(runState.baton, 'RunStateDTO.baton');
+    this.data = cloneFrozen(runState);
   }
 
   toJSON() {
     return structuredClone(this.data);
   }
-}
-
-export function toRunStateDTO(data) {
-  return data instanceof RunStateDTO ? data : new RunStateDTO(data);
 }

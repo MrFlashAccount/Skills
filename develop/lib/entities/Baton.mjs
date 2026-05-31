@@ -1,11 +1,11 @@
 /**
  * Baton entity owns runtime cursor/status/state consistency and safe state updates.
  */
-import { WorkflowInterpreterError } from '../workflow/errors.mjs';
-import { assertBatonSchema } from '../workflow/schema-validation.mjs';
-import { statusForStep } from '../workflow/model.mjs';
+import { WorkflowInterpreterError } from './errors.mjs';
+import { assertBatonSchema } from '../entities/workflow-helpers/schema-validation.mjs';
+import { statusForStep } from './workflow-helpers/model.mjs';
 
-function dtoData(dto) {
+function cloneBoundaryData(dto) {
   return typeof dto?.toJSON === 'function' ? dto.toJSON() : structuredClone(dto);
 }
 
@@ -39,8 +39,8 @@ function aggregateArray(output, fieldName) {
 }
 
 export class Baton {
-  constructor(batonDTO) {
-    this.data = dtoData(batonDTO);
+  constructor(batonData) {
+    this.data = cloneBoundaryData(batonData);
     Object.freeze(this.data);
   }
 

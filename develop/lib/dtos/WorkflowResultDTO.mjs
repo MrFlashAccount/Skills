@@ -1,18 +1,16 @@
-/**
- * Boundary DTO for workflow runtime data.
- * DTOs intentionally own cloning/shape transport only; entities own behavior.
- */
+/** Boundary DTO for use-case result returned to entrypoints/API callers. */
+import { assertPlainObject, cloneFrozen } from './_dto-utils.mjs';
+
 export class WorkflowResultDTO {
-  constructor(data = {}) {
-    this.data = structuredClone(data);
-    Object.freeze(this.data);
+  constructor(data) {
+    const result = assertPlainObject(data, 'WorkflowResultDTO');
+    if (!('ok' in result) && !('status' in result) && !('steps' in result) && !('baton' in result)) {
+      throw new TypeError('WorkflowResultDTO requires a concrete result field: ok, status, steps, or baton');
+    }
+    this.data = cloneFrozen(result);
   }
 
   toJSON() {
     return structuredClone(this.data);
   }
-}
-
-export function toWorkflowResultDTO(data) {
-  return data instanceof WorkflowResultDTO ? data : new WorkflowResultDTO(data);
 }

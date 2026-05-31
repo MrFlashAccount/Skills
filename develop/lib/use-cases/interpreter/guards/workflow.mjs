@@ -1,0 +1,11 @@
+import { Workflow } from '../../../entities/Workflow.mjs';
+import { Baton } from '../../../entities/Baton.mjs';
+
+export function assertLoadedWorkflowAndBaton(workflowDoc, batonDoc, options = {}) {
+  const workflow = new Workflow(workflowDoc);
+  workflow.validateForRuntime(options);
+  const baton = new Baton(batonDoc);
+  baton.validateAgainst(workflow);
+  const cursorStep = workflow.inferStep(baton).toJSON();
+  return { workflow: workflow.toJSON(), baton: baton.toJSON(), cursorStep };
+}

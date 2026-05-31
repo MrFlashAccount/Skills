@@ -3,15 +3,15 @@
  * It accepts boundary DTO data and never reads files or parses CLI arguments.
  */
 import { validateJsonSchema } from 'schema-validation';
-import { WorkflowInterpreterError } from '../workflow/errors.mjs';
-import { RESERVED_STATE_KEYS, DANGEROUS_OBJECT_KEYS, assertProjectableStateSelector, isDangerousObjectKey, isReservedStateKey } from '../workflow/state-keys.mjs';
-import { assertRoleDirectoryName, listAllowedWorkflowRoles } from '../workflow/roles.mjs';
-import { assertWorkflowSchema, workflowSchemas } from '../workflow/schema-validation.mjs';
+import { WorkflowInterpreterError } from './errors.mjs';
+import { RESERVED_STATE_KEYS, DANGEROUS_OBJECT_KEYS, assertProjectableStateSelector, isDangerousObjectKey, isReservedStateKey } from './workflow-helpers/state-keys.mjs';
+import { assertRoleDirectoryName } from './workflow-helpers/roles.mjs';
+import { assertWorkflowSchema, workflowSchemas } from '../entities/workflow-helpers/schema-validation.mjs';
 import { assertTransitionDescriptorTargets, normalizeTransitionNext } from './Step.mjs';
 import { Step } from './Step.mjs';
-import { statusForStep } from '../workflow/model.mjs';
+import { statusForStep } from './workflow-helpers/model.mjs';
 
-function dtoData(dto) {
+function cloneBoundaryData(dto) {
   return typeof dto?.toJSON === 'function' ? dto.toJSON() : structuredClone(dto);
 }
 
@@ -75,8 +75,8 @@ function assertWorkflowInputStateSelectors(workflow) {
   }
 }
 
-function assertWorkflowStepRoles(workflow, repositoryRoot) {
-  const allowedRoles = new Set(listAllowedWorkflowRoles({ repositoryRoot }));
+function assertWorkflowStepRoles(workflow, allowedRoleNames = []) {
+  const allowedRoles = new Set(allowedRoleNames);
   for (const [stepId, step] of Object.entries(workflow.steps)) {
     if (step.kind !== 'worker') continue;
     const role = step.input?.role;
@@ -87,7 +87,7 @@ function assertWorkflowStepRoles(workflow, repositoryRoot) {
       if (error instanceof WorkflowInterpreterError) fail(`step '${stepId}' ${error.message.replace(/^workflow role validation failed: /, '')}`);
       throw error;
     }
-    if (!allowedRoles.has(role)) {
+    if (allowedRoles.size > 0 && !allowedRoles.has(role)) {
       const expected = [...allowedRoles].join(', ');
       fail(`step '${stepId}' input.role '${role}' is not an allowed role${expected ? `; expected one of: ${expected}` : ''}`);
     }
@@ -171,7 +171,7 @@ function normalizeSchemaForSemanticIntrospection(schema, rootSchema = schema, re
   return normalized;
 }
 
-function validateOutputSchemaDocument(schema, schemaRef, workflow, workflowPath, repositoryRoot, warnings, { stepId, step } = {}) {
+function validateOutputSchemaDocument(schema, schemaRef, workflow, _runtimeContext, warnings, { stepId, step } = {}) {
   let validation;
   try {
     validation = validateJsonSchema(schema, {}, { schemas: workflowSchemas });
@@ -194,7 +194,7 @@ function normalizeStepOutputSchemas({ workflow, outputSchemas = new Map(), warni
     if (!schemaRef) continue;
     const schema = outputSchemas instanceof Map ? outputSchemas.get(stepId) : outputSchemas?.[stepId];
     if (!schema) fail(`step '${stepId}' output.schema '${schemaRef}' was not provided to Workflow.validate()`);
-    const normalizedSchema = validateOutputSchemaDocument(schema, schemaRef, workflow, undefined, undefined, warnings, { stepId, step });
+    const normalizedSchema = validateOutputSchemaDocument(schema, schemaRef, workflow, undefined, warnings, { stepId, step });
     schemasByStep.set(stepId, normalizedSchema);
   }
   return schemasByStep;
@@ -461,7 +461,7 @@ function validateWorkflowDocument(workflow, options = {}) {
   assertWorkflowStepIds(workflow);
   assertWorkflowRootTargets(workflow);
   assertWorkflowInputStateSelectors(workflow);
-  assertWorkflowStepRoles(workflow, options.repositoryRoot ?? process.cwd());
+  assertWorkflowStepRoles(workflow, options.allowedRoles ?? []);
   const warnings = [];
   const schemasByStep = normalizeStepOutputSchemas({ workflow, outputSchemas: options.outputSchemas, warnings });
   assertTransitionSemantics(workflow, schemasByStep);
@@ -472,8 +472,8 @@ function validateWorkflowDocument(workflow, options = {}) {
 
 
 export class Workflow {
-  constructor(workflowDTO) {
-    this.data = dtoData(workflowDTO);
+  constructor(workflowData) {
+    this.data = cloneBoundaryData(workflowData);
     this.steps = this.data.steps ?? {};
     Object.freeze(this.data);
   }
