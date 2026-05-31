@@ -3,7 +3,7 @@
  * It accepts boundary DTO data and never reads files or parses CLI arguments.
  */
 import { validateJsonSchema } from 'schema-validation';
-import { WorkflowInterpreterError } from './errors.mjs';
+import { WorkflowRuntimeError } from './errors.mjs';
 import { RESERVED_STATE_KEYS, DANGEROUS_OBJECT_KEYS, assertProjectableStateSelector, isDangerousObjectKey, isReservedStateKey } from './workflow-helpers/state-keys.mjs';
 import { assertRoleDirectoryName } from './workflow-helpers/roles.mjs';
 import { assertWorkflowSchema, workflowSchemas } from '../entities/workflow-helpers/schema-validation.mjs';
@@ -18,7 +18,7 @@ function cloneBoundaryData(dto) {
 const WORKFLOW_NAME = /^[a-z][a-z0-9-]*$/;
 
 function fail(message) {
-  throw new WorkflowInterpreterError(`workflow semantic validation failed: ${message}`);
+  throw new WorkflowRuntimeError(`workflow semantic validation failed: ${message}`);
 }
 
 function fieldPath(...parts) {
@@ -61,7 +61,7 @@ function assertWorkflowInputStateSelectors(workflow) {
       try {
         assertProjectableStateSelector(selector, { stepId, errorPrefix: 'workflow semantic validation failed' });
       } catch (error) {
-        if (!(error instanceof WorkflowInterpreterError)) throw error;
+        if (!(error instanceof WorkflowRuntimeError)) throw error;
         if (!/top-level workflow step ids only/.test(error.message)) {
           if (isDangerousObjectKey(selector)) fail(`step '${stepId}' input.state selector '${selector}' is reserved because it is unsafe as a JavaScript object key and cannot reference workflow steps`);
           fail(`step '${stepId}' input.state selector '${selector}' is reserved for runtime aggregate state and cannot reference workflow steps`);
@@ -84,7 +84,7 @@ function assertWorkflowStepRoles(workflow, allowedRoleNames = []) {
     try {
       assertRoleDirectoryName(role);
     } catch (error) {
-      if (error instanceof WorkflowInterpreterError) fail(`step '${stepId}' ${error.message.replace(/^workflow role validation failed: /, '')}`);
+      if (error instanceof WorkflowRuntimeError) fail(`step '${stepId}' ${error.message.replace(/^workflow role validation failed: /, '')}`);
       throw error;
     }
     if (allowedRoles.size > 0 && !allowedRoles.has(role)) {
@@ -358,7 +358,7 @@ function assertDynamicTargetSchema({ workflow, schemasByStep, stepId, step, expr
   try {
     assertTransitionDescriptorTargets(workflow, stepId, { kind: 'static-parallel', targets: [...aggregate.itemValues] });
   } catch (error) {
-    if (error instanceof WorkflowInterpreterError) fail(`step '${stepId}' ${field} expression ${expression.source} array target schema is not a valid parallel fan-out: ${error.message}`);
+    if (error instanceof WorkflowRuntimeError) fail(`step '${stepId}' ${field} expression ${expression.source} array target schema is not a valid parallel fan-out: ${error.message}`);
     throw error;
   }
 
@@ -411,7 +411,7 @@ function assertParallelItemCombinations({ workflow, stepId, itemTargetSets }) {
     try {
       assertTransitionDescriptorTargets(workflow, stepId, { kind: 'static-parallel', targets });
     } catch (error) {
-      if (error instanceof WorkflowInterpreterError) fail(`step '${stepId}' next combined parallel targets are invalid: ${error.message}`);
+      if (error instanceof WorkflowRuntimeError) fail(`step '${stepId}' next combined parallel targets are invalid: ${error.message}`);
       throw error;
     }
   }
@@ -425,7 +425,7 @@ function assertTransitionSemantics(workflow, schemasByStep) {
       descriptor = normalizeTransitionNext(step.next);
       assertTransitionDescriptorTargets(workflow, stepId, descriptor);
     } catch (error) {
-      if (error instanceof WorkflowInterpreterError) fail(error.message);
+      if (error instanceof WorkflowRuntimeError) fail(error.message);
       throw error;
     }
 
@@ -502,7 +502,7 @@ export class Workflow {
       for (const selector of step.input?.state ?? []) {
         assertProjectableStateSelector(selector, { stepId, errorPrefix: 'workflow runtime validation failed' });
         if (!Object.hasOwn(this.data.steps, selector)) {
-          throw new WorkflowInterpreterError(`workflow runtime validation failed: step '${stepId}' input.state selector '${selector}' does not reference a declared workflow step`);
+          throw new WorkflowRuntimeError(`workflow runtime validation failed: step '${stepId}' input.state selector '${selector}' does not reference a declared workflow step`);
         }
       }
     }
@@ -518,7 +518,7 @@ export class Workflow {
 
   getStep(stepId) {
     const step = this.steps[stepId];
-    if (!step) throw new WorkflowInterpreterError(`workflow step not found: ${stepId}`);
+    if (!step) throw new WorkflowRuntimeError(`workflow step not found: ${stepId}`);
     return new Step({ id: stepId, ...step });
   }
 
@@ -537,7 +537,7 @@ export class Workflow {
   inferStep(baton) {
     const batonData = typeof baton?.toJSON === 'function' ? baton.toJSON() : baton;
     const stepId = batonData?.cursor;
-    if (!this.hasStep(stepId)) throw new WorkflowInterpreterError(`baton cursor not found in workflow: ${stepId}`);
+    if (!this.hasStep(stepId)) throw new WorkflowRuntimeError(`baton cursor not found in workflow: ${stepId}`);
     return this.getStep(stepId);
   }
 }

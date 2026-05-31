@@ -1,4 +1,4 @@
-import { WorkflowInterpreterError } from '../../errors.mjs';
+import { WorkflowRuntimeError } from '../../errors.mjs';
 
 const EXPRESSION_PATTERN = /^\$\{\{\s*([A-Za-z_][A-Za-z0-9_-]*(?:\.[A-Za-z_][A-Za-z0-9_-]*)*)\s*\}\}$/;
 const SEGMENT_PATTERN = /^[A-Za-z_][A-Za-z0-9_-]*$/;
@@ -6,7 +6,7 @@ const ALLOWED_ROOTS = new Set(['output', 'input']);
 const DANGEROUS_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
 
 function expressionError(source, reason) {
-  return new WorkflowInterpreterError(`workflow expression '${source}' is invalid: ${reason}`);
+  return new WorkflowRuntimeError(`workflow expression '${source}' is invalid: ${reason}`);
 }
 
 export function isExpressionString(value) {
@@ -14,7 +14,7 @@ export function isExpressionString(value) {
 }
 
 export function parsePathExpression(source) {
-  if (typeof source !== 'string') throw new WorkflowInterpreterError('workflow expression source must be a string');
+  if (typeof source !== 'string') throw new WorkflowRuntimeError('workflow expression source must be a string');
 
   const match = source.match(EXPRESSION_PATTERN);
   if (!match) {

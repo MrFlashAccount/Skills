@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import workflowDoc from '../../../workflows/dev-harness/workflow.json' with { type: 'json' };
 import researchCriticWorkflowDoc from '../../../workflows/research-critic/workflow.json' with { type: 'json' };
-import { WorkflowInterpreterError } from '../entities/errors.mjs';
+import { WorkflowRuntimeError } from '../entities/errors.mjs';
 import { validateWorkflowDocument } from '../validate/workflow-validator.mjs';
 import { validateAgainstOutputSchema } from '../persistence/output-schema-validation.mjs';
 
@@ -25,7 +25,7 @@ function validateSynthetic(doc) {
 
 function assertSemanticFailure(doc, pattern) {
   assert.throws(() => validateSynthetic(doc), (error) => {
-    assert.equal(error instanceof WorkflowInterpreterError, true);
+    assert.equal(error instanceof WorkflowRuntimeError, true);
     assert.match(error.message, pattern);
     return true;
   });

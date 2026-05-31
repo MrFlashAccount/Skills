@@ -1,21 +1,36 @@
-/** RunNext use-case coordinates Workflow/Baton/Step/Template for next render. */
-import { Workflow } from '../entities/Workflow.mjs';
-import { Baton } from '../entities/Baton.mjs';
-import { Template } from '../entities/Template.mjs';
-import { responseFor } from './interpreter/output/response.mjs';
+/** RunNext use-case coordinates Workflow/Baton/Step/Template for the next rendered runtime response. */
+import { assertResponseSchema } from '../entities/workflow-helpers/schema-validation.mjs';
+import { isDynamicTransitionNext, isStaticParallelNext, resolveTransition } from '../entities/Step.mjs';
+import { assertLoadedWorkflowAndBaton } from './runtime/guards/workflow.mjs';
+import { hasAppliedOutputForStep, responseFor } from './runtime/output/response.mjs';
+import { renderStepPrompts } from './runtime/parallel/render.mjs';
 
-export function runNext({ workflowDTO, batonDTO, templateDTO, outputSchemas = new Map(), render = false } = {}) {
-  const workflow = new Workflow(workflowDTO);
-  const baton = new Baton(batonDTO);
-  workflow.validate({ outputSchemas });
-  baton.validateAgainst(workflow);
-  const step = workflow.inferStep(baton);
-  step.resolveInputs(baton.toJSON(), workflow);
-  step.validateForRun({ workflow });
-  const response = responseFor(baton.toJSON(), baton.currentCursor(), step.toJSON(), workflow.toJSON());
-  if (!render) return response;
-  const context = step.prepareRenderContext({ workflow, baton: baton.toJSON() });
-  return { ...response, steps: response.steps.map((entry) => ({ ...entry, compiledPrompt: new Template(templateDTO).render({ ...context, stepId: entry.id, step: entry.step }) })) };
+function preparedParallelStep({ workflow, baton, cursorStep }) {
+  if (!hasAppliedOutputForStep(baton, baton.cursor)) return { step: cursorStep, parallelTargets: false };
+  if (isStaticParallelNext(cursorStep.next)) return { step: cursorStep, parallelTargets: true };
+  if (!isDynamicTransitionNext(cursorStep.next)) return { step: cursorStep, parallelTargets: false };
+
+  const resolved = resolveTransition({ workflow, baton, stepId: baton.cursor, step: cursorStep, output: baton.state[baton.cursor] });
+  if (!resolved.targetStepIds) return { step: cursorStep, parallelTargets: false };
+  return { step: { ...cursorStep, next: resolved.targetStepIds }, parallelTargets: true };
+}
+
+export function runNext({ workflowDoc, batonDoc, resources, includeDiagnostics = false } = {}) {
+  const { workflow, baton, cursorStep } = assertLoadedWorkflowAndBaton(workflowDoc, batonDoc, { allowedRoles: resources?.allowedRoles });
+  const prepared = preparedParallelStep({ workflow, baton, cursorStep });
+  const response = responseFor(baton, baton.cursor, prepared.step, workflow, { parallelTargets: prepared.parallelTargets });
+  const rendered = {
+    ...response,
+    steps: renderStepPrompts({
+      workflow,
+      baton: response.baton,
+      steps: response.steps,
+      resources,
+      includeDiagnostics,
+    }),
+  };
+  assertResponseSchema(rendered);
+  return rendered;
 }
 
 export const RunNext = { execute: runNext };

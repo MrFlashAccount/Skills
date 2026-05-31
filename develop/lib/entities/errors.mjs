@@ -1,10 +1,10 @@
-export class WorkflowInterpreterError extends Error {
+export class WorkflowRuntimeError extends Error {
   constructor(message) {
     super(message);
-    this.name = 'WorkflowInterpreterError';
+    this.name = 'WorkflowRuntimeError';
   }
 }
 
 export function invariant(condition, message) {
-  if (!condition) throw new WorkflowInterpreterError(message);
+  if (!condition) throw new WorkflowRuntimeError(message);
 }

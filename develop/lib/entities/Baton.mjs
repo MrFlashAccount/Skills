@@ -1,7 +1,7 @@
 /**
  * Baton entity owns runtime cursor/status/state consistency and safe state updates.
  */
-import { WorkflowInterpreterError } from './errors.mjs';
+import { WorkflowRuntimeError } from './errors.mjs';
 import { assertBatonSchema } from '../entities/workflow-helpers/schema-validation.mjs';
 import { statusForStep } from './workflow-helpers/model.mjs';
 
@@ -34,7 +34,7 @@ function appendResults(existingResults = [], newResults = []) {
 function aggregateArray(output, fieldName) {
   const value = output[fieldName];
   if (value === undefined) return [];
-  if (!Array.isArray(value)) throw new WorkflowInterpreterError(`worker output failed schema validation: /${fieldName} must be array`);
+  if (!Array.isArray(value)) throw new WorkflowRuntimeError(`worker output failed schema validation: /${fieldName} must be array`);
   return value;
 }
 
@@ -52,10 +52,10 @@ export class Baton {
     const workflow = workflowData(workflowInput);
     assertBatonSchema(this.data);
     const cursorStep = workflow.steps?.[this.data.cursor];
-    if (!cursorStep) throw new WorkflowInterpreterError(`baton cursor not found in workflow: ${this.data.cursor}`);
+    if (!cursorStep) throw new WorkflowRuntimeError(`baton cursor not found in workflow: ${this.data.cursor}`);
     const expectedStatus = statusForStep(workflow, this.data.cursor, cursorStep);
     if (this.data.status !== expectedStatus) {
-      throw new WorkflowInterpreterError(`baton status '${this.data.status}' is inconsistent with cursor '${this.data.cursor}'; expected '${expectedStatus}'`);
+      throw new WorkflowRuntimeError(`baton status '${this.data.status}' is inconsistent with cursor '${this.data.cursor}'; expected '${expectedStatus}'`);
     }
     return { ok: true };
   }

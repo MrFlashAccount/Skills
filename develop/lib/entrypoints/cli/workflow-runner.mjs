@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
-import { WorkflowInterpreterError } from '../../entities/errors.mjs';
+import { WorkflowRuntimeError } from '../../entities/errors.mjs';
 import { continueRun, loadInstructions, next } from '../api/workflowRunner.mjs';
 
 function fail(message) {
@@ -63,6 +63,6 @@ try {
     console.log(JSON.stringify(response, null, 2));
   }
 } catch (error) {
-  if (error instanceof WorkflowInterpreterError) fail(error.message);
+  if (error instanceof WorkflowRuntimeError) fail(error.message);
   fail(error.message);
 }

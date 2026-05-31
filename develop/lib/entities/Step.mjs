@@ -6,6 +6,8 @@ import { parsePathExpression, readPath } from './step-helpers/expressions/index.
 import { invariant } from './errors.mjs';
 import { projectState } from './step-helpers/projection.mjs';
 import { assertParallelTargets, assertTransitionTarget } from './step-helpers/transition-targets.mjs';
+import { Baton } from './Baton.mjs';
+import { statusForStep } from './workflow-helpers/model.mjs';
 
 const NEXT_KIND = Object.freeze({
   STATIC_TARGET: 'static-target',
@@ -247,7 +249,28 @@ export class Step {
     return { workflow: workflowData(workflow), baton, stepId: this.id, step: this.toJSON(), input: this.resolveInputs(baton), userPrompt };
   }
 
-  applyOutput({ baton, output, workflow }) {
-    return this.resolveConcreteTargets(baton, workflow, output);
+  applyOutput({ baton, output, workflow, attempts, storeStepOutput = ['worker', 'approval'].includes(this.data.kind) } = {}) {
+    const wf = workflowData(workflow);
+    const transition = this.resolveConcreteTargets(baton, wf, output);
+    const stateOwner = new Baton(baton);
+    const outputStepId = storeStepOutput ? this.id : undefined;
+    const withOutput = stateOwner.withAppliedOutput(outputStepId, output, attempts ?? transition.attempts, {
+      mirrorToOutputs: Boolean(this.data.output?.schema),
+    });
+
+    if (transition.targetStepIds) {
+      return { ...transition, baton: { ...withOutput, status: 'running' } };
+    }
+
+    const targetStep = wf.steps?.[transition.targetStepId];
+    invariant(targetStep, `transition target not found in workflow: ${transition.targetStepId}`);
+    const updatedBaton = {
+      ...withOutput,
+      cursor: transition.targetStepId,
+      status: statusForStep(wf, transition.targetStepId, targetStep),
+    };
+    delete updatedBaton.blocker;
+    if (updatedBaton.status === 'blocked' && output.blocker) updatedBaton.blocker = output.blocker;
+    return { ...transition, targetStep, baton: updatedBaton };
   }
 }

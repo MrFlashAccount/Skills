@@ -1,4 +1,7 @@
-import { applyWorkflowOutput, renderInterpreterResponse, renderWorkflow } from '../../use-cases/WorkflowInterpreter.mjs';
+import { applyWorkflowOutput } from '../../use-cases/ApplyWorkflowOutput.mjs';
+import { renderAppliedResponse } from '../../use-cases/ContinueRun.mjs';
+import { runNext } from '../../use-cases/RunNext.mjs';
+import { loadInstructions as loadInstructionsUseCase } from '../../use-cases/LoadInstructions.mjs';
 import { resolveStartupUserPrompt } from '../../use-cases/user-prompt.mjs';
 import { loadWorkflowRuntime, readWorkerOutputText } from '../../persistence/WorkflowRuntimeReader.mjs';
 import { assertSafeStepId, instructionPathForStep, responseStatusForInterpreterResponse, toHostResponse } from '../../persistence/runner/host-requests.mjs';
@@ -52,7 +55,7 @@ export async function next({ runDir, workflowPath, includeDiagnostics = false, u
   const runState = await ensureRunFiles(paths, { userPrompt: startupUserPrompt });
   await recoverDurableCommit(paths);
   const runtime = loadWorkflowRuntime({ workflowPath: paths.workflowPath, batonPath: paths.batonPath });
-  const rendered = renderWorkflow({ workflowDoc: runtime.workflow, batonDoc: runtime.baton, resources: runtime.resources, includeDiagnostics });
+  const rendered = runNext({ workflowDoc: runtime.workflow, batonDoc: runtime.baton, resources: runtime.resources, includeDiagnostics });
   return persistNextHostResponse(paths, rendered, {
     initialized: runState.initialized,
     resumed: runState.resumed,
@@ -172,7 +175,7 @@ export async function continueRun({ runDir, workflowPath, output, includeDiagnos
     const runtime = loadWorkflowRuntime({ workflowPath: paths.workflowPath, batonPath: paths.batonPath });
     const outputContent = outputValue === undefined ? readWorkerOutputText({ outputPath }) : undefined;
     const applied = applyWorkflowOutput({ workflowDoc: runtime.workflow, batonDoc: runtime.baton, outputContent, outputValue, resources: runtime.resources });
-    const rendered = renderInterpreterResponse({ workflowDoc: runtime.workflow, response: applied, resources: runtime.resources, includeDiagnostics });
+    const rendered = renderAppliedResponse({ workflowDoc: runtime.workflow, response: applied, resources: runtime.resources, includeDiagnostics });
 
     const response = await runnerResponseForRendered(paths, rendered, { initialized: false, resumed: true });
     await commitDurableRunState(paths, {
@@ -190,8 +193,8 @@ export async function loadInstructions({ runDir, stepId }) {
   const paths = resolveRunPaths({ runDir });
   await recoverDurableCommit(paths);
   const lastResponse = await readJson(paths.lastResponsePath, 'last runner response');
-  const request = (lastResponse.requests ?? []).find((candidate) => candidate.stepId === stepId || candidate.id === stepId);
-  if (lastResponse.status !== 'needs_host_actions' || !request) throw new Error(`unknown current workflow step id: ${stepId}`);
+  if (lastResponse.status !== 'needs_host_actions') throw new Error(`unknown current workflow step id: ${stepId}`);
+  loadInstructionsUseCase({ batonData: { requests: lastResponse.requests ?? [] }, stepId, instructionDTO: { stepId } });
 
   return readText(instructionPathForStep(paths.instructionsDir, stepId), `instructions for workflow step ${stepId}`);
 }

@@ -1,4 +1,4 @@
-import { WorkflowInterpreterError } from '../../errors.mjs';
+import { WorkflowRuntimeError } from '../../errors.mjs';
 
 function stringNote(value) {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : '';
@@ -14,7 +14,7 @@ export function projectedFieldNotes({ workflow, workflowPath, projectedState, pr
     try {
       schema = readOutputSchema({ workflow, workflowPath, step: producerStep, repositoryRoot }).schema;
     } catch (error) {
-      if (!(error instanceof WorkflowInterpreterError) || !error.message.includes('missing output schema')) throw error;
+      if (!(error instanceof WorkflowRuntimeError) || !error.message.includes('missing output schema')) throw error;
       continue;
     }
     const properties = schema?.properties;

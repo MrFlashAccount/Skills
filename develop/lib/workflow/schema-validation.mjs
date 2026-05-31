@@ -5,7 +5,7 @@ import workflowInterpreterResponseSchema from '../schemas/workflow-interpreter-r
 import workflowSchema from '../schemas/workflow.json' with { type: 'json' };
 import reviewerSelectionOutputSchema from '../../../workflows/dev-harness/schemas/reviewer-selection-output.json' with { type: 'json' };
 import { validateJsonSchema } from 'schema-validation';
-import { WorkflowInterpreterError } from './errors.mjs';
+import { WorkflowRuntimeError } from './errors.mjs';
 
 export const workflowSchemas = [
   batonSchema,
@@ -33,7 +33,7 @@ export function formatSchemaErrors(errors = []) {
 
 export function assertSchema(schema, value, name) {
   const validation = validateJsonSchema(schema, value, { schemas: workflowSchemas });
-  if (!validation.ok) throw new WorkflowInterpreterError(`${name} failed schema validation: ${formatSchemaErrors(validation.errors)}`);
+  if (!validation.ok) throw new WorkflowRuntimeError(`${name} failed schema validation: ${formatSchemaErrors(validation.errors)}`);
 }
 
 function hasMatchCasesShape(value) {
@@ -41,11 +41,11 @@ function hasMatchCasesShape(value) {
 }
 
 function assertNoNestedMatchCasesTarget(target, fieldPath) {
-  if (hasMatchCasesShape(target)) throw new WorkflowInterpreterError(`nested match/cases transitions are not supported at ${fieldPath}`);
+  if (hasMatchCasesShape(target)) throw new WorkflowRuntimeError(`nested match/cases transitions are not supported at ${fieldPath}`);
 
   if (!Array.isArray(target)) return;
   for (const [index, item] of target.entries()) {
-    if (hasMatchCasesShape(item)) throw new WorkflowInterpreterError(`nested match/cases transitions are not supported at ${fieldPath}.${index}`);
+    if (hasMatchCasesShape(item)) throw new WorkflowRuntimeError(`nested match/cases transitions are not supported at ${fieldPath}.${index}`);
   }
 }
 
@@ -71,7 +71,7 @@ export function assertWorkflowSchema(workflowDoc) {
   try {
     assertWorkflowNoNestedMatchCases(workflowDoc);
   } catch (error) {
-    if (error instanceof WorkflowInterpreterError) throw new WorkflowInterpreterError(`workflow failed schema validation: ${error.message}`);
+    if (error instanceof WorkflowRuntimeError) throw new WorkflowRuntimeError(`workflow failed schema validation: ${error.message}`);
     throw error;
   }
   assertSchema(workflowSchema, workflowDoc, 'workflow');

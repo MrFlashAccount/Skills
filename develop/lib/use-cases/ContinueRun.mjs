@@ -1,13 +1,28 @@
-/** ContinueRun use-case coordinates output application through Step/Baton/Workflow entities. */
-import { Workflow } from '../entities/Workflow.mjs';
-import { Baton } from '../entities/Baton.mjs';
+/** ContinueRun use-case applies output, then renders the next or terminal runtime response. */
+import { assertResponseSchema } from '../entities/workflow-helpers/schema-validation.mjs';
+import { applyWorkflowOutput } from './ApplyWorkflowOutput.mjs';
+import { renderStepPrompts } from './runtime/parallel/render.mjs';
+import { assertLoadedWorkflowAndBaton } from './runtime/guards/workflow.mjs';
 
-export function continueRun({ workflowDTO, batonDTO, output } = {}) {
-  const workflow = new Workflow(workflowDTO);
-  const baton = new Baton(batonDTO);
-  baton.validateAgainst(workflow);
-  const step = workflow.inferStep(baton);
-  return step.applyOutput({ baton: baton.toJSON(), output, workflow });
+export function renderAppliedResponse({ workflowDoc, response, resources, includeDiagnostics = false } = {}) {
+  const { workflow } = assertLoadedWorkflowAndBaton(workflowDoc, response.baton, { allowedRoles: resources?.allowedRoles });
+  const rendered = {
+    ...response,
+    steps: renderStepPrompts({
+      workflow,
+      baton: response.baton,
+      steps: response.steps,
+      resources,
+      includeDiagnostics,
+    }),
+  };
+  assertResponseSchema(rendered);
+  return rendered;
+}
+
+export function continueRun({ workflowDoc, batonDoc, outputContent, outputValue, resources, includeDiagnostics = false } = {}) {
+  const applied = applyWorkflowOutput({ workflowDoc, batonDoc, outputContent, outputValue, resources });
+  return renderAppliedResponse({ workflowDoc, response: applied, resources, includeDiagnostics });
 }
 
 export const ContinueRun = { execute: continueRun };

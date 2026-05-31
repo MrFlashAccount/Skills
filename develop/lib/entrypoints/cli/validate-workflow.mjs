@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { WorkflowInterpreterError } from '../../entities/errors.mjs';
+import { WorkflowRuntimeError } from '../../entities/errors.mjs';
 import { validateWorkflowFile } from '../../entrypoints/api/validateWorkflow.mjs';
 
 function fail(message) {
@@ -16,6 +16,6 @@ try {
   const results = workflowPaths.map((workflowPath) => validateWorkflowFile(workflowPath));
   console.log(JSON.stringify(results.length === 1 ? results[0] : results, null, 2));
 } catch (error) {
-  if (error instanceof WorkflowInterpreterError) fail(error.message);
+  if (error instanceof WorkflowRuntimeError) fail(error.message);
   throw error;
 }

@@ -1,4 +1,4 @@
-import { WorkflowInterpreterError } from '../../../entities/errors.mjs';
+import { WorkflowRuntimeError } from '../../../entities/errors.mjs';
 import { outputSchemaRetryKey, validationRetryPrompt, OUTPUT_SCHEMA_MAX_ATTEMPTS } from '../../../entities/workflow-helpers/output-schema-validation.mjs';
 import { responseFor, stepWithValidationFeedback } from '../output/response.mjs';
 
@@ -20,7 +20,7 @@ export function invalidJsonOutputRetry({ baton, stepId, step, error }) {
   const attempt = (baton.state?.attempts?.[outputSchemaRetryKey(stepId)] ?? 0) + 1;
   const errors = `step output is not valid JSON: ${error.message}`;
   if (attempt >= OUTPUT_SCHEMA_MAX_ATTEMPTS) {
-    throw new WorkflowInterpreterError(
+    throw new WorkflowRuntimeError(
       `output schema validation failed for step '${stepId}' after ${OUTPUT_SCHEMA_MAX_ATTEMPTS} attempts: ${errors}`,
     );
   }

@@ -4,7 +4,7 @@ import { readJson } from './json-io.mjs';
 import { readWorkflowFileRef, defaultRepositoryRootForWorkflow } from './resource-resolver.mjs';
 import { loadOutputSchema } from './output-schema.mjs';
 import { isInside } from './path-utils.mjs';
-import { WorkflowInterpreterError } from '../entities/errors.mjs';
+import { WorkflowRuntimeError } from '../entities/errors.mjs';
 import { roleMaterialPath, REQUIRED_ROLE_MATERIAL_FILES } from '../entities/workflow-helpers/roles.mjs';
 
 function templateRefs(workflow) {
@@ -50,7 +50,7 @@ export function listAllowedWorkflowRoles({ repositoryRoot }) {
 }
 
 function isDeferredMissingResource(error) {
-  return error instanceof WorkflowInterpreterError && /\b(missing|not found)\b/.test(error.message);
+  return error instanceof WorkflowRuntimeError && /\b(missing|not found)\b/.test(error.message);
 }
 
 function loadTemplates({ workflow, workflowPath, repositoryRoot }) {
@@ -89,7 +89,7 @@ function readRoleMaterialFile({ root, role, fileName }) {
     return undefined;
   }
   if (!isInside(resolvedPath, root)) {
-    throw new WorkflowInterpreterError(`workflow prompt render failed: input.role material escapes repository root: ${relative}`);
+    throw new WorkflowRuntimeError(`workflow prompt render failed: input.role material escapes repository root: ${relative}`);
   }
   return { content: readFileSync(resolvedPath, 'utf8'), path: relative };
 }

@@ -1,6 +1,6 @@
 import { readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
-import { WorkflowInterpreterError } from './errors.mjs';
+import { WorkflowRuntimeError } from './errors.mjs';
 import { isInside } from './path-utils.mjs';
 
 export function workflowResourceBase({ workflowPath }) {
@@ -17,10 +17,10 @@ export function defaultRepositoryRootForWorkflow(workflowPath) {
 
 export function assertWorkflowFileRef({ fileRef, fieldName, kind, messagePrefix }) {
   if (typeof fileRef !== 'string' || fileRef.length === 0) {
-    throw new WorkflowInterpreterError(`${messagePrefix}: ${fieldName} ${kind} reference is empty`);
+    throw new WorkflowRuntimeError(`${messagePrefix}: ${fieldName} ${kind} reference is empty`);
   }
   if (path.isAbsolute(fileRef)) {
-    throw new WorkflowInterpreterError(`${messagePrefix}: ${fieldName} ${kind} must be a local relative path: ${fileRef}`);
+    throw new WorkflowRuntimeError(`${messagePrefix}: ${fieldName} ${kind} must be a local relative path: ${fileRef}`);
   }
 }
 
@@ -36,10 +36,10 @@ export function resolveWorkflowFileRef({ workflowPath, fileRef, fieldName = 'fil
   try {
     resolvedPath = realpathSync(candidate);
   } catch {
-    throw new WorkflowInterpreterError(missingMessage ?? `${messagePrefix}: missing ${fieldName} ${kind} '${fileRef}'`);
+    throw new WorkflowRuntimeError(missingMessage ?? `${messagePrefix}: missing ${fieldName} ${kind} '${fileRef}'`);
   }
   if (root && !isInside(resolvedPath, root)) {
-    throw new WorkflowInterpreterError(`${messagePrefix}: ${fieldName} ${kind} escapes repository root: ${fileRef}`);
+    throw new WorkflowRuntimeError(`${messagePrefix}: ${fieldName} ${kind} escapes repository root: ${fileRef}`);
   }
   return resolvedPath;
 }

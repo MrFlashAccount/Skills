@@ -1,7 +1,7 @@
 /**
  * Validation adapter: filesystem concerns stay here/persistence; workflow semantics are owned by Workflow entity.
  */
-import { WorkflowInterpreterError } from '../entities/errors.mjs';
+import { WorkflowRuntimeError } from '../entities/errors.mjs';
 import { readJson } from '../persistence/json-io.mjs';
 import { defaultRepositoryRootForWorkflow } from '../persistence/resource-resolver.mjs';
 import { Workflow } from '../entities/Workflow.mjs';
@@ -18,7 +18,7 @@ export function validateWorkflowDocument(workflow, { workflowPath = 'workflow.js
     const allowedRoles = WorkflowFileReader.readAllowedRoles({ repositoryRoot: repositoryRoot ?? defaultRepositoryRootForWorkflow(workflowPath) });
     return entity.validate({ outputSchemas: schemas, allowedRoles });
   } catch (error) {
-    if (error instanceof WorkflowInterpreterError) throw error;
+    if (error instanceof WorkflowRuntimeError) throw error;
     throw error;
   }
 }

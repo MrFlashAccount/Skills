@@ -2,7 +2,7 @@
 import { lstat, mkdir, open, readFile, rename, rm } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { WorkflowInterpreterError } from '../../entities/errors.mjs';
+import { WorkflowRuntimeError } from '../../entities/errors.mjs';
 import { assertBatonSchema, assertResponseSchema } from '../../entities/workflow-helpers/schema-validation.mjs';
 
 function fail(message) {
@@ -42,7 +42,7 @@ function assertPersistSchema(assertFn, value) {
   try {
     assertFn(value);
   } catch (error) {
-    if (error instanceof WorkflowInterpreterError) fail(error.message);
+    if (error instanceof WorkflowRuntimeError) fail(error.message);
     throw error;
   }
 }

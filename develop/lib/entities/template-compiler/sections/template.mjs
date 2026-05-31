@@ -1,4 +1,4 @@
-import { WorkflowInterpreterError } from '../../errors.mjs';
+import { WorkflowRuntimeError } from '../../errors.mjs';
 import { templateResource } from '../utils.mjs';
 
 export function readInputTemplate({ input, resources }) {
@@ -15,6 +15,6 @@ export function assertNoUnsupportedPlaceholders(promptLayer, templatePath) {
   const unsupported = promptLayer.match(/{{\s*[^{}]+?\s*}}/g);
   if (unsupported) {
     const source = templatePath ? ` in input template '${templatePath}'` : '';
-    throw new WorkflowInterpreterError(`workflow prompt render failed: placeholders are unsupported${source}: ${unsupported[0]}`);
+    throw new WorkflowRuntimeError(`workflow prompt render failed: placeholders are unsupported${source}: ${unsupported[0]}`);
   }
 }

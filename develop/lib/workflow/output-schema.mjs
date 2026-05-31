@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { WorkflowInterpreterError } from './errors.mjs';
+import { WorkflowRuntimeError } from './errors.mjs';
 import { resolveWorkflowFileRef } from './resource-resolver.mjs';
 export { workflowResourceBase } from './resource-resolver.mjs';
 
@@ -11,7 +11,7 @@ export { workflowResourceBase } from './resource-resolver.mjs';
  * `../../shared/...`; there is no repository-root or `shared/...` alias.
  */
 function outputSchemaError(messagePrefix, message) {
-  return new WorkflowInterpreterError(`${messagePrefix}: ${message}`);
+  return new WorkflowRuntimeError(`${messagePrefix}: ${message}`);
 }
 
 export function resolveOutputSchemaPath({

@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { WorkflowInterpreterError } from '../entities/errors.mjs';
+import { WorkflowRuntimeError } from '../entities/errors.mjs';
 import { renderWorkflowPrompt } from '../entities/Template.mjs';
 import { validateAgainstOutputSchema } from '../persistence/output-schema-validation.mjs';
 import { loadWorkflowResources } from '../persistence/WorkflowRuntimeReader.mjs';
@@ -299,7 +299,7 @@ test('output.schema: invalid JSON Schema throws controlled workflow error', () =
       output: { outcome: 'ready' },
       repositoryRoot: tempDir,
     }),
-    (error) => error instanceof WorkflowInterpreterError
+    (error) => error instanceof WorkflowRuntimeError
       && error.message.includes("output schema validation failed: invalid output schema 'invalid-json-schema-controlled-error.schema.json'"),
   );
 });

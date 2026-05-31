@@ -6,7 +6,7 @@ import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { projectState } from '../entities/step-helpers/projection.mjs';
-import { renderStepPrompts } from '../use-cases/WorkflowInterpreter.mjs';
+import { renderStepPrompts } from '../use-cases/runtime/parallel/render.mjs';
 import { renderWorkflowPrompt } from '../entities/Template.mjs';
 import { validateAgainstOutputSchema } from '../persistence/output-schema-validation.mjs';
 import { loadWorkflowResources } from '../persistence/WorkflowRuntimeReader.mjs';

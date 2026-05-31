@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
-import { validateWorkflowInterpreterCliArgs } from './cli-args-validation.mjs';
-import { WorkflowInterpreterError } from '../../entities/errors.mjs';
-import { applyWorkflowOutput, inspectWorkflow, renderWorkflow } from '../../use-cases/WorkflowInterpreter.mjs';
+import { validateWorkflowRuntimeCliArgs } from './cli-args-validation.mjs';
+import { WorkflowRuntimeError } from '../../entities/errors.mjs';
+import { applyWorkflowOutput } from '../../use-cases/ApplyWorkflowOutput.mjs';
+import { inspectWorkflow } from '../../use-cases/InspectWorkflow.mjs';
+import { runNext } from '../../use-cases/RunNext.mjs';
 import { loadWorkflowRuntime, readWorkerOutputText } from '../../persistence/WorkflowRuntimeReader.mjs';
 
 function fail(message) {
@@ -45,7 +47,7 @@ const COMMANDS = {
   },
   render: ({ workflowPath, batonPath, includeDiagnostics }) => {
     const runtime = loadWorkflowRuntime({ workflowPath, batonPath });
-    return renderWorkflow({ workflowDoc: runtime.workflow, batonDoc: runtime.baton, resources: runtime.resources, includeDiagnostics });
+    return runNext({ workflowDoc: runtime.workflow, batonDoc: runtime.baton, resources: runtime.resources, includeDiagnostics });
   },
   apply: ({ workflowPath, batonPath, outputPath }) => {
     const runtime = loadWorkflowRuntime({ workflowPath, batonPath });
@@ -59,7 +61,7 @@ function usageForArgs(args) {
 }
 
 function assertCliArgs(args) {
-  if (!validateWorkflowInterpreterCliArgs(args)) fail(usageForArgs(args));
+  if (!validateWorkflowRuntimeCliArgs(args)) fail(usageForArgs(args));
 }
 
 try {
@@ -70,6 +72,6 @@ try {
   const command = COMMANDS[mode];
   emit(command({ workflowPath, batonPath, outputPath, includeDiagnostics }));
 } catch (error) {
-  if (error instanceof WorkflowInterpreterError) fail(error.message);
+  if (error instanceof WorkflowRuntimeError) fail(error.message);
   throw error;
 }
