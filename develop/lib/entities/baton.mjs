@@ -1,5 +1,3 @@
-import { applyOutputToBatonState } from '../workflow/state.mjs';
-
 /** Behavior wrapper over a baton DTO. */
 export class Baton {
   constructor(dto) {
@@ -13,9 +11,5 @@ export class Baton {
 
   hasOutputFor(stepId) {
     return Object.hasOwn(this.state, stepId);
-  }
-
-  withAppliedOutput(output, attempts, stepId, options = {}) {
-    return new Baton(applyOutputToBatonState(this.dto, output, attempts, stepId, options));
   }
 }

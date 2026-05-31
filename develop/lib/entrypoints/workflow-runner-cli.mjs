@@ -1,7 +1,6 @@
 import { parseArgs } from 'node:util';
 import { continueRun, loadInstructions, next } from '../use-cases/index.mjs';
 import { WorkflowFileAdapter, RunStateFileAdapter } from '../persistence/index.mjs';
-import { WorkflowOutputTransition } from '../entities/index.mjs';
 
 const SAFE_STEP_ID = /^[A-Za-z0-9_.-]+$/;
 
@@ -13,7 +12,6 @@ function assertSafeStepId(stepId) {
 
 const workflowFiles = new WorkflowFileAdapter();
 const runStateFiles = new RunStateFileAdapter();
-const workflowTransitions = new WorkflowOutputTransition();
 
 function fail(message) {
   console.error(`workflow-runner: ${message}`);
@@ -68,23 +66,20 @@ function parseOutputRef(ref) {
   return { stepId, path: text.slice(separator + 1) };
 }
 
-async function runNext(values) {
+async function runNext(values, dependencies) {
   const runState = await runStateFiles.prepareNextRun({
     runDir: values['run-dir'],
     workflowPath: values.workflow,
     userPrompt: values['user-prompt'],
     userPromptFile: values['user-prompt-file'],
   });
-  const workflow = workflowFiles.readWorkflow(runState.workflowPath);
+  const workflow = runStateFiles.readRunWorkflow(runState, (path) => workflowFiles.readWorkflow(path));
+  const workflowContext = runStateFiles.workflowContextForRun(runState);
   const useCaseResult = next({
     workflow,
     baton: runState.baton,
-    renderSteps: (args) => workflowFiles.renderStepsForResponse({
-      workflowPath: runState.workflowPath,
-      workflow,
-      response: args.response,
-      repositoryRoot: runState.repositoryRoot,
-    })(args),
+    renderSteps: (args) => dependencies.createRuntimeRenderSteps({ ...workflowContext, workflow, response: args.response })(args),
+    runtime: dependencies.runtime,
     includeDiagnostics: values.diagnostics,
     initialized: runState.initialized,
     resumed: runState.resumed,
@@ -94,28 +89,18 @@ async function runNext(values) {
   return packet.response;
 }
 
-async function runContinue(values) {
+async function runContinue(values, dependencies) {
   return runStateFiles.withContinuationLock({ runDir: values['run-dir'] }, async () => {
     const runState = await runStateFiles.prepareContinueRun({ runDir: values['run-dir'], workflowPath: values.workflow });
     const output = await runStateFiles.readContinuationOutput(runState, normalizeOutputRefs(values.output).map(parseOutputRef));
-    const workflow = workflowFiles.readWorkflow(runState.workflowPath);
+    const workflow = runStateFiles.readRunWorkflow(runState, (path) => workflowFiles.readWorkflow(path));
+    const workflowContext = runStateFiles.workflowContextForRun(runState);
     const useCaseResult = continueRun({
       workflow,
       baton: runState.baton,
-      renderSteps: (args) => workflowFiles.renderStepsForResponse({
-        workflowPath: runState.workflowPath,
-        workflow,
-        response: args.response,
-        repositoryRoot: runState.repositoryRoot,
-      })(args),
-      workflowPath: runState.workflowPath,
-      repositoryRoot: runState.repositoryRoot,
-      readStepOutput: (args) => workflowFiles.readStepOutput(args),
-      validateStepOutput: (args) => workflowFiles.validateStepOutput(args),
-      isParallelOutputEnvelope: (value) => workflowFiles.isParallelOutputEnvelope(value),
-      applyParallelBranchOutput: (args) => workflowFiles.applyParallelBranchOutput(args),
-      prepareParallelBranch: (args) => workflowTransitions.prepareParallelBranch(args),
-      applyNextTransition: (args) => workflowTransitions.applyNextTransition(args),
+      renderSteps: (args) => dependencies.createRuntimeRenderSteps({ ...workflowContext, workflow, response: args.response })(args),
+      ...dependencies.createRuntimeApplyDependencies(workflowContext),
+      runtime: dependencies.runtime,
       includeDiagnostics: values.diagnostics,
       ...output,
     });
@@ -131,13 +116,13 @@ async function runInstructions(values) {
   return loadInstructions({ lastResponse: input.lastResponse, stepId, instructionText: input.instructionText });
 }
 
-export async function runCli(argv = process.argv.slice(2)) {
+export async function runCli(argv = process.argv.slice(2), dependencies = {}) {
   try {
     const { mode, values } = parseCliArgs(argv);
     if (mode === 'instructions') {
       process.stdout.write(await runInstructions(values));
     } else {
-      const response = mode === 'next' ? await runNext(values) : await runContinue(values);
+      const response = mode === 'next' ? await runNext(values, dependencies) : await runContinue(values, dependencies);
       console.log(JSON.stringify(response, null, 2));
     }
   } catch (error) {

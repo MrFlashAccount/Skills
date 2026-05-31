@@ -1,4 +1,4 @@
-import { Workflow } from '../entities/index.mjs';
+import { assertRuntimeWorkflowState, isStaticParallelRuntimeStep, prepareWorkflowRuntimeStep } from './workflow-runtime-state.mjs';
 
 function requireDependency(dependencies, name) {
   const dependency = dependencies[name];
@@ -17,17 +17,15 @@ export function applyWorkflowOutput({
   outputValue,
   outputParseError,
   outputPath,
-  workflowPath,
-  repositoryRoot,
   readStepOutput,
   validateStepOutput,
   isParallelOutputEnvelope,
   applyParallelBranchOutput,
   prepareParallelBranch,
   applyNextTransition,
+  runtime,
 }) {
-  const model = new Workflow(workflow);
-  const runtime = model.assertRuntimeState(baton);
+  const workflowRuntime = assertRuntimeWorkflowState({ workflow, baton, runtime });
   const readOutput = requireDependency({ readStepOutput }, 'readStepOutput');
   const validateOutput = requireDependency({ validateStepOutput }, 'validateStepOutput');
   const isParallelEnvelope = requireDependency({ isParallelOutputEnvelope }, 'isParallelOutputEnvelope');
@@ -36,45 +34,41 @@ export function applyWorkflowOutput({
   const applyNext = requireDependency({ applyNextTransition }, 'applyNextTransition');
   const sourceLabel = outputPathLabel(outputPath);
 
-  const prepared = model.preparedParallelStep(runtime.baton);
+  const prepared = prepareWorkflowRuntimeStep({ workflow, baton: workflowRuntime.baton, runtime });
   if (prepared.parallelTargets) {
     if (!isParallelEnvelope(outputValue)) throw new Error('parallel output must include object steps');
     return applyParallelOutput({
-      workflowPath,
       workflow,
-      baton: runtime.baton,
+      baton: workflowRuntime.baton,
       step: prepared.step,
       outputPath: sourceLabel,
       outputValue,
       targets: Array.isArray(prepared.step.next) ? undefined : prepared.step.next,
-      repositoryRoot,
     });
   }
 
   const readResult = readOutput({
     sourceLabel,
-    baton: runtime.baton,
-    stepId: runtime.baton.cursor,
-    step: runtime.cursorStep,
+    baton: workflowRuntime.baton,
+    stepId: workflowRuntime.baton.cursor,
+    step: workflowRuntime.cursorStep,
     outputValue,
     outputParseError,
   });
   if (readResult.retryResponse) return readResult.retryResponse;
 
   const { workerOutput, retryResponse } = validateOutput({
-    workflowPath,
     workflow,
-    baton: runtime.baton,
-    stepId: runtime.baton.cursor,
-    step: runtime.cursorStep,
+    baton: workflowRuntime.baton,
+    stepId: workflowRuntime.baton.cursor,
+    step: workflowRuntime.cursorStep,
     workerOutput: readResult.workerOutput,
-    repositoryRoot,
   });
   if (retryResponse) return retryResponse;
 
-  if (model.isStaticParallelStep(runtime.cursorStep)) {
-    return prepareBranch({ workflow, baton: runtime.baton, step: runtime.cursorStep, workerOutput });
+  if (isStaticParallelRuntimeStep(workflowRuntime.cursorStep, runtime)) {
+    return prepareBranch({ workflow, baton: workflowRuntime.baton, step: workflowRuntime.cursorStep, workerOutput });
   }
 
-  return applyNext({ workflow, baton: runtime.baton, step: runtime.cursorStep, workerOutput });
+  return applyNext({ workflow, baton: workflowRuntime.baton, step: workflowRuntime.cursorStep, workerOutput });
 }

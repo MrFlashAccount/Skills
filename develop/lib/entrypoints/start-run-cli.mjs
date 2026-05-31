@@ -36,23 +36,16 @@ function requireString(value, name) {
   return value;
 }
 
-export async function runCli(argv = process.argv.slice(2)) {
+export async function runCli(argv = process.argv.slice(2), dependencies = {}) {
   const values = parseCliArgs(argv);
   const runDir = requireString(values['run-dir'], '--run-dir');
   const workflowPath = resolve(values.workflow ?? defaultWorkflowPath);
   const runState = await runStateFiles.prepareStartedRun({ runDir, workflowPath });
   const response = inspectWorkflow({
-    workflow: workflowFiles.readWorkflow(runState.workflowPath),
+    workflow: runStateFiles.readRunWorkflow(runState, (path) => workflowFiles.readWorkflow(path)),
     baton: runState.baton,
+    runtime: dependencies.runtime,
   });
 
-  console.log(JSON.stringify({
-    ok: true,
-    runDir: runState.runDir,
-    baton: runState.batonPath,
-    history: runState.historyPath,
-    initialized: !runState.resumed,
-    resumed: runState.resumed,
-    response,
-  }, null, 2));
+  console.log(JSON.stringify(runStateFiles.buildStartedRunResponse(runState, response), null, 2));
 }

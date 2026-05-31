@@ -8,8 +8,6 @@ export function continueRun({
   outputValue,
   outputParseError,
   outputPath,
-  workflowPath,
-  repositoryRoot,
   historyOutput,
   renderSteps,
   readStepOutput,
@@ -18,6 +16,7 @@ export function continueRun({
   applyParallelBranchOutput,
   prepareParallelBranch,
   applyNextTransition,
+  runtime,
   includeDiagnostics = false,
 }) {
   const applied = applyWorkflowOutput({
@@ -26,20 +25,20 @@ export function continueRun({
     outputValue,
     outputParseError,
     outputPath,
-    workflowPath,
-    repositoryRoot,
     readStepOutput,
     validateStepOutput,
     isParallelOutputEnvelope,
     applyParallelBranchOutput,
     prepareParallelBranch,
     applyNextTransition,
+    runtime,
   });
   const rendered = renderInterpreterResponse({
     workflow,
     baton,
     response: applied,
     renderSteps,
+    runtime,
     includeDiagnostics,
   });
   return {

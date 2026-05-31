@@ -1,4 +1,5 @@
 import { Workflow } from '../entities/index.mjs';
+import { assertRuntimeWorkflowState, prepareWorkflowRuntimeStep } from './workflow-runtime-state.mjs';
 
 function buildStepEntry(workflowEntity, stepId, step) {
   return {
@@ -20,25 +21,23 @@ function requireRenderer(renderSteps) {
   return renderSteps;
 }
 
-export function assertRuntimeWorkflowState({ workflow, baton }) {
-  return new Workflow(workflow).assertRuntimeState(baton);
-}
+export { assertRuntimeWorkflowState } from './workflow-runtime-state.mjs';
 
-export function inspectWorkflow({ workflow, baton }) {
+export function inspectWorkflow({ workflow, baton, runtime }) {
   const workflowEntity = new Workflow(workflow);
-  const prepared = workflowEntity.preparedParallelStep(baton);
+  const prepared = prepareWorkflowRuntimeStep({ workflow, baton, runtime });
   return responseForPreparedStep(workflowEntity, prepared.baton, prepared.step, { parallelTargets: prepared.parallelTargets });
 }
 
-export function renderInterpreterResponse({ workflow, baton, response, renderSteps, includeDiagnostics = false }) {
-  new Workflow(workflow).assertRuntimeState(response.baton ?? baton);
+export function renderInterpreterResponse({ workflow, baton, response, renderSteps, runtime, includeDiagnostics = false }) {
+  assertRuntimeWorkflowState({ workflow, baton: response.baton ?? baton, runtime });
   return {
     ...response,
     steps: requireRenderer(renderSteps)({ response, includeDiagnostics }),
   };
 }
 
-export function renderWorkflow({ workflow, baton, renderSteps, includeDiagnostics = false }) {
-  const response = inspectWorkflow({ workflow, baton });
-  return renderInterpreterResponse({ workflow, baton, response, renderSteps, includeDiagnostics });
+export function renderWorkflow({ workflow, baton, renderSteps, runtime, includeDiagnostics = false }) {
+  const response = inspectWorkflow({ workflow, baton, runtime });
+  return renderInterpreterResponse({ workflow, baton, response, renderSteps, runtime, includeDiagnostics });
 }

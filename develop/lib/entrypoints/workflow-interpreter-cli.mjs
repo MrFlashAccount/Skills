@@ -1,11 +1,8 @@
 import { parseArgs } from 'node:util';
 import { applyWorkflowOutput, inspectWorkflow, renderWorkflow } from '../use-cases/index.mjs';
-import { WorkflowFileAdapter, RunStateFileAdapter } from '../persistence/index.mjs';
-import { WorkflowOutputTransition } from '../entities/index.mjs';
+import { WorkflowFileAdapter } from '../persistence/index.mjs';
 
 const workflowFiles = new WorkflowFileAdapter();
-const runStateFiles = new RunStateFileAdapter();
-const workflowTransitions = new WorkflowOutputTransition();
 
 function fail(message) {
   console.error(`workflow-interpreter: ${message}`);
@@ -32,16 +29,12 @@ function emit(response) {
   console.log(JSON.stringify(response, null, 2));
 }
 
-function readInspectDtos({ workflowPath, batonPath }) {
-  return runStateFiles.readInspectInput({ workflowPath, batonPath, readWorkflow: (path) => workflowFiles.readWorkflow(path) });
+function readWorkflowAndBaton({ workflowPath, batonPath }) {
+  return { workflow: workflowFiles.readWorkflow(workflowPath), baton: workflowFiles.readJson(batonPath, 'baton') };
 }
 
-function readRenderDtos({ workflowPath, batonPath }) {
-  return runStateFiles.readRenderInput({ workflowPath, batonPath, readWorkflow: (path) => workflowFiles.readWorkflow(path) });
-}
-
-function readApplyDtos({ workflowPath, batonPath, outputPath }) {
-  return runStateFiles.readApplyInput({ workflowPath, batonPath, outputPath, readWorkflow: (path) => workflowFiles.readWorkflow(path) });
+function readWorkerOutput(outputPath) {
+  return workflowFiles.readJson(outputPath, 'worker output');
 }
 
 const DEFAULT_USAGE = 'usage: node develop/lib/bin/workflow-interpreter.mjs inspect <workflow.json> <baton.json> | render [--diagnostics] <workflow.json> <baton.json> | apply <workflow.json> <baton.json> <worker-output.json>';
@@ -53,18 +46,19 @@ const USAGE_BY_MODE = {
 };
 
 const COMMANDS = {
-  inspect: ({ workflowPath, batonPath }) => {
-    const { workflow, baton } = readInspectDtos({ workflowPath, batonPath });
-    return inspectWorkflow({ workflow, baton });
+  inspect: ({ workflowPath, batonPath, runtime }) => {
+    const { workflow, baton } = readWorkflowAndBaton({ workflowPath, batonPath });
+    return inspectWorkflow({ workflow, baton, runtime });
   },
-  render: ({ workflowPath, batonPath, includeDiagnostics }) => {
-    const { workflow, baton } = readRenderDtos({ workflowPath, batonPath });
-    const response = inspectWorkflow({ workflow, baton });
+  render: ({ workflowPath, batonPath, includeDiagnostics, runtime, createRuntimeRenderSteps }) => {
+    const { workflow, baton } = readWorkflowAndBaton({ workflowPath, batonPath });
+    const response = inspectWorkflow({ workflow, baton, runtime });
     return renderWorkflow({
       workflow,
       baton,
+      runtime,
       includeDiagnostics,
-      renderSteps: workflowFiles.renderStepsForResponse({
+      renderSteps: createRuntimeRenderSteps({
         workflowPath,
         workflow,
         response,
@@ -72,21 +66,15 @@ const COMMANDS = {
       }),
     });
   },
-  apply: ({ workflowPath, batonPath, outputPath }) => {
-    const { workflow, baton, outputValue } = readApplyDtos({ workflowPath, batonPath, outputPath });
+  apply: ({ workflowPath, batonPath, outputPath, runtime, createRuntimeApplyDependencies }) => {
+    const { workflow, baton } = readWorkflowAndBaton({ workflowPath, batonPath });
     return applyWorkflowOutput({
       workflow,
       baton,
-      outputValue,
+      outputValue: readWorkerOutput(outputPath),
       outputPath,
-      workflowPath,
-      repositoryRoot: workflowFiles.repositoryRootForWorkflow(workflowPath),
-      readStepOutput: (args) => workflowFiles.readStepOutput(args),
-      validateStepOutput: (args) => workflowFiles.validateStepOutput(args),
-      isParallelOutputEnvelope: (value) => workflowFiles.isParallelOutputEnvelope(value),
-      applyParallelBranchOutput: (args) => workflowFiles.applyParallelBranchOutput(args),
-      prepareParallelBranch: (args) => workflowTransitions.prepareParallelBranch(args),
-      applyNextTransition: (args) => workflowTransitions.applyNextTransition(args),
+      runtime,
+      ...createRuntimeApplyDependencies({ workflowPath, repositoryRoot: workflowFiles.repositoryRootForWorkflow(workflowPath) }),
     });
   },
 };
@@ -113,14 +101,14 @@ function assertCliArgs(args) {
   if (!validateWorkflowInterpreterCliArgs(args)) fail(usageForArgs(args));
 }
 
-export async function runCli(argv = process.argv.slice(2)) {
+export async function runCli(argv = process.argv.slice(2), dependencies = {}) {
   try {
     const { args, includeDiagnostics } = parseCliArgs(argv);
     assertCliArgs(args);
 
     const [mode, workflowPath, batonPath, outputPath] = args;
     const command = COMMANDS[mode];
-    emit(command({ workflowPath, batonPath, outputPath, includeDiagnostics }));
+    emit(command({ workflowPath, batonPath, outputPath, includeDiagnostics, ...dependencies }));
   } catch (error) {
     if (error?.name === 'WorkflowInterpreterError') fail(error.message);
     throw error;

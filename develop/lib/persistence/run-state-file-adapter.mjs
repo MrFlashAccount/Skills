@@ -1,7 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { instructionPathForStep, responseStatusForInterpreterResponse, toRunnerResponse } from '../workflow/runner/host-requests.mjs';
 import { pathExists, readJson, readText, recoverDurableCommit, resolveRunPaths } from '../workflow/runner/run-state.mjs';
-import { readJson as readJsonSync } from '../workflow/json-io.mjs';
 import { commitDurableRunState, ensureRunFiles, withContinueRunLock } from '../workflow/runner/run-state.mjs';
 import { resolveStartupUserPrompt } from '../workflow/user-prompt.mjs';
 
@@ -22,11 +21,6 @@ function pathsFor(token) {
 function stateFor(paths, fields = {}) {
   return {
     runStateToken: tokenFor(paths),
-    runDir: paths.runDir,
-    workflowPath: paths.workflowPath,
-    repositoryRoot: paths.repositoryRoot,
-    batonPath: paths.batonPath,
-    historyPath: paths.historyPath,
     ...fields,
   };
 }
@@ -108,19 +102,26 @@ function outputPathForRequest(request, parsedOutputRefs, { requireNamed = false 
 
 /** Task-shaped filesystem adapter for workflow runner run-state DTOs. */
 export class RunStateFileAdapter {
-  readInspectInput({ workflowPath, batonPath, readWorkflow }) {
+  readRunWorkflow(runState, readWorkflow) {
     if (typeof readWorkflow !== 'function') throw new Error('readWorkflow dependency is required');
-    return { workflow: readWorkflow(workflowPath), baton: readJsonSync(batonPath, 'baton') };
+    return readWorkflow(pathsFor(runState.runStateToken).workflowPath);
   }
 
-  readRenderInput({ workflowPath, batonPath, readWorkflow }) {
-    return this.readInspectInput({ workflowPath, batonPath, readWorkflow });
+  workflowContextForRun(runState) {
+    const { workflowPath, repositoryRoot } = pathsFor(runState.runStateToken);
+    return { workflowPath, repositoryRoot };
   }
 
-  readApplyInput({ workflowPath, batonPath, outputPath, readWorkflow }) {
+  buildStartedRunResponse(runState, response) {
+    const paths = pathsFor(runState.runStateToken);
     return {
-      ...(workflowPath && batonPath ? this.readInspectInput({ workflowPath, batonPath, readWorkflow }) : {}),
-      outputValue: readJsonSync(outputPath, 'worker output'),
+      ok: true,
+      runDir: paths.runDir,
+      baton: paths.batonPath,
+      history: paths.historyPath,
+      initialized: !runState.resumed,
+      resumed: runState.resumed,
+      response,
     };
   }
 
