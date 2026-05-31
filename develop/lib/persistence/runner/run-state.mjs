@@ -346,6 +346,7 @@ function nextPersistedRunState(current, { response, baton, instructions = [], hi
 }
 
 export async function commitDurableRunState(paths, { response, baton, instructions = [], history, writeBaton = true }) {
+  await recoverDurableCommit(paths);
   const current = await readPersistedRunState(paths);
   const historyBefore = current.history.mode === 'embedded-text' ? current.history.text : await readText(paths.historyPath, 'workflow history');
   const historyText = `${historyBefore}${historyEntry(history)}`;

@@ -50,19 +50,21 @@ async function persistNextHostResponse(paths, rendered, runState) {
 
 export async function next({ runDir, workflowPath, includeDiagnostics = false, userPrompt, userPromptFile } = {}) {
   const paths = resolveRunPaths({ runDir, workflowPath });
-  const hasExistingBaton = await pathExists(paths.batonPath);
-  if (!hasExistingBaton && userPromptFile !== undefined && String(userPromptFile).trim().length === 0) {
-    throw new Error('--user-prompt-file path must not be empty or whitespace-only');
-  }
-  const userPromptFileContent = (!hasExistingBaton && userPromptFile !== undefined) ? await readText(userPromptFile, '--user-prompt-file') : undefined;
-  const startupUserPrompt = hasExistingBaton ? undefined : resolveStartupUserPrompt({ userPrompt, userPromptFileContent });
-  const runState = await ensureRunFiles(paths, { userPrompt: startupUserPrompt });
-  await recoverDurableCommit(paths);
-  const runtime = loadWorkflowRuntime({ workflowPath: paths.workflowPath, batonPath: paths.batonPath });
-  const rendered = runNext({ workflowDoc: runtime.workflow, batonDoc: runtime.baton, resources: runtime.resources, includeDiagnostics });
-  return persistNextHostResponse(paths, rendered, {
-    initialized: runState.initialized,
-    resumed: runState.resumed,
+  return withContinueRunLock(paths, async () => {
+    const hasExistingBaton = await pathExists(paths.batonPath);
+    if (!hasExistingBaton && userPromptFile !== undefined && String(userPromptFile).trim().length === 0) {
+      throw new Error('--user-prompt-file path must not be empty or whitespace-only');
+    }
+    const userPromptFileContent = (!hasExistingBaton && userPromptFile !== undefined) ? await readText(userPromptFile, '--user-prompt-file') : undefined;
+    const startupUserPrompt = hasExistingBaton ? undefined : resolveStartupUserPrompt({ userPrompt, userPromptFileContent });
+    const runState = await ensureRunFiles(paths, { userPrompt: startupUserPrompt });
+    await recoverDurableCommit(paths);
+    const runtime = loadWorkflowRuntime({ workflowPath: paths.workflowPath, batonPath: paths.batonPath });
+    const rendered = runNext({ workflowDoc: runtime.workflow, batonDoc: runtime.baton, resources: runtime.resources, includeDiagnostics });
+    return persistNextHostResponse(paths, rendered, {
+      initialized: runState.initialized,
+      resumed: runState.resumed,
+    });
   });
 }
 

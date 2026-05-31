@@ -125,6 +125,65 @@ test('persisted-state writer rejects escaping instruction paths before durable c
   assert.equal(readFileSync(paths.historyPath, 'utf8'), '');
 });
 
+
+test('persisted-state reader rejects invalid current pending durable instruction refs', async () => {
+  const paths = setupRunDir('invalid_current_pending_instruction_ref');
+  writeJson(paths.durableCommitPath, {
+    version: 1,
+    id: 'pending-invalid-ref',
+    createdAt: new Date().toISOString(),
+    status: 'pending',
+    instructions: [{ path: path.join(tempDir, 'escaped-current-ref.md'), content: '# Escape' }],
+    sideEffects: { baton: false, lastResponse: false, history: false, instructions: 1 },
+  });
+
+  await assert.rejects(
+    () => readPersistedRunState(paths),
+    /pending durable workflow commit instruction path escapes instructions dir/,
+  );
+});
+
+test('persisted-state writer recovers existing pending journal before writing a new commit', async () => {
+  const paths = setupRunDir('recover_existing_pending_before_write');
+  const recoveredBaton = baton({ cursor: 'done', status: 'done' });
+  writeJson(paths.durableCommitPath, {
+    version: 1,
+    id: 'pending-before-writer',
+    createdAt: new Date().toISOString(),
+    status: 'pending',
+    response: response(recoveredBaton),
+    baton: recoveredBaton,
+    instructions: [],
+    historyText: 'old pending history\n',
+    sideEffects: { baton: true, lastResponse: true, history: true, instructions: 0 },
+  });
+
+  await RunStateFileWriter.write(paths, {
+    response: response(baton({ cursor: 'blocked', status: 'blocked' })),
+    baton: baton({ cursor: 'blocked', status: 'blocked' }),
+    instructions: [],
+    history: { source: 'test-new-commit', baton: baton({ cursor: 'blocked', status: 'blocked' }) },
+  });
+
+  const history = readFileSync(paths.historyPath, 'utf8');
+  assert.match(history, /old pending history/);
+  assert.match(history, /source: test-new-commit/);
+  assert.equal(existsSync(paths.durableCommitPath), false);
+});
+
+test('persisted-state commit schema rejects missing id', async () => {
+  const paths = setupRunDir('missing_commit_id');
+  writeJson(paths.durableCommitPath, {
+    version: 1,
+    createdAt: new Date().toISOString(),
+    status: 'pending',
+    instructions: [],
+    sideEffects: { baton: false, lastResponse: false, history: false, instructions: 0 },
+  });
+
+  await assert.rejects(() => readPersistedRunState(paths), /persisted run-state commit id/);
+});
+
 test('persisted-state reader rejects unsupported version and topology metadata', async () => {
   const paths = setupRunDir('invalid_metadata');
   const persisted = await readPersistedRunState(paths);

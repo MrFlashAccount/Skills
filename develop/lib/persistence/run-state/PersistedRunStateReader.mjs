@@ -1,6 +1,7 @@
 import { constants } from 'node:fs';
 import { access, lstat, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { isInside } from '../path-utils.mjs';
 import { assertBatonSchema, assertRunnerHostResponseSchema } from '../../schemas/workflow-schema.mjs';
 
 export const PERSISTED_RUN_STATE_VERSION = 1;
@@ -66,9 +67,25 @@ function assertCommitSchema(commit) {
   if (commit === undefined) return;
   assertObject(commit, 'persisted run-state commit');
   if (commit.version !== 1) throw new Error('persisted run-state commit has unsupported version');
+  assertString(commit.id, 'persisted run-state commit id');
   assertString(commit.createdAt, 'persisted run-state commit createdAt');
   if (!['pending', 'applying', 'applied'].includes(commit.status)) throw new Error('persisted run-state commit status is invalid');
   assertObject(commit.sideEffects, 'persisted run-state commit sideEffects');
+}
+
+function assertPendingCommitInstructionRefs(paths, pendingCommit) {
+  if (pendingCommit === undefined) return;
+  if (pendingCommit.instructions === undefined) return;
+  if (!Array.isArray(pendingCommit.instructions)) throw new Error('pending durable workflow commit instructions must be an array');
+  const instructionsDir = resolve(paths.instructionsDir);
+  for (const [index, instruction] of pendingCommit.instructions.entries()) {
+    assertObject(instruction, `pending durable workflow commit instructions[${index}]`);
+    assertString(instruction.path, `pending durable workflow commit instructions[${index}].path`);
+    const instructionPath = resolve(instruction.path);
+    if (!isInside(instructionPath, instructionsDir)) {
+      throw new Error(`pending durable workflow commit instruction path escapes instructions dir: ${instruction.path}`);
+    }
+  }
 }
 
 export function assertPersistedRunState(state, name = 'persisted run state') {
@@ -104,7 +121,7 @@ function commitMetadata(commit) {
   };
   return {
     version: 1,
-    id: commit.id ?? commit.createdAt,
+    id: commit.id,
     createdAt: commit.createdAt,
     status: commit.status ?? 'pending',
     sideEffects,
@@ -117,6 +134,7 @@ export async function readPersistedRunState(paths) {
   const lastResponse = await readJsonIfExists(paths.lastResponsePath, 'last runner response');
   const historyText = await readTextIfExists(paths.historyPath, 'workflow history');
   const pendingCommit = await readJsonIfExists(paths.durableCommitPath, 'pending durable workflow commit');
+  assertPendingCommitInstructionRefs(paths, pendingCommit);
   const instructions = (pendingCommit?.instructions ?? []).map((instruction) => ({
     id: instruction.id,
     stepId: instruction.stepId,

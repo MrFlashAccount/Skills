@@ -33,6 +33,13 @@ function contains(file, pattern) {
 
 if (existsSync(path.join(root, 'develop/lib/workflow'))) fail('forbidden legacy layout exists: develop/lib/workflow');
 
+const retainedRunnerRunStatePath = path.join(root, 'develop/lib/persistence/runner/run-state.mjs');
+const runStateContextPath = path.join(root, 'develop/lib/persistence/run-state/CONTEXT.md');
+if (!existsSync(retainedRunnerRunStatePath)) fail('retained run-state owner surface is missing: develop/lib/persistence/runner/run-state.mjs');
+if (!contains(runStateContextPath, /persistence\/runner\/run-state\.mjs/) || !contains(runStateContextPath, /removal condition/i)) {
+  fail('PersistedRunState context must document retained persistence/runner/run-state.mjs status and removal condition');
+}
+
 const entrypoints = walk(path.join(root, 'develop/lib/entrypoints'));
 const cliEntrypoints = walk(path.join(root, 'develop/lib/entrypoints/cli'));
 const persistence = walk(path.join(root, 'develop/lib/persistence'));
@@ -47,7 +54,7 @@ const runStatePersistence = [
 
 scan([...entrypoints, ...persistence], /entities\/(workflow-helpers|step-helpers|template-compiler)/, 'entrypoints/persistence must not import entity internals');
 scan([...entrypoints, ...persistence, ...useCases], /entities\/workflow-helpers\/schema-validation\.mjs/, 'schema validators must be schema-owned');
-scan(schemas, /\.\.\/entities\//, 'schemas must not import entities');
+scan(schemas, /\.\.(?:\/\.\.)*\/entities\//, 'schemas must not import entities');
 scan(persistence, /entities\/roles\.mjs|entities\/role-utils\.mjs|entities\/workflow-helpers\/roles\.mjs/, 'persistence must not import entity-owned role/resource helpers');
 scan([...entrypoints, ...persistence], /use-cases\/runtime/, 'entrypoints/persistence must not import private use-case runtime');
 scan(lib, /from ['"].*entities\/(role-utils|state-keys)(\.mjs)?['"]/, 'deleted facade import is forbidden');
