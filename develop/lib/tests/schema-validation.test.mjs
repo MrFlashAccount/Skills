@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { validateJsonSchema } from 'schema-validation';
+import reviewJoinOutputSchema from '../../../workflows/dev-harness/schemas/review-join-output.json' with { type: 'json' };
 import { assertBatonSchema, assertWorkflowSchema, reviewerSelectionOutputSchema, workflowSchemas } from '../workflow/schema-validation.mjs';
 
 function minimalWorkflowDoc(overrides = {}) {
@@ -47,6 +48,33 @@ test('generic JSON Schema helper validates workflow schema documents at runtime'
   assert.equal(validateJsonSchema(reviewerSelectionOutputSchema, {
     ...valid,
     review_plan: { reviewers: [{ ...valid.review_plan.reviewers[0], surfaces: [] }] },
+  }, { schemas: workflowSchemas }).ok, false);
+});
+
+
+test('review join output schema rejects mismatched needs_changes rework routing targets', () => {
+  const valid = {
+    outcome: 'needs_changes',
+    verdict: {
+      summary: ['Backend contract needs a fix.'],
+      selected_review_steps: ['backend_review'],
+      failed_review_steps: ['backend_review'],
+      required_implementation_steps: ['backend_implementation'],
+    },
+    next: ['backend_implementation'],
+  };
+
+  assert.equal(validateJsonSchema(reviewJoinOutputSchema, valid, { schemas: workflowSchemas }).ok, true);
+  assert.equal(validateJsonSchema(reviewJoinOutputSchema, {
+    ...valid,
+    next: ['frontend_implementation'],
+  }, { schemas: workflowSchemas }).ok, false);
+  assert.equal(validateJsonSchema(reviewJoinOutputSchema, {
+    ...valid,
+    verdict: {
+      ...valid.verdict,
+      required_implementation_steps: ['backend_implementation', 'frontend_implementation'],
+    },
   }, { schemas: workflowSchemas }).ok, false);
 });
 

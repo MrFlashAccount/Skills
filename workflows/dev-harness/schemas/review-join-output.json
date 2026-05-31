@@ -240,7 +240,198 @@
               ]
             }
           }
-        }
+        },
+        "allOf": [
+          {
+            "if": {
+              "required": [
+                "verdict"
+              ],
+              "properties": {
+                "verdict": {
+                  "type": "object",
+                  "required": [
+                    "required_implementation_steps"
+                  ],
+                  "properties": {
+                    "required_implementation_steps": {
+                      "contains": {
+                        "const": "backend_implementation"
+                      },
+                      "type": "array"
+                    }
+                  }
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "next": {
+                  "contains": {
+                    "const": "backend_implementation"
+                  },
+                  "type": "array"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "next"
+              ],
+              "properties": {
+                "next": {
+                  "contains": {
+                    "const": "backend_implementation"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "verdict": {
+                  "type": "object",
+                  "properties": {
+                    "required_implementation_steps": {
+                      "contains": {
+                        "const": "backend_implementation"
+                      },
+                      "type": "array"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "verdict"
+              ],
+              "properties": {
+                "verdict": {
+                  "type": "object",
+                  "required": [
+                    "required_implementation_steps"
+                  ],
+                  "properties": {
+                    "required_implementation_steps": {
+                      "contains": {
+                        "const": "frontend_implementation"
+                      },
+                      "type": "array"
+                    }
+                  }
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "next": {
+                  "contains": {
+                    "const": "frontend_implementation"
+                  },
+                  "type": "array"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "next"
+              ],
+              "properties": {
+                "next": {
+                  "contains": {
+                    "const": "frontend_implementation"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "verdict": {
+                  "type": "object",
+                  "properties": {
+                    "required_implementation_steps": {
+                      "contains": {
+                        "const": "frontend_implementation"
+                      },
+                      "type": "array"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "verdict"
+              ],
+              "properties": {
+                "verdict": {
+                  "type": "object",
+                  "required": [
+                    "required_implementation_steps"
+                  ],
+                  "properties": {
+                    "required_implementation_steps": {
+                      "contains": {
+                        "const": "architecture_artifact_update"
+                      },
+                      "type": "array"
+                    }
+                  }
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "next": {
+                  "contains": {
+                    "const": "architecture_artifact_update"
+                  },
+                  "type": "array"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "next"
+              ],
+              "properties": {
+                "next": {
+                  "contains": {
+                    "const": "architecture_artifact_update"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "verdict": {
+                  "type": "object",
+                  "properties": {
+                    "required_implementation_steps": {
+                      "contains": {
+                        "const": "architecture_artifact_update"
+                      },
+                      "type": "array"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
       }
     },
     {
