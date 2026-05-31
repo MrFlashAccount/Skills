@@ -9,7 +9,12 @@ import { loadWorkflowRuntime, readWorkerOutputText } from '../../persistence/Wor
 import { read as readInstructionDTO } from '../../persistence/InstructionFileReader.mjs';
 import { RunStateFileWriter } from '../../persistence/RunStateFileWriter.mjs';
 import { assertSafeStepId, instructionPathForStep, responseStatusForInterpreterResponse, toHostResponse } from '../../persistence/runner/host-requests.mjs';
-import { ensureRunFiles, pathExists, readJson, readText, recoverDurableCommit, repositoryRoot, resolveRunPaths, withContinueRunLock } from '../../persistence/runner/run-state.mjs';
+import { readJson } from '../../persistence/json-io.mjs';
+import { readText } from '../../persistence/run-state/atomic-file.mjs';
+import { recoverDurableCommit } from '../../persistence/run-state/durable-commit.mjs';
+import { readPersistedRunState } from '../../persistence/run-state/PersistedRunStateReader.mjs';
+import { ensureRunFiles, pathExists, resolveRunPaths } from '../../persistence/run-state/paths.mjs';
+import { withRunStateLock } from '../../persistence/run-state/lock.mjs';
 
 function stepInstructionsFor(paths, interpreterResponse) {
   if (responseStatusForInterpreterResponse(interpreterResponse) !== 'needs_host_actions') return [];
@@ -50,7 +55,7 @@ async function persistNextHostResponse(paths, rendered, runState) {
 
 export async function next({ runDir, workflowPath, includeDiagnostics = false, userPrompt, userPromptFile } = {}) {
   const paths = resolveRunPaths({ runDir, workflowPath });
-  return withContinueRunLock(paths, async () => {
+  return withRunStateLock(paths, async () => {
     const hasExistingBaton = await pathExists(paths.batonPath);
     if (!hasExistingBaton && userPromptFile !== undefined && String(userPromptFile).trim().length === 0) {
       throw new Error('--user-prompt-file path must not be empty or whitespace-only');
@@ -140,10 +145,11 @@ function assertLastResponseMatchesWorkflowPath(lastResponse, workflowPath) {
 
 async function outputForCurrentState(paths, outputRefs = []) {
   await recoverDurableCommit(paths);
-  const lastResponse = await readJson(paths.lastResponsePath, 'last runner response');
-  if (lastResponse.status !== 'needs_host_actions') throw new Error(`last runner response is '${lastResponse.status}', not needs_host_actions`);
+  const current = await readPersistedRunState(paths);
+  const lastResponse = current.lastResponse;
+  if (lastResponse?.status !== 'needs_host_actions') throw new Error(`last runner response is '${lastResponse?.status}', not needs_host_actions`);
   assertLastResponseMatchesWorkflowPath(lastResponse, paths.workflowPath);
-  assertLastResponseMatchesCurrentBaton(lastResponse, await readJson(paths.batonPath, 'baton'));
+  assertLastResponseMatchesCurrentBaton(lastResponse, current.baton);
 
   const missing = [];
   const requests = lastResponse.requests ?? [];
@@ -181,14 +187,15 @@ async function resolveContinueRunPaths({ runDir, workflowPath }) {
 
   const paths = resolveRunPaths({ runDir });
   await recoverDurableCommit(paths);
-  const lastResponse = await readJson(paths.lastResponsePath, 'last runner response');
-  if (typeof lastResponse.workflow !== 'string' || lastResponse.workflow.length === 0) return paths;
+  const current = await readPersistedRunState(paths);
+  const lastResponse = current.lastResponse;
+  if (typeof lastResponse?.workflow !== 'string' || lastResponse.workflow.length === 0) return paths;
   return resolveRunPaths({ runDir, workflowPath: lastResponse.workflow });
 }
 
 export async function continueRun({ runDir, workflowPath, output, includeDiagnostics = false }) {
   const lockPaths = resolveRunPaths({ runDir });
-  return withContinueRunLock(lockPaths, async () => {
+  return withRunStateLock(lockPaths, async () => {
     const paths = await resolveContinueRunPaths({ runDir, workflowPath });
     await ensureRunFiles(paths);
     await recoverDurableCommit(paths);
@@ -213,10 +220,11 @@ export async function loadInstructions({ runDir, workflowPath, stepId }) {
   assertSafeStepId(stepId);
   const paths = resolveRunPaths({ runDir });
   await recoverDurableCommit(paths);
-  const lastResponse = await readJson(paths.lastResponsePath, 'last runner response');
-  if (lastResponse.status !== 'needs_host_actions') throw new Error(`unknown current workflow step id: ${stepId}`);
+  const current = await readPersistedRunState(paths);
+  const lastResponse = current.lastResponse;
+  if (lastResponse?.status !== 'needs_host_actions') throw new Error(`unknown current workflow step id: ${stepId}`);
   if (workflowPath) assertLastResponseMatchesWorkflowPath(lastResponse, resolveRunPaths({ runDir, workflowPath }).workflowPath);
-  assertLastResponseMatchesCurrentBaton(lastResponse, await readJson(paths.batonPath, 'baton'));
+  assertLastResponseMatchesCurrentBaton(lastResponse, current.baton);
   const runtimePaths = typeof lastResponse.workflow === 'string' && lastResponse.workflow.length > 0
     ? resolveRunPaths({ runDir, workflowPath: lastResponse.workflow })
     : paths;

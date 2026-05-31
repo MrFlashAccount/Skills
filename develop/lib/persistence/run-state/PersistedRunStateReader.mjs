@@ -1,131 +1,64 @@
 import { constants } from 'node:fs';
-import { access, lstat, readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { isInside } from '../path-utils.mjs';
-import { assertBatonSchema, assertRunnerHostResponseSchema } from '../../schemas/workflow-schema.mjs';
-
-export const PERSISTED_RUN_STATE_VERSION = 1;
-export const PERSISTED_RUN_STATE_TOPOLOGY = 'split-files-v1';
+import { access, readFile } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
+import { assertManagedRunStateFile } from './atomic-file.mjs';
+import {
+  PERSISTED_RUN_STATE_TOPOLOGY,
+  PERSISTED_RUN_STATE_VERSION,
+  assertPendingCommitInstructionRefs,
+  assertPersistedRunState,
+  commitMetadata,
+} from './persisted-state-schema.mjs';
 
 async function exists(path) {
-  try {
-    await access(path, constants.F_OK);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export async function assertManagedRunStateFile(path, name = 'workflow run-state file') {
-  try {
-    if ((await lstat(path)).isSymbolicLink()) throw new Error(`${name} is unsafe because it is a symlink: ${path}`);
-  } catch (error) {
-    if (error?.code === 'ENOENT') return;
-    throw error;
-  }
+  try { await access(path, constants.F_OK); return true; } catch { return false; }
 }
 
 async function readJsonIfExists(path, name) {
   await assertManagedRunStateFile(path, name);
   if (!(await exists(path))) return undefined;
   let content;
-  try {
-    content = await readFile(path, 'utf8');
-  } catch (error) {
-    throw new Error(`cannot read ${name} from ${path}: ${error.message}`);
-  }
-  try {
-    return JSON.parse(content);
-  } catch (error) {
-    throw new Error(`cannot parse ${name} from ${path}: ${error.message}`);
-  }
+  try { content = await readFile(path, 'utf8'); }
+  catch (error) { throw new Error(`cannot read ${name} from ${path}: ${error.message}`); }
+  try { return JSON.parse(content); }
+  catch (error) { throw new Error(`cannot parse ${name} from ${path}: ${error.message}`); }
 }
 
-async function readTextIfExists(path, name) {
+async function readTextIfExists(path, name, { required = false } = {}) {
   await assertManagedRunStateFile(path, name);
-  if (!(await exists(path))) return undefined;
-  try {
-    return await readFile(path, 'utf8');
-  } catch (error) {
-    throw new Error(`cannot read ${name} from ${path}: ${error.message}`);
+  if (!(await exists(path))) {
+    if (required) throw new Error(`cannot read ${name} from ${path}: missing committed instruction file`);
+    return undefined;
   }
+  try { return await readFile(path, 'utf8'); }
+  catch (error) { throw new Error(`cannot read ${name} from ${path}: ${error.message}`); }
 }
 
-function assertObject(value, name) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`${name} must be an object`);
-}
-
-function assertString(value, name) {
-  if (typeof value !== 'string' || value.length === 0) throw new Error(`${name} must be a non-empty string`);
-}
-
-function assertPersistedLastResponse(response) {
-  assertRunnerHostResponseSchema(response);
-}
-
-function assertCommitSchema(commit) {
-  if (commit === undefined) return;
-  assertObject(commit, 'persisted run-state commit');
-  if (commit.version !== 1) throw new Error('persisted run-state commit has unsupported version');
-  assertString(commit.id, 'persisted run-state commit id');
-  assertString(commit.createdAt, 'persisted run-state commit createdAt');
-  if (!['pending', 'applying', 'applied'].includes(commit.status)) throw new Error('persisted run-state commit status is invalid');
-  assertObject(commit.sideEffects, 'persisted run-state commit sideEffects');
-}
-
-function assertPendingCommitInstructionRefs(paths, pendingCommit) {
-  if (pendingCommit === undefined) return;
-  if (pendingCommit.instructions === undefined) return;
-  if (!Array.isArray(pendingCommit.instructions)) throw new Error('pending durable workflow commit instructions must be an array');
-  const instructionsDir = resolve(paths.instructionsDir);
-  for (const [index, instruction] of pendingCommit.instructions.entries()) {
-    assertObject(instruction, `pending durable workflow commit instructions[${index}]`);
-    assertString(instruction.path, `pending durable workflow commit instructions[${index}].path`);
-    const instructionPath = resolve(instruction.path);
-    if (!isInside(instructionPath, instructionsDir)) {
-      throw new Error(`pending durable workflow commit instruction path escapes instructions dir: ${instruction.path}`);
-    }
-  }
-}
-
-export function assertPersistedRunState(state, name = 'persisted run state') {
-  assertObject(state, name);
-  if (state.version !== PERSISTED_RUN_STATE_VERSION) throw new Error(`${name} has unsupported version`);
-  if (state.storageTopology !== PERSISTED_RUN_STATE_TOPOLOGY) throw new Error(`${name} has unsupported storage topology`);
-  assertObject(state.run, `${name} run`);
-  assertString(state.run.runDir, `${name} run.runDir`);
-  assertString(state.run.workflowPath, `${name} run.workflowPath`);
-  assertString(state.run.repositoryRoot, `${name} run.repositoryRoot`);
-  assertBatonSchema(state.baton);
-  if (state.lastResponse !== undefined) assertPersistedLastResponse(state.lastResponse);
-  assertObject(state.history, `${name} history`);
-  if (state.history.mode !== 'file-ref' && state.history.mode !== 'embedded-text') throw new Error(`${name} history mode is invalid`);
-  if (state.history.mode === 'file-ref') assertString(state.history.path, `${name} history.path`);
-  if (state.history.mode === 'embedded-text' && typeof state.history.text !== 'string') throw new Error(`${name} history.text must be a string`);
-  if (!Array.isArray(state.instructions)) throw new Error(`${name} instructions must be an array`);
-  for (const [index, instruction] of state.instructions.entries()) {
-    assertObject(instruction, `${name} instructions[${index}]`);
-    assertString(instruction.path, `${name} instructions[${index}].path`);
-  }
-  assertCommitSchema(state.commit);
-  return state;
-}
-
-function commitMetadata(commit) {
-  if (!commit) return undefined;
-  const sideEffects = {
-    baton: Object.hasOwn(commit, 'baton'),
-    lastResponse: Object.hasOwn(commit, 'response'),
-    history: typeof commit.historyText === 'string',
-    instructions: Array.isArray(commit.instructions) ? commit.instructions.length : 0,
-  };
+function instructionRefForRequest(paths, request) {
+  const stepId = request?.stepId ?? request?.id;
+  if (typeof stepId !== 'string' || stepId.length === 0) return undefined;
   return {
-    version: 1,
-    id: commit.id,
-    createdAt: commit.createdAt,
-    status: commit.status ?? 'pending',
-    sideEffects,
+    id: request.id,
+    stepId,
+    path: resolve(join(paths.instructionsDir, `${stepId}.md`)),
+    action: request.action,
+    status: 'committed',
+    required: true,
   };
+}
+
+async function committedInstructionRefs(paths, lastResponse) {
+  if (lastResponse?.status !== 'needs_host_actions') return [];
+  const refs = [];
+  for (const request of lastResponse.requests ?? []) {
+    const ref = instructionRefForRequest(paths, request);
+    if (!ref) continue;
+    refs.push({
+      ...ref,
+      content: await readTextIfExists(ref.path, `instructions for workflow step ${ref.stepId}`, { required: true }),
+    });
+  }
+  return refs;
 }
 
 export async function readPersistedRunState(paths) {
@@ -135,21 +68,18 @@ export async function readPersistedRunState(paths) {
   const historyText = await readTextIfExists(paths.historyPath, 'workflow history');
   const pendingCommit = await readJsonIfExists(paths.durableCommitPath, 'pending durable workflow commit');
   assertPendingCommitInstructionRefs(paths, pendingCommit);
-  const instructions = (pendingCommit?.instructions ?? []).map((instruction) => ({
+  const pendingInstructions = (pendingCommit?.instructions ?? []).map((instruction) => ({
     id: instruction.id,
     stepId: instruction.stepId,
     path: resolve(instruction.path),
     action: instruction.action,
-    status: instruction.status,
+    status: instruction.status ?? 'pending',
   }));
+  const instructions = pendingInstructions.length > 0 ? pendingInstructions : await committedInstructionRefs(paths, lastResponse);
   return assertPersistedRunState({
     version: PERSISTED_RUN_STATE_VERSION,
     storageTopology: PERSISTED_RUN_STATE_TOPOLOGY,
-    run: {
-      runDir: paths.runDir,
-      workflowPath: paths.workflowPath,
-      repositoryRoot: paths.repositoryRoot,
-    },
+    run: { runDir: paths.runDir, workflowPath: paths.workflowPath, repositoryRoot: paths.repositoryRoot },
     baton,
     lastResponse,
     instructions,
@@ -158,14 +88,4 @@ export async function readPersistedRunState(paths) {
       : { mode: 'embedded-text', path: paths.historyPath, text: historyText },
     commit: commitMetadata(pendingCommit),
   });
-}
-
-export function projectRuntimeRunState(persisted) {
-  assertPersistedRunState(persisted);
-  return {
-    baton: structuredClone(persisted.baton),
-    lastResponse: persisted.lastResponse === undefined ? undefined : structuredClone(persisted.lastResponse),
-    instructions: structuredClone(persisted.instructions),
-    history: structuredClone(persisted.history),
-  };
 }

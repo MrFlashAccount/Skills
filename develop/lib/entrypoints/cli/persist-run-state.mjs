@@ -3,7 +3,7 @@ import { mkdir, readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { assertBatonSchema, assertResponseSchema } from '../../schemas/workflow-schema.mjs';
 import { RunStateFileWriter } from '../../persistence/RunStateFileWriter.mjs';
-import { ensureRunFiles, resolveRunPaths } from '../../persistence/runner/run-state.mjs';
+import { ensureRunFiles, resolveRunPaths } from '../../persistence/run-state/paths.mjs';
 
 function fail(message) {
   console.error(`persist-run-state: ${message}`);

@@ -3,8 +3,10 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, 
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
-import { assertPersistedRunState, readPersistedRunState } from '../persistence/run-state/persisted-state-schema.mjs';
-import { resolveRunPaths, writeJsonAtomic } from '../persistence/runner/run-state.mjs';
+import { assertPersistedRunState } from '../persistence/run-state/persisted-state-schema.mjs';
+import { readPersistedRunState } from '../persistence/run-state/PersistedRunStateReader.mjs';
+import { writeJsonAtomic } from '../persistence/run-state/atomic-file.mjs';
+import { resolveRunPaths } from '../persistence/run-state/paths.mjs';
 import { RunStateFileWriter } from '../persistence/RunStateFileWriter.mjs';
 
 const tempDir = mkdtempSync(path.join(tmpdir(), 'persisted-run-state-'));
@@ -87,6 +89,35 @@ test('persisted-state writer rejects invalid next state before durable commit si
 
 
 
+test('persisted-state reader exposes committed instruction refs after journal removal', async () => {
+  const paths = setupRunDir('committed_instruction_refs');
+  await RunStateFileWriter.write(paths, {
+    response: response(baton({ cursor: 'prepare', status: 'running' })),
+    baton: baton({ cursor: 'prepare', status: 'running' }),
+    instructions: [{ path: path.join(paths.instructionsDir, 'prepare.md'), content: '# Prepare instructions' }],
+    history: { source: 'test', baton: baton({ cursor: 'prepare', status: 'running' }) },
+  });
+
+  assert.equal(existsSync(paths.durableCommitPath), false);
+  const persisted = await readPersistedRunState(paths);
+  assert.equal(persisted.instructions.length, 1);
+  assert.equal(persisted.instructions[0].stepId, 'prepare');
+  assert.match(persisted.instructions[0].content, /Prepare instructions/);
+});
+
+test('persisted-state reader rejects missing committed instruction file', async () => {
+  const paths = setupRunDir('missing_committed_instruction');
+  await RunStateFileWriter.write(paths, {
+    response: response(baton({ cursor: 'prepare', status: 'running' })),
+    baton: baton({ cursor: 'prepare', status: 'running' }),
+    instructions: [{ path: path.join(paths.instructionsDir, 'prepare.md'), content: '# Prepare instructions' }],
+    history: { source: 'test', baton: baton({ cursor: 'prepare', status: 'running' }) },
+  });
+  rmSync(path.join(paths.instructionsDir, 'prepare.md'), { force: true });
+
+  await assert.rejects(() => readPersistedRunState(paths), /missing committed instruction file/);
+});
+
 test('persisted-state writer acquires run-state lock before writing', async () => {
   const paths = setupRunDir('writer_lock');
   writeFileSync(paths.continueLockPath, 'held');
@@ -153,9 +184,9 @@ test('persisted-state writer recovers existing pending journal before writing a 
     status: 'pending',
     response: response(recoveredBaton),
     baton: recoveredBaton,
-    instructions: [],
+    instructions: [{ path: path.join(paths.instructionsDir, 'prepare.md'), content: '# Pending prepare' }],
     historyText: 'old pending history\n',
-    sideEffects: { baton: true, lastResponse: true, history: true, instructions: 0 },
+    sideEffects: { baton: true, lastResponse: true, history: true, instructions: 1 },
   });
 
   await RunStateFileWriter.write(paths, {

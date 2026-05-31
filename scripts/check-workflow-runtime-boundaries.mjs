@@ -36,8 +36,12 @@ if (existsSync(path.join(root, 'develop/lib/workflow'))) fail('forbidden legacy 
 const retainedRunnerRunStatePath = path.join(root, 'develop/lib/persistence/runner/run-state.mjs');
 const runStateContextPath = path.join(root, 'develop/lib/persistence/run-state/CONTEXT.md');
 if (!existsSync(retainedRunnerRunStatePath)) fail('retained run-state owner surface is missing: develop/lib/persistence/runner/run-state.mjs');
-if (!contains(runStateContextPath, /persistence\/runner\/run-state\.mjs/) || !contains(runStateContextPath, /removal condition/i)) {
-  fail('PersistedRunState context must document retained persistence/runner/run-state.mjs status and removal condition');
+scan([retainedRunnerRunStatePath], /function\s+|async\s+function|from 'node:fs|from 'node:fs\/promises|from 'node:path/, 'retained runner run-state surface must be facade-only');
+if (!contains(runStateContextPath, /persistence\/runner\/run-state\.mjs/) || !contains(runStateContextPath, /removal condition/i) || !contains(runStateContextPath, /keep_temporarily.+facade-only/s)) {
+  fail('PersistedRunState context must document retained persistence/runner/run-state.mjs as keep_temporarily facade-only with removal condition');
+}
+if (!contains(runStateContextPath, /Use-case surface classification/) || !contains(runStateContextPath, /`RunNext`.+keep/s)) {
+  fail('PersistedRunState context must include compact use-case keep/delete/demote classification');
 }
 
 const entrypoints = walk(path.join(root, 'develop/lib/entrypoints'));
@@ -62,9 +66,26 @@ scan(lib, /validateForRuntime|WorkflowEngine|WorkflowRunStore|WorkflowInterprete
 scan(runStatePersistence, /\bRunStateDTO\b|new RunStateDTO/, 'run-state persistence must not use RunStateDTO as storage schema');
 scan(entities, /assertBatonSchema|assertWorkflowSchema|assertResponseSchema|assertWorkerOutputSchema|\bworkflowSchemas\b/, 'entities must not own boundary schema validators');
 scan(cliEntrypoints.filter((file) => file.endsWith('persist-run-state.mjs')), /writeFileAtomic|appendFileDurably|appendFile|writeFile\(/, 'persist-run-state CLI must not directly write run-state files');
+scan(entrypoints, /persistence\/runner\/run-state\.mjs/, 'entrypoints must not import old runner run-state internals');
+scan(entrypoints, /from ['"].*runner\/run-state\.mjs['"]|import \{[^}]*\b(readJson|readText|recoverDurableCommit|withContinueRunLock)\b[^}]*\} from ['"].*runner\/run-state\.mjs['"]/, 'entrypoints must not import old direct split-file run-state readers');
+scan([path.join(root, 'develop/lib/persistence/run-state/persisted-state-schema.mjs')], /PersistedRunStateReader|readPersistedRunState/, 'persisted-state schema must not re-export reader/projection implementation');
+scan([path.join(root, 'develop/lib/persistence/output-schema-validation.mjs')], /function\s+(validateAgainstOutputSchema|outputSchemaRetryKey|validationRetryPrompt)|const\s+OUTPUT_SCHEMA_MAX_ATTEMPTS/, 'persistence output-schema-validation must be facade-only');
+const schemaOutputValidationPath = path.join(root, 'develop/lib/schemas/output-schema-validation.mjs');
+if (!contains(schemaOutputValidationPath, /function\s+validateAgainstOutputSchema/) || !contains(schemaOutputValidationPath, /const\s+OUTPUT_SCHEMA_MAX_ATTEMPTS/) || !contains(schemaOutputValidationPath, /function\s+outputSchemaRetryKey/) || !contains(schemaOutputValidationPath, /function\s+validationRetryPrompt/)) {
+  fail('schema-owned output validation policy must exist');
+}
 
 const writerPath = path.join(root, 'develop/lib/persistence/run-state/PersistedRunStateWriter.mjs');
-if (!contains(writerPath, /withContinueRunLock/)) fail('PersistedRunStateWriter must acquire the run-state lock');
+if (!contains(writerPath, /withRunStateLock/)) fail('PersistedRunStateWriter must acquire the run-state lock');
+const readerPath = path.join(root, 'develop/lib/persistence/run-state/PersistedRunStateReader.mjs');
+if (!contains(readerPath, /lastResponse\.requests/) || !contains(readerPath, /missing committed instruction file/)) {
+  fail('PersistedRunStateReader must validate committed instruction refs/files from current lastResponse');
+}
+
+const runStateDtoPath = path.join(root, 'develop/lib/dtos/RunStateDTO.mjs');
+if (existsSync(runStateDtoPath) && !contains(runStateDtoPath, /runtime run-state projection only/i)) {
+  fail('RunStateDTO must be documented as projection-only or renamed');
+}
 
 const persistedRefs = lib.filter((file) => /PersistedRunState/.test(readFileSync(file, 'utf8'))).map(rel);
 if (persistedRefs.length === 0) fail('PersistedRunState contract is not referenced under develop/lib');
