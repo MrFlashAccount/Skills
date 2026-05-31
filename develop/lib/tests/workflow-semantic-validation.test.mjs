@@ -8,6 +8,7 @@ import workflowDoc from '../../../workflows/dev-harness/workflow.json' with { ty
 import researchCriticWorkflowDoc from '../../../workflows/research-critic/workflow.json' with { type: 'json' };
 import { WorkflowRuntimeError } from '../entities/errors.mjs';
 import { validateWorkflow } from '../use-cases/ValidateWorkflow.mjs';
+import { validateWorkflowFile } from '../entrypoints/api/validateWorkflow.mjs';
 import { WorkflowFileReader } from '../persistence/WorkflowFileReader.mjs';
 import { validateAgainstOutputSchema } from '../persistence/output-schema-validation.mjs';
 
@@ -457,6 +458,27 @@ test('dev harness success outputs still require their success payloads', () => {
     assert.equal(result.ok, false, `${stepId} should reject success without ${missingField}`);
     assert.match(result.errors, new RegExp(missingField));
   }
+});
+
+
+
+test('validateWorkflowFile derives the role repository root from the workflow path', () => {
+  const projectRoot = path.join(tempDir, 'external-role-project');
+  const workflowDir = path.join(projectRoot, 'workflows', 'role-fixture');
+  const roleDir = path.join(projectRoot, 'roles', 'external-reviewer');
+  mkdirSync(workflowDir, { recursive: true });
+  mkdirSync(roleDir, { recursive: true });
+  writeFileSync(path.join(roleDir, 'ROLE.md'), '# External reviewer role\n');
+  writeFileSync(path.join(roleDir, 'RUBRIC.md'), '# External reviewer rubric\n');
+  const workflowPath = path.join(workflowDir, 'workflow.json');
+  const doc = genericWorkflowWithWorkerRole('external-reviewer');
+  writeFileSync(workflowPath, `${JSON.stringify(doc, null, 2)}\n`);
+
+  assert.deepEqual(validateWorkflowFile(workflowPath), {
+    ok: true,
+    workflow: 'generic-role-validation-fixture',
+    steps: Object.keys(doc.steps).length,
+  });
 });
 
 test('workflow semantic validation rejects invalid worker roles in generic workflows', () => {
