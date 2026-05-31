@@ -3,7 +3,8 @@
   "description": "Producer output contract for joining DevHarness review branch verdicts and selecting the next loop target.",
   "type": "object",
   "required": [
-    "outcome"
+    "outcome",
+    "next"
   ],
   "properties": {
     "outcome": {
