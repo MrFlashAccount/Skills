@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { WorkflowInterpreterError } from '../entities/errors.mjs';
 import { renderWorkflowPrompt } from '../entities/Template.mjs';
 import { validateAgainstOutputSchema } from '../persistence/output-schema-validation.mjs';
+import { loadWorkflowResources } from '../persistence/WorkflowRuntimeReader.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-output-schema-check-'));
@@ -55,6 +56,13 @@ function baton(overrides = {}) {
 
 function runNode(args) {
   return spawnSync(process.execPath, args, { cwd: root, encoding: 'utf8' });
+}
+
+function renderPromptWithResources(context) {
+  return renderWorkflowPrompt({
+    ...context,
+    resources: context.resources ?? loadWorkflowResources(context),
+  });
 }
 
 function assertMarkersInOrder(value, markers) {
@@ -144,7 +152,7 @@ test('output.schema: workflow-package schema ref resolves consistently for valid
   });
   assert.equal(validation.ok, true);
 
-  const rendered = renderWorkflowPrompt({
+  const rendered = renderPromptWithResources({
     workflowPath,
     workflow: doc,
     baton: baton(),
@@ -458,7 +466,7 @@ test('output.schema: projected structured output renders schema field notes befo
   writeFileSync(path.join(tempDir, 'field-notes-output.md'), 'Return schema JSON.\n');
   generationPromptDoc.steps.worker_step.output.template = 'field-notes-output.md';
   const workerWorkflowPath = writeJson('output-schema-field-notes-worker-workflow.json', generationPromptDoc);
-  const workerRenderResponse = renderWorkflowPrompt({
+  const workerRenderResponse = renderPromptWithResources({
     workflowPath: workerWorkflowPath,
     workflow: generationPromptDoc,
     baton: baton(),
@@ -476,7 +484,7 @@ test('output.schema: projected structured output renders schema field notes befo
     payload: { ok: true },
   }, true, doc);
   const workflowPath = writeJson('output-schema-field-notes-workflow.json', doc);
-  const renderResponse = renderWorkflowPrompt({
+  const renderResponse = renderPromptWithResources({
     workflowPath,
     workflow: doc,
     baton: applyResponse.baton,

@@ -3,13 +3,19 @@ import path from 'node:path';
 import { readJson } from './json-io.mjs';
 import { readWorkflowFileRef, defaultRepositoryRootForWorkflow } from './resource-resolver.mjs';
 import { loadOutputSchema } from './output-schema.mjs';
+import { isInside } from './path-utils.mjs';
+import { WorkflowInterpreterError } from '../entities/errors.mjs';
 import { roleMaterialPath, REQUIRED_ROLE_MATERIAL_FILES } from '../entities/workflow-helpers/roles.mjs';
 
 function templateRefs(workflow) {
-  const refs = new Set();
+  const refs = [];
+  const seen = new Set();
   for (const step of Object.values(workflow?.steps ?? {})) {
-    if (step?.input?.template) refs.add(step.input.template);
-    if (step?.output?.template) refs.add(step.output.template);
+    for (const [fieldName, ref] of [['input', step?.input?.template], ['output', step?.output?.template]]) {
+      if (!ref || seen.has(`${fieldName}:${ref}`)) continue;
+      seen.add(`${fieldName}:${ref}`);
+      refs.push({ ref, fieldName });
+    }
   }
   return refs;
 }
@@ -43,12 +49,17 @@ export function listAllowedWorkflowRoles({ repositoryRoot }) {
     .sort();
 }
 
+function isDeferredMissingResource(error) {
+  return error instanceof WorkflowInterpreterError && /\b(missing|not found)\b/.test(error.message);
+}
+
 function loadTemplates({ workflow, workflowPath, repositoryRoot }) {
   const templates = {};
-  for (const ref of templateRefs(workflow)) {
+  for (const { ref, fieldName } of templateRefs(workflow)) {
     try {
-      templates[ref] = readWorkflowFileRef({ workflowPath, fileRef: ref, kind: 'template', fieldName: 'template', messagePrefix: 'workflow prompt render failed', repositoryRoot });
-    } catch {
+      templates[ref] = readWorkflowFileRef({ workflowPath, fileRef: ref, kind: 'template', fieldName, messagePrefix: 'workflow prompt render failed', repositoryRoot });
+    } catch (error) {
+      if (!isDeferredMissingResource(error)) throw error;
       // Missing templates are reported by the Template entity only if the current render actually needs them.
     }
   }
@@ -60,11 +71,27 @@ function loadSchemas({ workflow, workflowPath, repositoryRoot }) {
   for (const schemaRef of schemaRefs(workflow)) {
     try {
       outputSchemas[schemaRef] = loadOutputSchema({ workflow, workflowPath, schemaRef, repositoryRoot, messagePrefix: 'workflow prompt render failed' });
-    } catch {
+    } catch (error) {
+      if (!isDeferredMissingResource(error)) throw error;
       // Missing schemas are reported when a rendered/applied step needs the schema.
     }
   }
   return outputSchemas;
+}
+
+function readRoleMaterialFile({ root, role, fileName }) {
+  const relative = roleMaterialPath(role, fileName);
+  const candidate = path.join(root, relative);
+  let resolvedPath;
+  try {
+    resolvedPath = realpathSync(candidate);
+  } catch {
+    return undefined;
+  }
+  if (!isInside(resolvedPath, root)) {
+    throw new WorkflowInterpreterError(`workflow prompt render failed: input.role material escapes repository root: ${relative}`);
+  }
+  return { content: readFileSync(resolvedPath, 'utf8'), path: relative };
 }
 
 function loadRoleMaterials({ workflow, repositoryRoot }) {
@@ -73,15 +100,21 @@ function loadRoleMaterials({ workflow, repositoryRoot }) {
   for (const role of roleNames(workflow)) {
     roleMaterials[role] = {};
     for (const fileName of REQUIRED_ROLE_MATERIAL_FILES) {
-      const relative = roleMaterialPath(role, fileName);
-      try {
-        roleMaterials[role][fileName] = { content: readFileSync(path.join(root, relative), 'utf8'), path: relative };
-      } catch {
-        // Missing role material is reported by Template only when a rendered step needs it.
-      }
+      const loaded = readRoleMaterialFile({ root, role, fileName });
+      if (loaded) roleMaterials[role][fileName] = loaded;
+      // Missing role material is reported by Template only when a rendered step needs it.
     }
   }
   return roleMaterials;
+}
+
+export function loadWorkflowResources({ workflow, workflowPath, repositoryRoot = defaultRepositoryRootForWorkflow(workflowPath) }) {
+  return {
+    templates: loadTemplates({ workflow, workflowPath, repositoryRoot }),
+    outputSchemas: loadSchemas({ workflow, workflowPath, repositoryRoot }),
+    roleMaterials: loadRoleMaterials({ workflow, repositoryRoot }),
+    allowedRoles: listAllowedWorkflowRoles({ repositoryRoot }),
+  };
 }
 
 export function loadWorkflowRuntime({ workflowPath, batonPath, baton }) {
@@ -91,12 +124,7 @@ export function loadWorkflowRuntime({ workflowPath, batonPath, baton }) {
   return {
     workflow,
     baton: batonDoc,
-    resources: {
-      templates: loadTemplates({ workflow, workflowPath, repositoryRoot }),
-      outputSchemas: loadSchemas({ workflow, workflowPath, repositoryRoot }),
-      roleMaterials: loadRoleMaterials({ workflow, repositoryRoot }),
-      allowedRoles: listAllowedWorkflowRoles({ repositoryRoot }),
-    },
+    resources: loadWorkflowResources({ workflow, workflowPath, repositoryRoot }),
     repositoryRoot,
   };
 }

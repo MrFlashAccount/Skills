@@ -1,3 +1,4 @@
+import { WorkflowInterpreterError } from '../../errors.mjs';
 import { templateResource, section, trimStable } from '../utils.mjs';
 
 export function readOutputTemplate({ step, resources }) {
@@ -13,7 +14,7 @@ export function readOutputSchema({ step, resources }) {
   const schemas = resources?.outputSchemas ?? resources?.outputSchemaByRef ?? {};
   const loaded = schemas instanceof Map ? schemas.get(schemaRef) : schemas[schemaRef];
   const schema = loaded?.schema ?? loaded;
-  if (!schema) throw new Error(`workflow prompt render failed: missing output schema '${schemaRef}'`);
+  if (!schema) throw new WorkflowInterpreterError(`workflow prompt render failed: output.schema not found: ${schemaRef}`);
   return { content: JSON.stringify(schema, null, 2), metadataPath: schemaRef, schema };
 }
 

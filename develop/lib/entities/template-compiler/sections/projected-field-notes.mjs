@@ -14,7 +14,7 @@ export function projectedFieldNotes({ workflow, projectedState, projectedKeys, r
     try {
       schema = readOutputSchema({ workflow, step: producerStep, resources }).schema;
     } catch (error) {
-      if (!(error instanceof WorkflowInterpreterError) || !error.message.includes('missing output schema')) throw error;
+      if (!(error instanceof WorkflowInterpreterError) || !error.message.includes('output.schema not found')) throw error;
       continue;
     }
     const properties = schema?.properties;
