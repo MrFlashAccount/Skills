@@ -4,7 +4,7 @@ import { applyWorkflowOutput } from '../../use-cases/ApplyWorkflowOutput.mjs';
 import { renderAppliedResponse } from '../../use-cases/ContinueRun.mjs';
 import { runNext } from '../../use-cases/RunNext.mjs';
 import { loadInstructions as loadInstructionsUseCase } from '../../use-cases/LoadInstructions.mjs';
-import { resolveStartupUserPrompt } from '../../use-cases/user-prompt.mjs';
+import { resolveStartupUserPrompt, startupUserPromptTarget } from '../../use-cases/user-prompt.mjs';
 import { loadWorkflowRuntime, readWorkerOutputText } from '../../persistence/WorkflowRuntimeReader.mjs';
 import { read as readInstructionDTO } from '../../persistence/InstructionFileReader.mjs';
 import { RunStateFileWriter } from '../../persistence/RunStateFileWriter.mjs';
@@ -63,7 +63,11 @@ export async function next({ runDir, workflowPath, includeDiagnostics = false, u
     }
     const userPromptFileContent = (!hasExistingBaton && userPromptFile !== undefined) ? await readText(userPromptFile, '--user-prompt-file') : undefined;
     const startupUserPrompt = hasExistingBaton ? undefined : resolveStartupUserPrompt({ userPrompt, userPromptFileContent });
-    const runState = await ensureRunFiles(paths, { userPrompt: startupUserPrompt });
+    const workflowDoc = startupUserPrompt === undefined ? undefined : await readJson(paths.workflowPath, 'workflow');
+    const startupPromptTarget = startupUserPrompt === undefined
+      ? undefined
+      : startupUserPromptTarget({ workflow: workflowDoc, start: workflowDoc?.start });
+    const runState = await ensureRunFiles(paths, { userPrompt: startupUserPrompt, userPromptTarget: startupPromptTarget });
     await recoverDurableCommit(paths);
     const persisted = await readPersistedRunState(paths);
     const runtimeState = projectRuntimeRunState(persisted);
