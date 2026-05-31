@@ -74,6 +74,13 @@ const schemaOutputValidationPath = path.join(root, 'develop/lib/schemas/output-s
 if (!contains(schemaOutputValidationPath, /function\s+validateAgainstOutputSchema/) || !contains(schemaOutputValidationPath, /const\s+OUTPUT_SCHEMA_MAX_ATTEMPTS/) || !contains(schemaOutputValidationPath, /function\s+outputSchemaRetryKey/) || !contains(schemaOutputValidationPath, /function\s+validationRetryPrompt/)) {
   fail('schema-owned output validation policy must exist');
 }
+const apiWorkflowRunnerPath = path.join(root, 'develop/lib/entrypoints/api/workflowRunner.mjs');
+if (contains(apiWorkflowRunnerPath, /loadWorkflowRuntime\(\{ workflowPath: paths\.workflowPath, batonPath: paths\.batonPath \}\)/)) {
+  fail('API next path must pass a persisted run-state baton projection into runtime loading instead of raw baton loading');
+}
+if (!contains(apiWorkflowRunnerPath, /readPersistedRunState\(paths\)/) || !contains(apiWorkflowRunnerPath, /projectRuntimeRunState\(persisted\)/)) {
+  fail('API next path must read and project PersistedRunState before rendering');
+}
 
 const writerPath = path.join(root, 'develop/lib/persistence/run-state/PersistedRunStateWriter.mjs');
 if (!contains(writerPath, /withRunStateLock/)) fail('PersistedRunStateWriter must acquire the run-state lock');

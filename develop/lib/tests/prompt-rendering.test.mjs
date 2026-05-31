@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { projectState } from '../entities/step-helpers/projection.mjs';
 import { renderStepPrompts } from '../use-cases/runtime/parallel/render.mjs';
 import { renderWorkflowPrompt } from '../entities/Template.mjs';
-import { validateAgainstOutputSchema } from '../schemas/output-schema-validation.mjs';
+import { validateAgainstOutputSchema } from '../persistence/output-schema-validation.mjs';
 import { loadWorkflowResources } from '../persistence/WorkflowRuntimeReader.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');

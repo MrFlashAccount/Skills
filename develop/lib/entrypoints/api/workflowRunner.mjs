@@ -13,6 +13,7 @@ import { readJson } from '../../persistence/json-io.mjs';
 import { readText } from '../../persistence/run-state/atomic-file.mjs';
 import { recoverDurableCommit } from '../../persistence/run-state/durable-commit.mjs';
 import { readPersistedRunState } from '../../persistence/run-state/PersistedRunStateReader.mjs';
+import { projectRuntimeRunState } from '../../persistence/run-state/persisted-state-schema.mjs';
 import { ensureRunFiles, pathExists, resolveRunPaths } from '../../persistence/run-state/paths.mjs';
 import { withRunStateLock } from '../../persistence/run-state/lock.mjs';
 
@@ -64,8 +65,10 @@ export async function next({ runDir, workflowPath, includeDiagnostics = false, u
     const startupUserPrompt = hasExistingBaton ? undefined : resolveStartupUserPrompt({ userPrompt, userPromptFileContent });
     const runState = await ensureRunFiles(paths, { userPrompt: startupUserPrompt });
     await recoverDurableCommit(paths);
-    const runtime = loadWorkflowRuntime({ workflowPath: paths.workflowPath, batonPath: paths.batonPath });
-    const rendered = runNext({ workflowDoc: runtime.workflow, batonDoc: runtime.baton, resources: runtime.resources, includeDiagnostics });
+    const persisted = await readPersistedRunState(paths);
+    const runtimeState = projectRuntimeRunState(persisted);
+    const runtime = loadWorkflowRuntime({ workflowPath: paths.workflowPath, batonPath: paths.batonPath, baton: runtimeState.baton });
+    const rendered = runNext({ workflowDoc: runtime.workflow, batonDoc: runtimeState.baton, resources: runtime.resources, includeDiagnostics });
     return persistNextHostResponse(paths, rendered, {
       initialized: runState.initialized,
       resumed: runState.resumed,
@@ -168,7 +171,7 @@ async function outputForCurrentState(paths, outputRefs = []) {
   if (missing.length > 0) throw new Error(`missing host output: ${missing.join(', ')}`);
 
   if (requests.length === 1 && !isPreparedParallelContinuation) {
-    return { outputPath: pathsByRequestId.get(requests[0].id), outputValue: undefined, historyOutput: pathsByRequestId.get(requests[0].id) };
+    return { outputPath: pathsByRequestId.get(requests[0].id), outputValue: undefined, historyOutput: pathsByRequestId.get(requests[0].id), currentBaton: current.baton };
   }
 
   const steps = {};
@@ -179,7 +182,7 @@ async function outputForCurrentState(paths, outputRefs = []) {
     steps[stepId] = await readJson(outputPath, `host output ${stepId}`);
     historyOutput.push(`${stepId}=${outputPath}`);
   }
-  return { outputPath: '<parallel host outputs>', outputValue: { steps }, historyOutput: historyOutput.join(', ') };
+  return { outputPath: '<parallel host outputs>', outputValue: { steps }, historyOutput: historyOutput.join(', '), currentBaton: current.baton };
 }
 
 async function resolveContinueRunPaths({ runDir, workflowPath }) {
@@ -199,8 +202,8 @@ export async function continueRun({ runDir, workflowPath, output, includeDiagnos
     const paths = await resolveContinueRunPaths({ runDir, workflowPath });
     await ensureRunFiles(paths);
     await recoverDurableCommit(paths);
-    const { outputPath, outputValue, historyOutput } = await outputForCurrentState(paths, normalizeOutputRefs(output));
-    const runtime = loadWorkflowRuntime({ workflowPath: paths.workflowPath, batonPath: paths.batonPath });
+    const { outputPath, outputValue, historyOutput, currentBaton } = await outputForCurrentState(paths, normalizeOutputRefs(output));
+    const runtime = loadWorkflowRuntime({ workflowPath: paths.workflowPath, batonPath: paths.batonPath, baton: currentBaton });
     const outputContent = outputValue === undefined ? readWorkerOutputText({ outputPath }) : undefined;
     const applied = applyWorkflowOutput({ workflowDoc: runtime.workflow, batonDoc: runtime.baton, outputContent, outputValue, resources: runtime.resources });
     const rendered = renderAppliedResponse({ workflowDoc: runtime.workflow, response: applied, resources: runtime.resources, includeDiagnostics });
@@ -228,7 +231,7 @@ export async function loadInstructions({ runDir, workflowPath, stepId }) {
   const runtimePaths = typeof lastResponse.workflow === 'string' && lastResponse.workflow.length > 0
     ? resolveRunPaths({ runDir, workflowPath: lastResponse.workflow })
     : paths;
-  const runtime = loadWorkflowRuntime({ workflowPath: runtimePaths.workflowPath, batonPath: paths.batonPath });
+  const runtime = loadWorkflowRuntime({ workflowPath: runtimePaths.workflowPath, batonPath: paths.batonPath, baton: current.baton });
   const instructionPath = instructionPathForStep(paths.instructionsDir, stepId);
   loadInstructionsUseCase({
     workflowDTO: runtime.workflow,

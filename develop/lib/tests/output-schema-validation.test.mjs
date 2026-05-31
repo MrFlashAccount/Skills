@@ -7,7 +7,7 @@ import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { renderWorkflowPrompt } from '../entities/Template.mjs';
 import { WorkflowSchemaError } from '../schemas/workflow-schema.mjs';
-import { validateAgainstOutputSchema } from '../schemas/output-schema-validation.mjs';
+import { validateAgainstOutputSchema } from '../persistence/output-schema-validation.mjs';
 import { loadWorkflowResources } from '../persistence/WorkflowRuntimeReader.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');

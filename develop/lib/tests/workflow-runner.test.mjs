@@ -135,6 +135,27 @@ test('runner: next returns a single host action request with load command only',
   assert.equal(existsSync(path.join(runDir, 'baton.json')), true);
 });
 
+test('runner: resumed next validates persisted aggregate instruction refs before rendering', async () => {
+  const runDir = path.join(tempDir, 'next-validates-persisted-state');
+  const workflowPath = path.join(tempDir, 'next-validates-persisted-state-workflow.json');
+  const singleWorkflow = structuredClone(workflowDoc);
+  singleWorkflow.steps.prepare.next = 'done';
+  writeJson(workflowPath, singleWorkflow);
+
+  const first = await runnerNext({ runDir, workflowPath });
+  assert.equal(first.status, 'needs_host_actions');
+
+  const instructionPath = path.join(runDir, '.workflow-runner', 'instructions', 'prepare.md');
+  assert.equal(existsSync(instructionPath), true);
+  rmSync(instructionPath);
+
+  await assert.rejects(
+    () => runnerNext({ runDir, workflowPath }),
+    /missing committed instruction file/,
+  );
+  assert.equal(existsSync(instructionPath), false);
+});
+
 test('runner: next rejects workflow whose first worker id is reserved baton state bookkeeping', () => {
   const runDir = path.join(tempDir, 'reserved-first-worker');
   const workflowPath = path.join(tempDir, 'reserved-first-worker-workflow.json');

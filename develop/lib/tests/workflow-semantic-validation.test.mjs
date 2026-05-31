@@ -10,7 +10,7 @@ import { WorkflowRuntimeError } from '../entities/errors.mjs';
 import { validateWorkflow } from '../use-cases/ValidateWorkflow.mjs';
 import { validateWorkflowFile } from '../entrypoints/api/validateWorkflow.mjs';
 import { WorkflowFileReader } from '../persistence/WorkflowFileReader.mjs';
-import { validateAgainstOutputSchema } from '../schemas/output-schema-validation.mjs';
+import { validateAgainstOutputSchema } from '../persistence/output-schema-validation.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-semantic-validation-'));
