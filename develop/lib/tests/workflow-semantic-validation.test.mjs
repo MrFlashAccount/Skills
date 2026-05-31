@@ -368,6 +368,47 @@ test('workflow semantic validation rejects worker output schemas that do not req
   );
 });
 
+test('workflow semantic validation normalizes local refs before semantic introspection', () => {
+  writeSchema('ref-outcome-output.schema.json', {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    allOf: [{ $ref: '#/$defs/contract' }],
+    $defs: {
+      contract: {
+        type: 'object',
+        required: ['outcome', 'route', 'next_steps'],
+        properties: {
+          outcome: { $ref: '#/$defs/outcome' },
+          route: { $ref: '#/$defs/route' },
+          next_steps: {
+            type: 'array',
+            minItems: 1,
+            uniqueItems: true,
+            items: { $ref: '#/$defs/branch' },
+          },
+        },
+        additionalProperties: false,
+      },
+      outcome: { type: 'string', enum: ['ready', 'blocked'] },
+      route: { type: 'string', enum: ['consumer', 'blocked'] },
+      branch: { type: 'string', enum: ['branch_a', 'branch_b'] },
+    },
+  });
+
+  const dynamicTargetDoc = syntheticWorkflow((draft) => {
+    draft.steps.producer.output.schema = 'ref-outcome-output.schema.json';
+    draft.steps.producer.next = '${{ output.route }}';
+    return draft;
+  });
+  assert.deepEqual(validateSynthetic(dynamicTargetDoc), { ok: true, workflow: 'synthetic-validation-fixture', steps: 7 });
+
+  const matchDoc = syntheticWorkflow((draft) => {
+    draft.steps.producer.output.schema = 'ref-outcome-output.schema.json';
+    draft.steps.producer.next = { match: '${{ output.outcome }}', cases: { ready: 'consumer', blocked: 'blocked' } };
+    return draft;
+  });
+  assert.deepEqual(validateSynthetic(matchDoc), { ok: true, workflow: 'synthetic-validation-fixture', steps: 7 });
+});
+
 test('workflow semantic validation rejects schema-declared dynamic targets that are not workflow steps', () => {
   const doc = structuredClone(workflowDoc);
   cpSync(path.join(REPO_ROOT, 'develop/lib/tests/fixtures/review-join-output-unknown-target.schema.json'), path.join(tempDir, 'schemas/review-join-output-unknown-target.schema.json'));

@@ -114,6 +114,56 @@ function collectFieldAnnotationWarnings(schema, schemaRef, warnings, pathSegment
   if (schema.items) collectFieldAnnotationWarnings(schema.items, schemaRef, warnings, [...pathSegments, 'items']);
 }
 
+function decodeJsonPointerSegment(segment) {
+  return segment.replace(/~1/g, '/').replace(/~0/g, '~');
+}
+
+function resolveLocalSchemaRef(rootSchema, ref) {
+  if (typeof ref !== 'string' || !ref.startsWith('#')) return undefined;
+  if (ref === '#') return rootSchema;
+  if (!ref.startsWith('#/')) return undefined;
+
+  let current = rootSchema;
+  for (const rawSegment of ref.slice(2).split('/')) {
+    const segment = decodeJsonPointerSegment(rawSegment);
+    if (!current || typeof current !== 'object' || Array.isArray(current) || !Object.hasOwn(current, segment)) return undefined;
+    current = current[segment];
+  }
+  return current;
+}
+
+function normalizeSchemaForSemanticIntrospection(schema, rootSchema = schema, refStack = []) {
+  if (!schema || typeof schema !== 'object' || Array.isArray(schema)) return schema;
+
+  let baseSchema = {};
+  if (typeof schema.$ref === 'string') {
+    if (refStack.includes(schema.$ref)) {
+      fail(`output.schema contains circular local $ref: ${[...refStack, schema.$ref].join(' -> ')}`);
+    }
+    const resolved = resolveLocalSchemaRef(rootSchema, schema.$ref);
+    if (resolved) {
+      baseSchema = normalizeSchemaForSemanticIntrospection(resolved, rootSchema, [...refStack, schema.$ref]);
+    }
+  }
+
+  const normalized = { ...baseSchema };
+  for (const [key, value] of Object.entries(schema)) {
+    if (key === '$ref') continue;
+    if (Array.isArray(value)) {
+      normalized[key] = value.map((item) => normalizeSchemaForSemanticIntrospection(item, rootSchema, refStack));
+    } else if (value && typeof value === 'object') {
+      const objectValue = {};
+      for (const [childKey, childValue] of Object.entries(value)) {
+        objectValue[childKey] = normalizeSchemaForSemanticIntrospection(childValue, rootSchema, refStack);
+      }
+      normalized[key] = objectValue;
+    } else {
+      normalized[key] = value;
+    }
+  }
+  return normalized;
+}
+
 function validateOutputSchemaDocument(schema, schemaRef, workflow, workflowPath, repositoryRoot, warnings, { stepId, step } = {}) {
   let validation;
   try {
@@ -123,8 +173,11 @@ function validateOutputSchemaDocument(schema, schemaRef, workflow, workflowPath,
   }
   // Validation result is irrelevant here: compiling the schema is the check.
   void validation;
-  if (step?.kind === 'worker') assertWorkerOutputSchemaContract({ stepId, schema });
+
+  const normalizedSchema = normalizeSchemaForSemanticIntrospection(schema);
+  if (step?.kind === 'worker') assertWorkerOutputSchemaContract({ stepId, schema: normalizedSchema });
   if (isDevHarnessOutputSchema(schemaRef, schema)) collectFieldAnnotationWarnings(schema, schemaRef, warnings);
+  return normalizedSchema;
 }
 
 function loadStepOutputSchemas({ workflow, workflowPath, repositoryRoot, warnings }) {
@@ -139,8 +192,8 @@ function loadStepOutputSchemas({ workflow, workflowPath, repositoryRoot, warning
       if (error instanceof WorkflowInterpreterError) fail(`step '${stepId}' ${error.message}`);
       throw error;
     }
-    validateOutputSchemaDocument(schema, schemaRef, workflow, workflowPath, repositoryRoot, warnings, { stepId, step });
-    schemasByStep.set(stepId, schema);
+    const normalizedSchema = validateOutputSchemaDocument(schema, schemaRef, workflow, workflowPath, repositoryRoot, warnings, { stepId, step });
+    schemasByStep.set(stepId, normalizedSchema);
   }
   return schemasByStep;
 }
