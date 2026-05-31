@@ -4,7 +4,7 @@ This folder is the canonical validation bundle for the inline workflow runtime. 
 
 ## Canonical entrypoints
 
-- Deterministic module: `develop/lib/validate/workflow-validator.mjs`
+- Deterministic boundary: `develop/lib/entrypoints/api/validateWorkflow.mjs` plus schema validators in `develop/lib/schemas/workflow-schema.mjs`
 - CLI wrapper: `develop/lib/bin/validate-workflow.mjs`
 - Agent instructions: `develop/lib/validate/validation-agent-instructions.md`
 

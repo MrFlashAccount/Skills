@@ -1,4 +1,4 @@
-import { assertRoleDirectoryName, roleMaterialPath, REQUIRED_ROLE_MATERIAL_FILES } from '../../role-utils.mjs';
+import { assertRoleDirectoryName, roleMaterialPath, REQUIRED_ROLE_MATERIAL_FILES } from '../../../resource-helpers/role-material.mjs';
 import { trimStable } from '../utils.mjs';
 
 function roleMaterial(resources, role, fileName) {

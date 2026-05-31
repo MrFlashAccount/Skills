@@ -1,8 +1,10 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { constants } from 'node:fs';
 import { access, lstat, mkdir, open, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startupUserPromptTarget } from '../../use-cases/user-prompt.mjs';
+import { assertPersistedRunState, readPersistedRunState } from '../run-state/persisted-state-schema.mjs';
 import { isInside } from '../path-utils.mjs';
 import { defaultRepositoryRootForWorkflow } from '../resource-resolver.mjs';
 
@@ -115,7 +117,12 @@ export async function pathExists(path) {
   return exists(path);
 }
 
+const runStateLockStorage = new AsyncLocalStorage();
+
 export async function withContinueRunLock(paths, callback) {
+  const heldLocks = runStateLockStorage.getStore();
+  if (heldLocks?.has(paths.continueLockPath)) return callback();
+
   await mkdir(paths.runnerDir, { recursive: true });
   let handle;
   let acquired = false;
@@ -134,8 +141,10 @@ export async function withContinueRunLock(paths, callback) {
     if (handle) await handle.close();
   }
 
+  const nextHeldLocks = new Set(heldLocks ?? []);
+  nextHeldLocks.add(paths.continueLockPath);
   try {
-    return await callback();
+    return await runStateLockStorage.run(nextHeldLocks, callback);
   } finally {
     await rm(paths.continueLockPath, { force: true });
   }
@@ -190,15 +199,17 @@ export async function readText(path, name) {
   }
 }
 
-function historyEntry({ source, baton, requests, output }) {
+function historyEntry({ source, baton, requests, steps, output, decision }) {
   const lines = [
     `## ${new Date().toISOString()}`,
     '',
     `- source: ${source}`,
     `- baton: cursor=${baton.cursor ?? 'unknown'} status=${baton.status ?? 'unknown'}`,
   ];
-  if (requests?.length) lines.push(`- requests: ${requests.map((request) => `id=${request.id} action=${request.action}`).join('; ')}`);
+  if (steps?.length) lines.push(`- steps: ${steps.map((step) => `id=${step.id} action=${step.action}`).join('; ')}`);
+  else if (requests?.length) lines.push(`- requests: ${requests.map((request) => `id=${request.id} action=${request.action}`).join('; ')}`);
   if (output) lines.push(`- output: ${output}`);
+  if (decision) lines.push(`- decision: ${decision}`);
   if (baton.blocker) lines.push(`- blocker: ${JSON.stringify(baton.blocker).replace(/\s+/g, ' ').trim()}`);
   lines.push('', '');
   return lines.join('\n');
@@ -292,15 +303,19 @@ export async function recoverDurableCommit(paths) {
 
   const before = await snapshotDurableTargets(paths, commit.instructions);
   try {
+    await writeJsonAtomic(paths.durableCommitPath, { ...commit, status: 'applying' });
     await writeInstructionFiles(commit.instructions);
     maybeFailDurableCommitAfter('instructions');
     if (typeof commit.historyText === 'string') await writeTextAtomic(paths.historyPath, commit.historyText);
     maybeFailDurableCommitAfter('history');
     if (Object.hasOwn(commit, 'baton')) await writeJsonAtomic(paths.batonPath, commit.baton);
     maybeFailDurableCommitAfter('baton');
-    await writeJsonAtomic(paths.lastResponsePath, commit.response);
-    maybeFailDurableCommitAfter('last-response');
+    if (Object.hasOwn(commit, 'response')) {
+      await writeJsonAtomic(paths.lastResponsePath, commit.response);
+      maybeFailDurableCommitAfter('last-response');
+    }
     await rm(paths.durableCommitPath, { force: true });
+    assertPersistedRunState(await readPersistedRunState(paths), 'persisted run state after recovery');
     return true;
   } catch (error) {
     await restoreDurableTargets(paths, before);
@@ -308,19 +323,54 @@ export async function recoverDurableCommit(paths) {
   }
 }
 
+function nextPersistedRunState(current, { response, baton, instructions = [], historyText, writeBaton = true }, commit) {
+  return {
+    ...current,
+    baton: writeBaton ? baton : current.baton,
+    ...(response === undefined ? {} : { lastResponse: response }),
+    instructions: instructions.map((instruction) => ({ path: instruction.path, stepId: instruction.stepId, action: instruction.action, status: instruction.status })),
+    history: { mode: 'embedded-text', path: current.history.path, text: historyText },
+    commit: {
+      version: 1,
+      id: commit.id,
+      createdAt: commit.createdAt,
+      status: 'pending',
+      sideEffects: {
+        baton: writeBaton,
+        lastResponse: response !== undefined,
+        history: true,
+        instructions: instructions.length,
+      },
+    },
+  };
+}
+
 export async function commitDurableRunState(paths, { response, baton, instructions = [], history, writeBaton = true }) {
-  const historyBefore = await readText(paths.historyPath, 'workflow history');
+  const current = await readPersistedRunState(paths);
+  const historyBefore = current.history.mode === 'embedded-text' ? current.history.text : await readText(paths.historyPath, 'workflow history');
+  const historyText = `${historyBefore}${historyEntry(history)}`;
   const commit = {
     version: 1,
+    id: `${Date.now()}-${process.pid}`,
     createdAt: new Date().toISOString(),
-    response,
+    status: 'pending',
+    ...(response === undefined ? {} : { response }),
     instructions,
-    historyText: `${historyBefore}${historyEntry(history)}`,
+    historyText,
+    sideEffects: {
+      baton: writeBaton,
+      lastResponse: response !== undefined,
+      history: true,
+      instructions: instructions.length,
+    },
   };
   if (writeBaton) commit.baton = baton;
+  await validateInstructionCommit(paths, instructions);
+  assertPersistedRunState(nextPersistedRunState(current, { response, baton, instructions, historyText, writeBaton }, commit), 'next persisted run state');
   await writeJsonAtomic(paths.durableCommitPath, commit);
   maybeFailDurableCommitAfter('pending');
   await recoverDurableCommit(paths);
+  assertPersistedRunState(await readPersistedRunState(paths), 'persisted run state after write');
 }
 
 export async function appendHistory(paths, entry) {

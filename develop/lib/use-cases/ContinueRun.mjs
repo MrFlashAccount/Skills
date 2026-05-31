@@ -1,5 +1,5 @@
 /** ContinueRun use-case applies output, then renders the next or terminal runtime response. */
-import { assertResponseSchema } from '../entities/workflow-helpers/schema-validation.mjs';
+import { assertResponseSchema } from '../schemas/workflow-schema.mjs';
 import { applyWorkflowOutput } from './ApplyWorkflowOutput.mjs';
 import { renderStepPrompts } from './runtime/parallel/render.mjs';
 import { assertLoadedWorkflowAndBaton } from './runtime/guards/workflow.mjs';

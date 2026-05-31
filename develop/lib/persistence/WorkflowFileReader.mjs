@@ -4,7 +4,7 @@ import { readOutputSchema } from './output-schema-validation.mjs';
 import { defaultRepositoryRootForWorkflow } from './resource-resolver.mjs';
 import { WorkflowDTO } from '../dtos/WorkflowDTO.mjs';
 import { listAllowedWorkflowRoles } from './WorkflowRuntimeReader.mjs';
-import { assertWorkflowSchema } from '../entities/workflow-helpers/schema-validation.mjs';
+import { assertWorkflowSchema } from '../schemas/workflow-schema.mjs';
 
 export function read(path) {
   const workflow = readWorkflowJson(path, 'workflow');

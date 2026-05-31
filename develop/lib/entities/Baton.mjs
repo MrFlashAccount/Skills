@@ -2,7 +2,6 @@
  * Baton entity owns runtime cursor/status/state consistency and safe state updates.
  */
 import { WorkflowRuntimeError } from './errors.mjs';
-import { assertBatonSchema } from '../entities/workflow-helpers/schema-validation.mjs';
 import { statusForStep } from './workflow-helpers/model.mjs';
 
 function cloneBoundaryData(dto) {
@@ -50,7 +49,9 @@ export class Baton {
 
   validateAgainst(workflowInput) {
     const workflow = workflowData(workflowInput);
-    assertBatonSchema(this.data);
+    if (typeof this.data.cursor !== 'string' || typeof this.data.status !== 'string' || !this.data.state || typeof this.data.state !== 'object' || Array.isArray(this.data.state)) {
+      throw new WorkflowRuntimeError('baton semantic validation failed: baton requires cursor, status, and object state');
+    }
     const cursorStep = workflow.steps?.[this.data.cursor];
     if (!cursorStep) throw new WorkflowRuntimeError(`baton cursor not found in workflow: ${this.data.cursor}`);
     const expectedStatus = statusForStep(workflow, this.data.cursor, cursorStep);

@@ -1,5 +1,5 @@
 import { WorkflowRuntimeError } from '../../../entities/errors.mjs';
-import { outputSchemaRetryKey, validationRetryPrompt, OUTPUT_SCHEMA_MAX_ATTEMPTS } from '../../../entities/workflow-helpers/output-schema-validation.mjs';
+import { outputSchemaRetryKey, validationRetryPrompt, OUTPUT_SCHEMA_MAX_ATTEMPTS } from '../../../schemas/output-schema-validation.mjs';
 import { responseFor, stepWithValidationFeedback } from '../output/response.mjs';
 
 export function responseForOutputSchemaRetry({ baton, stepId, step, errors, attempt }) {

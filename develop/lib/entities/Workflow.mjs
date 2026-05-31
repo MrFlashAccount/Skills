@@ -5,8 +5,8 @@
 import { validateJsonSchema } from 'schema-validation';
 import { WorkflowRuntimeError } from './errors.mjs';
 import { RESERVED_STATE_KEYS, DANGEROUS_OBJECT_KEYS, assertProjectableStateSelector, isDangerousObjectKey, isReservedStateKey } from './workflow-helpers/state-keys.mjs';
-import { assertRoleDirectoryName } from './workflow-helpers/roles.mjs';
-import { assertWorkflowSchema, workflowSchemas } from '../entities/workflow-helpers/schema-validation.mjs';
+import { assertRoleDirectoryName } from '../resource-helpers/role-material.mjs';
+import { runtimeSchemaRegistry } from '../schemas/workflow-schema.mjs';
 import { assertTransitionDescriptorTargets, normalizeTransitionNext } from './Step.mjs';
 import { Step } from './Step.mjs';
 import { statusForStep } from './workflow-helpers/model.mjs';
@@ -174,7 +174,7 @@ function normalizeSchemaForSemanticIntrospection(schema, rootSchema = schema, re
 function validateOutputSchemaDocument(schema, schemaRef, workflow, _runtimeContext, warnings, { stepId, step, requireWorkerOutcomeContract = true } = {}) {
   let validation;
   try {
-    validation = validateJsonSchema(schema, {}, { schemas: workflowSchemas });
+    validation = validateJsonSchema(schema, {}, { schemas: runtimeSchemaRegistry });
   } catch (error) {
     fail(`output.schema '${schemaRef}' is not a valid JSON Schema: ${error.message}`);
   }
@@ -182,7 +182,7 @@ function validateOutputSchemaDocument(schema, schemaRef, workflow, _runtimeConte
   void validation;
 
   const normalizedSchema = normalizeSchemaForSemanticIntrospection(schema);
-  if (requireWorkerOutcomeContract && step?.kind === 'worker') assertWorkerOutputSchemaContract({ stepId, schema: normalizedSchema });
+  if (requireWorkerOutcomeContract && step?.kind === 'worker') assertWorkerOutputContract({ stepId, schema: normalizedSchema });
   if (isDevHarnessOutputSchema(schemaRef, schema)) collectFieldAnnotationWarnings(schema, schemaRef, warnings);
   return normalizedSchema;
 }
@@ -247,7 +247,7 @@ function assertSchemaRequiresExpressionPath({ stepId, expression, field, rootSch
   }
 }
 
-function assertWorkerOutputSchemaContract({ stepId, schema }) {
+function assertWorkerOutputContract({ stepId, schema }) {
   if (!schemaRequiresPath(schema, ['outcome'])) {
     fail(`step '${stepId}' output.schema must require string field 'outcome' for worker outputs`);
   }
@@ -551,7 +551,6 @@ function assertTransitionSemantics(workflow, schemasByStep, { requireSchemaCover
 }
 
 function validateWorkflowDocument(workflow, options = {}) {
-  assertWorkflowSchema(workflow);
   assertWorkflowIdentity(workflow);
   assertWorkflowStepIds(workflow);
   assertWorkflowRootTargets(workflow);

@@ -1,20 +1,30 @@
-import batonSchema from '../../schemas/baton.json' with { type: 'json' };
-import workflowInterpreterCliArgsSchema from '../../schemas/internal/cli-args/workflow-interpreter.json' with { type: 'json' };
-import workerOutputSchema from '../../schemas/worker-output.json' with { type: 'json' };
-import workflowInterpreterResponseSchema from '../../schemas/workflow-interpreter-response.json' with { type: 'json' };
-import workflowSchema from '../../schemas/workflow.json' with { type: 'json' };
-import reviewerSelectionOutputSchema from '../../../../workflows/dev-harness/schemas/reviewer-selection-output.json' with { type: 'json' };
+import batonSchema from './baton.json' with { type: 'json' };
+import workflowInterpreterCliArgsSchema from './internal/cli-args/workflow-interpreter.json' with { type: 'json' };
+import workerOutputSchema from './worker-output.json' with { type: 'json' };
+import workflowInterpreterResponseSchema from './workflow-interpreter-response.json' with { type: 'json' };
+import runnerHostResponseSchema from './runner-host-response.json' with { type: 'json' };
+import workflowSchema from './workflow.json' with { type: 'json' };
+import reviewerSelectionOutputSchema from '../../../workflows/dev-harness/schemas/reviewer-selection-output.json' with { type: 'json' };
 import { validateJsonSchema } from 'schema-validation';
-import { WorkflowRuntimeError } from '../errors.mjs';
 
-export const workflowSchemas = [
+export class WorkflowSchemaError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'WorkflowSchemaError';
+  }
+}
+
+export const runtimeSchemaRegistry = [
   batonSchema,
   reviewerSelectionOutputSchema,
   workflowInterpreterCliArgsSchema,
   workerOutputSchema,
   workflowInterpreterResponseSchema,
+  runnerHostResponseSchema,
   workflowSchema,
 ];
+
+export const workflowSchemas = runtimeSchemaRegistry;
 
 export {
   batonSchema,
@@ -22,6 +32,7 @@ export {
   workflowInterpreterCliArgsSchema,
   workerOutputSchema,
   workflowInterpreterResponseSchema,
+  runnerHostResponseSchema,
   workflowSchema,
 };
 
@@ -32,8 +43,8 @@ export function formatSchemaErrors(errors = []) {
 }
 
 export function assertSchema(schema, value, name) {
-  const validation = validateJsonSchema(schema, value, { schemas: workflowSchemas });
-  if (!validation.ok) throw new WorkflowRuntimeError(`${name} failed schema validation: ${formatSchemaErrors(validation.errors)}`);
+  const validation = validateJsonSchema(schema, value, { schemas: runtimeSchemaRegistry });
+  if (!validation.ok) throw new WorkflowSchemaError(`${name} failed schema validation: ${formatSchemaErrors(validation.errors)}`);
 }
 
 function hasMatchCasesShape(value) {
@@ -41,11 +52,11 @@ function hasMatchCasesShape(value) {
 }
 
 function assertNoNestedMatchCasesTarget(target, fieldPath) {
-  if (hasMatchCasesShape(target)) throw new WorkflowRuntimeError(`nested match/cases transitions are not supported at ${fieldPath}`);
+  if (hasMatchCasesShape(target)) throw new WorkflowSchemaError(`nested match/cases transitions are not supported at ${fieldPath}`);
 
   if (!Array.isArray(target)) return;
   for (const [index, item] of target.entries()) {
-    if (hasMatchCasesShape(item)) throw new WorkflowRuntimeError(`nested match/cases transitions are not supported at ${fieldPath}.${index}`);
+    if (hasMatchCasesShape(item)) throw new WorkflowSchemaError(`nested match/cases transitions are not supported at ${fieldPath}.${index}`);
   }
 }
 
@@ -66,12 +77,11 @@ function assertWorkflowNoNestedMatchCases(workflowDoc) {
   }
 }
 
-
 export function assertWorkflowSchema(workflowDoc) {
   try {
     assertWorkflowNoNestedMatchCases(workflowDoc);
   } catch (error) {
-    if (error instanceof WorkflowRuntimeError) throw new WorkflowRuntimeError(`workflow failed schema validation: ${error.message}`);
+    if (error instanceof WorkflowSchemaError) throw new WorkflowSchemaError(`workflow failed schema validation: ${error.message}`);
     throw error;
   }
   assertSchema(workflowSchema, workflowDoc, 'workflow');
@@ -87,4 +97,8 @@ export function assertWorkerOutputSchema(workerOutput) {
 
 export function assertResponseSchema(response) {
   assertSchema(workflowInterpreterResponseSchema, response, 'workflow interpreter response');
+}
+
+export function assertRunnerHostResponseSchema(response) {
+  assertSchema(runnerHostResponseSchema, response, 'workflow runner host response');
 }

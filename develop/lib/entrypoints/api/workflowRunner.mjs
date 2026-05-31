@@ -7,8 +7,9 @@ import { loadInstructions as loadInstructionsUseCase } from '../../use-cases/Loa
 import { resolveStartupUserPrompt } from '../../use-cases/user-prompt.mjs';
 import { loadWorkflowRuntime, readWorkerOutputText } from '../../persistence/WorkflowRuntimeReader.mjs';
 import { read as readInstructionDTO } from '../../persistence/InstructionFileReader.mjs';
+import { RunStateFileWriter } from '../../persistence/RunStateFileWriter.mjs';
 import { assertSafeStepId, instructionPathForStep, responseStatusForInterpreterResponse, toHostResponse } from '../../persistence/runner/host-requests.mjs';
-import { commitDurableRunState, ensureRunFiles, pathExists, readJson, readText, recoverDurableCommit, repositoryRoot, resolveRunPaths, withContinueRunLock } from '../../persistence/runner/run-state.mjs';
+import { ensureRunFiles, pathExists, readJson, readText, recoverDurableCommit, repositoryRoot, resolveRunPaths, withContinueRunLock } from '../../persistence/runner/run-state.mjs';
 
 function stepInstructionsFor(paths, interpreterResponse) {
   if (responseStatusForInterpreterResponse(interpreterResponse) !== 'needs_host_actions') return [];
@@ -37,7 +38,7 @@ async function runnerResponseForRendered(paths, rendered, { initialized, resumed
 
 async function persistNextHostResponse(paths, rendered, runState) {
   const response = await runnerResponseForRendered(paths, rendered, runState);
-  await commitDurableRunState(paths, {
+  await RunStateFileWriter.write(paths, {
     response,
     baton: response.baton,
     instructions: stepInstructionsFor(paths, rendered),
@@ -196,7 +197,7 @@ export async function continueRun({ runDir, workflowPath, output, includeDiagnos
     const rendered = renderAppliedResponse({ workflowDoc: runtime.workflow, response: applied, resources: runtime.resources, includeDiagnostics });
 
     const response = await runnerResponseForRendered(paths, rendered, { initialized: false, resumed: true });
-    await commitDurableRunState(paths, {
+    await RunStateFileWriter.write(paths, {
       response,
       baton: applied.baton,
       instructions: stepInstructionsFor(paths, rendered),

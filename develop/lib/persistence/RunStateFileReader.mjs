@@ -1,11 +1,10 @@
-import { readJson } from './runner/run-state.mjs';
 import { RunStateDTO } from '../dtos/RunStateDTO.mjs';
-import { assertBatonSchema } from '../entities/workflow-helpers/schema-validation.mjs';
+import { projectRuntimeRunState, readPersistedRunState } from './run-state/persisted-state-schema.mjs';
 
 export async function read(paths) {
-  const baton = await readJson(paths.batonPath, 'baton');
-  assertBatonSchema(baton);
-  return new RunStateDTO({ baton });
+  const persisted = await readPersistedRunState(paths);
+  const projection = projectRuntimeRunState(persisted);
+  return new RunStateDTO({ baton: projection.baton });
 }
 
 export const RunStateFileReader = { read };

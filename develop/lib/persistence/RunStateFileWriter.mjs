@@ -1,3 +1,7 @@
-import { commitDurableRunState } from './runner/run-state.mjs';
-export async function write(paths, patch) { return commitDurableRunState(paths, patch); }
+import { writePersistedRunStateUpdate } from './run-state/PersistedRunStateWriter.mjs';
+
+export async function write(paths, patch) {
+  return writePersistedRunStateUpdate(paths, patch);
+}
+
 export const RunStateFileWriter = { write };

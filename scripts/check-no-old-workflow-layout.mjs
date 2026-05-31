@@ -15,7 +15,7 @@ const forbiddenPatterns = [
   /use-cases\/interpreter/,
 ];
 const ignoredDirs = new Set(['.git', 'node_modules', '.worktrees']);
-const ignoredFiles = new Set(['scripts/check-no-old-workflow-layout.mjs']);
+const ignoredFiles = new Set(['scripts/check-no-old-workflow-layout.mjs', 'scripts/check-workflow-runtime-boundaries.mjs']);
 
 function fail(message) {
   console.error(message);

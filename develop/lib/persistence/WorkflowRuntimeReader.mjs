@@ -5,7 +5,8 @@ import { readWorkflowFileRef, defaultRepositoryRootForWorkflow } from './resourc
 import { loadOutputSchema } from './output-schema.mjs';
 import { isInside } from './path-utils.mjs';
 import { WorkflowRuntimeError } from '../entities/errors.mjs';
-import { roleMaterialPath, REQUIRED_ROLE_MATERIAL_FILES } from '../entities/workflow-helpers/roles.mjs';
+import { roleMaterialPath, REQUIRED_ROLE_MATERIAL_FILES } from '../resource-helpers/role-material.mjs';
+import { assertBatonSchema, assertWorkflowSchema } from '../schemas/workflow-schema.mjs';
 
 function templateRefs(workflow) {
   const refs = [];
@@ -119,7 +120,9 @@ export function loadWorkflowResources({ workflow, workflowPath, repositoryRoot =
 
 export function loadWorkflowRuntime({ workflowPath, batonPath, baton }) {
   const workflow = readJson(workflowPath, 'workflow');
+  assertWorkflowSchema(workflow);
   const batonDoc = baton ?? readJson(batonPath, 'baton');
+  assertBatonSchema(batonDoc);
   const repositoryRoot = defaultRepositoryRootForWorkflow(workflowPath);
   return {
     workflow,

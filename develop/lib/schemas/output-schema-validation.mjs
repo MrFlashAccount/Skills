@@ -1,6 +1,6 @@
 import { validateJsonSchema } from 'schema-validation';
-import { WorkflowRuntimeError } from '../errors.mjs';
-import { formatSchemaErrors, workflowSchemas } from './schema-validation.mjs';
+import { WorkflowSchemaError } from './workflow-schema.mjs';
+import { formatSchemaErrors, workflowSchemas } from './workflow-schema.mjs';
 
 export const OUTPUT_SCHEMA_MAX_ATTEMPTS = 3;
 
@@ -9,7 +9,7 @@ export function validateAgainstOutputSchema({ schemaRef, schema, output }) {
   try {
     validation = validateJsonSchema(schema, output, { schemas: workflowSchemas });
   } catch (error) {
-    throw new WorkflowRuntimeError(`output schema validation failed: invalid output schema '${schemaRef}': ${error.message}`);
+    throw new WorkflowSchemaError(`output schema validation failed: invalid output schema '${schemaRef}': ${error.message}`);
   }
 
   if (validation.ok) {

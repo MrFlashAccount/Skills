@@ -1,7 +1,7 @@
 import { validateJsonSchema } from 'schema-validation';
 import { WorkflowRuntimeError } from '../entities/errors.mjs';
 import { loadOutputSchema, resolveOutputSchemaPath } from './output-schema.mjs';
-import { formatSchemaErrors, workflowSchemas } from '../entities/workflow-helpers/schema-validation.mjs';
+import { formatSchemaErrors, workflowSchemas } from '../schemas/workflow-schema.mjs';
 
 export { resolveOutputSchemaPath };
 

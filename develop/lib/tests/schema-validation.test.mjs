@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { validateJsonSchema } from 'schema-validation';
 import reviewJoinOutputSchema from '../../../workflows/dev-harness/schemas/review-join-output.json' with { type: 'json' };
-import { assertBatonSchema, assertWorkflowSchema, reviewerSelectionOutputSchema, workflowSchemas } from '../entities/workflow-helpers/schema-validation.mjs';
+import { assertBatonSchema, assertWorkflowSchema, reviewerSelectionOutputSchema, workflowSchemas } from '../schemas/workflow-schema.mjs';
 
 function minimalWorkflowDoc(overrides = {}) {
   return {

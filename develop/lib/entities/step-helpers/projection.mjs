@@ -1,4 +1,4 @@
-import { assertProjectableStateSelector } from '../state-keys.mjs';
+import { assertProjectableStateSelector } from '../workflow-helpers/state-keys.mjs';
 
 export function projectState({ batonState = {}, selectors = [], stepId = '' } = {}) {
   const value = {};
