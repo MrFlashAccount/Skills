@@ -43,10 +43,11 @@ function response(nextBaton = baton()) {
 }
 
 function setupRunDir(name, initialBaton = baton()) {
-  const runDir = path.join(tempDir, name);
+  const runId = `persisted-state-test-${process.pid}-${name}`;
   const workflowPath = path.join(tempDir, `${name}-workflow.json`);
   writeJson(workflowPath, { name: name.replace(/_/g, '-'), version: 1, start: 'prepare', done: 'done', blocked: 'blocked', steps: { prepare: { name: 'Prepare', kind: 'worker', output: { template: 'output.md' }, next: 'done' }, done: { name: 'Done', kind: 'done' }, blocked: { name: 'Blocked', kind: 'blocked' } } });
-  const paths = resolveRunPaths({ runDir, workflowPath });
+  const paths = resolveRunPaths({ runId, workflowPath });
+  rmSync(paths.runDir, { recursive: true, force: true });
   mkdirSync(paths.runnerDir, { recursive: true });
   mkdirSync(paths.instructionsDir, { recursive: true });
   writeJson(paths.batonPath, initialBaton);

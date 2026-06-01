@@ -24,3 +24,6 @@ temp/
 # Private local drafts
 skills/cover-letter-writer/private/*
 !skills/cover-letter-writer/private/.gitkeep
+
+# Local workflow runtime state
+develop/.workflow-runs/

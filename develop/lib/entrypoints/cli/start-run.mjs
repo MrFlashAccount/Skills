@@ -4,6 +4,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { ensureRunFiles, resolveRunPaths } from '../../persistence/run-state/paths.mjs';
+import { upsertRunIndexEntry } from '../../persistence/run-state/run-index.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(scriptDir, '../../..');
@@ -19,14 +20,14 @@ function parseCliArgs(argv) {
     return parseArgs({
       args: argv,
       options: {
-        'run-dir': { type: 'string' },
+        'run-id': { type: 'string' },
         workflow: { type: 'string' },
       },
       strict: true,
       allowPositionals: false,
     }).values;
   } catch (error) {
-    fail(`${error.message}\nusage: node develop/lib/entrypoints/cli/start-run.mjs --run-dir <dir> [--workflow <workflow.json>]`);
+    fail(`${error.message}\nusage: node develop/lib/entrypoints/cli/start-run.mjs --run-id <id> [--workflow <workflow.json>]`);
   }
 }
 
@@ -53,16 +54,17 @@ function inspectWorkflow(workflowPath, batonPath) {
 }
 
 const values = parseCliArgs(process.argv.slice(2));
-const runDir = requireString(values['run-dir'], '--run-dir');
+const runId = requireString(values['run-id'], '--run-id');
 const workflowPath = resolve(values.workflow ?? defaultWorkflowPath);
-const paths = resolveRunPaths({ runDir, workflowPath });
+const paths = resolveRunPaths({ runId, workflowPath });
 
 const { resumed } = await ensureRunFiles(paths);
+await upsertRunIndexEntry(paths, { status: 'running', workflowPath: paths.workflowPath });
 const response = inspectWorkflow(paths.workflowPath, paths.batonPath);
 
 console.log(JSON.stringify({
   ok: true,
-  runDir: paths.runDir,
+  runId: paths.runId,
   baton: paths.batonPath,
   history: paths.historyPath,
   initialized: !resumed,

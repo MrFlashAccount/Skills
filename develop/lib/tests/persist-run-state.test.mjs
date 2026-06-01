@@ -9,6 +9,10 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-persist-'));
 const helperPath = path.join(root, 'develop/lib/entrypoints/cli/persist-run-state.mjs');
+const runsRoot = path.join(root, 'develop/.workflow-runs');
+const runPrefix = `persist-${process.pid}-`;
+function runId(label) { return `${runPrefix}${label}`; }
+function runPath(id) { return path.join(runsRoot, id); }
 
 function writeJson(filePath, value) {
   mkdirSync(path.dirname(filePath), { recursive: true });
@@ -49,15 +53,17 @@ function runPersist(args) {
 
 after(() => {
   rmSync(tempDir, { recursive: true, force: true });
+  for (const label of ['success-run', 'symlink-history-run', 'append-run', 'unreadable-run', 'invalid-run']) rmSync(runPath(runId(label)), { recursive: true, force: true });
 });
 
 test('persist helper atomically replaces baton and appends readable history', () => {
-  const runDir = path.join(tempDir, 'success-run');
+  const id = runId('success-run');
+  const runDir = runPath(id);
   const responsePath = writeJson(path.join(tempDir, 'response.json'), response({ baton: { cursor: 'architecture' } }));
   const outputPath = path.join(runDir, 'outputs/research.json');
 
   const result = runPersist([
-    '--run-dir', runDir,
+    '--run-id', id,
     '--response', responsePath,
     '--output', outputPath,
     '--decision', 'research ready for approval',
@@ -78,43 +84,37 @@ test('persist helper atomically replaces baton and appends readable history', ()
 });
 
 test('persist helper rejects symlinked history without appending outside run dir', () => {
-  const runDir = path.join(tempDir, 'symlink-history-run');
+  const id = runId('symlink-history-run');
+  const runDir = runPath(id);
   mkdirSync(runDir, { recursive: true });
   const outsideHistory = path.join(tempDir, 'outside-history.md');
   writeFileSync(outsideHistory, 'outside must stay private\n');
   symlinkSync(outsideHistory, path.join(runDir, 'history.md'), 'file');
   const inputPath = writeJson(path.join(tempDir, 'symlink-history-baton.json'), baton({ cursor: 'architecture' }));
 
-  const result = runPersist(['--run-dir', runDir, '--baton', inputPath, '--decision', 'must not escape']);
+  const result = runPersist(['--run-id', id, '--baton', inputPath, '--decision', 'must not escape']);
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /symlinked run-state file|symlink/);
   assert.equal(readFileSync(outsideHistory, 'utf8'), 'outside must stay private\n');
 });
 
-test('persist helper rejects symlinked run dir before writing through target', () => {
-  const targetDir = path.join(tempDir, 'symlink-run-dir-target');
-  const runDir = path.join(tempDir, 'symlink-run-dir');
-  mkdirSync(targetDir, { recursive: true });
-  symlinkSync(targetDir, runDir, 'dir');
-  const inputPath = writeJson(path.join(tempDir, 'symlink-run-dir-baton.json'), baton({ cursor: 'architecture' }));
-
-  const result = runPersist(['--run-dir', runDir, '--baton', inputPath, '--decision', 'must not follow']);
+test('persist helper rejects unsafe run id before writing', () => {
+  const inputPath = writeJson(path.join(tempDir, 'unsafe-run-id-baton.json'), baton({ cursor: 'architecture' }));
+  const result = runPersist(['--run-id', '../escape', '--baton', inputPath, '--decision', 'must not follow']);
 
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /refusing to use symlinked run dir/);
-  assert.equal(existsSync(path.join(targetDir, 'baton.json')), false);
-  assert.equal(existsSync(path.join(targetDir, 'history.md')), false);
-  assert.equal(existsSync(path.join(targetDir, '.workflow-runner')), false);
+  assert.match(result.stderr, /invalid workflow runId/);
 });
 
 test('persist helper appends history entries across calls', () => {
-  const runDir = path.join(tempDir, 'append-run');
+  const id = runId('append-run');
+  const runDir = runPath(id);
   const first = writeJson(path.join(tempDir, 'first-baton.json'), baton({ cursor: 'architecture' }));
   const second = writeJson(path.join(tempDir, 'second-baton.json'), baton({ cursor: 'implementation' }));
 
-  assert.equal(runPersist(['--run-dir', runDir, '--baton', first, '--decision', 'first']).status, 0);
-  assert.equal(runPersist(['--run-dir', runDir, '--baton', second, '--decision', 'second']).status, 0);
+  assert.equal(runPersist(['--run-id', id, '--baton', first, '--decision', 'first']).status, 0);
+  assert.equal(runPersist(['--run-id', id, '--baton', second, '--decision', 'second']).status, 0);
 
   const persisted = JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8'));
   const history = readFileSync(path.join(runDir, 'history.md'), 'utf8');
@@ -125,12 +125,13 @@ test('persist helper appends history entries across calls', () => {
 });
 
 test('persist helper does not mutate old baton when response is unreadable', () => {
-  const runDir = path.join(tempDir, 'unreadable-run');
+  const id = runId('unreadable-run');
+  const runDir = runPath(id);
   const oldBaton = baton({ cursor: 'research' });
   writeJson(path.join(runDir, 'baton.json'), oldBaton);
   const before = readFileSync(path.join(runDir, 'baton.json'), 'utf8');
 
-  const result = runPersist(['--run-dir', runDir, '--response', path.join(tempDir, 'missing-response.json')]);
+  const result = runPersist(['--run-id', id, '--response', path.join(tempDir, 'missing-response.json')]);
 
   assert.notEqual(result.status, 0);
   assert.equal(readFileSync(path.join(runDir, 'baton.json'), 'utf8'), before);
@@ -138,13 +139,14 @@ test('persist helper does not mutate old baton when response is unreadable', () 
 });
 
 test('persist helper does not mutate old baton when response fails schema validation', () => {
-  const runDir = path.join(tempDir, 'invalid-run');
+  const id = runId('invalid-run');
+  const runDir = runPath(id);
   const oldBaton = baton({ cursor: 'research' });
   writeJson(path.join(runDir, 'baton.json'), oldBaton);
   const before = readFileSync(path.join(runDir, 'baton.json'), 'utf8');
   const invalidResponse = writeJson(path.join(tempDir, 'invalid-response.json'), { baton: { cursor: 'missing-state' } });
 
-  const result = runPersist(['--run-dir', runDir, '--response', invalidResponse]);
+  const result = runPersist(['--run-id', id, '--response', invalidResponse]);
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /schema validation|must have required property/);

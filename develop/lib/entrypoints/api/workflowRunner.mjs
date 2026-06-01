@@ -15,6 +15,7 @@ import { recoverDurableCommit } from '../../persistence/run-state/durable-commit
 import { readPersistedRunState } from '../../persistence/run-state/PersistedRunStateReader.mjs';
 import { projectRuntimeRunState } from '../../persistence/run-state/persisted-state-schema.mjs';
 import { ensureRunFiles, pathExists, resolveRunPaths } from '../../persistence/run-state/paths.mjs';
+import { upsertRunIndexEntry } from '../../persistence/run-state/run-index.mjs';
 import { withRunStateLock } from '../../persistence/run-state/lock.mjs';
 
 async function readJson(pathname, kind) {
@@ -38,12 +39,12 @@ async function runnerResponseForRendered(paths, rendered, { initialized, resumed
   const workflowDoc = await readJson(paths.workflowPath, 'workflow');
   return {
     ...toHostResponse(rendered, {
-      runDir: paths.runDir,
+      runId: paths.runId,
       workflow: workflowDoc,
       workflowPath: paths.workflowPath,
       repositoryRoot: paths.repositoryRoot,
     }),
-    runDir: paths.runDir,
+    runId: paths.runId,
     workflow: paths.workflowPath,
     initialized,
     resumed,
@@ -62,8 +63,8 @@ async function persistNextHostResponse(paths, rendered, runState) {
   return response;
 }
 
-export async function next({ runDir, workflowPath, includeDiagnostics = false, userPrompt, userPromptFile } = {}) {
-  const paths = resolveRunPaths({ runDir, workflowPath });
+export async function next({ runId, workflowPath, includeDiagnostics = false, userPrompt, userPromptFile, taskKey, taskFingerprint } = {}) {
+  const paths = resolveRunPaths({ runId, workflowPath });
   return withRunStateLock(paths, async () => {
     const hasExistingBaton = await pathExists(paths.batonPath);
     if (!hasExistingBaton && userPromptFile !== undefined && String(userPromptFile).trim().length === 0) {
@@ -76,15 +77,18 @@ export async function next({ runDir, workflowPath, includeDiagnostics = false, u
       ? undefined
       : startupUserPromptTarget({ workflow: workflowDoc, start: workflowDoc?.start });
     const runState = await ensureRunFiles(paths, { userPrompt: startupUserPrompt, userPromptTarget: startupPromptTarget });
+    await upsertRunIndexEntry(paths, { status: 'running', workflowPath: paths.workflowPath, taskKey, taskFingerprint });
     await recoverDurableCommit(paths);
     const persisted = await readPersistedRunState(paths);
     const runtimeState = projectRuntimeRunState(persisted);
     const runtime = loadWorkflowRuntime({ workflowPath: paths.workflowPath, batonPath: paths.batonPath, baton: runtimeState.baton });
     const rendered = runNext({ workflowDoc: runtime.workflow, batonDoc: runtimeState.baton, resources: runtime.resources, includeDiagnostics });
-    return persistNextHostResponse(paths, rendered, {
+    const response = await persistNextHostResponse(paths, rendered, {
       initialized: runState.initialized,
       resumed: runState.resumed,
     });
+    await upsertRunIndexEntry(paths, { status: response.status, workflowPath: paths.workflowPath, taskKey, taskFingerprint });
+    return response;
   });
 }
 
@@ -197,22 +201,23 @@ async function outputForCurrentState(paths, outputRefs = []) {
   return { outputPath: '<parallel host outputs>', outputValue: { steps }, historyOutput: historyOutput.join(', '), currentBaton: current.baton };
 }
 
-async function resolveContinueRunPaths({ runDir, workflowPath }) {
-  if (workflowPath) return resolveRunPaths({ runDir, workflowPath });
+async function resolveContinueRunPaths({ runId, workflowPath }) {
+  if (workflowPath) return resolveRunPaths({ runId, workflowPath });
 
-  const paths = resolveRunPaths({ runDir });
+  const paths = resolveRunPaths({ runId });
   await recoverDurableCommit(paths);
   const current = await readPersistedRunState(paths);
   const lastResponse = current.lastResponse;
   if (typeof lastResponse?.workflow !== 'string' || lastResponse.workflow.length === 0) return paths;
-  return resolveRunPaths({ runDir, workflowPath: lastResponse.workflow });
+  return resolveRunPaths({ runId, workflowPath: lastResponse.workflow });
 }
 
-export async function continueRun({ runDir, workflowPath, output, includeDiagnostics = false }) {
-  const lockPaths = resolveRunPaths({ runDir });
+export async function continueRun({ runId, workflowPath, output, includeDiagnostics = false }) {
+  const lockPaths = resolveRunPaths({ runId });
   return withRunStateLock(lockPaths, async () => {
-    const paths = await resolveContinueRunPaths({ runDir, workflowPath });
+    const paths = await resolveContinueRunPaths({ runId, workflowPath });
     await ensureRunFiles(paths);
+    await upsertRunIndexEntry(paths, { status: 'running', workflowPath: paths.workflowPath });
     await recoverDurableCommit(paths);
     const { outputPath, outputValue, historyOutput, currentBaton } = await outputForCurrentState(paths, normalizeOutputRefs(output));
     const runtime = loadWorkflowRuntime({ workflowPath: paths.workflowPath, batonPath: paths.batonPath, baton: currentBaton });
@@ -227,21 +232,22 @@ export async function continueRun({ runDir, workflowPath, output, includeDiagnos
       instructions: stepInstructionsFor(paths, rendered),
       history: { source: 'workflow-runner-continue', baton: applied.baton, output: historyOutput, requests: response.requests },
     });
+    await upsertRunIndexEntry(paths, { status: response.status, workflowPath: paths.workflowPath });
     return response;
   });
 }
 
-export async function loadInstructions({ runDir, workflowPath, stepId }) {
+export async function loadInstructions({ runId, workflowPath, stepId }) {
   assertSafeStepId(stepId);
-  const paths = resolveRunPaths({ runDir });
+  const paths = resolveRunPaths({ runId });
   await recoverDurableCommit(paths);
   const current = await readPersistedRunState(paths);
   const lastResponse = current.lastResponse;
   if (lastResponse?.status !== 'needs_host_actions') throw new Error(`unknown current workflow step id: ${stepId}`);
-  if (workflowPath) assertLastResponseMatchesWorkflowPath(lastResponse, resolveRunPaths({ runDir, workflowPath }).workflowPath);
+  if (workflowPath) assertLastResponseMatchesWorkflowPath(lastResponse, resolveRunPaths({ runId, workflowPath }).workflowPath);
   assertLastResponseMatchesCurrentBaton(lastResponse, current.baton);
   const runtimePaths = typeof lastResponse.workflow === 'string' && lastResponse.workflow.length > 0
-    ? resolveRunPaths({ runDir, workflowPath: lastResponse.workflow })
+    ? resolveRunPaths({ runId, workflowPath: lastResponse.workflow })
     : paths;
   const runtime = loadWorkflowRuntime({ workflowPath: runtimePaths.workflowPath, batonPath: paths.batonPath, baton: current.baton });
   const instructionPath = instructionPathForStep(paths.instructionsDir, stepId);

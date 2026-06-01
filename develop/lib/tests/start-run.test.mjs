@@ -10,6 +10,10 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../.
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-start-'));
 writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
 const helperPath = path.join(root, 'develop/lib/entrypoints/cli/start-run.mjs');
+const runsRoot = path.join(root, 'develop/.workflow-runs');
+const runPrefix = `start-${process.pid}-`;
+function prefixedRunId(label) { return `${runPrefix}${label}`; }
+function runPath(runId) { return path.join(runsRoot, runId); }
 
 const fixtureWorkflowPath = path.join(tempDir, 'fixture.json');
 const fixtureWorkflowDoc = {
@@ -60,17 +64,23 @@ function baton(overrides = {}) {
 
 after(() => {
   rmSync(tempDir, { recursive: true, force: true });
+  for (const label of ['new-run', 'start-run-user-prompt-rejected', 'resume-run', 'resume-no-history', 'invalid-baton-run']) {
+    rmSync(runPath(prefixedRunId(label)), { recursive: true, force: true });
+  }
 });
 
 test('start-run creates run dir, initializes baton/history, and returns steps', () => {
-  const runDir = path.join(tempDir, 'new-run');
-  const result = runStart(['--run-dir', runDir]);
+  const runId = prefixedRunId('new-run');
+  const runDir = runPath(runId);
+  rmSync(runDir, { recursive: true, force: true });
+  const result = runStart(['--run-id', runId]);
   const status = parseSuccess('new run', result);
 
   assert.equal(status.ok, true);
   assert.equal(status.initialized, true);
   assert.equal(status.resumed, false);
-  assert.equal(status.runDir, runDir);
+  assert.equal(status.runId, runId);
+  assert.equal('runDir' in status, false);
   assert.equal(status.response.baton.cursor, 'worker_step');
   assert.equal(status.response.baton.status, 'running');
   assert.deepEqual(status.response.baton.state, { artifacts: [], results: [] });
@@ -83,19 +93,20 @@ test('start-run creates run dir, initializes baton/history, and returns steps', 
 
 
 test('start-run rejects startup user prompt options; workflow-runner next owns rendering', () => {
-  const runDir = path.join(tempDir, 'start-run-user-prompt-rejected');
+  const runId = prefixedRunId('start-run-user-prompt-rejected');
 
-  const inline = runStart(['--run-dir', runDir, '--user-prompt', 'raw prompt']);
+  const inline = runStart(['--run-id', runId, '--user-prompt', 'raw prompt']);
   assert.notEqual(inline.status, 0);
-  assert.match(inline.stderr, /Unknown option '--user-prompt'|usage: node scripts\/start-run\.mjs --run-dir <dir> \[--workflow <workflow\.json>\]/);
+  assert.match(inline.stderr, /Unknown option '--user-prompt'|usage: node develop\/lib\/entrypoints\/cli\/start-run\.mjs --run-id <id> \[--workflow <workflow\.json>\]/);
 
-  const file = runStart(['--run-dir', runDir, '--user-prompt-file', '']);
+  const file = runStart(['--run-id', runId, '--user-prompt-file', '']);
   assert.notEqual(file.status, 0);
-  assert.match(file.stderr, /Unknown option '--user-prompt-file'|usage: node scripts\/start-run\.mjs --run-dir <dir> \[--workflow <workflow\.json>\]/);
+  assert.match(file.stderr, /Unknown option '--user-prompt-file'|usage: node develop\/lib\/entrypoints\/cli\/start-run\.mjs --run-id <id> \[--workflow <workflow\.json>\]/);
 });
 
 test('start-run resumes existing baton without overwriting it', () => {
-  const runDir = path.join(tempDir, 'resume-run');
+  const runId = prefixedRunId('resume-run');
+  const runDir = runPath(runId);
   rmSync(runDir, { recursive: true, force: true });
   const original = baton();
   writeJson(path.join(runDir, 'baton.json'), original);
@@ -103,7 +114,7 @@ test('start-run resumes existing baton without overwriting it', () => {
   const beforeBaton = readFileSync(path.join(runDir, 'baton.json'), 'utf8');
   const beforeHistory = readFileSync(path.join(runDir, 'history.md'), 'utf8');
 
-  const result = runStart(['--run-dir', runDir]);
+  const result = runStart(['--run-id', runId]);
   const status = parseSuccess('resume run', result);
 
   assert.equal(status.initialized, false);
@@ -115,11 +126,12 @@ test('start-run resumes existing baton without overwriting it', () => {
 });
 
 test('start-run creates missing history when resuming an existing baton', () => {
-  const runDir = path.join(tempDir, 'resume-no-history');
+  const runId = prefixedRunId('resume-no-history');
+  const runDir = runPath(runId);
   rmSync(runDir, { recursive: true, force: true });
   writeJson(path.join(runDir, 'baton.json'), baton());
 
-  const result = runStart(['--run-dir', runDir]);
+  const result = runStart(['--run-id', runId]);
   const status = parseSuccess('resume no history', result);
 
   assert.equal(status.resumed, true);
@@ -128,22 +140,23 @@ test('start-run creates missing history when resuming an existing baton', () => 
 });
 
 test('start-run rejects invalid existing baton without overwriting it', () => {
-  const runDir = path.join(tempDir, 'invalid-baton-run');
+  const runId = prefixedRunId('invalid-baton-run');
+  const runDir = runPath(runId);
   rmSync(runDir, { recursive: true, force: true });
   const invalid = '{\n  "cursor": "research"\n}\n';
   mkdirSync(runDir, { recursive: true });
   writeFileSync(path.join(runDir, 'baton.json'), invalid);
 
-  const result = runStart(['--run-dir', runDir]);
+  const result = runStart(['--run-id', runId]);
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /baton failed schema validation|must have required property/);
   assert.equal(readFileSync(path.join(runDir, 'baton.json'), 'utf8'), invalid);
 });
 
-test('start-run requires concrete run dir', () => {
+test('start-run requires concrete run id', () => {
   const result = runStart([]);
 
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /--run-dir is required/);
+  assert.match(result.stderr, /--run-id is required/);
 });

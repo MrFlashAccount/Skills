@@ -9,7 +9,7 @@ function fail(message) {
 }
 
 function usage() {
-  return 'usage: node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-dir <dir> [--workflow <workflow.json>] [--diagnostics] [--user-prompt <text> | --user-prompt-file <path>] | continue --run-dir <dir> --output <worker-output.json> [--output <step-id=worker-output.json> ...] [--workflow <workflow.json>] [--diagnostics] | instructions --run-dir <dir> --step-id <id> [--workflow <workflow.json>]';
+  return 'usage: node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-id <id> [--workflow <workflow.json>] [--diagnostics] [--user-prompt <text> | --user-prompt-file <path>] | continue --run-id <id> --output <worker-output.json> [--output <step-id=worker-output.json> ...] [--workflow <workflow.json>] [--diagnostics] | instructions --run-id <id> --step-id <id> [--workflow <workflow.json>]';
 }
 
 function parseCliArgs(argv) {
@@ -19,7 +19,7 @@ function parseCliArgs(argv) {
     const parsed = parseArgs({
       args: rest,
       options: {
-        'run-dir': { type: 'string' },
+        'run-id': { type: 'string' },
         'step-id': { type: 'string' },
         workflow: { type: 'string' },
         diagnostics: { type: 'boolean', default: false },
@@ -30,7 +30,7 @@ function parseCliArgs(argv) {
       strict: true,
       allowPositionals: false,
     });
-    if (!parsed.values['run-dir']) fail(usage());
+    if (!parsed.values['run-id']) fail(usage());
     if (mode === 'instructions' && !parsed.values['step-id']) fail(usage());
     if (mode !== 'instructions' && parsed.values['step-id']) fail(usage());
     if (mode !== 'continue' && parsed.values.output?.length) fail(usage());
@@ -46,7 +46,7 @@ try {
   const { mode, values } = parseCliArgs(process.argv.slice(2));
   if (mode === 'instructions') {
     const instructions = await loadInstructions({
-      runDir: values['run-dir'],
+      runId: values['run-id'],
       workflowPath: values.workflow,
       stepId: values['step-id'],
     });
@@ -54,7 +54,7 @@ try {
   } else {
     const command = mode === 'next' ? next : continueRun;
     const response = await command({
-      runDir: values['run-dir'],
+      runId: values['run-id'],
       workflowPath: values.workflow,
       includeDiagnostics: values.diagnostics,
       output: values.output,

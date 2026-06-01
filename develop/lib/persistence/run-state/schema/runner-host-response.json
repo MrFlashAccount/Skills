@@ -31,7 +31,7 @@
         "additionalProperties": false
       }
     },
-    "runDir": { "type": "string", "minLength": 1 },
+    "runId": { "type": "string", "minLength": 1 },
     "workflow": { "type": "string", "minLength": 1 },
     "initialized": { "type": "boolean" },
     "resumed": { "type": "boolean" }

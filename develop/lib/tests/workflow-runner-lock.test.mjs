@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { next as runnerNext } from '../entrypoints/api/workflowRunner.mjs';
+import { resolveRunPaths } from '../persistence/run-state/paths.mjs';
 
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-runner-lock-'));
 
@@ -35,14 +36,16 @@ function workflowDoc() {
 }
 
 test('runner: API next acquires run-state lock before loading and rendering current state', async () => {
-  const runDir = path.join(tempDir, 'api-next-lock-before-render');
+  const runId = `lock-${process.pid}-api-next-lock-before-render`;
   const workflowPath = path.join(tempDir, 'api-next-lock-before-render-workflow.json');
+  const runDir = resolveRunPaths({ runId, workflowPath }).runDir;
+  rmSync(runDir, { recursive: true, force: true });
   writeJson(workflowPath, workflowDoc());
   mkdirSync(path.join(runDir, '.workflow-runner'), { recursive: true });
   writeFileSync(path.join(runDir, '.workflow-runner', 'continue.lock'), 'held');
 
   await assert.rejects(
-    runnerNext({ runDir, workflowPath }),
+    runnerNext({ runId, workflowPath }),
     /workflow-runner continue is already in progress/,
   );
   assert.equal(existsSync(path.join(runDir, 'baton.json')), false);

@@ -1,18 +1,43 @@
 import { constants } from 'node:fs';
 import { access, mkdir, open, writeFile } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defaultRepositoryRootForWorkflow } from '../workflow-resources/resource-resolver.mjs';
 import { assertManagedRunStateFile } from './atomic-file.mjs';
+import { runsIndexPathsForRoot } from './run-index.mjs';
 
 const runnerDir = dirname(fileURLToPath(import.meta.url));
 export const repositoryRoot = resolve(runnerDir, '../../../..');
 export const defaultWorkflowPath = join(repositoryRoot, 'workflows/dev-harness/workflow.json');
+export const workflowRunsRoot = join(repositoryRoot, 'develop/.workflow-runs');
 
-export function resolveRunPaths({ runDir, workflowPath }) {
-  const resolvedRunDir = resolve(runDir);
+const SAFE_RUN_ID = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/;
+
+export function assertSafeRunId(runId) {
+  if (typeof runId !== 'string' || runId.length === 0) throw new Error('runId is required');
+  if (!SAFE_RUN_ID.test(runId)) throw new Error(`invalid workflow runId: ${runId}`);
+  if (runId === '.' || runId === '..') throw new Error(`invalid workflow runId: ${runId}`);
+  if (runId.includes('/') || runId.includes('\\')) throw new Error(`invalid workflow runId: ${runId}`);
+  if (isAbsolute(runId) || runId.startsWith('~') || runId.startsWith('$')) throw new Error(`invalid workflow runId: ${runId}`);
+  if (normalize(runId) !== runId || basename(runId) !== runId) throw new Error(`invalid workflow runId: ${runId}`);
+  return runId;
+}
+
+export function runDirForRunId(runId) {
+  assertSafeRunId(runId);
+  return join(workflowRunsRoot, runId);
+}
+
+export function resolveRunPaths({ runId, workflowPath }) {
+  const safeRunId = assertSafeRunId(runId);
+  const resolvedRunDir = runDirForRunId(safeRunId);
   const resolvedWorkflowPath = resolve(workflowPath ?? defaultWorkflowPath);
+  const indexPaths = runsIndexPathsForRoot(workflowRunsRoot);
   return {
+    runId: safeRunId,
+    runsRoot: indexPaths.runsRoot,
+    runsIndexPath: indexPaths.runsIndexPath,
+    runsIndexLockPath: indexPaths.runsIndexLockPath,
     runDir: resolvedRunDir,
     workflowPath: resolvedWorkflowPath,
     repositoryRoot: defaultRepositoryRootForWorkflow(resolvedWorkflowPath),
@@ -64,6 +89,7 @@ function workflowStart(workflowDoc, workflowPath) {
 }
 
 export async function ensureRunFiles(paths, { userPrompt, userPromptTarget } = {}) {
+  await mkdir(paths.runsRoot, { recursive: true });
   await mkdir(paths.runDir, { recursive: true });
   await mkdir(paths.runnerDir, { recursive: true });
   await mkdir(paths.instructionsDir, { recursive: true });
