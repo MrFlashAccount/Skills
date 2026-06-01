@@ -22,7 +22,7 @@ Before calling `workflow-runner`, always discover public runs through the index 
 node develop/lib/entrypoints/cli/workflow-runs.mjs list
 ```
 
-Use the JSON output to match resumable/current candidates semantically by human-readable fields such as `runId`, title/summary, workflow, status, timestamps, task key/fingerprint, and worker lease metadata. Do not ask the user to choose by private directories.
+Use the JSON output to match resumable/current candidates semantically by human-readable fields such as `runId`, title/summary, workflow identity, status, timestamps, task key/fingerprint, and occupancy state. Do not ask the user to choose by private directories or hidden authority metadata.
 
 - If exactly one candidate clearly matches the current task, reuse its `runId` only after claiming it.
 - If multiple plausible candidates match, ask the user to choose using human-readable summaries from the JSON.
@@ -41,16 +41,16 @@ Before starting or resuming any run, claim the selected `runId` atomically:
 node develop/lib/entrypoints/cli/workflow-runs.mjs claim --run-id <run-id> --owner <owner> --harness <harness> --session-id <session-id>
 ```
 
-Lease metadata is portable and optional: `owner`, `harness`, `sessionId`, and `workerId` describe the caller without assuming a specific harness. A fresh lease owned by someone else must return an occupied response instead of attaching. Long-running harnesses should renew by re-running `claim`/`heartbeat` before `leaseExpiresAt`; `heartbeat` is an alias for claim renewal.
+Lease metadata is portable and optional: `owner`, `harness`, `sessionId`, and `workerId` describe the caller without assuming a specific harness. It is stored as private runner authority and is not projected by list/conflict output. A fresh lease owned by someone else must return an occupied response instead of attaching. Long-running harnesses should renew by re-running `claim`/`heartbeat` before `leaseExpiresAt`; `heartbeat` is an alias for claim renewal.
 
-The create/claim commands return JSON containing the public `runId` and occupancy. Use only `--run-id <run-id>` with runtime commands after selection/creation; do not pass or derive private `runDir`/`runsRoot` paths.
+The create/claim commands return JSON containing the public `runId` and occupancy only. Use only `--run-id <run-id>` with runtime commands after selection/creation; do not pass or derive private `runDir`/`runsRoot` paths.
 
 ## Runner commands
 
 Start or resume a run from the repo root:
 
 ```bash
-node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-id <run-id> --workflow <workflow>
+node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-id <run-id>
 ```
 
 Continue after host request outputs are ready:

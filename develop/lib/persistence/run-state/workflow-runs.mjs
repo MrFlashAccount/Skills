@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
+import { createManagedDirectory, writeJsonAtomic } from './atomic-file.mjs';
 import { assertSafeRunId, defaultWorkflowPath, resolveRunPaths, workflowRunsRoot } from './paths.mjs';
 import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot, updateRunIndexEntry } from './run-index.mjs';
 
@@ -11,14 +12,13 @@ function occupancyForLease(workerLease, now = new Date()) {
   const expiresAt = Date.parse(workerLease.leaseExpiresAt ?? '');
   const hasFreshExpiry = Number.isFinite(expiresAt) && expiresAt > now.getTime();
   return hasFreshExpiry
-    ? { state: 'occupied', claimed: true, leaseExpiresAt: workerLease.leaseExpiresAt, owner: workerLease.owner, harness: workerLease.harness, sessionId: workerLease.sessionId, workerId: workerLease.workerId }
-    : { state: 'stale', claimed: false, leaseExpiresAt: workerLease.leaseExpiresAt, owner: workerLease.owner, harness: workerLease.harness, sessionId: workerLease.sessionId, workerId: workerLease.workerId };
+    ? { state: 'occupied', claimed: true, leaseExpiresAt: workerLease.leaseExpiresAt }
+    : { state: 'stale', claimed: false, leaseExpiresAt: workerLease.leaseExpiresAt };
 }
 
 function publicRun(entry, { now = new Date() } = {}) {
   const workflow = {
     identity: entry.workflow?.identity,
-    path: entry.workflow?.path,
   };
   for (const key of Object.keys(workflow)) if (workflow[key] === undefined) delete workflow[key];
   const result = {
@@ -108,9 +108,23 @@ function workflowPathForCreate(workflowPath) {
   return workflowPath === undefined ? defaultWorkflowPath : resolve(workflowPath);
 }
 
+async function writePrivateAuthority(paths, workerLease) {
+  if (!workerLease) return;
+  await createManagedDirectory(paths.runDir, 'workflow run directory');
+  await createManagedDirectory(paths.runnerDir, 'workflow runner directory');
+  await writeJsonAtomic(paths.authorityPath, {
+    owner: workerLease.owner,
+    harness: workerLease.harness,
+    sessionId: workerLease.sessionId,
+    workerId: workerLease.workerId,
+    leaseExpiresAt: workerLease.leaseExpiresAt,
+  });
+}
+
 export async function registerWorkflowRunAtRoot({ runId, title, summary, workflowPath, workflowIdentity, status = 'running', taskKey, taskFingerprint, runsRoot = workflowRunsRoot, claim = false, owner, harness, sessionId, workerId, leaseMs, now = new Date() } = {}) {
   const safeRunId = runId === undefined ? generatedRunId() : assertSafeRunId(runId);
   const paths = resolveRunPaths({ runId: safeRunId, workflowPath: workflowPathForCreate(workflowPath), runsRoot });
+  const workerLease = claim ? buildWorkerLease({ owner, harness, sessionId, workerId, leaseMs, now }) : null;
   const entry = await createRunIndexEntry(paths, {
     title,
     summary,
@@ -119,8 +133,9 @@ export async function registerWorkflowRunAtRoot({ runId, title, summary, workflo
     status,
     taskKey,
     taskFingerprint,
-    workerLease: claim ? buildWorkerLease({ owner, harness, sessionId, workerId, leaseMs, now }) : null,
+    workerLease,
   });
+  await writePrivateAuthority(paths, workerLease);
   return publicRun(entry, { now });
 }
 
@@ -143,6 +158,7 @@ export async function claimWorkflowRunAtRoot({ runId, workflowPath, runsRoot = w
         workerLease: buildWorkerLease({ owner, harness, sessionId, workerId, leaseMs, now }),
       };
     });
+    await writePrivateAuthority(paths, entry.workerLease);
     return { ok: true, claimed: true, runId: safeRunId, run: publicRun(entry, { now }) };
   } catch (error) {
     if (error?.code === 'WORKFLOW_RUN_OCCUPIED') {

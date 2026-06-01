@@ -143,3 +143,35 @@ test('runner fairness: loadInstructions rejects unauthorized lease identity', as
     /workflow run is occupied/,
   );
 });
+
+test('runner fairness: private claim authority lets generated run-id-only commands operate without public authority leakage', async () => {
+  const workflowPath = path.join(tempDir, 'private-authority-run-id-only.json');
+  writeJson(workflowPath, workflowDoc);
+  const { runId } = runCase('private-authority-run-id-only', workflowPath);
+  await registerWorkflowRunAtRoot({ runId, workflowPath, workflowIdentity: 'fairness-private-authority', claim: true, owner: 'alice', harness: 'portable', sessionId: 'session-a', leaseMs: 60_000, now: new Date('2026-06-01T10:00:00.000Z') });
+
+  const response = await runnerNext({ runId, now: new Date('2026-06-01T10:00:01.000Z') });
+
+  assert.equal(response.status, 'needs_host_actions');
+  assert.equal('workflow' in response, false);
+  assert.equal(response.requests[0].loadInstructionsCommand, `node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-id '${runId}' --step-id 'prepare'`);
+  assert.doesNotMatch(JSON.stringify(response), /alice|session-a|portable/);
+});
+
+test('runner fairness: missing host output does not mutate lifecycle status before durable apply', async () => {
+  const workflowPath = path.join(tempDir, 'continue-missing-output-no-status-mutation.json');
+  writeJson(workflowPath, workflowDoc);
+  const { runId } = runCase('continue-missing-output-no-status-mutation', workflowPath);
+  const paths = resolveRunPaths({ runId, workflowPath });
+  await registerWorkflowRunAtRoot({ runId, workflowPath, status: 'needs_host_actions', claim: true, owner: 'alice', harness: 'portable', sessionId: 'session-a', leaseMs: 60_000, now: new Date('2026-06-01T10:00:00.000Z') });
+  await runnerNext({ runId, workflowPath, owner: 'alice', harness: 'portable', sessionId: 'session-a', now: new Date('2026-06-01T10:00:01.000Z') });
+  await claimWorkflowRunAtRoot({ runId, workflowPath, owner: 'alice', harness: 'portable', sessionId: 'session-a', leaseMs: 60_000, now: new Date('2026-06-01T10:00:02.000Z') });
+  const before = snapshotRunState(paths);
+
+  await assert.rejects(
+    () => runnerContinue({ runId, output: path.join(tempDir, 'missing-output.json'), now: new Date('2026-06-01T10:00:03.000Z') }),
+    /missing host output/,
+  );
+
+  assert.deepEqual(snapshotRunState(paths), before);
+});

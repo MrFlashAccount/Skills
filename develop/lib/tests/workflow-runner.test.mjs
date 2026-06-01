@@ -523,7 +523,7 @@ test('runner: continue reuses saved custom workflow when --workflow is omitted',
   const response = expectRunner(['continue', '--run-id', runId, '--output', outputPath], 'continue custom workflow without workflow arg');
 
   assert.equal(response.status, 'done');
-  assert.equal(response.workflow, path.resolve(workflowPath));
+  assert.equal('workflow' in response, false);
   assert.equal(response.baton.cursor, 'done');
   assert.equal(response.baton.state.prepare.results[0].summary, 'prepared with saved workflow');
 });

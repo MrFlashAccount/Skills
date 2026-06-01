@@ -9,7 +9,7 @@ function fail(message) {
 }
 
 function usage() {
-  return 'usage: node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-id <id> [--workflow <workflow.json>] [--diagnostics] [--user-prompt <text> | --user-prompt-file <path>] | continue --run-id <id> --output <worker-output.json> [--output <step-id=worker-output.json> ...] [--workflow <workflow.json>] [--diagnostics] | instructions --run-id <id> --step-id <id> [--workflow <workflow.json>]';
+  return 'usage: node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-id <id> [--workflow <workflow.json>] [--diagnostics] [--user-prompt <text> | --user-prompt-file <path>] [lease metadata] | continue --run-id <id> --output <worker-output.json> [--output <step-id=worker-output.json> ...] [--workflow <workflow.json>] [--diagnostics] [lease metadata] | instructions --run-id <id> --step-id <id> [--workflow <workflow.json>] [lease metadata]';
 }
 
 function parseCliArgs(argv) {
@@ -26,6 +26,10 @@ function parseCliArgs(argv) {
         output: { type: 'string', multiple: true },
         'user-prompt': { type: 'string' },
         'user-prompt-file': { type: 'string' },
+        owner: { type: 'string' },
+        harness: { type: 'string' },
+        'session-id': { type: 'string' },
+        'worker-id': { type: 'string' },
       },
       strict: true,
       allowPositionals: false,
@@ -42,6 +46,15 @@ function parseCliArgs(argv) {
   }
 }
 
+function leaseArgs(values) {
+  return {
+    owner: values.owner,
+    harness: values.harness,
+    sessionId: values['session-id'],
+    workerId: values['worker-id'],
+  };
+}
+
 try {
   const { mode, values } = parseCliArgs(process.argv.slice(2));
   if (mode === 'instructions') {
@@ -49,6 +62,7 @@ try {
       runId: values['run-id'],
       workflowPath: values.workflow,
       stepId: values['step-id'],
+      ...leaseArgs(values),
     });
     process.stdout.write(instructions);
   } else {
@@ -60,6 +74,7 @@ try {
       output: values.output,
       userPrompt: values['user-prompt'],
       userPromptFile: values['user-prompt-file'],
+      ...leaseArgs(values),
     });
     console.log(JSON.stringify(response, null, 2));
   }
