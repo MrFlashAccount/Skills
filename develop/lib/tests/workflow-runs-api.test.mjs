@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after, beforeEach } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { claimWorkflowRun, listWorkflowRuns, registerWorkflowRun, summarizeWorkflowRuns } from '../entrypoints/api/workflowRuns.mjs';
+import { claimWorkflowRun, heartbeatWorkflowRun, listWorkflowRuns, registerWorkflowRun, summarizeWorkflowRuns } from '../entrypoints/api/workflowRuns.mjs';
+import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot } from '../persistence/run-state/run-index.mjs';
+import { resolveRunPaths } from '../persistence/run-state/paths.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-runs-api-'));
@@ -12,6 +14,25 @@ const runsRoot = path.join(tempDir, 'runs');
 const runsIndexPath = path.join(runsRoot, 'runs.json');
 const defaultWorkflow = path.join(root, 'workflows/dev-harness/workflow.json');
 const runPrefix = `runs-api-${process.pid}-`;
+
+function makeSymlinkedRunsRoot() {
+  const symlinkCaseRoot = mkdtempSync(path.join(tempDir, 'symlinked-runs-root-'));
+  const escapedTarget = path.join(symlinkCaseRoot, 'escaped-target');
+  const symlinkedRunsRoot = path.join(symlinkCaseRoot, 'runs-link');
+  mkdirSync(escapedTarget, { recursive: true });
+  symlinkSync(escapedTarget, symlinkedRunsRoot, 'dir');
+  return { escapedTarget, symlinkedRunsRoot };
+}
+
+async function assertSymlinkedRunsRootRejected(operation) {
+  const { escapedTarget, symlinkedRunsRoot } = makeSymlinkedRunsRoot();
+  await assert.rejects(
+    () => operation(symlinkedRunsRoot),
+    /workflow runs root is unsafe because it is a symlink/,
+  );
+  assert.equal(existsSync(path.join(escapedTarget, 'runs.json')), false);
+  assert.equal(existsSync(path.join(escapedTarget, '.runs.json.lock')), false);
+}
 
 function resetIndex(content) {
   rmSync(runsRoot, { recursive: true, force: true });
@@ -121,6 +142,66 @@ test('workflow runs API takes over stale lease after expiry', async () => {
   assert.equal(response.run.workerLease.harness, 'portable');
 });
 
+test('workflow runs API heartbeat renews matching worker lease', async () => {
+  const runId = `${runPrefix}heartbeat-api`;
+  await registerWorkflowRun({ runsRoot, runId, claim: true, owner: 'alice', harness: 'portable', sessionId: 'session-a', leaseMs: 1_000, now: new Date('2026-06-01T10:00:00.000Z') });
+
+  const response = await heartbeatWorkflowRun({ runsRoot, runId, owner: 'alice', harness: 'portable', sessionId: 'session-a', leaseMs: 60_000, now: new Date('2026-06-01T10:00:00.500Z') });
+
+  assert.equal(response.ok, true);
+  assert.equal(response.run.workerLease.owner, 'alice');
+  assert.equal(response.run.workerLease.heartbeatAt, '2026-06-01T10:00:00.500Z');
+  assert.equal(response.run.workerLease.leaseExpiresAt, '2026-06-01T10:01:00.500Z');
+});
+
+test('workflow runs API rejects symlinked runs root for list without reading escaped index', async () => {
+  const { escapedTarget, symlinkedRunsRoot } = makeSymlinkedRunsRoot();
+  writeFileSync(path.join(escapedTarget, 'runs.json'), JSON.stringify({
+    schemaVersion: 1,
+    topologyVersion: 'workflow-runs-v1',
+    runs: {},
+  }));
+
+  await assert.rejects(
+    () => listWorkflowRuns({ runsRoot: symlinkedRunsRoot }),
+    /workflow runs root is unsafe because it is a symlink/,
+  );
+});
+
+test('workflow runs API rejects symlinked runs root for create without write escape', async () => {
+  await assertSymlinkedRunsRootRejected((symlinkedRunsRoot) => registerWorkflowRun({
+    runsRoot: symlinkedRunsRoot,
+    runId: `${runPrefix}symlink-create`,
+    title: 'Blocked create',
+  }));
+});
+
+test('workflow runs API rejects symlinked runs root for claim without write escape', async () => {
+  await assertSymlinkedRunsRootRejected((symlinkedRunsRoot) => claimWorkflowRun({
+    runsRoot: symlinkedRunsRoot,
+    runId: `${runPrefix}symlink-claim`,
+    owner: 'alice',
+    leaseMs: 60_000,
+  }));
+});
+
+test('workflow runs index operations reject symlinked runs root without write escape', async () => {
+  await assertSymlinkedRunsRootRejected((symlinkedRunsRoot) => createRunIndexEntry(
+    resolveRunPaths({ runId: `${runPrefix}symlink-index`, workflowPath: defaultWorkflow, runsRoot: symlinkedRunsRoot }),
+    { title: 'Blocked index write' },
+  ));
+});
+
+test('workflow runs index read rejects symlinked runs root before escaped index read', async () => {
+  const { escapedTarget, symlinkedRunsRoot } = makeSymlinkedRunsRoot();
+  writeFileSync(path.join(escapedTarget, 'runs.json'), '{not-json');
+
+  await assert.rejects(
+    () => readRunsIndex(runsIndexPathsForRoot(symlinkedRunsRoot)),
+    /workflow runs root is unsafe because it is a symlink/,
+  );
+});
+
 test('workflow runs list exposes occupied, stale, and unclaimed occupancy JSON plus summary text', async () => {
   await registerWorkflowRun({ runsRoot, runId: `${runPrefix}list-occupied`, title: 'Occupied', claim: true, owner: 'alice', leaseMs: 60_000, now: new Date('2026-06-01T10:00:00.000Z') });
   await registerWorkflowRun({ runsRoot, runId: `${runPrefix}list-stale`, title: 'Stale', claim: true, owner: 'bob', leaseMs: 1_000, now: new Date('2026-06-01T10:00:00.000Z') });
@@ -154,4 +235,30 @@ test('workflow-runs CLI list exposes occupancy JSON and human-readable display',
   assert.equal(humanResult.status, 0, humanResult.stderr);
   assert.match(humanResult.stdout, /workflow runs: 2 total, 1 occupied, 0 stale, 1 unclaimed/);
   assert.match(humanResult.stdout, new RegExp(`${runPrefix}cli-occupied: running, occupied`));
+});
+
+test('workflow-runs CLI usage documents heartbeat', async () => {
+  const { spawnSync } = await import('node:child_process');
+  const helperPath = path.join(root, 'develop/lib/entrypoints/cli/workflow-runs.mjs');
+
+  const result = spawnSync(process.execPath, [helperPath, 'heartbeat'], { cwd: root, encoding: 'utf8' });
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /heartbeat --run-id <id>/);
+});
+
+test('workflow-runs CLI heartbeat renews worker lease', async () => {
+  const { spawnSync } = await import('node:child_process');
+  const helperPath = path.join(root, 'develop/lib/entrypoints/cli/workflow-runs.mjs');
+  const runId = `${runPrefix}cli-heartbeat`;
+  await registerWorkflowRun({ runsRoot, runId, claim: true, owner: 'alice', harness: 'portable', sessionId: 'session-a', leaseMs: 1_000, now: new Date('2026-06-01T10:00:00.000Z') });
+
+  const env = { ...process.env, WORKFLOW_RUNS_ROOT: runsRoot };
+  const result = spawnSync(process.execPath, [helperPath, 'heartbeat', '--run-id', runId, '--owner', 'alice', '--harness', 'portable', '--session-id', 'session-a', '--lease-ms', '60000'], { cwd: root, env, encoding: 'utf8' });
+
+  assert.equal(result.status, 0, result.stderr);
+  const response = JSON.parse(result.stdout);
+  assert.equal(response.ok, true);
+  assert.equal(response.run.workerLease.owner, 'alice');
+  assert.notEqual(response.run.workerLease.heartbeatAt, '2026-06-01T10:00:00.000Z');
 });

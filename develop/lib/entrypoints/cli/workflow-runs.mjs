@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
-import { claimWorkflowRun, listWorkflowRuns, registerWorkflowRun, summarizeWorkflowRuns } from '../api/workflowRuns.mjs';
+import { claimWorkflowRun, heartbeatWorkflowRun, listWorkflowRuns, registerWorkflowRun, summarizeWorkflowRuns } from '../api/workflowRuns.mjs';
 
 function fail(message) {
   console.error(`workflow-runs: ${message}`);
@@ -8,7 +8,7 @@ function fail(message) {
 }
 
 function usage() {
-  return 'usage: node develop/lib/entrypoints/cli/workflow-runs.mjs list [--human] | create [--claim] [--run-id <id>] [--workflow <workflow.json>] [--workflow-identity <identity>] [--title <title>] [--summary <summary>] [--task-key <key>] [--task-fingerprint <fingerprint>] [lease metadata] | claim --run-id <id> [--workflow <workflow.json>] [lease metadata]';
+  return 'usage: node develop/lib/entrypoints/cli/workflow-runs.mjs list [--human] | create [--claim] [--run-id <id>] [--workflow <workflow.json>] [--workflow-identity <identity>] [--title <title>] [--summary <summary>] [--task-key <key>] [--task-fingerprint <fingerprint>] [lease metadata] | claim --run-id <id> [--workflow <workflow.json>] [lease metadata] | heartbeat --run-id <id> [--workflow <workflow.json>] [lease metadata]';
 }
 
 const options = {
@@ -79,7 +79,8 @@ try {
     });
     console.log(JSON.stringify(response, null, 2));
   } else {
-    const response = await claimWorkflowRun({
+    const leaseAction = mode === 'heartbeat' ? heartbeatWorkflowRun : claimWorkflowRun;
+    const response = await leaseAction({
       runsRoot: runsRootArg(),
       runId: values['run-id'],
       workflowPath: values.workflow,

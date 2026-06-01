@@ -136,3 +136,7 @@ export async function claimWorkflowRun({ runId, workflowPath, runsRoot = workflo
     throw error;
   }
 }
+
+export async function heartbeatWorkflowRun(options = {}) {
+  return claimWorkflowRun(options);
+}

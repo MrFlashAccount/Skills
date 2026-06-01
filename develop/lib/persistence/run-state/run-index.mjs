@@ -1,7 +1,7 @@
 import { constants } from 'node:fs';
-import { access, mkdir, open, readFile, rm } from 'node:fs/promises';
+import { access, open, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { assertManagedRunStateFile, writeJsonAtomic } from './atomic-file.mjs';
+import { assertManagedDirectory, assertManagedRunStateFile, createManagedDirectory, writeJsonAtomic } from './atomic-file.mjs';
 import { assertRunsIndexSchema } from './schema/runs-index-schema.mjs';
 
 export const RUNS_INDEX_SCHEMA_VERSION = 1;
@@ -27,6 +27,7 @@ function pruneUndefinedProperties(value) {
 }
 
 export async function readRunsIndex(paths) {
+  await assertManagedDirectory(paths.runsRoot, 'workflow runs root');
   await assertManagedRunStateFile(paths.runsIndexPath, 'workflow runs index');
   if (!(await exists(paths.runsIndexPath))) {
     return { schemaVersion: RUNS_INDEX_SCHEMA_VERSION, topologyVersion: RUNS_INDEX_TOPOLOGY_VERSION, runs: {} };
@@ -43,7 +44,7 @@ async function sleep(ms) {
 }
 
 export async function withRunsIndexLock(paths, callback) {
-  await mkdir(paths.runsRoot, { recursive: true });
+  await createManagedDirectory(paths.runsRoot, 'workflow runs root');
   await assertManagedRunStateFile(paths.runsIndexLockPath, 'workflow runs index lock');
   let handle;
   const deadline = Date.now() + 2000;
