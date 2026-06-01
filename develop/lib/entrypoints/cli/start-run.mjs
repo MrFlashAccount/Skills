@@ -26,7 +26,7 @@ function parseCliArgs(argv) {
       allowPositionals: false,
     }).values;
   } catch (error) {
-    fail(`${error.message}\nusage: node develop/lib/bin/start-run.mjs --run-dir <dir> [--workflow <workflow.json>]`);
+    fail(`${error.message}\nusage: node develop/lib/entrypoints/cli/start-run.mjs --run-dir <dir> [--workflow <workflow.json>]`);
   }
 }
 

@@ -32,12 +32,12 @@ function emit(response) {
   console.log(JSON.stringify(response, null, 2));
 }
 
-const DEFAULT_USAGE = 'usage: node develop/lib/bin/workflow-interpreter.mjs inspect <workflow.json> <baton.json> | render [--diagnostics] <workflow.json> <baton.json> | apply <workflow.json> <baton.json> <worker-output.json>';
+const DEFAULT_USAGE = 'usage: node develop/lib/entrypoints/cli/workflow-interpreter.mjs inspect <workflow.json> <baton.json> | render [--diagnostics] <workflow.json> <baton.json> | apply <workflow.json> <baton.json> <worker-output.json>';
 
 const USAGE_BY_MODE = {
-  inspect: 'usage: node develop/lib/bin/workflow-interpreter.mjs inspect <workflow.json> <baton.json>',
-  render: 'usage: node develop/lib/bin/workflow-interpreter.mjs render [--diagnostics] <workflow.json> <baton.json>',
-  apply: 'usage: node develop/lib/bin/workflow-interpreter.mjs apply <workflow.json> <baton.json> <worker-output.json>',
+  inspect: 'usage: node develop/lib/entrypoints/cli/workflow-interpreter.mjs inspect <workflow.json> <baton.json>',
+  render: 'usage: node develop/lib/entrypoints/cli/workflow-interpreter.mjs render [--diagnostics] <workflow.json> <baton.json>',
+  apply: 'usage: node develop/lib/entrypoints/cli/workflow-interpreter.mjs apply <workflow.json> <baton.json> <worker-output.json>',
 };
 
 const COMMANDS = {

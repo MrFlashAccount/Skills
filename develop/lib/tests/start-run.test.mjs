@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-start-'));
 writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
-const helperPath = path.join(root, 'develop/lib/bin/start-run.mjs');
+const helperPath = path.join(root, 'develop/lib/entrypoints/cli/start-run.mjs');
 
 const fixtureWorkflowPath = path.join(tempDir, 'fixture.json');
 const fixtureWorkflowDoc = {

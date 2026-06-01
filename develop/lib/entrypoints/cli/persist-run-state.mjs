@@ -27,7 +27,7 @@ function parseCliArgs(argv) {
       allowPositionals: false,
     }).values;
   } catch (error) {
-    fail(`${error.message}\nusage: node develop/lib/bin/persist-run-state.mjs --run-dir <dir> [--workflow <workflow.json>] (--response <workflow-interpreter-response.json> | --baton <new-baton.json>) [--output <worker-output-path>] [--decision <text>]`);
+    fail(`${error.message}\nusage: node develop/lib/entrypoints/cli/persist-run-state.mjs --run-dir <dir> [--workflow <workflow.json>] (--response <workflow-interpreter-response.json> | --baton <new-baton.json>) [--output <worker-output-path>] [--decision <text>]`);
   }
 }
 
