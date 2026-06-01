@@ -10,6 +10,6 @@ test-workflow-e2e:
 	node --test $(WORKFLOW_E2E_TEST_FILES)
 
 workflow-validate:
-	cd .. && node develop/lib/entrypoints/cli/validate-workflow.mjs
+	cd .. && node develop/lib/entrypoints/cli/validate-workflow.mjs workflows/dev-harness/workflow.json workflows/research-critic/workflow.json
 
 validate: test workflow-validate

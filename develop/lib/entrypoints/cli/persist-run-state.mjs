@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { mkdir, readFile } from 'node:fs/promises';
+import { lstat, mkdir, readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { assertBatonSchema } from '../../entities/Baton/schema/baton-schema.mjs';
 import { assertResponseSchema } from '../../use-cases/runtime/output/response-schema.mjs';
@@ -45,6 +45,15 @@ function assertPersistSchema(assertFn, value) {
     assertFn(value);
   } catch (error) {
     fail(error.message);
+  }
+}
+
+async function assertRunDirIsNotSymlink(path) {
+  try {
+    if ((await lstat(path)).isSymbolicLink()) fail(`refusing to use symlinked run dir: ${path}`);
+  } catch (error) {
+    if (error?.code === 'ENOENT') return;
+    fail(`cannot inspect run dir ${path}: ${error.message}`);
   }
 }
 
@@ -101,6 +110,7 @@ const baton = responsePath ? input.baton : input;
 const steps = responsePath ? input.steps : undefined;
 requireObject(baton, 'baton');
 
+await assertRunDirIsNotSymlink(runDir);
 const paths = resolveRunPaths({ runDir, workflowPath: values.workflow });
 await mkdir(paths.runDir, { recursive: true });
 await mkdir(paths.runnerDir, { recursive: true });
