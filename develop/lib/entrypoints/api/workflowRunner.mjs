@@ -15,7 +15,7 @@ import { recoverDurableCommit } from '../../persistence/run-state/durable-commit
 import { readPersistedRunState } from '../../persistence/run-state/PersistedRunStateReader.mjs';
 import { projectRuntimeRunState } from '../../persistence/run-state/persisted-state-schema.mjs';
 import { ensureRunFiles, pathExists, resolveRunPaths } from '../../persistence/run-state/paths.mjs';
-import { upsertRunIndexEntry } from '../../persistence/run-state/run-index.mjs';
+import { readRunsIndex, runsIndexPathsForRoot, upsertRunIndexEntry } from '../../persistence/run-state/run-index.mjs';
 import { withRunStateLock } from '../../persistence/run-state/lock.mjs';
 
 async function readJson(pathname, kind) {
@@ -51,6 +51,38 @@ async function runnerResponseForRendered(paths, rendered, { initialized, resumed
   };
 }
 
+const LEASE_IDENTITY_FIELDS = ['owner', 'harness', 'sessionId', 'workerId'];
+
+function leaseIdentityKeys(metadata = {}) {
+  return LEASE_IDENTITY_FIELDS.filter((key) => metadata[key] !== undefined);
+}
+
+function toLeaseMetadata({ owner, harness, sessionId, workerId } = {}) {
+  const metadata = { owner, harness, sessionId, workerId };
+  for (const key of Object.keys(metadata)) if (metadata[key] === undefined) delete metadata[key];
+  return metadata;
+}
+
+function leaseIdentityMatches(existingLease, requestedMetadata) {
+  const existingKeys = leaseIdentityKeys(existingLease);
+  const requestedKeys = leaseIdentityKeys(requestedMetadata);
+  if (existingKeys.length === 0 || requestedKeys.length === 0) return false;
+  if (existingKeys.length !== requestedKeys.length) return false;
+  if (!existingKeys.every((key) => requestedKeys.includes(key))) return false;
+  return existingKeys.every((key) => existingLease?.[key] === requestedMetadata[key]);
+}
+
+async function assertWorkerLeaseAuthority(paths, { owner, harness, sessionId, workerId, now = new Date() } = {}) {
+  const index = await readRunsIndex(runsIndexPathsForRoot(paths.runsRoot));
+  const run = index.runs[paths.runId];
+  if (!run?.workerLease) return;
+  const expiresAt = Date.parse(run.workerLease.leaseExpiresAt ?? '');
+  if (!Number.isFinite(expiresAt) || expiresAt <= now.getTime()) throw new Error(`workflow run lease is stale: ${paths.runId}`);
+  if (!leaseIdentityMatches(run.workerLease, toLeaseMetadata({ owner, harness, sessionId, workerId }))) {
+    throw new Error(`workflow run is occupied: ${paths.runId}`);
+  }
+}
+
 async function persistNextHostResponse(paths, rendered, runState) {
   const response = await runnerResponseForRendered(paths, rendered, runState);
   await writePersistedRunStateUpdate(paths, {
@@ -63,9 +95,10 @@ async function persistNextHostResponse(paths, rendered, runState) {
   return response;
 }
 
-export async function next({ runId, workflowPath, includeDiagnostics = false, userPrompt, userPromptFile, taskKey, taskFingerprint } = {}) {
+export async function next({ runId, workflowPath, includeDiagnostics = false, userPrompt, userPromptFile, taskKey, taskFingerprint, owner, harness, sessionId, workerId, now = new Date() } = {}) {
   const paths = resolveRunPaths({ runId, workflowPath });
   return withRunStateLock(paths, async () => {
+    await assertWorkerLeaseAuthority(paths, { owner, harness, sessionId, workerId, now });
     const hasExistingBaton = await pathExists(paths.batonPath);
     if (!hasExistingBaton && userPromptFile !== undefined && String(userPromptFile).trim().length === 0) {
       throw new Error('--user-prompt-file path must not be empty or whitespace-only');
@@ -212,10 +245,11 @@ async function resolveContinueRunPaths({ runId, workflowPath }) {
   return resolveRunPaths({ runId, workflowPath: lastResponse.workflow });
 }
 
-export async function continueRun({ runId, workflowPath, output, includeDiagnostics = false }) {
+export async function continueRun({ runId, workflowPath, output, includeDiagnostics = false, owner, harness, sessionId, workerId, now = new Date() }) {
   const lockPaths = resolveRunPaths({ runId });
   return withRunStateLock(lockPaths, async () => {
     const paths = await resolveContinueRunPaths({ runId, workflowPath });
+    await assertWorkerLeaseAuthority(paths, { owner, harness, sessionId, workerId, now });
     await ensureRunFiles(paths);
     await upsertRunIndexEntry(paths, { status: 'running', workflowPath: paths.workflowPath });
     await recoverDurableCommit(paths);
@@ -237,9 +271,10 @@ export async function continueRun({ runId, workflowPath, output, includeDiagnost
   });
 }
 
-export async function loadInstructions({ runId, workflowPath, stepId }) {
+export async function loadInstructions({ runId, workflowPath, stepId, owner, harness, sessionId, workerId, now = new Date() }) {
   assertSafeStepId(stepId);
   const paths = resolveRunPaths({ runId });
+  await assertWorkerLeaseAuthority(paths, { owner, harness, sessionId, workerId, now });
   await recoverDurableCommit(paths);
   const current = await readPersistedRunState(paths);
   const lastResponse = current.lastResponse;

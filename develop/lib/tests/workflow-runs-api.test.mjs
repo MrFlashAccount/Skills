@@ -96,7 +96,7 @@ test('workflow runs API creates accepted safe run id with public metadata only',
   assert.equal(response.status, 'running');
   assert.equal(response.taskKey, 'task:key/1');
   assert.equal(response.taskFingerprint, 'fingerprint-1');
-  assert.equal(response.workerLease, null);
+  assert.equal('workerLease' in response, false);
   assert.equal('runDir' in response, false);
   assert.equal('runsRoot' in response, false);
 
@@ -144,7 +144,8 @@ test('workflow runs API rejects occupied fresh lease owned by someone else', asy
   assert.equal(response.ok, false);
   assert.equal(response.reason, 'occupied');
   assert.equal(response.run.occupancy.state, 'occupied');
-  assert.equal(response.run.workerLease.owner, 'alice');
+  assert.equal('workerLease' in response.run, false);
+  assert.equal(response.run.occupancy.owner, 'alice');
 });
 
 test('workflow runs API takes over stale lease after expiry', async () => {
@@ -156,8 +157,9 @@ test('workflow runs API takes over stale lease after expiry', async () => {
   assert.equal(response.ok, true);
   assert.equal(response.claimed, true);
   assert.equal(response.run.occupancy.state, 'occupied');
-  assert.equal(response.run.workerLease.owner, 'bob');
-  assert.equal(response.run.workerLease.harness, 'portable');
+  assert.equal('workerLease' in response.run, false);
+  assert.equal(response.run.occupancy.owner, 'bob');
+  assert.equal(response.run.occupancy.harness, 'portable');
 });
 
 test('workflow runs API heartbeat renews matching worker lease', async () => {
@@ -167,9 +169,43 @@ test('workflow runs API heartbeat renews matching worker lease', async () => {
   const response = await heartbeatWorkflowRunAtRoot({ runsRoot, runId, owner: 'alice', harness: 'portable', sessionId: 'session-a', leaseMs: 60_000, now: new Date('2026-06-01T10:00:00.500Z') });
 
   assert.equal(response.ok, true);
-  assert.equal(response.run.workerLease.owner, 'alice');
-  assert.equal(response.run.workerLease.heartbeatAt, '2026-06-01T10:00:00.500Z');
-  assert.equal(response.run.workerLease.leaseExpiresAt, '2026-06-01T10:01:00.500Z');
+  assert.equal('workerLease' in response.run, false);
+  assert.equal(response.run.occupancy.owner, 'alice');
+  assert.equal(response.run.occupancy.leaseExpiresAt, '2026-06-01T10:01:00.500Z');
+});
+
+test('workflow runs API rejects partial identity renewal without mutating lease', async () => {
+  const runId = `${runPrefix}partial-renewal`;
+  await registerWorkflowRunAtRoot({ runsRoot, runId, claim: true, owner: 'alice', harness: 'portable', sessionId: 'session-a', leaseMs: 60_000, now: new Date('2026-06-01T10:00:00.000Z') });
+
+  await assert.rejects(
+    () => heartbeatWorkflowRunAtRoot({ runsRoot, runId, owner: 'alice', leaseMs: 60_000, now: new Date('2026-06-01T10:00:10.000Z') }),
+    /partial worker lease identity is not authorized/,
+  );
+
+  const listed = await listWorkflowRunsAtRoot({ runsRoot, now: new Date('2026-06-01T10:00:10.000Z') });
+  const run = listed.find((candidate) => candidate.runId === runId);
+  assert.equal(run.occupancy.owner, 'alice');
+  assert.equal(run.occupancy.harness, 'portable');
+  assert.equal(run.occupancy.sessionId, 'session-a');
+  assert.equal(run.occupancy.leaseExpiresAt, '2026-06-01T10:01:00.000Z');
+});
+
+test('workflow runs API rejects partial identity takeover without mutating stale lease', async () => {
+  const runId = `${runPrefix}partial-takeover`;
+  await registerWorkflowRunAtRoot({ runsRoot, runId, claim: true, owner: 'alice', harness: 'portable', sessionId: 'session-a', leaseMs: 1_000, now: new Date('2026-06-01T10:00:00.000Z') });
+
+  await assert.rejects(
+    () => claimWorkflowRunAtRoot({ runsRoot, runId, owner: 'bob', leaseMs: 60_000, now: new Date('2026-06-01T10:00:02.000Z') }),
+    /partial worker lease identity is not authorized/,
+  );
+
+  const listed = await listWorkflowRunsAtRoot({ runsRoot, now: new Date('2026-06-01T10:00:02.000Z') });
+  const run = listed.find((candidate) => candidate.runId === runId);
+  assert.equal(run.occupancy.state, 'stale');
+  assert.equal(run.occupancy.owner, 'alice');
+  assert.equal(run.occupancy.harness, 'portable');
+  assert.equal(run.occupancy.sessionId, 'session-a');
 });
 
 test('workflow runs API rejects symlinked runs root for list without reading escaped index', async () => {
@@ -230,6 +266,11 @@ test('workflow runs list exposes occupied, stale, and unclaimed occupancy JSON p
   assert.equal(byId.get(`${runPrefix}list-occupied`).occupancy.state, 'occupied');
   assert.equal(byId.get(`${runPrefix}list-stale`).occupancy.state, 'stale');
   assert.equal(byId.get(`${runPrefix}list-unclaimed`).occupancy.state, 'unclaimed');
+  for (const run of runs) {
+    assert.equal('workerLease' in run, false);
+    assert.equal('runDir' in run, false);
+    assert.equal('runsRoot' in run, false);
+  }
 
   const summary = summarizeWorkflowRuns(runs);
   assert.match(summary, /1 occupied, 1 stale, 1 unclaimed/);
@@ -276,6 +317,7 @@ test('workflow-runs CLI heartbeat renews worker lease', async () => {
   assert.equal(result.status, 0, result.stderr);
   const response = JSON.parse(result.stdout);
   assert.equal(response.ok, true);
-  assert.equal(response.run.workerLease.owner, 'alice');
-  assert.notEqual(response.run.workerLease.heartbeatAt, '2026-06-01T10:00:00.000Z');
+  assert.equal('workerLease' in response.run, false);
+  assert.equal(response.run.occupancy.owner, 'alice');
+  assert.notEqual(response.run.occupancy.leaseExpiresAt, '2026-06-01T10:00:01.000Z');
 });

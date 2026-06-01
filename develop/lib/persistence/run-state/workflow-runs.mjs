@@ -32,7 +32,6 @@ function publicRun(entry, { now = new Date() } = {}) {
     updatedAt: entry.updatedAt,
     taskKey: entry.taskKey,
     taskFingerprint: entry.taskFingerprint,
-    workerLease: entry.workerLease,
   };
   for (const key of Object.keys(result)) if (result[key] === undefined) delete result[key];
   return result;
@@ -69,10 +68,25 @@ function toLeaseMetadata({ owner, harness, sessionId, workerId } = {}) {
   return metadata;
 }
 
+function leaseIdentityKeys(metadata = {}) {
+  return LEASE_IDENTITY_FIELDS.filter((key) => metadata[key] !== undefined);
+}
+
 function leaseIdentityMatches(existingLease, requestedMetadata) {
-  const requestedKeys = LEASE_IDENTITY_FIELDS.filter((key) => requestedMetadata[key] !== undefined);
-  if (requestedKeys.length === 0) return false;
-  return requestedKeys.every((key) => existingLease?.[key] === requestedMetadata[key]);
+  const existingKeys = leaseIdentityKeys(existingLease);
+  const requestedKeys = leaseIdentityKeys(requestedMetadata);
+  if (existingKeys.length === 0 || requestedKeys.length === 0) return false;
+  if (existingKeys.length !== requestedKeys.length) return false;
+  if (!existingKeys.every((key) => requestedKeys.includes(key))) return false;
+  return existingKeys.every((key) => existingLease?.[key] === requestedMetadata[key]);
+}
+
+function rejectPartialLeaseIdentity(existingLease, requestedMetadata) {
+  const existingKeys = leaseIdentityKeys(existingLease);
+  const requestedKeys = leaseIdentityKeys(requestedMetadata);
+  if (existingKeys.length === 0 || requestedKeys.length === 0) return;
+  const isSameShape = existingKeys.length === requestedKeys.length && existingKeys.every((key) => requestedKeys.includes(key));
+  if (!isSameShape) throw new Error('partial worker lease identity is not authorized');
 }
 
 function freshLeaseConflict(existingLease, requestedMetadata, now) {
@@ -116,6 +130,7 @@ export async function claimWorkflowRunAtRoot({ runId, workflowPath, runsRoot = w
   const requestedMetadata = toLeaseMetadata({ owner, harness, sessionId, workerId });
   try {
     const entry = await updateRunIndexEntry(paths, (existing) => {
+      rejectPartialLeaseIdentity(existing.workerLease, requestedMetadata);
       if (freshLeaseConflict(existing.workerLease, requestedMetadata, now)) {
         const conflict = new Error(`workflow run is occupied: ${safeRunId}`);
         conflict.code = 'WORKFLOW_RUN_OCCUPIED';
