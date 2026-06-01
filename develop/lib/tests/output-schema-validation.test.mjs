@@ -6,7 +6,7 @@ import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { renderWorkflowPrompt } from '../entities/Template/index.mjs';
-import { SchemaValidationError } from '../schema-kernel/index.mjs';
+import { SchemaValidationError } from 'schema-validation';
 import { validateAgainstOutputSchema } from '../use-cases/runtime/output/output-schema-validation.mjs';
 import { loadWorkflowResources } from '../persistence/workflow-resources/runtime-reader.mjs';
 

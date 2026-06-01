@@ -86,7 +86,6 @@ function checkBoundaries() {
     'develop/lib/entities/Step/index.mjs',
     'develop/lib/entities/Template/index.mjs',
     'develop/lib/entities/Baton/index.mjs',
-    'develop/lib/schema-kernel/index.mjs',
     'develop/lib/persistence/workflow-resources/runtime-reader.mjs',
     'develop/lib/persistence/workflow-resources/workflow-file-reader.mjs',
     'develop/lib/persistence/workflow-resources/resource-resolver.mjs',
@@ -113,10 +112,8 @@ function checkBoundaries() {
   scan(walk(abs('develop/lib/entities')), /from ['"].*persistence\//, 'entities must not import persistence');
   scan(walk(abs('develop/lib/entities')), /from ['"].*entrypoints\//, 'entities must not import entrypoints');
   scan(walk(abs('develop/lib/entities/Workflow')), /use-cases\/runtime\/output|entrypoints\/cli\/schema|persistence\/run-state\/schema|workflows\/dev-harness|dtos\//, 'Workflow owner imports forbidden external owner');
-  scan(walk(abs('develop/lib/schema-kernel')), /from ['"].*(entities|use-cases|persistence|entrypoints|workflows\/dev-harness)\//, 'schema-kernel must remain infrastructure-only');
   scan(walk(abs('develop/lib/persistence/run-state')), /from ['"].*dtos\//, 'run-state persistence must not import DTOs');
   scan(walk(abs('develop/lib/persistence')), /from ['"].*use-cases\//, 'persistence must not import use-cases');
-  scan([abs('develop/lib/schema-kernel/index.mjs'), ...walk(abs('develop/lib/schema-kernel'))], /WorkflowSchemaError/, 'schema-kernel must not use WorkflowSchemaError');
   scan([...walk(abs('develop/lib/entities/Baton')), ...walk(abs('develop/lib/use-cases')), ...walk(abs('develop/lib/persistence')), ...walk(abs('develop/lib/entrypoints'))], /WorkflowSchemaError/, 'WorkflowSchemaError must stay file-contract-owned');
   scan([abs('develop/lib/validate/workflow-validation.md'), ...walk(abs('develop/docs')), ...walk(abs('docs')), ...walk(abs('scripts')), ...walk(abs('workflows'))].filter(existsSync), /develop\/lib\/schemas\/workflow-schema\.mjs|develop\/lib\/entities\/Workflow\/schema\/|\.\.\/schemas\/workflow-schema\.mjs|from ['"].*\/schemas\/workflow-schema\.mjs/, 'docs/scripts must not cite old workflow schema owner');
 

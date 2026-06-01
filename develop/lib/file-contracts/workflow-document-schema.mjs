@@ -1,5 +1,5 @@
 import workflowSchema from './workflow-document.json' with { type: 'json' };
-import { assertSchema } from '../schema-kernel/index.mjs';
+import { assertJsonSchema } from 'schema-validation';
 
 export class WorkflowSchemaError extends Error {
   constructor(message) {
@@ -43,7 +43,7 @@ export { workflowSchema };
 export function assertWorkflowSchema(workflowDoc, { externalSchemas = [] } = {}) {
   try {
     assertWorkflowNoNestedMatchCases(workflowDoc);
-    assertSchema(workflowSchema, workflowDoc, 'workflow', { schemas: [workflowSchema, ...externalSchemas] });
+    assertJsonSchema(workflowSchema, workflowDoc, 'workflow', { schemas: [workflowSchema, ...externalSchemas] });
   } catch (error) {
     if (error instanceof WorkflowSchemaError) throw new WorkflowSchemaError(`workflow failed schema validation: ${error.message}`);
     if (error?.name === 'SchemaValidationError') throw new WorkflowSchemaError(error.message);

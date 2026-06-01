@@ -1,13 +1,8 @@
 import batonSchema from './baton.json' with { type: 'json' };
-import { assertSchema, SchemaValidationError } from '../../../schema-kernel/index.mjs';
+import { assertJsonSchema } from 'schema-validation';
 
 export { batonSchema };
 
 export function assertBatonSchema(baton) {
-  try {
-    assertSchema(batonSchema, baton, 'baton', { schemas: [batonSchema] });
-  } catch (error) {
-    if (error instanceof SchemaValidationError) throw error;
-    throw error;
-  }
+  assertJsonSchema(batonSchema, baton, 'baton', { schemas: [batonSchema] });
 }

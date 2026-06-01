@@ -1,5 +1,5 @@
-import { compileSchema } from '../../schema-kernel/index.mjs';
+import { compileJsonSchema } from 'schema-validation';
 
 export function compileWorkflowOutputSchema(schema, { externalSchemas = [] } = {}) {
-  return compileSchema(schema, { schemas: externalSchemas });
+  return compileJsonSchema(schema, { schemas: externalSchemas });
 }

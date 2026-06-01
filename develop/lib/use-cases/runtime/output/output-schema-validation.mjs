@@ -1,4 +1,4 @@
-import { SchemaValidationError, formatSchemaErrors, validateJsonSchema } from '../../../schema-kernel/index.mjs';
+import { SchemaValidationError, formatSchemaErrors, validateJsonSchema } from 'schema-validation';
 import { batonSchema } from '../../../entities/Baton/schema/baton-schema.mjs';
 import { loadOutputSchema } from '../../../persistence/workflow-resources/output-schema-loader.mjs';
 
