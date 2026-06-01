@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-import { lstat, mkdir, open, readFile, rename, rm } from 'node:fs/promises';
-import { basename, dirname, join } from 'node:path';
+import { lstat, mkdir, readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
-import { WorkflowRuntimeError } from '../../entities/errors.mjs';
-import { assertBatonSchema, assertResponseSchema } from '../../entities/workflow-helpers/schema-validation.mjs';
+import { assertBatonSchema } from '../../entities/Baton/schema/baton-schema.mjs';
+import { assertResponseSchema } from '../../use-cases/runtime/output/response-schema.mjs';
+import { writePersistedRunStateUpdate } from '../../persistence/run-state/PersistedRunStateWriter.mjs';
+import { ensureRunFiles, resolveRunPaths } from '../../persistence/run-state/paths.mjs';
 
 function fail(message) {
   console.error(`persist-run-state: ${message}`);
@@ -16,6 +17,7 @@ function parseCliArgs(argv) {
       args: argv,
       options: {
         'run-dir': { type: 'string' },
+        'workflow': { type: 'string' },
         response: { type: 'string' },
         baton: { type: 'string' },
         output: { type: 'string' },
@@ -25,7 +27,7 @@ function parseCliArgs(argv) {
       allowPositionals: false,
     }).values;
   } catch (error) {
-    fail(`${error.message}\nusage: node develop/lib/bin/persist-run-state.mjs --run-dir <dir> (--response <workflow-interpreter-response.json> | --baton <new-baton.json>) [--output <worker-output-path>] [--decision <text>]`);
+    fail(`${error.message}\nusage: node develop/lib/entrypoints/cli/persist-run-state.mjs --run-dir <dir> [--workflow <workflow.json>] (--response <workflow-interpreter-response.json> | --baton <new-baton.json>) [--output <worker-output-path>] [--decision <text>]`);
   }
 }
 
@@ -42,8 +44,16 @@ function assertPersistSchema(assertFn, value) {
   try {
     assertFn(value);
   } catch (error) {
-    if (error instanceof WorkflowRuntimeError) fail(error.message);
-    throw error;
+    fail(error.message);
+  }
+}
+
+async function assertRunDirIsNotSymlink(path) {
+  try {
+    if ((await lstat(path)).isSymbolicLink()) fail(`refusing to use symlinked run dir: ${path}`);
+  } catch (error) {
+    if (error?.code === 'ENOENT') return;
+    fail(`cannot inspect run dir ${path}: ${error.message}`);
   }
 }
 
@@ -67,70 +77,14 @@ function compact(value) {
   return String(value).replace(/\s+/g, ' ').trim();
 }
 
-function historyEntry({ baton, steps, source, output, decision }) {
-  const lines = [
-    `## ${new Date().toISOString()}`,
-    '',
-    `- source: ${source}`,
-    `- baton: cursor=${baton.cursor ?? 'unknown'} status=${baton.status ?? 'unknown'}`,
-  ];
-
-  if (steps) lines.push(`- steps: ${steps.map((step) => `id=${step.id ?? 'unknown'} action=${step.action ?? 'unknown'}`).join('; ')}`);
-  if (output) lines.push(`- output: ${output}`);
-  if (decision) lines.push(`- decision: ${decision}`);
-  if (baton.blocker) lines.push(`- blocker: ${compact(JSON.stringify(baton.blocker))}`);
-
-  lines.push('', '');
-  return lines.join('\n');
-}
-
-async function assertManagedFileIsNotSymlink(path) {
-  try {
-    if ((await lstat(path)).isSymbolicLink()) throw new Error(`refusing to use symlinked run-state file: ${path}`);
-  } catch (error) {
-    if (error?.code === 'ENOENT') return;
-    throw error;
-  }
-}
-
-async function assertRunDirIsDirectory(path) {
-  try {
-    if ((await lstat(path)).isSymbolicLink()) throw new Error(`refusing to use symlinked run dir: ${path}`);
-  } catch (error) {
-    if (error?.code !== 'ENOENT') throw error;
-  }
-}
-
-async function writeFileAtomic(path, content) {
-  await assertManagedFileIsNotSymlink(path);
-  const dir = dirname(path);
-  const tempPath = join(dir, `.${basename(path)}.${process.pid}.${Date.now()}.tmp`);
-  const handle = await open(tempPath, 'wx', 0o600);
-  let renamed = false;
-
-  try {
-    await handle.writeFile(content, 'utf8');
-    await handle.sync();
-    await handle.close();
-    await rename(tempPath, path);
-    renamed = true;
-  } finally {
-    try {
-      await handle.close();
-    } catch {}
-    if (!renamed) await rm(tempPath, { force: true });
-  }
-}
-
-async function appendFileDurably(path, content) {
-  await assertManagedFileIsNotSymlink(path);
-  const handle = await open(path, 'a', 0o600);
-  try {
-    await handle.writeFile(content, 'utf8');
-    await handle.sync();
-  } finally {
-    await handle.close();
-  }
+function historyPatch({ baton, steps, source, output, decision }) {
+  return {
+    baton,
+    source,
+    output: compact(output),
+    decision: compact(decision),
+    steps,
+  };
 }
 
 const values = parseCliArgs(process.argv.slice(2));
@@ -156,25 +110,27 @@ const baton = responsePath ? input.baton : input;
 const steps = responsePath ? input.steps : undefined;
 requireObject(baton, 'baton');
 
-await assertRunDirIsDirectory(runDir);
-await mkdir(runDir, { recursive: true });
-
-const persistedBatonPath = join(runDir, 'baton.json');
-const historyPath = join(runDir, 'history.md');
-const batonContent = `${JSON.stringify(baton, null, 2)}\n`;
-const entry = historyEntry({
-  baton,
-  steps,
-  source: responsePath ? responsePath : batonPath,
-  output: compact(values.output),
-  decision: compact(values.decision),
-});
+await assertRunDirIsNotSymlink(runDir);
+const paths = resolveRunPaths({ runDir, workflowPath: values.workflow });
+await mkdir(paths.runDir, { recursive: true });
+await mkdir(paths.runnerDir, { recursive: true });
+await mkdir(paths.instructionsDir, { recursive: true });
+await ensureRunFiles(paths);
 
 try {
-  await writeFileAtomic(persistedBatonPath, batonContent);
-  await appendFileDurably(historyPath, entry);
+  await writePersistedRunStateUpdate(paths, {
+    baton,
+    instructions: [],
+    history: historyPatch({
+      baton,
+      steps,
+      source: responsePath ? responsePath : batonPath,
+      output: values.output,
+      decision: values.decision,
+    }),
+  });
 } catch (error) {
   fail(`cannot persist run state in ${runDir}: ${error.message}`);
 }
 
-console.log(JSON.stringify({ ok: true, baton: persistedBatonPath, history: historyPath }));
+console.log(JSON.stringify({ ok: true, baton: paths.batonPath, history: paths.historyPath }));

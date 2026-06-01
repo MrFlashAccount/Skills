@@ -1,6 +1,6 @@
 /** RunNext use-case coordinates Workflow/Baton/Step/Template for the next rendered runtime response. */
-import { assertResponseSchema } from '../entities/workflow-helpers/schema-validation.mjs';
-import { isDynamicTransitionNext, isStaticParallelNext, resolveTransition } from '../entities/Step.mjs';
+import { assertResponseSchema } from './runtime/output/response-schema.mjs';
+import { isDynamicTransitionNext, isStaticParallelNext, resolveTransition } from '../entities/Step/index.mjs';
 import { assertLoadedWorkflowAndBaton } from './runtime/guards/workflow.mjs';
 import { hasAppliedOutputForStep, responseFor } from './runtime/output/response.mjs';
 import { renderStepPrompts } from './runtime/parallel/render.mjs';

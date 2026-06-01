@@ -51,10 +51,11 @@ Current files establish these contracts:
 - `develop/lib/entrypoints/` owns CLI/API parsing and host-facing response shape. It resolves run arguments, calls persistence, invokes use-cases, and returns instruction text or JSON responses.
 - `develop/lib/persistence/` owns filesystem/resource IO: workflow files, baton/run-state files, instruction files, templates, output schemas, role material, durable commits, and host-request storage paths.
 - `develop/lib/use-cases/` owns process orchestration across entities. `RunNext`, `ContinueRun`, `ApplyWorkflowOutput`, `LoadInstructions`, `ValidateWorkflow`, and `InspectWorkflow` receive DTO/raw boundary data, construct entities, call entity methods, and return boundary results without direct filesystem access.
-- `develop/lib/entities/Workflow.mjs` owns workflow validation, topology, step lookup, transition semantics, output schema semantics, and baton cursor inference.
-- `develop/lib/entities/Baton.mjs` owns runtime state/cursor/status consistency, pending-output access, and safe state updates.
-- `develop/lib/entities/Step.mjs` owns step-level input projection, transition descriptors, concrete target resolution, output application intent, instruction-request validation, and render-context preparation.
-- `develop/lib/entities/Template.mjs` plus template compiler helpers own prompt/template rendering mechanics.
+- `develop/lib/file-contracts/workflow-document-schema.mjs` and `workflow-document.json` own the external workflow document/file contract.
+- `develop/lib/entities/Workflow/index.mjs` owns workflow semantic validation, topology, step lookup, transition semantics, output schema semantics, and baton cursor inference.
+- `develop/lib/entities/Baton/index.mjs` owns runtime state/cursor/status consistency, pending-output access, and safe state updates.
+- `develop/lib/entities/Step/index.mjs` owns step-level input projection, transition descriptors, concrete target resolution, output application intent, instruction-request validation, and render-context preparation.
+- `develop/lib/entities/Template/index.mjs` plus `develop/lib/entities/Template/compiler/**` own prompt/template rendering mechanics.
 - `develop/lib/dtos/` owns boundary shapes only: workflow, baton/run-state, step, template, instruction, output, and workflow-result DTOs.
 - `shared/templates/README.md` says shared templates are output templates and do not define orchestration or worker spawning.
 
@@ -342,7 +343,7 @@ Interpreter remains responsible for current-step selection and post-output trans
 Preferred CLI surface: add a new mode beside `inspect` and `apply`:
 
 ```bash
-node develop/lib/bin/workflow-runner.mjs next --run-dir <dir> --workflow <workflow.json> [--diagnostics]
+node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-dir <dir> --workflow <workflow.json> [--diagnostics]
 ```
 
 Output shape:

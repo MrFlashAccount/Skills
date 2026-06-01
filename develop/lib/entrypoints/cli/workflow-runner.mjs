@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
-import { WorkflowRuntimeError } from '../../entities/errors.mjs';
+import { WorkflowRuntimeError } from '../../errors.mjs';
 import { continueRun, loadInstructions, next } from '../api/workflowRunner.mjs';
 
 function fail(message) {
@@ -9,7 +9,7 @@ function fail(message) {
 }
 
 function usage() {
-  return 'usage: node develop/lib/bin/workflow-runner.mjs next --run-dir <dir> [--workflow <workflow.json>] [--diagnostics] [--user-prompt <text> | --user-prompt-file <path>] | continue --run-dir <dir> --output <worker-output.json> [--output <step-id=worker-output.json> ...] [--workflow <workflow.json>] [--diagnostics] | instructions --run-dir <dir> --step-id <id> [--workflow <workflow.json>]';
+  return 'usage: node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-dir <dir> [--workflow <workflow.json>] [--diagnostics] [--user-prompt <text> | --user-prompt-file <path>] | continue --run-dir <dir> --output <worker-output.json> [--output <step-id=worker-output.json> ...] [--workflow <workflow.json>] [--diagnostics] | instructions --run-dir <dir> --step-id <id> [--workflow <workflow.json>]';
 }
 
 function parseCliArgs(argv) {

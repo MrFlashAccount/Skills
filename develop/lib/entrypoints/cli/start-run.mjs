@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { ensureRunFiles, resolveRunPaths } from '../../persistence/runner/run-state.mjs';
+import { ensureRunFiles, resolveRunPaths } from '../../persistence/run-state/paths.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(scriptDir, '../../..');
@@ -26,7 +26,7 @@ function parseCliArgs(argv) {
       allowPositionals: false,
     }).values;
   } catch (error) {
-    fail(`${error.message}\nusage: node develop/lib/bin/start-run.mjs --run-dir <dir> [--workflow <workflow.json>]`);
+    fail(`${error.message}\nusage: node develop/lib/entrypoints/cli/start-run.mjs --run-dir <dir> [--workflow <workflow.json>]`);
   }
 }
 

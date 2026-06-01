@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import test, { after } from 'node:test';
 import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -6,20 +7,23 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import workflowDoc from '../../../workflows/dev-harness/workflow.json' with { type: 'json' };
 import researchCriticWorkflowDoc from '../../../workflows/research-critic/workflow.json' with { type: 'json' };
-import { WorkflowRuntimeError } from '../entities/errors.mjs';
+import { WorkflowRuntimeError } from '../errors.mjs';
 import { validateWorkflow } from '../use-cases/ValidateWorkflow.mjs';
 import { validateWorkflowFile } from '../entrypoints/api/validateWorkflow.mjs';
-import { WorkflowFileReader } from '../persistence/WorkflowFileReader.mjs';
-import { validateAgainstOutputSchema } from '../persistence/output-schema-validation.mjs';
+import { readOutputSchemas, readAllowedRoles } from '../persistence/workflow-resources/workflow-file-reader.mjs';
+import { validateAgainstOutputSchema } from '../use-cases/runtime/output/output-schema-validation.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
+function runNode(args) {
+  return spawnSync(process.execPath, args, { cwd: REPO_ROOT, encoding: 'utf8' });
+}
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-semantic-validation-'));
 mkdirSync(path.join(tempDir, 'schemas'), { recursive: true });
 cpSync(path.join(REPO_ROOT, 'workflows/dev-harness/schemas'), path.join(tempDir, 'schemas'), { recursive: true });
 
 function validateWithRuntimeArchitecture(doc, { workflowPath }) {
-  const outputSchemas = WorkflowFileReader.readOutputSchemas({ workflow: doc, workflowPath, repositoryRoot: REPO_ROOT });
-  const allowedRoles = WorkflowFileReader.readAllowedRoles({ repositoryRoot: REPO_ROOT });
+  const outputSchemas = readOutputSchemas({ workflow: doc, workflowPath, repositoryRoot: REPO_ROOT });
+  const allowedRoles = readAllowedRoles({ repositoryRoot: REPO_ROOT });
   return validateWorkflow({ workflowDTO: doc, outputSchemas, allowedRoles }).toJSON();
 }
 
@@ -481,6 +485,18 @@ test('validateWorkflowFile derives the role repository root from the workflow pa
   });
 });
 
+
+test('validateWorkflowFile rejects worker roles when loaded role catalog is empty', () => {
+  const projectRoot = path.join(tempDir, 'empty-role-catalog-project');
+  const workflowDir = path.join(projectRoot, 'workflows', 'role-fixture');
+  mkdirSync(workflowDir, { recursive: true });
+  mkdirSync(path.join(projectRoot, 'roles'), { recursive: true });
+  const workflowPath = path.join(workflowDir, 'workflow.json');
+  writeFileSync(workflowPath, `${JSON.stringify(genericWorkflowWithWorkerRole('missing-role'), null, 2)}\n`);
+
+  assert.throws(() => validateWorkflowFile(workflowPath), /step 'worker_step' input\.role 'missing-role' is not an allowed role/);
+});
+
 test('workflow semantic validation rejects invalid worker roles in generic workflows', () => {
   const doc = genericWorkflowWithWorkerRole('missing-workflow-role');
 
@@ -857,6 +873,17 @@ test('workflow semantic validation rejects dynamic array target schemas with inv
   );
 });
 
+
+test('validateWorkflowFile rejects a missing workflow path with a controlled error', () => {
+  assert.throws(() => validateWorkflowFile(''), /workflow path is required/);
+});
+
+test('validate-workflow CLI requires an explicit workflow path', () => {
+  const result = runNode(['develop/lib/entrypoints/cli/validate-workflow.mjs']);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /validate-workflow: workflow path is required/);
+});
 
 test('workflow semantic validation uses approval output.schema for output match cases when declared', () => {
   cpSync(path.join(REPO_ROOT, 'develop/lib/tests/fixtures/approval-choice-output.schema.json'), path.join(tempDir, 'approval-choice-output.schema.json'));

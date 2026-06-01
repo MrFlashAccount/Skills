@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
 import { validateWorkflowRuntimeCliArgs } from './cli-args-validation.mjs';
-import { WorkflowRuntimeError } from '../../entities/errors.mjs';
+import { WorkflowRuntimeError } from '../../errors.mjs';
 import { applyWorkflowOutput } from '../../use-cases/ApplyWorkflowOutput.mjs';
 import { inspectWorkflow } from '../../use-cases/InspectWorkflow.mjs';
 import { runNext } from '../../use-cases/RunNext.mjs';
-import { loadWorkflowRuntime, readWorkerOutputText } from '../../persistence/WorkflowRuntimeReader.mjs';
+import { loadWorkflowRuntime, readWorkerOutputText } from '../../persistence/workflow-resources/runtime-reader.mjs';
 
 function fail(message) {
   console.error(`workflow-interpreter: ${message}`);
@@ -32,12 +32,12 @@ function emit(response) {
   console.log(JSON.stringify(response, null, 2));
 }
 
-const DEFAULT_USAGE = 'usage: node develop/lib/bin/workflow-interpreter.mjs inspect <workflow.json> <baton.json> | render [--diagnostics] <workflow.json> <baton.json> | apply <workflow.json> <baton.json> <worker-output.json>';
+const DEFAULT_USAGE = 'usage: node develop/lib/entrypoints/cli/workflow-interpreter.mjs inspect <workflow.json> <baton.json> | render [--diagnostics] <workflow.json> <baton.json> | apply <workflow.json> <baton.json> <worker-output.json>';
 
 const USAGE_BY_MODE = {
-  inspect: 'usage: node develop/lib/bin/workflow-interpreter.mjs inspect <workflow.json> <baton.json>',
-  render: 'usage: node develop/lib/bin/workflow-interpreter.mjs render [--diagnostics] <workflow.json> <baton.json>',
-  apply: 'usage: node develop/lib/bin/workflow-interpreter.mjs apply <workflow.json> <baton.json> <worker-output.json>',
+  inspect: 'usage: node develop/lib/entrypoints/cli/workflow-interpreter.mjs inspect <workflow.json> <baton.json>',
+  render: 'usage: node develop/lib/entrypoints/cli/workflow-interpreter.mjs render [--diagnostics] <workflow.json> <baton.json>',
+  apply: 'usage: node develop/lib/entrypoints/cli/workflow-interpreter.mjs apply <workflow.json> <baton.json> <worker-output.json>',
 };
 
 const COMMANDS = {

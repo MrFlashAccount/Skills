@@ -58,11 +58,11 @@ function writeJson(filePath, value) {
 }
 
 function runRunner(args, options = {}) {
-  return spawnSync(process.execPath, ['develop/lib/bin/workflow-runner.mjs', ...args], { cwd: root, encoding: 'utf8', env: { ...process.env, ...(options.env ?? {}) } });
+  return spawnSync(process.execPath, ['develop/lib/entrypoints/cli/workflow-runner.mjs', ...args], { cwd: root, encoding: 'utf8', env: { ...process.env, ...(options.env ?? {}) } });
 }
 
 async function runRunnerAsync(args) {
-  const child = spawn(process.execPath, ['develop/lib/bin/workflow-runner.mjs', ...args], {
+  const child = spawn(process.execPath, ['develop/lib/entrypoints/cli/workflow-runner.mjs', ...args], {
     cwd: root,
     encoding: 'utf8',
   });
@@ -133,6 +133,27 @@ test('runner: next returns a single host action request with load command only',
   assert.match(loaded.stdout, /# Prepare/);
 
   assert.equal(existsSync(path.join(runDir, 'baton.json')), true);
+});
+
+test('runner: resumed next validates persisted aggregate instruction refs before rendering', async () => {
+  const runDir = path.join(tempDir, 'next-validates-persisted-state');
+  const workflowPath = path.join(tempDir, 'next-validates-persisted-state-workflow.json');
+  const singleWorkflow = structuredClone(workflowDoc);
+  singleWorkflow.steps.prepare.next = 'done';
+  writeJson(workflowPath, singleWorkflow);
+
+  const first = await runnerNext({ runDir, workflowPath });
+  assert.equal(first.status, 'needs_host_actions');
+
+  const instructionPath = path.join(runDir, '.workflow-runner', 'instructions', 'prepare.md');
+  assert.equal(existsSync(instructionPath), true);
+  rmSync(instructionPath);
+
+  await assert.rejects(
+    () => runnerNext({ runDir, workflowPath }),
+    /missing committed instruction file/,
+  );
+  assert.equal(existsSync(instructionPath), false);
 });
 
 test('runner: next rejects workflow whose first worker id is reserved baton state bookkeeping', () => {
@@ -290,7 +311,7 @@ test('runner: CLI resume ignores deleted startup user prompt file and preserves 
 test('runner: non-next modes reject empty user prompt file option', () => {
   const result = runRunner(['instructions', '--run-dir', path.join(tempDir, 'unsupported-user-prompt-file'), '--step-id', 'prepare', '--user-prompt-file', '']);
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /usage: node develop\/lib\/bin\/workflow-runner\.mjs/);
+  assert.match(result.stderr, /usage: node develop\/lib\/entrypoints\/cli\/workflow-runner\.mjs/);
 });
 
 test('runner: user prompt is included in first worker when workflow starts with approval step', () => {

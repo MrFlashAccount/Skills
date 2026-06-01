@@ -1,4 +1,4 @@
-import { normalizeTransitionNext } from '../entities/Step.mjs';
+import { normalizeTransitionNext } from '../entities/Step/index.mjs';
 
 function assertNonEmptyUserPrompt(value, source) {
   if (typeof value !== 'string' || value.trim().length === 0) {

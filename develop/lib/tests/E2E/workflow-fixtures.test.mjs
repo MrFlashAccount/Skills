@@ -26,7 +26,7 @@ function runDir(label) {
 }
 
 function runRunner(args) {
-  return spawnSync(process.execPath, ['develop/lib/bin/workflow-runner.mjs', ...args], {
+  return spawnSync(process.execPath, ['develop/lib/entrypoints/cli/workflow-runner.mjs', ...args], {
     cwd: root,
     encoding: 'utf8',
   });

@@ -5,11 +5,11 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { projectState } from '../entities/step-helpers/projection.mjs';
+import { projectState } from '../entities/Step/projection.mjs';
 import { renderStepPrompts } from '../use-cases/runtime/parallel/render.mjs';
-import { renderWorkflowPrompt } from '../entities/Template.mjs';
-import { validateAgainstOutputSchema } from '../persistence/output-schema-validation.mjs';
-import { loadWorkflowResources } from '../persistence/WorkflowRuntimeReader.mjs';
+import { renderWorkflowPrompt } from '../entities/Template/index.mjs';
+import { validateAgainstOutputSchema } from '../use-cases/runtime/output/output-schema-validation.mjs';
+import { loadWorkflowResources } from '../persistence/workflow-resources/runtime-reader.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'prompt-rendering-check-'));
@@ -1076,7 +1076,7 @@ test('CLI render: runtime guard rejects reserved aggregate state selectors', () 
   const workflowPath = writeJson('runtime-reserved-render-workflow.json', workflowDoc);
   const batonPath = writeJson('runtime-reserved-render-baton.json', baton({ cursor: 'approval_step', status: 'running', state: { artifacts: [{ type: 'packet', summary: 'leaked' }], results: [] } }));
 
-  const result = runNode(['develop/lib/bin/workflow-interpreter.mjs', 'render', workflowPath, batonPath]);
+  const result = runNode(['develop/lib/entrypoints/cli/workflow-interpreter.mjs', 'render', workflowPath, batonPath]);
   const response = expectCliResult('runtime-reserved-render', result, false);
 
   assert.match(response.stderr, /reserved state selector 'artifacts'.*runtime aggregate state/);
@@ -1093,7 +1093,7 @@ test('CLI render: fixture returns compiledPrompt and does not mutate baton', () 
   const batonPath = writeJson('fixture-render-baton.json', baton({ state: { artifacts: [], results: [], worker_step: { outcome: 'ready', summary: 'ready' } } }));
   const before = readFileSync(batonPath, 'utf8');
 
-  const result = runNode(['develop/lib/bin/workflow-interpreter.mjs', 'render', workflowPath, batonPath]);
+  const result = runNode(['develop/lib/entrypoints/cli/workflow-interpreter.mjs', 'render', workflowPath, batonPath]);
   const response = expectCliResult('fixture-render', result, true);
 
   assert.equal(readFileSync(batonPath, 'utf8'), before, 'render mutated baton file');
@@ -1124,14 +1124,14 @@ test('CLI render: diagnostics are included only when explicitly requested', () =
 
   const defaultResponse = expectCliResult(
     'render-diagnostics-default',
-    runNode(['develop/lib/bin/workflow-interpreter.mjs', 'render', workflowPath, batonPath]),
+    runNode(['develop/lib/entrypoints/cli/workflow-interpreter.mjs', 'render', workflowPath, batonPath]),
     true,
   );
   assert.equal(Object.hasOwn(defaultResponse.steps[0].compiledPrompt, 'diagnostics'), false);
 
   const diagnosticsResponse = expectCliResult(
     'render-diagnostics-opt-in',
-    runNode(['develop/lib/bin/workflow-interpreter.mjs', 'render', '--diagnostics', workflowPath, batonPath]),
+    runNode(['develop/lib/entrypoints/cli/workflow-interpreter.mjs', 'render', '--diagnostics', workflowPath, batonPath]),
     true,
   );
   assert.deepEqual(diagnosticsResponse.steps[0].compiledPrompt.diagnostics.map((diagnostic) => diagnostic.code), ['default_prompt_used']);

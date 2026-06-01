@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-persist-'));
-const helperPath = path.join(root, 'develop/lib/bin/persist-run-state.mjs');
+const helperPath = path.join(root, 'develop/lib/entrypoints/cli/persist-run-state.mjs');
 
 function writeJson(filePath, value) {
   mkdirSync(path.dirname(filePath), { recursive: true });
@@ -90,6 +90,22 @@ test('persist helper rejects symlinked history without appending outside run dir
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /symlinked run-state file|symlink/);
   assert.equal(readFileSync(outsideHistory, 'utf8'), 'outside must stay private\n');
+});
+
+test('persist helper rejects symlinked run dir before writing through target', () => {
+  const targetDir = path.join(tempDir, 'symlink-run-dir-target');
+  const runDir = path.join(tempDir, 'symlink-run-dir');
+  mkdirSync(targetDir, { recursive: true });
+  symlinkSync(targetDir, runDir, 'dir');
+  const inputPath = writeJson(path.join(tempDir, 'symlink-run-dir-baton.json'), baton({ cursor: 'architecture' }));
+
+  const result = runPersist(['--run-dir', runDir, '--baton', inputPath, '--decision', 'must not follow']);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /refusing to use symlinked run dir/);
+  assert.equal(existsSync(path.join(targetDir, 'baton.json')), false);
+  assert.equal(existsSync(path.join(targetDir, 'history.md')), false);
+  assert.equal(existsSync(path.join(targetDir, '.workflow-runner')), false);
 });
 
 test('persist helper appends history entries across calls', () => {

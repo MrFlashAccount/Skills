@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { WorkflowRuntimeError } from '../../entities/errors.mjs';
+import { WorkflowRuntimeError } from '../../errors.mjs';
 import { validateWorkflowFile } from '../../entrypoints/api/validateWorkflow.mjs';
 
 function fail(message) {
@@ -9,7 +9,7 @@ function fail(message) {
 
 const workflowPaths = process.argv.slice(2);
 if (workflowPaths.length === 0) {
-  workflowPaths.push('workflows/dev-harness/workflow.json', 'workflows/research-critic/workflow.json');
+  fail('workflow path is required');
 }
 
 try {

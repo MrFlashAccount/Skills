@@ -1,5 +1,5 @@
 /** ApplyWorkflowOutput use-case applies host/worker output through Step/Baton-owned runtime behavior. */
-import { isDynamicTransitionNext, isStaticParallelNext, resolveTransition } from '../entities/Step.mjs';
+import { isDynamicTransitionNext, isStaticParallelNext, resolveTransition } from '../entities/Step/index.mjs';
 import { assertLoadedWorkflowAndBaton } from './runtime/guards/workflow.mjs';
 import { applyNextTransition } from './runtime/transition/next.mjs';
 import { prepareParallelBranch } from './runtime/parallel/render.mjs';

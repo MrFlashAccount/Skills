@@ -1,4 +1,4 @@
-import { actionForStep } from '../entities/workflow-helpers/model.mjs';
+import { actionForStep } from '../entities/Workflow/status.mjs';
 
 export function buildStepEntry(stepId, step) {
   return {

@@ -12,6 +12,19 @@ function createAjv() {
   return ajv;
 }
 
+export class SchemaValidationError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'SchemaValidationError';
+  }
+}
+
+export function formatSchemaErrors(errors = []) {
+  return errors
+    .map((error) => `${error.instancePath || '/'} ${error.message}`.trim())
+    .join('; ');
+}
+
 export function validateJsonSchema(schema, value, options = {}) {
   const ajv = createAjv();
   const loadedSchemaIds = new Set();
@@ -29,4 +42,13 @@ export function validateJsonSchema(schema, value, options = {}) {
     ok,
     errors: validate.errors ?? [],
   };
+}
+
+export function compileJsonSchema(schema, { schemas = [] } = {}) {
+  return validateJsonSchema(schema, {}, { schemas });
+}
+
+export function assertJsonSchema(schema, value, name, { schemas = [] } = {}) {
+  const validation = validateJsonSchema(schema, value, { schemas });
+  if (!validation.ok) throw new SchemaValidationError(`${name} failed schema validation: ${formatSchemaErrors(validation.errors)}`);
 }

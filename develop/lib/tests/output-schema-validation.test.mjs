@@ -5,10 +5,10 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { WorkflowRuntimeError } from '../entities/errors.mjs';
-import { renderWorkflowPrompt } from '../entities/Template.mjs';
-import { validateAgainstOutputSchema } from '../persistence/output-schema-validation.mjs';
-import { loadWorkflowResources } from '../persistence/WorkflowRuntimeReader.mjs';
+import { renderWorkflowPrompt } from '../entities/Template/index.mjs';
+import { SchemaValidationError } from 'schema-validation';
+import { validateAgainstOutputSchema } from '../use-cases/runtime/output/output-schema-validation.mjs';
+import { loadWorkflowResources } from '../persistence/workflow-resources/runtime-reader.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-output-schema-check-'));
@@ -111,7 +111,7 @@ function runApply(label, batonDoc, workerOutput, expectSuccess = true, doc = wor
   const outputPath = writeJson(`${prefix}-output.json`, workerOutput);
   const wfPath = writeJson(`${prefix}-workflow.json`, doc);
   const before = readFileSync(batonPath, 'utf8');
-  const response = runWorkflowCommand(label, ['develop/lib/bin/workflow-interpreter.mjs', 'apply', wfPath, batonPath, outputPath], expectSuccess);
+  const response = runWorkflowCommand(label, ['develop/lib/entrypoints/cli/workflow-interpreter.mjs', 'apply', wfPath, batonPath, outputPath], expectSuccess);
   assert.equal(readFileSync(batonPath, 'utf8'), before, `check '${label}' mutated baton file during apply`);
   return response;
 }
@@ -202,7 +202,7 @@ test('output.schema: CLI apply rejects workflow schema refs escaping repository 
   writeFileSync(outputPath, `${JSON.stringify({ outcome: 'ready' }, null, 2)}
 `);
 
-  const result = runNode(['develop/lib/bin/workflow-interpreter.mjs', 'apply', workflowPath, batonPath, outputPath]);
+  const result = runNode(['develop/lib/entrypoints/cli/workflow-interpreter.mjs', 'apply', workflowPath, batonPath, outputPath]);
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /output schema escapes repository root/);
@@ -234,7 +234,7 @@ test('output.schema: CLI apply allows workflow-relative traversal to repo shared
   writeFileSync(batonPath, `${JSON.stringify(baton(), null, 2)}\n`);
   writeFileSync(outputPath, `${JSON.stringify({ outcome: 'ready' }, null, 2)}\n`);
 
-  const result = runNode(['develop/lib/bin/workflow-interpreter.mjs', 'apply', workflowPath, batonPath, outputPath]);
+  const result = runNode(['develop/lib/entrypoints/cli/workflow-interpreter.mjs', 'apply', workflowPath, batonPath, outputPath]);
 
   assert.equal(result.status, 0, result.stderr);
 });
@@ -262,7 +262,7 @@ test('output.schema: CLI apply rejects root-level workflow refs escaping workflo
   writeFileSync(batonPath, `${JSON.stringify(baton(), null, 2)}\n`);
   writeFileSync(outputPath, `${JSON.stringify({ outcome: 'ready' }, null, 2)}\n`);
 
-  const result = runNode(['develop/lib/bin/workflow-interpreter.mjs', 'apply', workflowPath, batonPath, outputPath]);
+  const result = runNode(['develop/lib/entrypoints/cli/workflow-interpreter.mjs', 'apply', workflowPath, batonPath, outputPath]);
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /output schema escapes repository root/);
@@ -288,7 +288,7 @@ test('output.schema: validate-workflow rejects schema refs escaping default repo
   const workflowPath = path.join(workflowDir, 'workflow.json');
   writeFileSync(workflowPath, `${JSON.stringify(doc, null, 2)}\n`);
 
-  const result = runNode(['develop/lib/bin/validate-workflow.mjs', workflowPath]);
+  const result = runNode(['develop/lib/entrypoints/cli/validate-workflow.mjs', workflowPath]);
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /output schema escapes repository root/);
@@ -308,7 +308,7 @@ test('output.schema: invalid JSON Schema throws controlled workflow error', () =
       output: { outcome: 'ready' },
       repositoryRoot: tempDir,
     }),
-    (error) => error instanceof WorkflowRuntimeError
+    (error) => error instanceof SchemaValidationError
       && error.message.includes("output schema validation failed: invalid output schema 'invalid-json-schema-controlled-error.schema.json'"),
   );
 });
@@ -454,7 +454,7 @@ test('output.schema: structured step output is projected by step id into downstr
   const batonPath = writeJson('output-schema-structured-project-baton.json', applyResponse.baton);
   const workflowPath = writeJson('output-schema-structured-project-workflow.json', doc);
   const renderResponse = runWorkflowCommand('output-schema-structured-project-render', [
-    'develop/lib/bin/workflow-interpreter.mjs',
+    'develop/lib/entrypoints/cli/workflow-interpreter.mjs',
     'render',
     workflowPath,
     batonPath,
@@ -583,7 +583,7 @@ test('output.schema: non-structured worker output is projected by step id into d
   const batonPath = writeJson('output-schema-plain-project-baton.json', applyResponse.baton);
   const workflowPath = writeJson('output-schema-plain-project-workflow.json', doc);
   const renderResponse = runWorkflowCommand('output-schema-plain-project-render', [
-    'develop/lib/bin/workflow-interpreter.mjs',
+    'develop/lib/entrypoints/cli/workflow-interpreter.mjs',
     'render',
     workflowPath,
     batonPath,

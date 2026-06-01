@@ -20,9 +20,9 @@ The host adapter is thin. It executes requests with whatever capabilities the en
 ## Runner commands
 
 ```bash
-node develop/lib/bin/workflow-runner.mjs next --run-dir <run-dir> [--workflow <workflow.json>] [--user-prompt <text> | --user-prompt-file <path>]
-node develop/lib/bin/workflow-runner.mjs continue --run-dir <run-dir> --output <worker-output.json> [--output <step-id=worker-output.json> ...] [--workflow <workflow.json>]
-node develop/lib/bin/workflow-runner.mjs instructions --run-dir <run-dir> --step-id <id>
+node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-dir <run-dir> [--workflow <workflow.json>] [--user-prompt <text> | --user-prompt-file <path>]
+node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-dir <run-dir> --output <worker-output.json> [--output <step-id=worker-output.json> ...] [--workflow <workflow.json>]
+node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-dir <run-dir> --step-id <id>
 ```
 
 `next` creates the run files if needed and returns the current host work. `continue` applies host-provided artifact paths from the previous host requests, persists the new baton, and returns the next host work. `instructions` prints only the compiled instructions for one current requested step and fails for unknown, unsafe, or missing step instructions.
@@ -48,7 +48,7 @@ When host work is needed, the runner returns:
       "id": "step_id",
       "stepId": "step_id",
       "action": "run_worker",
-      "loadInstructionsCommand": "node develop/lib/bin/workflow-runner.mjs instructions --run-dir '/run' --step-id 'step_id'"
+      "loadInstructionsCommand": "node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-dir '/run' --step-id 'step_id'"
     }
   ]
 }
@@ -102,13 +102,13 @@ Missing host capability is represented as blocked output, not as a transition de
 For one requested step, pass the wrapper-owned artifact back on continue:
 
 ```bash
-node develop/lib/bin/workflow-runner.mjs continue --run-dir "$RUN_DIR" --output "/host/artifacts/step_id.json" --workflow "$WORKFLOW"
+node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-dir "$RUN_DIR" --output "/host/artifacts/step_id.json" --workflow "$WORKFLOW"
 ```
 
 For parallel branch requests, pass one named output per requested step. `continue` collects those files into the existing portable `{ "steps": { ... } }` envelope internally before applying workflow state.
 
 ```bash
-node develop/lib/bin/workflow-runner.mjs continue --run-dir "$RUN_DIR" \
+node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-dir "$RUN_DIR" \
   --output "branch_a=/host/artifacts/branch_a.structured.json" \
   --output "branch_b=/host/artifacts/branch_b.output.json" \
   --workflow "$WORKFLOW"
@@ -147,4 +147,4 @@ This mapping is not part of the portable workflow contract. Other hosts can exec
 - `workflow-runner.mjs continue` uses a per-run `.workflow-runner/continue.lock` guard so only one host continue operation mutates a run directory at a time.
 - The CLI shape is small on purpose and can be renamed after review.
 
-`develop/lib/bin/start-run.mjs` is legacy initialization/inspection only. It does not accept `--user-prompt` or `--user-prompt-file`; use `workflow-runner next` for startup prompt capture and instruction rendering.
+`develop/lib/entrypoints/cli/start-run.mjs` is legacy initialization/inspection only. It does not accept `--user-prompt` or `--user-prompt-file`; use `workflow-runner next` for startup prompt capture and instruction rendering.

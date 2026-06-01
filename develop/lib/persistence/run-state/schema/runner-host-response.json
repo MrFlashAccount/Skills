@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/runner-host-response",
+  "title": "Workflow Runner Host Response",
+  "type": "object",
+  "required": ["status", "baton"],
+  "properties": {
+    "status": { "enum": ["needs_host_actions", "done", "blocked"] },
+    "baton": { "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton" },
+    "requests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "stepId", "action", "loadInstructionsCommand"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "stepId": { "type": "string", "minLength": 1 },
+          "action": { "enum": ["run_worker", "wait_for_approval"] },
+          "loadInstructionsCommand": { "type": "string", "minLength": 1 },
+          "outputSchema": { "type": "string", "minLength": 1 },
+          "resolvedOutputSchema": {
+            "type": "object",
+            "properties": {
+              "ref": { "type": "string", "minLength": 1 },
+              "schema": { "type": "object" }
+            },
+            "required": ["ref", "schema"],
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "runDir": { "type": "string", "minLength": 1 },
+    "workflow": { "type": "string", "minLength": 1 },
+    "initialized": { "type": "boolean" },
+    "resumed": { "type": "boolean" }
+  },
+  "additionalProperties": false
+}

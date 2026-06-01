@@ -1,5 +1,5 @@
-import { Workflow } from '../../../entities/Workflow.mjs';
-import { Baton } from '../../../entities/Baton.mjs';
+import { Workflow } from '../../../entities/Workflow/index.mjs';
+import { Baton } from '../../../entities/Baton/index.mjs';
 
 export function assertLoadedWorkflowAndBaton(workflowDoc, batonDoc, options = {}) {
   const workflow = new Workflow(workflowDoc);
