@@ -50,6 +50,6 @@ When the packet cannot be safely saved:
 ## Template rules
 
 - Do not reproduce the full research packet markdown here.
-- Point `saved.artifact_path` and artifact `path` at the saved packet location under the active run directory, normally `outputs/research-packet.md`.
+- Point `saved.artifact_path` and artifact `path` at the saved packet location relative to the current run output area, normally `outputs/research-packet.md`.
 - Keep summaries short and suitable for baton/history projection.
 - Match `workflows/research-critic/schemas/save-research-packet-output.json` exactly.

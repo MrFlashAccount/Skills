@@ -1,9 +1,9 @@
 import { constants } from 'node:fs';
-import { access, mkdir, open, writeFile } from 'node:fs/promises';
+import { access, open, writeFile } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defaultRepositoryRootForWorkflow } from '../workflow-resources/resource-resolver.mjs';
-import { assertManagedRunStateFile } from './atomic-file.mjs';
+import { assertManagedRunStateFile, createManagedDirectory } from './atomic-file.mjs';
 import { runsIndexPathsForRoot } from './run-index.mjs';
 
 const runnerDir = dirname(fileURLToPath(import.meta.url));
@@ -89,10 +89,10 @@ function workflowStart(workflowDoc, workflowPath) {
 }
 
 export async function ensureRunFiles(paths, { userPrompt, userPromptTarget } = {}) {
-  await mkdir(paths.runsRoot, { recursive: true });
-  await mkdir(paths.runDir, { recursive: true });
-  await mkdir(paths.runnerDir, { recursive: true });
-  await mkdir(paths.instructionsDir, { recursive: true });
+  await createManagedDirectory(paths.runsRoot, 'workflow runs root');
+  await createManagedDirectory(paths.runDir, 'workflow run directory');
+  await createManagedDirectory(paths.runnerDir, 'workflow runner directory');
+  await createManagedDirectory(paths.instructionsDir, 'workflow runner instructions directory');
 
   const batonExists = await exists(paths.batonPath);
   if (batonExists) await assertManagedRunStateFile(paths.batonPath, 'workflow baton');

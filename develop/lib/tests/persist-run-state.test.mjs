@@ -53,7 +53,7 @@ function runPersist(args) {
 
 after(() => {
   rmSync(tempDir, { recursive: true, force: true });
-  for (const label of ['success-run', 'symlink-history-run', 'append-run', 'unreadable-run', 'invalid-run']) rmSync(runPath(runId(label)), { recursive: true, force: true });
+  for (const label of ['success-run', 'symlink-history-run', 'symlink-run-dir-rejected', 'append-run', 'unreadable-run', 'invalid-run']) rmSync(runPath(runId(label)), { recursive: true, force: true });
 });
 
 test('persist helper atomically replaces baton and appends readable history', () => {
@@ -81,6 +81,25 @@ test('persist helper atomically replaces baton and appends readable history', ()
   const status = JSON.parse(result.stdout);
   assert.equal(status.ok, true);
   assert.equal(status.baton, path.join(runDir, 'baton.json'));
+});
+
+test('persist helper rejects symlinked derived run dir without writing outside the runs root', () => {
+  const id = runId('symlink-run-dir-rejected');
+  const runDir = runPath(id);
+  const outsideDir = path.join(tempDir, 'outside-symlink-run-dir');
+  rmSync(runDir, { recursive: true, force: true });
+  rmSync(outsideDir, { recursive: true, force: true });
+  mkdirSync(outsideDir, { recursive: true });
+  symlinkSync(outsideDir, runDir, 'dir');
+  const inputPath = writeJson(path.join(tempDir, 'symlink-run-dir-baton.json'), baton({ cursor: 'architecture' }));
+
+  const result = runPersist(['--run-id', id, '--baton', inputPath, '--decision', 'must not escape']);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /workflow run directory is unsafe because it is a symlink/);
+  assert.equal(existsSync(path.join(outsideDir, 'baton.json')), false);
+  assert.equal(existsSync(path.join(outsideDir, 'history.md')), false);
+  assert.equal(existsSync(path.join(outsideDir, '.workflow-runner')), false);
 });
 
 test('persist helper rejects symlinked history without appending outside run dir', () => {

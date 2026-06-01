@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { mkdir, readFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { assertBatonSchema } from '../../entities/Baton/schema/baton-schema.mjs';
 import { assertResponseSchema } from '../../use-cases/runtime/output/response-schema.mjs';
@@ -103,9 +103,6 @@ const steps = responsePath ? input.steps : undefined;
 requireObject(baton, 'baton');
 
 const paths = resolveRunPaths({ runId, workflowPath: values.workflow });
-await mkdir(paths.runDir, { recursive: true });
-await mkdir(paths.runnerDir, { recursive: true });
-await mkdir(paths.instructionsDir, { recursive: true });
 await ensureRunFiles(paths);
 await upsertRunIndexEntry(paths, { status: 'running', workflowPath: paths.workflowPath });
 

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
@@ -64,9 +64,27 @@ function baton(overrides = {}) {
 
 after(() => {
   rmSync(tempDir, { recursive: true, force: true });
-  for (const label of ['new-run', 'start-run-user-prompt-rejected', 'resume-run', 'resume-no-history', 'invalid-baton-run']) {
+  for (const label of ['new-run', 'start-run-user-prompt-rejected', 'resume-run', 'resume-no-history', 'invalid-baton-run', 'symlink-run-dir-rejected']) {
     rmSync(runPath(prefixedRunId(label)), { recursive: true, force: true });
   }
+});
+
+test('start-run rejects symlinked derived run dir without writing outside the runs root', () => {
+  const runId = prefixedRunId('symlink-run-dir-rejected');
+  const runDir = runPath(runId);
+  const outsideDir = path.join(tempDir, 'outside-symlink-run-dir');
+  rmSync(runDir, { recursive: true, force: true });
+  rmSync(outsideDir, { recursive: true, force: true });
+  mkdirSync(outsideDir, { recursive: true });
+  symlinkSync(outsideDir, runDir, 'dir');
+
+  const result = runStart(['--run-id', runId]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /workflow run directory is unsafe because it is a symlink/);
+  assert.equal(existsSync(path.join(outsideDir, 'baton.json')), false);
+  assert.equal(existsSync(path.join(outsideDir, 'history.md')), false);
+  assert.equal(existsSync(path.join(outsideDir, '.workflow-runner')), false);
 });
 
 test('start-run creates run dir, initializes baton/history, and returns steps', () => {

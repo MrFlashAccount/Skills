@@ -1,6 +1,24 @@
 import { lstat, mkdir, open, readFile, rename, rm } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 
+
+export async function assertManagedDirectory(path, name = 'workflow run-state directory') {
+  try {
+    const stats = await lstat(path);
+    if (stats.isSymbolicLink()) throw new Error(`${name} is unsafe because it is a symlink: ${path}`);
+    if (!stats.isDirectory()) throw new Error(`${name} is unsafe because it is not a directory: ${path}`);
+  } catch (error) {
+    if (error?.code === 'ENOENT') return;
+    throw error;
+  }
+}
+
+export async function createManagedDirectory(path, name = 'workflow run-state directory') {
+  await assertManagedDirectory(path, name);
+  await mkdir(path, { recursive: true });
+  await assertManagedDirectory(path, name);
+}
+
 export async function assertManagedRunStateFile(path, name = 'workflow run-state file') {
   try {
     if ((await lstat(path)).isSymbolicLink()) throw new Error(`${name} is unsafe because it is a symlink: ${path}`);

@@ -343,7 +343,7 @@ Interpreter remains responsible for current-step selection and post-output trans
 Preferred CLI surface: add a new mode beside `inspect` and `apply`:
 
 ```bash
-node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-dir <dir> --workflow <workflow.json> [--diagnostics]
+node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-id <run-id> --workflow <workflow.json> [--diagnostics]
 ```
 
 Output shape:

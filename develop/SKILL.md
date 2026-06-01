@@ -9,7 +9,7 @@ Run workflows by driving the `workflow-runner` request loop from the repository 
 
 ## Variables
 
-- `<run-dir>`: current run directory; keep using the same value for the whole run.
+- `<run-id>`: public workflow run identity; keep using the same value for the whole run. Runner files are kept internally under `develop/.workflow-runs/<run-id>`.
 - `<workflow>`: workflow definition path for the initial `next`; same-run `continue` reuses the workflow stored in the run unless you explicitly override it.
 - `<result.json>`: JSON host-output file produced for one host request.
 - `<step-id>`: id of a request/step from `response.requests[]`.
@@ -19,19 +19,19 @@ Run workflows by driving the `workflow-runner` request loop from the repository 
 Start or resume a run from the repo root:
 
 ```bash
-node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-dir <run-dir> --workflow <workflow>
+node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-id <run-id> --workflow <workflow>
 ```
 
 Continue after host request outputs are ready:
 
 ```bash
-node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-dir <run-dir> --output <result.json>
+node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-id <run-id> --output <result.json>
 ```
 
 For multiple request outputs, name every output:
 
 ```bash
-node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-dir <run-dir> \
+node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-id <run-id> \
   --output <step-id>=<result.json> \
   --output <step-id>=<result.json>
 ```
@@ -39,7 +39,7 @@ node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-dir <run-dir
 Load instructions for one request:
 
 ```bash
-node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-dir <run-dir> --step-id <step-id>
+node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-id <run-id> --step-id <step-id>
 ```
 
 ## Request loop
@@ -59,7 +59,7 @@ node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-dir <run
 
 - Treat `response.requests[]` as the complete list of required host actions.
 - Execute every request in the list before continuing.
-- Do not run two `workflow-runner continue` commands concurrently for the same `<run-dir>`; the runner rejects same-run concurrent continues with a lock error. Collect all current outputs, then continue once.
+- Do not run two `workflow-runner continue` commands concurrently for the same `<run-id>`; the runner rejects same-run concurrent continues with a lock error. Collect all current outputs, then continue once.
 - `run_worker` may appear more than once; run those workers in parallel when safe.
 - `wait_for_approval` is also a host request; do not skip it, infer approval, or force it into a fixed approval envelope.
 - User input for `wait_for_approval` may be an approval verdict, an option choice, or free-form text.
