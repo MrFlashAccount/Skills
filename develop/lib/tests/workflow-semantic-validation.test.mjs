@@ -9,7 +9,7 @@ import researchCriticWorkflowDoc from '../../../workflows/research-critic/workfl
 import { WorkflowRuntimeError } from '../errors.mjs';
 import { validateWorkflow } from '../use-cases/ValidateWorkflow.mjs';
 import { validateWorkflowFile } from '../entrypoints/api/validateWorkflow.mjs';
-import { WorkflowFileReader } from '../persistence/workflow-resources/workflow-file-reader.mjs';
+import { readOutputSchemas, readAllowedRoles } from '../persistence/workflow-resources/workflow-file-reader.mjs';
 import { validateAgainstOutputSchema } from '../use-cases/runtime/output/output-schema-validation.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -18,8 +18,8 @@ mkdirSync(path.join(tempDir, 'schemas'), { recursive: true });
 cpSync(path.join(REPO_ROOT, 'workflows/dev-harness/schemas'), path.join(tempDir, 'schemas'), { recursive: true });
 
 function validateWithRuntimeArchitecture(doc, { workflowPath }) {
-  const outputSchemas = WorkflowFileReader.readOutputSchemas({ workflow: doc, workflowPath, repositoryRoot: REPO_ROOT });
-  const allowedRoles = WorkflowFileReader.readAllowedRoles({ repositoryRoot: REPO_ROOT });
+  const outputSchemas = readOutputSchemas({ workflow: doc, workflowPath, repositoryRoot: REPO_ROOT });
+  const allowedRoles = readAllowedRoles({ repositoryRoot: REPO_ROOT });
   return validateWorkflow({ workflowDTO: doc, outputSchemas, allowedRoles }).toJSON();
 }
 

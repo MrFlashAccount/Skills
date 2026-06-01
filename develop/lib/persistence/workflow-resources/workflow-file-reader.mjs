@@ -5,7 +5,7 @@ import { loadOutputSchema } from './output-schema-loader.mjs';
 import { defaultRepositoryRootForWorkflow } from './resource-resolver.mjs';
 import { WorkflowDTO } from '../../dtos/WorkflowDTO.mjs';
 import { listAllowedWorkflowRoles } from './role-material-catalog.mjs';
-import { assertWorkflowSchema } from '../../entities/Workflow/schema/workflow-schema.mjs';
+import { assertWorkflowSchema } from '../../file-contracts/workflow-document-schema.mjs';
 
 function readWorkflowJson(pathname, kind) {
   try {
@@ -35,5 +35,3 @@ export function readOutputSchemas({ workflow, workflowPath, repositoryRoot = def
 export function readAllowedRoles({ repositoryRoot = defaultRepositoryRootForWorkflow('workflow.json') } = {}) {
   return listAllowedWorkflowRoles({ repositoryRoot });
 }
-
-export const WorkflowFileReader = { read, readOutputSchemas, readAllowedRoles };

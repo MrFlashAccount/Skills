@@ -5,7 +5,7 @@ import { loadOutputSchema } from './output-schema-loader.mjs';
 import { isInside } from '../filesystem/path-safety.mjs';
 import { WorkflowRuntimeError } from '../../errors.mjs';
 import { listAllowedWorkflowRoles, workflowRoleMaterialPath, REQUIRED_WORKFLOW_ROLE_MATERIAL_FILES } from './role-material-catalog.mjs';
-import { assertWorkflowSchema } from '../../entities/Workflow/schema/workflow-schema.mjs';
+import { assertWorkflowSchema } from '../../file-contracts/workflow-document-schema.mjs';
 import { assertBatonSchema } from '../../entities/Baton/schema/baton-schema.mjs';
 
 function readJson(pathname, kind) {

@@ -3,7 +3,7 @@ import { Workflow } from '../entities/Workflow/index.mjs';
 import { WorkflowResultDTO } from '../dtos/WorkflowResultDTO.mjs';
 import { WorkflowRuntimeError } from '../errors.mjs';
 import { batonSchema } from '../entities/Baton/schema/baton-schema.mjs';
-import { assertWorkflowSchema } from '../entities/Workflow/schema/workflow-schema.mjs';
+import { assertWorkflowSchema } from '../file-contracts/workflow-document-schema.mjs';
 
 export function validateWorkflow({ workflowDTO, outputSchemas = new Map(), allowedRoles } = {}) {
   const workflowDoc = typeof workflowDTO?.toJSON === 'function' ? workflowDTO.toJSON() : workflowDTO;

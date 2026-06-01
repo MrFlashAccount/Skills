@@ -1,5 +1,5 @@
-import workflowSchema from './workflow.json' with { type: 'json' };
-import { assertSchema } from '../../../schema-kernel/index.mjs';
+import workflowSchema from './workflow-document.json' with { type: 'json' };
+import { assertSchema } from '../schema-kernel/index.mjs';
 
 export class WorkflowSchemaError extends Error {
   constructor(message) {

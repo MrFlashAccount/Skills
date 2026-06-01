@@ -5,7 +5,7 @@
 import { WorkflowRuntimeError } from '../../errors.mjs';
 import { RESERVED_STATE_KEYS, DANGEROUS_OBJECT_KEYS, assertProjectableStateSelector, isDangerousObjectKey, isReservedStateKey } from './state-keys.mjs';
 import { assertRoleDirectoryName } from './role-ref.mjs';
-import { compileWorkflowOutputSchema } from './schema/schema-ref-validation.mjs';
+import { compileWorkflowOutputSchema } from './schema-ref-validation.mjs';
 import { assertTransitionDescriptorTargets, normalizeTransitionNext } from '../Step/index.mjs';
 import { Step } from '../Step/index.mjs';
 import { statusForStep } from './status.mjs';
