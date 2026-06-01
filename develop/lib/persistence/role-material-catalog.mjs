@@ -1,7 +1,13 @@
 /** Filesystem catalog for repository-local workflow role material directories. */
 import { existsSync, realpathSync, readdirSync } from 'node:fs';
 import path from 'node:path';
-import { REQUIRED_ROLE_MATERIAL_FILES, isRoleDirectoryName } from '../resource-helpers/role-material.mjs';
+import { isRoleDirectoryName } from '../resource-helpers/role-material.mjs';
+
+export const REQUIRED_WORKFLOW_ROLE_MATERIAL_FILES = ['ROLE.md', 'RUBRIC.md'];
+
+export function workflowRoleMaterialPath(role, fileName) {
+  return path.join('roles', role, fileName);
+}
 
 export function listAllowedWorkflowRoles({ repositoryRoot }) {
   const root = realpathSync(repositoryRoot);
@@ -16,6 +22,6 @@ export function listAllowedWorkflowRoles({ repositoryRoot }) {
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .filter(isRoleDirectoryName)
-    .filter((role) => REQUIRED_ROLE_MATERIAL_FILES.every((fileName) => existsSync(path.join(rolesRoot, role, fileName))))
+    .filter((role) => REQUIRED_WORKFLOW_ROLE_MATERIAL_FILES.every((fileName) => existsSync(path.join(rolesRoot, role, fileName))))
     .sort();
 }

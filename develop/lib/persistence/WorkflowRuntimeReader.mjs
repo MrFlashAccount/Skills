@@ -5,8 +5,7 @@ import { readWorkflowFileRef, defaultRepositoryRootForWorkflow } from './resourc
 import { loadOutputSchema } from './output-schema.mjs';
 import { isInside } from './path-utils.mjs';
 import { WorkflowRuntimeError } from '../entities/errors.mjs';
-import { listAllowedWorkflowRoles } from './role-material-catalog.mjs';
-import { roleMaterialPath, REQUIRED_ROLE_MATERIAL_FILES } from '../resource-helpers/role-material.mjs';
+import { listAllowedWorkflowRoles, workflowRoleMaterialPath, REQUIRED_WORKFLOW_ROLE_MATERIAL_FILES } from './role-material-catalog.mjs';
 import { assertBatonSchema, assertWorkflowSchema } from '../schemas/workflow-schema.mjs';
 
 function templateRefs(workflow) {
@@ -65,13 +64,13 @@ function loadSchemas({ workflow, workflowPath, repositoryRoot }) {
 }
 
 function readRoleMaterialFile({ root, role, fileName }) {
-  const relative = roleMaterialPath(role, fileName);
+  const relative = workflowRoleMaterialPath(role, fileName);
   const candidate = path.join(root, relative);
   let resolvedPath;
   try {
     resolvedPath = realpathSync(candidate);
   } catch {
-    return undefined;
+    return { path: relative };
   }
   if (!isInside(resolvedPath, root)) {
     throw new WorkflowRuntimeError(`workflow prompt render failed: input.role material escapes repository root: ${relative}`);
@@ -83,12 +82,8 @@ function loadRoleMaterials({ workflow, repositoryRoot }) {
   const root = realpathSync(repositoryRoot);
   const roleMaterials = {};
   for (const role of roleNames(workflow)) {
-    roleMaterials[role] = {};
-    for (const fileName of REQUIRED_ROLE_MATERIAL_FILES) {
-      const loaded = readRoleMaterialFile({ root, role, fileName });
-      if (loaded) roleMaterials[role][fileName] = loaded;
-      // Missing role material is reported by Template only when a rendered step needs it.
-    }
+    roleMaterials[role] = REQUIRED_WORKFLOW_ROLE_MATERIAL_FILES.map((fileName) => readRoleMaterialFile({ root, role, fileName }));
+    // Missing role material content is reported by Template only when a rendered step needs it.
   }
   return roleMaterials;
 }

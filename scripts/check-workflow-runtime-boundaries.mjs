@@ -57,6 +57,8 @@ const runStatePersistence = [
 ];
 
 scan([...entrypoints, ...persistence], /entities\/(workflow-helpers|step-helpers|template-compiler)/, 'entrypoints/persistence must not import entity internals');
+scan([path.join(root, 'develop/lib/resource-helpers/role-material.mjs')], /node:path|ROLE\.md|RUBRIC\.md|\broles\b/, 'role material helper must not own storage layout');
+scan(entities, /roleMaterialPath|REQUIRED_ROLE_MATERIAL_FILES|workflowRoleMaterialPath|REQUIRED_WORKFLOW_ROLE_MATERIAL_FILES/, 'entities must not import role material storage-layout helpers');
 scan([...entrypoints, ...persistence, ...useCases], /entities\/workflow-helpers\/schema-validation\.mjs/, 'schema validators must be schema-owned');
 scan(schemas, /\.\.(?:\/\.\.)*\/entities\//, 'schemas must not import entities');
 scan(schemas, /from ['"].*persistence/, 'schemas must not import persistence');

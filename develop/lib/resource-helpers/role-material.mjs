@@ -1,6 +1,3 @@
-import path from 'node:path';
-
-export const REQUIRED_ROLE_MATERIAL_FILES = ['ROLE.md', 'RUBRIC.md'];
 export const ROLE_DIRECTORY_NAME_PATTERN = /^[A-Za-z0-9_-]+$/;
 
 export function isRoleDirectoryName(role) {
@@ -12,8 +9,4 @@ export function assertRoleDirectoryName(role, { errorPrefix = 'workflow role val
   if (!isRoleDirectoryName(role)) {
     throw new Error(`${errorPrefix}: input.role must be a role directory name: ${role}`);
   }
-}
-
-export function roleMaterialPath(role, fileName) {
-  return path.join('roles', role, fileName);
 }
