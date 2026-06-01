@@ -45,10 +45,6 @@ function parseCliArgs(argv) {
   }
 }
 
-function runsRootArg() {
-  return process.env.WORKFLOW_RUNS_ROOT || undefined;
-}
-
 function leaseArgs(values) {
   return {
     owner: values.owner,
@@ -62,11 +58,10 @@ function leaseArgs(values) {
 try {
   const { mode, values } = parseCliArgs(process.argv.slice(2));
   if (mode === 'list') {
-    const runs = await listWorkflowRuns({ runsRoot: runsRootArg() });
+    const runs = await listWorkflowRuns();
     process.stdout.write(values.human ? `${summarizeWorkflowRuns(runs)}\n` : `${JSON.stringify(runs, null, 2)}\n`);
   } else if (mode === 'create') {
     const response = await registerWorkflowRun({
-      runsRoot: runsRootArg(),
       runId: values['run-id'],
       workflowPath: values.workflow,
       workflowIdentity: values['workflow-identity'],
@@ -81,7 +76,6 @@ try {
   } else {
     const leaseAction = mode === 'heartbeat' ? heartbeatWorkflowRun : claimWorkflowRun;
     const response = await leaseAction({
-      runsRoot: runsRootArg(),
       runId: values['run-id'],
       workflowPath: values.workflow,
       ...leaseArgs(values),

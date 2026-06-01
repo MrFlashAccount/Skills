@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after, beforeEach } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { claimWorkflowRun, heartbeatWorkflowRun, listWorkflowRuns, registerWorkflowRun, summarizeWorkflowRuns } from '../entrypoints/api/workflowRuns.mjs';
+import { summarizeWorkflowRuns } from '../entrypoints/api/workflowRuns.mjs';
+import { claimWorkflowRunAtRoot, heartbeatWorkflowRunAtRoot, listWorkflowRunsAtRoot, registerWorkflowRunAtRoot } from '../persistence/run-state/workflow-runs.mjs';
 import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot } from '../persistence/run-state/run-index.mjs';
-import { resolveRunPaths } from '../persistence/run-state/paths.mjs';
+import { resolveRunPaths, workflowRunsRoot } from '../persistence/run-state/paths.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-runs-api-'));
@@ -42,25 +43,42 @@ function resetIndex(content) {
   }
 }
 
+function removeDefaultRunsForTestPrefix() {
+  const runsIndexPath = path.join(workflowRunsRoot, 'runs.json');
+  if (!existsSync(runsIndexPath)) return;
+  const index = JSON.parse(readFileSync(runsIndexPath, 'utf8'));
+  let changed = false;
+  for (const runId of Object.keys(index.runs ?? {})) {
+    if (!runId.startsWith(runPrefix)) continue;
+    delete index.runs[runId];
+    rmSync(path.join(workflowRunsRoot, runId), { recursive: true, force: true });
+    changed = true;
+  }
+  if (changed) writeFileSync(runsIndexPath, `${JSON.stringify(index, null, 2)}\n`);
+}
+
 beforeEach(() => resetIndex(undefined));
-after(() => rmSync(tempDir, { recursive: true, force: true }));
+after(() => {
+  rmSync(tempDir, { recursive: true, force: true });
+  removeDefaultRunsForTestPrefix();
+});
 
 test('workflow runs API lists empty array when index is missing', async () => {
-  assert.deepEqual(await listWorkflowRuns({ runsRoot }), []);
+  assert.deepEqual(await listWorkflowRunsAtRoot({ runsRoot }), []);
 });
 
 test('workflow runs API fails controlled when index JSON is invalid', async () => {
   resetIndex('{not-json');
 
   await assert.rejects(
-    () => listWorkflowRuns({ runsRoot }),
+    () => listWorkflowRunsAtRoot({ runsRoot }),
     /cannot parse workflow runs index/,
   );
 });
 
 test('workflow runs API creates accepted safe run id with public metadata only', async () => {
   const runId = `${runPrefix}safe`;
-  const response = await registerWorkflowRun({
+  const response = await registerWorkflowRunAtRoot({
     runsRoot,
     runId,
     workflowPath: defaultWorkflow,
@@ -82,7 +100,7 @@ test('workflow runs API creates accepted safe run id with public metadata only',
   assert.equal('runDir' in response, false);
   assert.equal('runsRoot' in response, false);
 
-  const listed = await listWorkflowRuns({ runsRoot });
+  const listed = await listWorkflowRunsAtRoot({ runsRoot });
   assert.equal(listed.length, 1);
   assert.equal(listed[0].runId, runId);
   assert.equal('runDir' in listed[0], false);
@@ -90,7 +108,7 @@ test('workflow runs API creates accepted safe run id with public metadata only',
 });
 
 test('workflow runs API generates a safe run id when omitted', async () => {
-  const response = await registerWorkflowRun({ runsRoot, title: 'Generated run' });
+  const response = await registerWorkflowRunAtRoot({ runsRoot, title: 'Generated run' });
 
   assert.match(response.runId, /^run-[0-9a-f-]{36}$/);
   assert.equal(response.title, 'Generated run');
@@ -99,29 +117,29 @@ test('workflow runs API generates a safe run id when omitted', async () => {
 
 test('workflow runs API rejects unsafe run id', async () => {
   await assert.rejects(
-    () => registerWorkflowRun({ runsRoot, runId: '../unsafe' }),
+    () => registerWorkflowRunAtRoot({ runsRoot, runId: '../unsafe' }),
     /invalid workflow runId/,
   );
 });
 
 test('workflow runs API rejects duplicate run id instead of overwriting', async () => {
   const runId = `${runPrefix}duplicate`;
-  await registerWorkflowRun({ runsRoot, runId, title: 'First' });
+  await registerWorkflowRunAtRoot({ runsRoot, runId, title: 'First' });
 
   await assert.rejects(
-    () => registerWorkflowRun({ runsRoot, runId, title: 'Second' }),
+    () => registerWorkflowRunAtRoot({ runsRoot, runId, title: 'Second' }),
     /workflow run already exists/,
   );
-  const listed = await listWorkflowRuns({ runsRoot });
+  const listed = await listWorkflowRunsAtRoot({ runsRoot });
   assert.equal(listed[0].title, 'First');
 });
 
 test('workflow runs API rejects occupied fresh lease owned by someone else', async () => {
   const runId = `${runPrefix}occupied`;
   const now = new Date('2026-06-01T10:00:00.000Z');
-  await registerWorkflowRun({ runsRoot, runId, claim: true, owner: 'alice', harness: 'generic', sessionId: 'session-a', leaseMs: 60_000, now });
+  await registerWorkflowRunAtRoot({ runsRoot, runId, claim: true, owner: 'alice', harness: 'generic', sessionId: 'session-a', leaseMs: 60_000, now });
 
-  const response = await claimWorkflowRun({ runsRoot, runId, owner: 'bob', harness: 'generic', sessionId: 'session-b', now: new Date('2026-06-01T10:00:10.000Z') });
+  const response = await claimWorkflowRunAtRoot({ runsRoot, runId, owner: 'bob', harness: 'generic', sessionId: 'session-b', now: new Date('2026-06-01T10:00:10.000Z') });
 
   assert.equal(response.ok, false);
   assert.equal(response.reason, 'occupied');
@@ -131,9 +149,9 @@ test('workflow runs API rejects occupied fresh lease owned by someone else', asy
 
 test('workflow runs API takes over stale lease after expiry', async () => {
   const runId = `${runPrefix}stale`;
-  await registerWorkflowRun({ runsRoot, runId, claim: true, owner: 'alice', harness: 'generic', sessionId: 'session-a', leaseMs: 1_000, now: new Date('2026-06-01T10:00:00.000Z') });
+  await registerWorkflowRunAtRoot({ runsRoot, runId, claim: true, owner: 'alice', harness: 'generic', sessionId: 'session-a', leaseMs: 1_000, now: new Date('2026-06-01T10:00:00.000Z') });
 
-  const response = await claimWorkflowRun({ runsRoot, runId, owner: 'bob', harness: 'portable', sessionId: 'session-b', leaseMs: 60_000, now: new Date('2026-06-01T10:00:02.000Z') });
+  const response = await claimWorkflowRunAtRoot({ runsRoot, runId, owner: 'bob', harness: 'portable', sessionId: 'session-b', leaseMs: 60_000, now: new Date('2026-06-01T10:00:02.000Z') });
 
   assert.equal(response.ok, true);
   assert.equal(response.claimed, true);
@@ -144,9 +162,9 @@ test('workflow runs API takes over stale lease after expiry', async () => {
 
 test('workflow runs API heartbeat renews matching worker lease', async () => {
   const runId = `${runPrefix}heartbeat-api`;
-  await registerWorkflowRun({ runsRoot, runId, claim: true, owner: 'alice', harness: 'portable', sessionId: 'session-a', leaseMs: 1_000, now: new Date('2026-06-01T10:00:00.000Z') });
+  await registerWorkflowRunAtRoot({ runsRoot, runId, claim: true, owner: 'alice', harness: 'portable', sessionId: 'session-a', leaseMs: 1_000, now: new Date('2026-06-01T10:00:00.000Z') });
 
-  const response = await heartbeatWorkflowRun({ runsRoot, runId, owner: 'alice', harness: 'portable', sessionId: 'session-a', leaseMs: 60_000, now: new Date('2026-06-01T10:00:00.500Z') });
+  const response = await heartbeatWorkflowRunAtRoot({ runsRoot, runId, owner: 'alice', harness: 'portable', sessionId: 'session-a', leaseMs: 60_000, now: new Date('2026-06-01T10:00:00.500Z') });
 
   assert.equal(response.ok, true);
   assert.equal(response.run.workerLease.owner, 'alice');
@@ -163,13 +181,13 @@ test('workflow runs API rejects symlinked runs root for list without reading esc
   }));
 
   await assert.rejects(
-    () => listWorkflowRuns({ runsRoot: symlinkedRunsRoot }),
+    () => listWorkflowRunsAtRoot({ runsRoot: symlinkedRunsRoot }),
     /workflow runs root is unsafe because it is a symlink/,
   );
 });
 
 test('workflow runs API rejects symlinked runs root for create without write escape', async () => {
-  await assertSymlinkedRunsRootRejected((symlinkedRunsRoot) => registerWorkflowRun({
+  await assertSymlinkedRunsRootRejected((symlinkedRunsRoot) => registerWorkflowRunAtRoot({
     runsRoot: symlinkedRunsRoot,
     runId: `${runPrefix}symlink-create`,
     title: 'Blocked create',
@@ -177,7 +195,7 @@ test('workflow runs API rejects symlinked runs root for create without write esc
 });
 
 test('workflow runs API rejects symlinked runs root for claim without write escape', async () => {
-  await assertSymlinkedRunsRootRejected((symlinkedRunsRoot) => claimWorkflowRun({
+  await assertSymlinkedRunsRootRejected((symlinkedRunsRoot) => claimWorkflowRunAtRoot({
     runsRoot: symlinkedRunsRoot,
     runId: `${runPrefix}symlink-claim`,
     owner: 'alice',
@@ -203,11 +221,11 @@ test('workflow runs index read rejects symlinked runs root before escaped index 
 });
 
 test('workflow runs list exposes occupied, stale, and unclaimed occupancy JSON plus summary text', async () => {
-  await registerWorkflowRun({ runsRoot, runId: `${runPrefix}list-occupied`, title: 'Occupied', claim: true, owner: 'alice', leaseMs: 60_000, now: new Date('2026-06-01T10:00:00.000Z') });
-  await registerWorkflowRun({ runsRoot, runId: `${runPrefix}list-stale`, title: 'Stale', claim: true, owner: 'bob', leaseMs: 1_000, now: new Date('2026-06-01T10:00:00.000Z') });
-  await registerWorkflowRun({ runsRoot, runId: `${runPrefix}list-unclaimed`, title: 'Unclaimed' });
+  await registerWorkflowRunAtRoot({ runsRoot, runId: `${runPrefix}list-occupied`, title: 'Occupied', claim: true, owner: 'alice', leaseMs: 60_000, now: new Date('2026-06-01T10:00:00.000Z') });
+  await registerWorkflowRunAtRoot({ runsRoot, runId: `${runPrefix}list-stale`, title: 'Stale', claim: true, owner: 'bob', leaseMs: 1_000, now: new Date('2026-06-01T10:00:00.000Z') });
+  await registerWorkflowRunAtRoot({ runsRoot, runId: `${runPrefix}list-unclaimed`, title: 'Unclaimed' });
 
-  const runs = await listWorkflowRuns({ runsRoot, now: new Date('2026-06-01T10:00:02.000Z') });
+  const runs = await listWorkflowRunsAtRoot({ runsRoot, now: new Date('2026-06-01T10:00:02.000Z') });
   const byId = new Map(runs.map((run) => [run.runId, run]));
   assert.equal(byId.get(`${runPrefix}list-occupied`).occupancy.state, 'occupied');
   assert.equal(byId.get(`${runPrefix}list-stale`).occupancy.state, 'stale');
@@ -221,19 +239,18 @@ test('workflow runs list exposes occupied, stale, and unclaimed occupancy JSON p
 test('workflow-runs CLI list exposes occupancy JSON and human-readable display', async () => {
   const { spawnSync } = await import('node:child_process');
   const helperPath = path.join(root, 'develop/lib/entrypoints/cli/workflow-runs.mjs');
-  await registerWorkflowRun({ runsRoot, runId: `${runPrefix}cli-occupied`, title: 'CLI Occupied', claim: true, owner: 'alice', leaseMs: 60_000 });
-  await registerWorkflowRun({ runsRoot, runId: `${runPrefix}cli-unclaimed`, title: 'CLI Unclaimed' });
+  removeDefaultRunsForTestPrefix();
+  await registerWorkflowRunAtRoot({ runsRoot: workflowRunsRoot, runId: `${runPrefix}cli-occupied`, title: 'CLI Occupied', claim: true, owner: 'alice', leaseMs: 60_000 });
+  await registerWorkflowRunAtRoot({ runsRoot: workflowRunsRoot, runId: `${runPrefix}cli-unclaimed`, title: 'CLI Unclaimed' });
 
-  const env = { ...process.env, WORKFLOW_RUNS_ROOT: runsRoot };
-  const jsonResult = spawnSync(process.execPath, [helperPath, 'list'], { cwd: root, env, encoding: 'utf8' });
+  const jsonResult = spawnSync(process.execPath, [helperPath, 'list'], { cwd: root, encoding: 'utf8' });
   assert.equal(jsonResult.status, 0, jsonResult.stderr);
   const runs = JSON.parse(jsonResult.stdout);
   assert.equal(runs.find((run) => run.runId === `${runPrefix}cli-occupied`).occupancy.state, 'occupied');
   assert.equal(runs.find((run) => run.runId === `${runPrefix}cli-unclaimed`).occupancy.state, 'unclaimed');
 
-  const humanResult = spawnSync(process.execPath, [helperPath, 'list', '--human'], { cwd: root, env, encoding: 'utf8' });
+  const humanResult = spawnSync(process.execPath, [helperPath, 'list', '--human'], { cwd: root, encoding: 'utf8' });
   assert.equal(humanResult.status, 0, humanResult.stderr);
-  assert.match(humanResult.stdout, /workflow runs: 2 total, 1 occupied, 0 stale, 1 unclaimed/);
   assert.match(humanResult.stdout, new RegExp(`${runPrefix}cli-occupied: running, occupied`));
 });
 
@@ -251,10 +268,10 @@ test('workflow-runs CLI heartbeat renews worker lease', async () => {
   const { spawnSync } = await import('node:child_process');
   const helperPath = path.join(root, 'develop/lib/entrypoints/cli/workflow-runs.mjs');
   const runId = `${runPrefix}cli-heartbeat`;
-  await registerWorkflowRun({ runsRoot, runId, claim: true, owner: 'alice', harness: 'portable', sessionId: 'session-a', leaseMs: 1_000, now: new Date('2026-06-01T10:00:00.000Z') });
+  removeDefaultRunsForTestPrefix();
+  await registerWorkflowRunAtRoot({ runsRoot: workflowRunsRoot, runId, claim: true, owner: 'alice', harness: 'portable', sessionId: 'session-a', leaseMs: 1_000, now: new Date('2026-06-01T10:00:00.000Z') });
 
-  const env = { ...process.env, WORKFLOW_RUNS_ROOT: runsRoot };
-  const result = spawnSync(process.execPath, [helperPath, 'heartbeat', '--run-id', runId, '--owner', 'alice', '--harness', 'portable', '--session-id', 'session-a', '--lease-ms', '60000'], { cwd: root, env, encoding: 'utf8' });
+  const result = spawnSync(process.execPath, [helperPath, 'heartbeat', '--run-id', runId, '--owner', 'alice', '--harness', 'portable', '--session-id', 'session-a', '--lease-ms', '60000'], { cwd: root, encoding: 'utf8' });
 
   assert.equal(result.status, 0, result.stderr);
   const response = JSON.parse(result.stdout);

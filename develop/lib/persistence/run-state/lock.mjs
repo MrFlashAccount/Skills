@@ -20,7 +20,7 @@ export async function withRunStateLock(paths, callback) {
     await handle.sync();
   } catch (error) {
     if (error?.code === 'EEXIST') {
-      throw new Error(`workflow-runner continue is already in progress for ${paths.runDir}; inspect or remove stale lock ${paths.continueLockPath}`);
+      throw new Error(`workflow-runner continue is already in progress for runId ${paths.runId}`);
     }
     if (acquired) await rm(paths.continueLockPath, { force: true });
     throw error;

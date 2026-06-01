@@ -130,7 +130,13 @@ test('persisted-state writer acquires run-state lock before writing', async () =
       instructions: [],
       history: { source: 'test', baton: baton({ cursor: 'done', status: 'done' }) },
     }),
-    /continue is already in progress/,
+    (error) => {
+      assert.match(error.message, /continue is already in progress for runId/);
+      assert.match(error.message, new RegExp(paths.runId));
+      assert.equal(error.message.includes(paths.runDir), false);
+      assert.equal(error.message.includes(paths.continueLockPath), false);
+      return true;
+    },
   );
 
   assert.equal(existsSync(paths.durableCommitPath), false);
