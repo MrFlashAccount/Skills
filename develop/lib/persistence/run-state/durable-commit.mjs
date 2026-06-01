@@ -4,7 +4,7 @@ import { dirname, resolve } from 'node:path';
 import { assertPersistedRunState } from './persisted-state-schema.mjs';
 import { readPersistedRunState } from './PersistedRunStateReader.mjs';
 import { assertManagedRunStateFile, writeJsonAtomic, writeTextAtomic } from './atomic-file.mjs';
-import { isInside } from '../path-utils.mjs';
+import { isInside } from '../filesystem/path-safety.mjs';
 
 async function exists(path) { try { await access(path, constants.F_OK); return true; } catch { return false; } }
 

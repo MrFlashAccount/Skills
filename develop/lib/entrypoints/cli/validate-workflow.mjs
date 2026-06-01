@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { WorkflowRuntimeError } from '../../entities/errors.mjs';
+import { WorkflowRuntimeError } from '../../errors.mjs';
 import { validateWorkflowFile } from '../../entrypoints/api/validateWorkflow.mjs';
 
 function fail(message) {

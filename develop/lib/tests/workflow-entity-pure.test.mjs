@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { Workflow } from '../entities/Workflow.mjs';
-import { WorkflowRuntimeError } from '../entities/errors.mjs';
+import { Workflow } from '../entities/Workflow/index.mjs';
+import { WorkflowRuntimeError } from '../errors.mjs';
 
 const routeOutputSchema = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',

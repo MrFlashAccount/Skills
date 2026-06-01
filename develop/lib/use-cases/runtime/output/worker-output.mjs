@@ -1,6 +1,6 @@
-import { WorkflowRuntimeError } from '../../../entities/errors.mjs';
-import { assertWorkerOutputSchema } from '../../../schemas/workflow-schema.mjs';
-import { validateAgainstOutputSchema, OUTPUT_SCHEMA_MAX_ATTEMPTS } from '../../../schemas/output-schema-validation.mjs';
+import { WorkflowRuntimeError } from '../../../errors.mjs';
+import { assertWorkerOutputSchema } from './worker-output-schema.mjs';
+import { validateAgainstOutputSchema, OUTPUT_SCHEMA_MAX_ATTEMPTS } from '../../../use-cases/runtime/output/output-schema-validation.mjs';
 import { invalidJsonOutputRetry, outputSchemaAttempt, responseForOutputSchemaRetry } from '../loop/guard.mjs';
 
 export function readWorkerOutputForStep({ baton, stepId, step, allOutput, outputParseError }) {

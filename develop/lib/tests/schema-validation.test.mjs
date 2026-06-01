@@ -2,7 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { validateJsonSchema } from 'schema-validation';
 import reviewJoinOutputSchema from '../../../workflows/dev-harness/schemas/review-join-output.json' with { type: 'json' };
-import { assertBatonSchema, assertWorkflowSchema, reviewerSelectionOutputSchema, workflowSchemas } from '../schemas/workflow-schema.mjs';
+import reviewerSelectionOutputSchema from '../../../workflows/dev-harness/schemas/reviewer-selection-output.json' with { type: 'json' };
+import { assertBatonSchema, batonSchema } from '../entities/Baton/schema/baton-schema.mjs';
+import { assertWorkflowSchema, workflowSchema } from '../entities/Workflow/schema/workflow-schema.mjs';
+
+const runtimeSchemas = [workflowSchema, batonSchema, reviewerSelectionOutputSchema, reviewJoinOutputSchema];
 
 function minimalWorkflowDoc(overrides = {}) {
   return {
@@ -40,15 +44,15 @@ test('generic JSON Schema helper validates workflow schema documents at runtime'
     },
   };
 
-  assert.equal(validateJsonSchema(reviewerSelectionOutputSchema, valid, { schemas: workflowSchemas }).ok, true);
+  assert.equal(validateJsonSchema(reviewerSelectionOutputSchema, valid, { schemas: runtimeSchemas }).ok, true);
   assert.equal(validateJsonSchema(reviewerSelectionOutputSchema, {
     ...valid,
     review_plan: { reviewers: [{ ...valid.review_plan.reviewers[0], role: 'staff-backend' }] },
-  }, { schemas: workflowSchemas }).ok, false);
+  }, { schemas: runtimeSchemas }).ok, false);
   assert.equal(validateJsonSchema(reviewerSelectionOutputSchema, {
     ...valid,
     review_plan: { reviewers: [{ ...valid.review_plan.reviewers[0], surfaces: [] }] },
-  }, { schemas: workflowSchemas }).ok, false);
+  }, { schemas: runtimeSchemas }).ok, false);
 });
 
 
@@ -64,18 +68,18 @@ test('review join output schema rejects mismatched needs_changes rework routing 
     next: ['backend_implementation'],
   };
 
-  assert.equal(validateJsonSchema(reviewJoinOutputSchema, valid, { schemas: workflowSchemas }).ok, true);
+  assert.equal(validateJsonSchema(reviewJoinOutputSchema, valid, { schemas: runtimeSchemas }).ok, true);
   assert.equal(validateJsonSchema(reviewJoinOutputSchema, {
     ...valid,
     next: ['frontend_implementation'],
-  }, { schemas: workflowSchemas }).ok, false);
+  }, { schemas: runtimeSchemas }).ok, false);
   assert.equal(validateJsonSchema(reviewJoinOutputSchema, {
     ...valid,
     verdict: {
       ...valid.verdict,
       required_implementation_steps: ['backend_implementation', 'frontend_implementation'],
     },
-  }, { schemas: workflowSchemas }).ok, false);
+  }, { schemas: runtimeSchemas }).ok, false);
 });
 
 

@@ -1,6 +1,7 @@
 import { resolve } from 'node:path';
-import { isInside } from '../path-utils.mjs';
-import { assertBatonSchema, assertRunnerHostResponseSchema } from '../../schemas/workflow-schema.mjs';
+import { isInside } from '../filesystem/path-safety.mjs';
+import { assertBatonSchema } from '../../entities/Baton/schema/baton-schema.mjs';
+import { assertRunnerHostResponseSchema } from './schema/runner-host-response-schema.mjs';
 
 export const PERSISTED_RUN_STATE_VERSION = 1;
 export const PERSISTED_RUN_STATE_TOPOLOGY = 'split-files-v1';

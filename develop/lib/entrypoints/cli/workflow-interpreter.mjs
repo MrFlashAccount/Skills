@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
 import { validateWorkflowRuntimeCliArgs } from './cli-args-validation.mjs';
-import { WorkflowRuntimeError } from '../../entities/errors.mjs';
+import { WorkflowRuntimeError } from '../../errors.mjs';
 import { applyWorkflowOutput } from '../../use-cases/ApplyWorkflowOutput.mjs';
 import { inspectWorkflow } from '../../use-cases/InspectWorkflow.mjs';
 import { runNext } from '../../use-cases/RunNext.mjs';
-import { loadWorkflowRuntime, readWorkerOutputText } from '../../persistence/WorkflowRuntimeReader.mjs';
+import { loadWorkflowRuntime, readWorkerOutputText } from '../../persistence/workflow-resources/runtime-reader.mjs';
 
 function fail(message) {
   console.error(`workflow-interpreter: ${message}`);

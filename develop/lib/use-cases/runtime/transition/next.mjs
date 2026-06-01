@@ -1,4 +1,4 @@
-import { Step } from '../../../entities/Step.mjs';
+import { Step } from '../../../entities/Step/index.mjs';
 import { prepareParallelBranch } from '../parallel/render.mjs';
 import { responseFor } from '../output/response.mjs';
 import { markUserPromptInjectedForStep, validateSelectedStartupUserPromptTarget } from '../../user-prompt.mjs';

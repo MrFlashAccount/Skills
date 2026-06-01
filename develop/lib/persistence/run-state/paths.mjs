@@ -2,7 +2,7 @@ import { constants } from 'node:fs';
 import { access, mkdir, open, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { defaultRepositoryRootForWorkflow } from '../resource-resolver.mjs';
+import { defaultRepositoryRootForWorkflow } from '../workflow-resources/resource-resolver.mjs';
 import { assertManagedRunStateFile } from './atomic-file.mjs';
 
 const runnerDir = dirname(fileURLToPath(import.meta.url));

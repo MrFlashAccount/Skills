@@ -7,7 +7,7 @@ import { assertPersistedRunState } from '../persistence/run-state/persisted-stat
 import { readPersistedRunState } from '../persistence/run-state/PersistedRunStateReader.mjs';
 import { writeJsonAtomic } from '../persistence/run-state/atomic-file.mjs';
 import { resolveRunPaths } from '../persistence/run-state/paths.mjs';
-import { RunStateFileWriter } from '../persistence/RunStateFileWriter.mjs';
+import { writePersistedRunStateUpdate } from '../persistence/run-state/PersistedRunStateWriter.mjs';
 
 const tempDir = mkdtempSync(path.join(tmpdir(), 'persisted-run-state-'));
 
@@ -74,7 +74,7 @@ test('persisted-state reader rejects invalid current durable baton', async () =>
 test('persisted-state writer rejects invalid next state before durable commit side effects', async () => {
   const paths = setupRunDir('invalid_next');
   await assert.rejects(
-    () => RunStateFileWriter.write(paths, {
+    () => writePersistedRunStateUpdate(paths, {
       response: response({ cursor: 'prepare' }),
       baton: { cursor: 'prepare' },
       instructions: [],
@@ -91,7 +91,7 @@ test('persisted-state writer rejects invalid next state before durable commit si
 
 test('persisted-state reader exposes committed instruction refs after journal removal', async () => {
   const paths = setupRunDir('committed_instruction_refs');
-  await RunStateFileWriter.write(paths, {
+  await writePersistedRunStateUpdate(paths, {
     response: response(baton({ cursor: 'prepare', status: 'running' })),
     baton: baton({ cursor: 'prepare', status: 'running' }),
     instructions: [{ path: path.join(paths.instructionsDir, 'prepare.md'), content: '# Prepare instructions' }],
@@ -107,7 +107,7 @@ test('persisted-state reader exposes committed instruction refs after journal re
 
 test('persisted-state reader rejects missing committed instruction file', async () => {
   const paths = setupRunDir('missing_committed_instruction');
-  await RunStateFileWriter.write(paths, {
+  await writePersistedRunStateUpdate(paths, {
     response: response(baton({ cursor: 'prepare', status: 'running' })),
     baton: baton({ cursor: 'prepare', status: 'running' }),
     instructions: [{ path: path.join(paths.instructionsDir, 'prepare.md'), content: '# Prepare instructions' }],
@@ -123,7 +123,7 @@ test('persisted-state writer acquires run-state lock before writing', async () =
   writeFileSync(paths.continueLockPath, 'held');
 
   await assert.rejects(
-    () => RunStateFileWriter.write(paths, {
+    () => writePersistedRunStateUpdate(paths, {
       response: response(baton({ cursor: 'done', status: 'done' })),
       baton: baton({ cursor: 'done', status: 'done' }),
       instructions: [],
@@ -142,7 +142,7 @@ test('persisted-state writer rejects escaping instruction paths before durable c
   const outsideInstruction = path.join(tempDir, 'outside-instruction.md');
 
   await assert.rejects(
-    () => RunStateFileWriter.write(paths, {
+    () => writePersistedRunStateUpdate(paths, {
       response: response(baton({ cursor: 'done', status: 'done' })),
       baton: baton({ cursor: 'done', status: 'done' }),
       instructions: [{ path: outsideInstruction, content: '# Escape' }],
@@ -189,7 +189,7 @@ test('persisted-state writer recovers existing pending journal before writing a 
     sideEffects: { baton: true, lastResponse: true, history: true, instructions: 1 },
   });
 
-  await RunStateFileWriter.write(paths, {
+  await writePersistedRunStateUpdate(paths, {
     response: response(baton({ cursor: 'blocked', status: 'blocked' })),
     baton: baton({ cursor: 'blocked', status: 'blocked' }),
     instructions: [],
@@ -229,7 +229,7 @@ test('persisted-state recovery restores targets after injected durable commit fa
   process.env.WORKFLOW_RUNNER_FAIL_DURABLE_COMMIT_AFTER = 'history';
   try {
     await assert.rejects(
-      () => RunStateFileWriter.write(paths, {
+      () => writePersistedRunStateUpdate(paths, {
         response: response(baton({ cursor: 'done', status: 'done' })),
         baton: baton({ cursor: 'done', status: 'done' }),
         instructions: [{ path: path.join(paths.instructionsDir, 'prepare.md'), content: '# Prepare' }],

@@ -6,11 +6,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import workflowDoc from '../../../workflows/dev-harness/workflow.json' with { type: 'json' };
 import researchCriticWorkflowDoc from '../../../workflows/research-critic/workflow.json' with { type: 'json' };
-import { WorkflowRuntimeError } from '../entities/errors.mjs';
+import { WorkflowRuntimeError } from '../errors.mjs';
 import { validateWorkflow } from '../use-cases/ValidateWorkflow.mjs';
 import { validateWorkflowFile } from '../entrypoints/api/validateWorkflow.mjs';
-import { WorkflowFileReader } from '../persistence/WorkflowFileReader.mjs';
-import { validateAgainstOutputSchema } from '../persistence/output-schema-validation.mjs';
+import { WorkflowFileReader } from '../persistence/workflow-resources/workflow-file-reader.mjs';
+import { validateAgainstOutputSchema } from '../use-cases/runtime/output/output-schema-validation.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-semantic-validation-'));

@@ -3,21 +3,18 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-  BatonDTO,
-  InstructionDTO,
-  OutputDTO,
-  RunStateDTO,
-  StepDTO,
-  TemplateDTO,
-  WorkflowDTO,
-  WorkflowResultDTO,
-} from '../dtos/index.mjs';
-import { TemplateFileReader } from '../persistence/TemplateFileReader.mjs';
+import { BatonDTO } from '../dtos/BatonDTO.mjs';
+import { InstructionDTO } from '../dtos/InstructionDTO.mjs';
+import { OutputDTO } from '../dtos/OutputDTO.mjs';
+import { RunStateProjectionDTO } from '../dtos/RunStateProjectionDTO.mjs';
+import { StepDTO } from '../dtos/StepDTO.mjs';
+import { TemplateDTO } from '../dtos/TemplateDTO.mjs';
+import { WorkflowDTO } from '../dtos/WorkflowDTO.mjs';
+import { WorkflowResultDTO } from '../dtos/WorkflowResultDTO.mjs';
 
 const LIB_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DTO_DIR = path.join(LIB_DIR, 'dtos');
-const DTO_CLASSES = [BatonDTO, InstructionDTO, OutputDTO, RunStateDTO, StepDTO, TemplateDTO, WorkflowDTO, WorkflowResultDTO];
+const DTO_CLASSES = [BatonDTO, InstructionDTO, OutputDTO, RunStateProjectionDTO, StepDTO, TemplateDTO, WorkflowDTO, WorkflowResultDTO];
 
 test('DTOs are plain transfer containers, not validation owners', () => {
   for (const DTO of DTO_CLASSES) {
@@ -43,7 +40,7 @@ test('DTO source files document transfer shape with JSDoc typedefs', () => {
   assert.deepEqual(missingTypedef, []);
 });
 
-test('template reader transfers data without DTO-style mechanical validation', () => {
-  assert.deepEqual(TemplateFileReader.read(undefined).toJSON(), { ref: undefined });
-  assert.deepEqual(TemplateFileReader.read(42).toJSON(), { ref: 42 });
+test('template DTO transfers data without mechanical validation', () => {
+  assert.deepEqual(new TemplateDTO({ ref: undefined }).toJSON(), { ref: undefined });
+  assert.deepEqual(new TemplateDTO({ ref: 42 }).toJSON(), { ref: 42 });
 });

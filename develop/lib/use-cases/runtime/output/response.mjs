@@ -1,6 +1,6 @@
 import { buildStepEntries } from '../../executable-steps.mjs';
-import { invariant } from '../../../entities/errors.mjs';
-import { assertResponseSchema } from '../../../schemas/workflow-schema.mjs';
+import { invariant } from '../../../errors.mjs';
+import { assertResponseSchema } from './response-schema.mjs';
 
 export function hasAppliedOutputForStep(baton, stepId) {
   return Boolean(baton.state && Object.hasOwn(baton.state, stepId));

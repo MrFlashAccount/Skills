@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 import { mkdir, readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
-import { assertBatonSchema, assertResponseSchema } from '../../schemas/workflow-schema.mjs';
-import { RunStateFileWriter } from '../../persistence/RunStateFileWriter.mjs';
+import { assertBatonSchema } from '../../entities/Baton/schema/baton-schema.mjs';
+import { assertResponseSchema } from '../../use-cases/runtime/output/response-schema.mjs';
+import { writePersistedRunStateUpdate } from '../../persistence/run-state/PersistedRunStateWriter.mjs';
 import { ensureRunFiles, resolveRunPaths } from '../../persistence/run-state/paths.mjs';
 
 function fail(message) {
@@ -107,7 +108,7 @@ await mkdir(paths.instructionsDir, { recursive: true });
 await ensureRunFiles(paths);
 
 try {
-  await RunStateFileWriter.write(paths, {
+  await writePersistedRunStateUpdate(paths, {
     baton,
     instructions: [],
     history: historyPatch({

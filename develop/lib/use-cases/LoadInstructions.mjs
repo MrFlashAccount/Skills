@@ -1,10 +1,10 @@
 /** LoadInstructions use-case coordinates Workflow/Baton/Step validation for instruction reads. */
 import { InstructionDTO } from '../dtos/InstructionDTO.mjs';
-import { RunStateDTO } from '../dtos/RunStateDTO.mjs';
+import { RunStateProjectionDTO } from '../dtos/RunStateProjectionDTO.mjs';
 import { WorkflowDTO } from '../dtos/WorkflowDTO.mjs';
 import { WorkflowResultDTO } from '../dtos/WorkflowResultDTO.mjs';
-import { Baton } from '../entities/Baton.mjs';
-import { Workflow } from '../entities/Workflow.mjs';
+import { Baton } from '../entities/Baton/index.mjs';
+import { Workflow } from '../entities/Workflow/index.mjs';
 
 function materialize(value) {
   return typeof value?.toJSON === 'function' ? value.toJSON() : value;
@@ -23,9 +23,9 @@ function outputSchemasByStep(workflow, resources = {}) {
 }
 
 function normalizeRunState({ runStateDTO, batonDoc, batonData }) {
-  if (runStateDTO) return materialize(new RunStateDTO(materialize(runStateDTO)));
+  if (runStateDTO) return materialize(new RunStateProjectionDTO(materialize(runStateDTO)));
   const baton = batonDoc ?? batonData?.baton ?? batonData;
-  return materialize(new RunStateDTO({ baton, requests: batonData?.requests ?? [] }));
+  return materialize(new RunStateProjectionDTO({ baton, requests: batonData?.requests ?? [] }));
 }
 
 export function loadInstructions({ workflowDTO, runStateDTO, instructionDTO, resources, stepId, workflowDoc, batonDoc, batonData } = {}) {

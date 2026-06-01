@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { applyWorkflowOutput } from '../../use-cases/ApplyWorkflowOutput.mjs';
@@ -5,17 +6,24 @@ import { renderAppliedResponse } from '../../use-cases/ContinueRun.mjs';
 import { runNext } from '../../use-cases/RunNext.mjs';
 import { loadInstructions as loadInstructionsUseCase } from '../../use-cases/LoadInstructions.mjs';
 import { resolveStartupUserPrompt, startupUserPromptTarget } from '../../use-cases/user-prompt.mjs';
-import { loadWorkflowRuntime, readWorkerOutputText } from '../../persistence/WorkflowRuntimeReader.mjs';
-import { read as readInstructionDTO } from '../../persistence/InstructionFileReader.mjs';
-import { RunStateFileWriter } from '../../persistence/RunStateFileWriter.mjs';
-import { assertSafeStepId, instructionPathForStep, responseStatusForInterpreterResponse, toHostResponse } from '../../persistence/runner/host-requests.mjs';
-import { readJson } from '../../persistence/json-io.mjs';
+import { loadWorkflowRuntime, readWorkerOutputText } from '../../persistence/workflow-resources/runtime-reader.mjs';
+import { read as readInstructionDTO } from '../../persistence/workflow-resources/instruction-file-reader.mjs';
+import { writePersistedRunStateUpdate } from '../../persistence/run-state/PersistedRunStateWriter.mjs';
+import { assertSafeStepId, instructionPathForStep, responseStatusForInterpreterResponse, toHostResponse } from './runner/host-requests.mjs';
 import { readText } from '../../persistence/run-state/atomic-file.mjs';
 import { recoverDurableCommit } from '../../persistence/run-state/durable-commit.mjs';
 import { readPersistedRunState } from '../../persistence/run-state/PersistedRunStateReader.mjs';
 import { projectRuntimeRunState } from '../../persistence/run-state/persisted-state-schema.mjs';
 import { ensureRunFiles, pathExists, resolveRunPaths } from '../../persistence/run-state/paths.mjs';
 import { withRunStateLock } from '../../persistence/run-state/lock.mjs';
+
+async function readJson(pathname, kind) {
+  try {
+    return JSON.parse(await readFile(pathname, 'utf8'));
+  } catch (error) {
+    throw new Error(`failed to read ${kind} JSON '${pathname}': ${error.message}`);
+  }
+}
 
 function stepInstructionsFor(paths, interpreterResponse) {
   if (responseStatusForInterpreterResponse(interpreterResponse) !== 'needs_host_actions') return [];
@@ -44,7 +52,7 @@ async function runnerResponseForRendered(paths, rendered, { initialized, resumed
 
 async function persistNextHostResponse(paths, rendered, runState) {
   const response = await runnerResponseForRendered(paths, rendered, runState);
-  await RunStateFileWriter.write(paths, {
+  await writePersistedRunStateUpdate(paths, {
     response,
     baton: response.baton,
     instructions: stepInstructionsFor(paths, rendered),
@@ -213,7 +221,7 @@ export async function continueRun({ runDir, workflowPath, output, includeDiagnos
     const rendered = renderAppliedResponse({ workflowDoc: runtime.workflow, response: applied, resources: runtime.resources, includeDiagnostics });
 
     const response = await runnerResponseForRendered(paths, rendered, { initialized: false, resumed: true });
-    await RunStateFileWriter.write(paths, {
+    await writePersistedRunStateUpdate(paths, {
       response,
       baton: applied.baton,
       instructions: stepInstructionsFor(paths, rendered),

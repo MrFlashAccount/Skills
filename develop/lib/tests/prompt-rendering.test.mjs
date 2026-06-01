@@ -5,11 +5,11 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { projectState } from '../entities/step-helpers/projection.mjs';
+import { projectState } from '../entities/Step/projection.mjs';
 import { renderStepPrompts } from '../use-cases/runtime/parallel/render.mjs';
-import { renderWorkflowPrompt } from '../entities/Template.mjs';
-import { validateAgainstOutputSchema } from '../persistence/output-schema-validation.mjs';
-import { loadWorkflowResources } from '../persistence/WorkflowRuntimeReader.mjs';
+import { renderWorkflowPrompt } from '../entities/Template/index.mjs';
+import { validateAgainstOutputSchema } from '../use-cases/runtime/output/output-schema-validation.mjs';
+import { loadWorkflowResources } from '../persistence/workflow-resources/runtime-reader.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'prompt-rendering-check-'));

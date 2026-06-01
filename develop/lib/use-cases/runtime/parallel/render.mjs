@@ -1,6 +1,6 @@
-import { applyOutputToBatonState } from '../../../entities/Baton.mjs';
-import { renderWorkflowPrompt } from '../../../entities/Template.mjs';
-import { invariant } from '../../../entities/errors.mjs';
+import { applyOutputToBatonState } from '../../../entities/Baton/index.mjs';
+import { renderWorkflowPrompt } from '../../../entities/Template/index.mjs';
+import { invariant } from '../../../errors.mjs';
 import { responseFor } from '../output/response.mjs';
 import { assertStartupUserPromptTargetRenderable, markUserPromptInjectedForStep, selectedUserPromptStepId, validateSelectedStartupUserPromptTarget } from '../../user-prompt.mjs';
 
