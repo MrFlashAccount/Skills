@@ -2,6 +2,7 @@ import { constants } from 'node:fs';
 import { access, mkdir, open, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { assertManagedRunStateFile, writeJsonAtomic } from './atomic-file.mjs';
+import { assertRunsIndexSchema } from './schema/runs-index-schema.mjs';
 
 export const RUNS_INDEX_SCHEMA_VERSION = 1;
 export const RUNS_INDEX_TOPOLOGY_VERSION = 'workflow-runs-v1';
@@ -10,37 +11,19 @@ async function exists(path) {
   try { await access(path, constants.F_OK); return true; } catch { return false; }
 }
 
-function assertObject(value, name) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`${name} must be an object`);
-}
-
-function assertOptionalString(value, name) {
-  if (value !== undefined && typeof value !== 'string') throw new Error(`${name} must be a string when present`);
-}
-
-function assertIndexRun(run, key) {
-  assertObject(run, `runs index entry ${key}`);
+function assertIndexRunKey(run, key) {
   if (run.runId !== key) throw new Error(`runs index entry key mismatch for ${key}`);
-  assertOptionalString(run.summary, `runs index entry ${key}.summary`);
-  assertOptionalString(run.title, `runs index entry ${key}.title`);
-  assertObject(run.workflow, `runs index entry ${key}.workflow`);
-  assertOptionalString(run.workflow.identity, `runs index entry ${key}.workflow.identity`);
-  if (typeof run.workflow.path !== 'string' || run.workflow.path.length === 0) throw new Error(`runs index entry ${key}.workflow.path must be a non-empty string`);
-  if (!['running', 'needs_host_actions', 'done', 'blocked'].includes(run.status)) throw new Error(`runs index entry ${key}.status is invalid`);
-  if (typeof run.createdAt !== 'string' || run.createdAt.length === 0) throw new Error(`runs index entry ${key}.createdAt must be a non-empty string`);
-  if (typeof run.updatedAt !== 'string' || run.updatedAt.length === 0) throw new Error(`runs index entry ${key}.updatedAt must be a non-empty string`);
-  assertOptionalString(run.taskKey, `runs index entry ${key}.taskKey`);
-  assertOptionalString(run.taskFingerprint, `runs index entry ${key}.taskFingerprint`);
-  if (run.workerLease !== null) assertObject(run.workerLease, `runs index entry ${key}.workerLease`);
 }
 
 export function assertRunsIndex(index) {
-  assertObject(index, 'runs index');
-  if (index.schemaVersion !== RUNS_INDEX_SCHEMA_VERSION) throw new Error('runs index has unsupported schemaVersion');
-  if (index.topologyVersion !== RUNS_INDEX_TOPOLOGY_VERSION) throw new Error('runs index has unsupported topologyVersion');
-  assertObject(index.runs, 'runs index runs');
-  for (const [key, run] of Object.entries(index.runs)) assertIndexRun(run, key);
+  assertRunsIndexSchema(index);
+  for (const [key, run] of Object.entries(index.runs)) assertIndexRunKey(run, key);
   return index;
+}
+
+function pruneUndefinedProperties(value) {
+  for (const key of Object.keys(value)) if (value[key] === undefined) delete value[key];
+  return value;
 }
 
 export async function readRunsIndex(paths) {
@@ -106,6 +89,8 @@ export async function upsertRunIndexEntry(paths, patch = {}) {
       taskFingerprint: patch.taskFingerprint ?? existing?.taskFingerprint,
       workerLease: patch.workerLease ?? existing?.workerLease ?? null,
     };
+    pruneUndefinedProperties(entry.workflow);
+    pruneUndefinedProperties(entry);
     if (patch.summary !== undefined) entry.summary = patch.summary;
     if (patch.title !== undefined) entry.title = patch.title;
     index.runs[paths.runId] = entry;

@@ -94,3 +94,49 @@ test('corrupt runs.json fails controlled', async () => {
     rmSync(tempRoot, { recursive: true, force: true });
   }
 });
+
+function validRunsIndex(overrides = {}) {
+  const id = 'schema-test-run';
+  return {
+    schemaVersion: 1,
+    topologyVersion: 'workflow-runs-v1',
+    runs: {
+      [id]: {
+        runId: id,
+        workflow: { path: workflowPath },
+        status: 'running',
+        createdAt: '2026-06-01T00:00:00.000Z',
+        updatedAt: '2026-06-01T00:00:00.000Z',
+        workerLease: null,
+      },
+    },
+    ...overrides,
+  };
+}
+
+async function assertRunsIndexSchemaFailure(mutator, pattern) {
+  const tempRoot = mkdtempSync(path.join(tmpdir(), 'workflow-runs-index-schema-'));
+  const paths = runsIndexPathsForRoot(tempRoot);
+  const index = validRunsIndex();
+  mutator(index);
+  mkdirSync(tempRoot, { recursive: true });
+  writeFileSync(paths.runsIndexPath, `${JSON.stringify(index, null, 2)}\n`, { mode: 0o600 });
+  try {
+    await assert.rejects(() => readRunsIndex(paths), pattern);
+  } finally {
+    rmSync(tempRoot, { recursive: true, force: true });
+  }
+}
+
+test('runs.json index records fail through JSON Schema validation', async () => {
+  await assertRunsIndexSchemaFailure((index) => { index.extra = true; }, /runs index failed schema validation: .*must NOT have additional properties/);
+  await assertRunsIndexSchemaFailure((index) => { delete index.runs['schema-test-run'].workflow; }, /runs index failed schema validation: .*must have required property 'workflow'/);
+  await assertRunsIndexSchemaFailure((index) => { index.runs['schema-test-run'].status = 'paused'; }, /runs index failed schema validation: .*status.*must be equal to one of the allowed values|runs index failed schema validation: .*must be equal to one of the allowed values/);
+  await assertRunsIndexSchemaFailure((index) => { index.runs['schema-test-run'].workflow.runDir = '/tmp/private'; }, /runs index failed schema validation: .*workflow.*must NOT have additional properties|runs index failed schema validation: .*must NOT have additional properties/);
+  await assertRunsIndexSchemaFailure((index) => { index.runs['schema-test-run'].workerLease = 'lease'; }, /runs index failed schema validation: .*workerLease.*must be object|runs index failed schema validation: .*must match exactly one schema in oneOf/);
+  await assertRunsIndexSchemaFailure((index) => { index.runs['schema-test-run'].taskKey = 'raw prompt with spaces'; }, /runs index failed schema validation: .*taskKey.*must match pattern|runs index failed schema validation: .*must match pattern/);
+});
+
+test('runs.json index record key mismatch remains semantic validation', async () => {
+  await assertRunsIndexSchemaFailure((index) => { index.runs['schema-test-run'].runId = 'schema-test-other-run'; }, /runs index entry key mismatch for schema-test-run/);
+});
