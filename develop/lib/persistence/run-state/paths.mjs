@@ -23,16 +23,16 @@ export function assertSafeRunId(runId) {
   return runId;
 }
 
-export function runDirForRunId(runId) {
+export function runDirForRunId(runId, runsRoot = workflowRunsRoot) {
   assertSafeRunId(runId);
-  return join(workflowRunsRoot, runId);
+  return join(runsRoot, runId);
 }
 
-export function resolveRunPaths({ runId, workflowPath }) {
+export function resolveRunPaths({ runId, workflowPath, runsRoot = workflowRunsRoot }) {
   const safeRunId = assertSafeRunId(runId);
-  const resolvedRunDir = runDirForRunId(safeRunId);
+  const indexPaths = runsIndexPathsForRoot(runsRoot);
+  const resolvedRunDir = runDirForRunId(safeRunId, indexPaths.runsRoot);
   const resolvedWorkflowPath = resolve(workflowPath ?? defaultWorkflowPath);
-  const indexPaths = runsIndexPathsForRoot(workflowRunsRoot);
   return {
     runId: safeRunId,
     runsRoot: indexPaths.runsRoot,

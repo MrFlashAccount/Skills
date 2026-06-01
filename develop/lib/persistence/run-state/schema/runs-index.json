@@ -50,7 +50,19 @@
         "workerLease": {
           "oneOf": [
             { "type": "null" },
-            { "type": "object" }
+            {
+              "type": "object",
+              "required": ["heartbeatAt", "leaseExpiresAt"],
+              "properties": {
+                "owner": { "type": "string", "minLength": 1 },
+                "harness": { "type": "string", "minLength": 1 },
+                "sessionId": { "type": "string", "minLength": 1 },
+                "workerId": { "type": "string", "minLength": 1 },
+                "heartbeatAt": { "type": "string", "minLength": 1 },
+                "leaseExpiresAt": { "type": "string", "minLength": 1 }
+              },
+              "additionalProperties": false
+            }
           ]
         }
       },

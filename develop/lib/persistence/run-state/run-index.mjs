@@ -69,30 +69,59 @@ export async function withRunsIndexLock(paths, callback) {
   finally { await rm(paths.runsIndexLockPath, { force: true }); }
 }
 
+function indexEntryForPaths(paths, patch = {}, existing) {
+  const now = new Date().toISOString();
+  const entry = {
+    runId: paths.runId,
+    summary: existing?.summary,
+    title: existing?.title,
+    workflow: {
+      identity: patch.workflowIdentity ?? existing?.workflow?.identity,
+      path: patch.workflowPath ?? existing?.workflow?.path ?? paths.workflowPath,
+    },
+    status: patch.status ?? existing?.status ?? 'running',
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+    taskKey: patch.taskKey ?? existing?.taskKey,
+    taskFingerprint: patch.taskFingerprint ?? existing?.taskFingerprint,
+    workerLease: patch.workerLease ?? existing?.workerLease ?? null,
+  };
+  pruneUndefinedProperties(entry.workflow);
+  pruneUndefinedProperties(entry);
+  if (patch.summary !== undefined) entry.summary = patch.summary;
+  if (patch.title !== undefined) entry.title = patch.title;
+  return entry;
+}
+
 export async function upsertRunIndexEntry(paths, patch = {}) {
   return withRunsIndexLock(paths, async () => {
     const index = await readRunsIndex(paths);
-    const now = new Date().toISOString();
+    const entry = indexEntryForPaths(paths, patch, index.runs[paths.runId]);
+    index.runs[paths.runId] = entry;
+    assertRunsIndex(index);
+    await writeJsonAtomic(paths.runsIndexPath, index);
+    return entry;
+  });
+}
+
+export async function createRunIndexEntry(paths, patch = {}) {
+  return withRunsIndexLock(paths, async () => {
+    const index = await readRunsIndex(paths);
+    if (index.runs[paths.runId]) throw new Error(`workflow run already exists: ${paths.runId}`);
+    const entry = indexEntryForPaths(paths, patch);
+    index.runs[paths.runId] = entry;
+    assertRunsIndex(index);
+    await writeJsonAtomic(paths.runsIndexPath, index);
+    return entry;
+  });
+}
+
+export async function updateRunIndexEntry(paths, updater) {
+  return withRunsIndexLock(paths, async () => {
+    const index = await readRunsIndex(paths);
     const existing = index.runs[paths.runId];
-    const entry = {
-      runId: paths.runId,
-      summary: existing?.summary,
-      title: existing?.title,
-      workflow: {
-        identity: patch.workflowIdentity ?? existing?.workflow?.identity,
-        path: patch.workflowPath ?? existing?.workflow?.path ?? paths.workflowPath,
-      },
-      status: patch.status ?? existing?.status ?? 'running',
-      createdAt: existing?.createdAt ?? now,
-      updatedAt: now,
-      taskKey: patch.taskKey ?? existing?.taskKey,
-      taskFingerprint: patch.taskFingerprint ?? existing?.taskFingerprint,
-      workerLease: patch.workerLease ?? existing?.workerLease ?? null,
-    };
-    pruneUndefinedProperties(entry.workflow);
-    pruneUndefinedProperties(entry);
-    if (patch.summary !== undefined) entry.summary = patch.summary;
-    if (patch.title !== undefined) entry.title = patch.title;
+    if (!existing) throw new Error(`unknown workflow run: ${paths.runId}`);
+    const entry = await updater(existing, index);
     index.runs[paths.runId] = entry;
     assertRunsIndex(index);
     await writeJsonAtomic(paths.runsIndexPath, index);
