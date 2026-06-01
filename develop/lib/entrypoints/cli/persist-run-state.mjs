@@ -4,8 +4,9 @@ import { parseArgs } from 'node:util';
 import { assertBatonSchema } from '../../entities/Baton/schema/baton-schema.mjs';
 import { assertResponseSchema } from '../../use-cases/runtime/output/response-schema.mjs';
 import { writePersistedRunStateUpdate } from '../../persistence/run-state/PersistedRunStateWriter.mjs';
+import { assertFreshTokenAuthority, WORKFLOW_RUN_TOKEN_ENV } from '../../persistence/run-state/lease-authority.mjs';
 import { ensureRunFiles, resolveRunPaths } from '../../persistence/run-state/paths.mjs';
-import { upsertRunIndexEntry } from '../../persistence/run-state/run-index.mjs';
+import { readRunsIndex, runsIndexPathsForRoot, upsertRunIndexEntry } from '../../persistence/run-state/run-index.mjs';
 
 function fail(message) {
   console.error(`persist-run-state: ${message}`);
@@ -23,12 +24,13 @@ function parseCliArgs(argv) {
         baton: { type: 'string' },
         output: { type: 'string' },
         decision: { type: 'string' },
+        'lease-token': { type: 'string' },
       },
       strict: true,
       allowPositionals: false,
     }).values;
   } catch (error) {
-    fail(`${error.message}\nusage: node develop/lib/entrypoints/cli/persist-run-state.mjs --run-id <id> [--workflow <workflow.json>] (--response <workflow-interpreter-response.json> | --baton <new-baton.json>) [--output <worker-output-path>] [--decision <text>]`);
+    fail(`${error.message}\nusage: node develop/lib/entrypoints/cli/persist-run-state.mjs --run-id <id> [--workflow <workflow.json>] (--response <workflow-interpreter-response.json> | --baton <new-baton.json>) [--output <worker-output-path>] [--decision <text>] [--lease-token <token>|WORKFLOW_RUN_TOKEN]`);
   }
 }
 
@@ -69,6 +71,17 @@ function compact(value) {
   return String(value).replace(/\s+/g, ' ').trim();
 }
 
+function effectiveLeaseToken(value) {
+  return value ?? process.env[WORKFLOW_RUN_TOKEN_ENV];
+}
+
+async function assertTokenAuthority(paths, token) {
+  const index = await readRunsIndex(runsIndexPathsForRoot(paths.runsRoot));
+  const run = index.runs[paths.runId];
+  try { assertFreshTokenAuthority(run?.workerLease, token, { runId: paths.runId }); }
+  catch (error) { fail(error.message); }
+}
+
 function historyPatch({ baton, steps, source, output, decision }) {
   return {
     baton,
@@ -103,6 +116,7 @@ const steps = responsePath ? input.steps : undefined;
 requireObject(baton, 'baton');
 
 const paths = resolveRunPaths({ runId, workflowPath: values.workflow });
+await assertTokenAuthority(paths, effectiveLeaseToken(values['lease-token']));
 await ensureRunFiles(paths);
 await upsertRunIndexEntry(paths, { status: 'running', workflowPath: paths.workflowPath });
 
@@ -122,4 +136,4 @@ try {
   fail(`cannot persist run state for ${runId}: ${error.message}`);
 }
 
-console.log(JSON.stringify({ ok: true, baton: paths.batonPath, history: paths.historyPath }));
+console.log(JSON.stringify({ ok: true, runId: paths.runId }));

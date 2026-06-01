@@ -9,14 +9,14 @@ Run workflows by driving the `workflow-runner` request loop from the repository 
 
 ## Variables
 
-- `<run-id>`: public workflow run identity; keep using the same value for the whole run. Runner files are kept internally under `develop/.workflow-runs/<run-id>`.
+- `<run-id>`: public workflow run identity; keep using the same value for the whole run. Runtime files and topology are private runner state.
 - `<workflow>`: workflow definition path for the initial `next`; same-run `continue` reuses the workflow stored in the run unless you explicitly override it.
 - `<result.json>`: JSON host-output file produced for one host request.
 - `<step-id>`: id of a request/step from `response.requests[]`.
 
 ## Run identity selection
 
-Before calling `workflow-runner`, always discover public runs through the index helper instead of inspecting `develop/.workflow-runs` files yourself:
+Before calling `workflow-runner`, always discover public runs through the index helper instead of inspecting private runner files yourself:
 
 ```bash
 node develop/lib/entrypoints/cli/workflow-runs.mjs list

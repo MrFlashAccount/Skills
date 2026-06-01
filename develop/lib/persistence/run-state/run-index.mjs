@@ -15,7 +15,17 @@ function assertIndexRunKey(run, key) {
   if (run.runId !== key) throw new Error(`runs index entry key mismatch for ${key}`);
 }
 
+function dropLegacyMetadataOnlyLeases(index) {
+  if (!index?.runs || typeof index.runs !== 'object') return index;
+  for (const run of Object.values(index.runs)) {
+    const lease = run?.workerLease;
+    if (lease && typeof lease === 'object' && (!lease.tokenHash || !lease.tokenEpoch)) run.workerLease = null;
+  }
+  return index;
+}
+
 export function assertRunsIndex(index) {
+  dropLegacyMetadataOnlyLeases(index);
   assertRunsIndexSchema(index);
   for (const [key, run] of Object.entries(index.runs)) assertIndexRunKey(run, key);
   return index;

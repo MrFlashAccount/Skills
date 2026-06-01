@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { next } from '../entrypoints/api/workflowRunner.mjs';
 import { assertSafeRunId, resolveRunPaths, workflowRunsRoot } from '../persistence/run-state/paths.mjs';
 import { readRunsIndex, runsIndexPathsForRoot } from '../persistence/run-state/run-index.mjs';
+import { assertRunsIndexSchema } from '../persistence/run-state/schema/runs-index-schema.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const workflowPath = path.join(root, 'develop/lib/tests/fixtures/runid-single.workflow.json');
@@ -141,4 +142,14 @@ test('runs.json index records fail through JSON Schema validation', async () => 
 
 test('runs.json index record key mismatch remains semantic validation', async () => {
   await assertRunsIndexSchemaFailure((index) => { index.runs['schema-test-run'].runId = 'schema-test-other-run'; }, /runs index entry key mismatch for schema-test-run/);
+});
+
+test('runs.json schema requires token authority fields for occupied leases', () => {
+  const missingTokenHash = validRunsIndex();
+  missingTokenHash.runs['schema-test-run'].workerLease = { tokenEpoch: 1, heartbeatAt: '2026-06-01T00:00:00.000Z', leaseExpiresAt: '2026-06-01T00:30:00.000Z' };
+  assert.throws(() => assertRunsIndexSchema(missingTokenHash), /tokenHash|must have required property 'tokenHash'/);
+
+  const missingTokenEpoch = validRunsIndex();
+  missingTokenEpoch.runs['schema-test-run'].workerLease = { tokenHash: '0'.repeat(64), heartbeatAt: '2026-06-01T00:00:00.000Z', leaseExpiresAt: '2026-06-01T00:30:00.000Z' };
+  assert.throws(() => assertRunsIndexSchema(missingTokenEpoch), /tokenEpoch|must have required property 'tokenEpoch'/);
 });

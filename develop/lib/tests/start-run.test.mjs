@@ -38,8 +38,14 @@ const fixtureWorkflowDoc = {
 writeFileSync(fixtureWorkflowPath, `${JSON.stringify(fixtureWorkflowDoc, null, 2)}
 `);
 
-function runStart(args) {
-  return spawnSync(process.execPath, [helperPath, '--workflow', fixtureWorkflowPath, ...args], { cwd: root, encoding: 'utf8' });
+function runStart(args, { token = `start-token-${process.pid}` } = {}) {
+  return spawnSync(process.execPath, [helperPath, '--workflow', fixtureWorkflowPath, ...args], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUN_TOKEN: token } });
+}
+
+function createClaimedRun(runId) {
+  const result = spawnSync(process.execPath, ['develop/lib/entrypoints/cli/workflow-runs.mjs', 'create', '--claim', '--run-id', runId, '--workflow', fixtureWorkflowPath], { cwd: root, encoding: 'utf8' });
+  assert.equal(result.status, 0, `claim failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+  return JSON.parse(result.stdout).leaseToken;
 }
 
 function parseSuccess(label, result) {
@@ -64,7 +70,7 @@ function baton(overrides = {}) {
 
 after(() => {
   rmSync(tempDir, { recursive: true, force: true });
-  for (const label of ['new-run', 'start-run-user-prompt-rejected', 'resume-run', 'resume-no-history', 'invalid-baton-run', 'symlink-run-dir-rejected']) {
+  for (const label of ['new-run', 'start-run-user-prompt-rejected', 'resume-run', 'resume-no-history', 'invalid-baton-run', 'symlink-run-dir-rejected', 'missing-token']) {
     rmSync(runPath(prefixedRunId(label)), { recursive: true, force: true });
   }
 });
@@ -74,11 +80,12 @@ test('start-run rejects symlinked derived run dir without writing outside the ru
   const runDir = runPath(runId);
   const outsideDir = path.join(tempDir, 'outside-symlink-run-dir');
   rmSync(runDir, { recursive: true, force: true });
+  const token = createClaimedRun(runId);
+  rmSync(runDir, { recursive: true, force: true });
   rmSync(outsideDir, { recursive: true, force: true });
   mkdirSync(outsideDir, { recursive: true });
   symlinkSync(outsideDir, runDir, 'dir');
-
-  const result = runStart(['--run-id', runId]);
+  const result = runStart(['--run-id', runId], { token });
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /workflow run directory is unsafe because it is a symlink/);
@@ -99,6 +106,8 @@ test('start-run creates run dir, initializes baton/history, and returns steps', 
   assert.equal(status.resumed, false);
   assert.equal(status.runId, runId);
   assert.equal('runDir' in status, false);
+  assert.equal('baton' in status, false);
+  assert.equal('history' in status, false);
   assert.equal(status.response.baton.cursor, 'worker_step');
   assert.equal(status.response.baton.status, 'running');
   assert.deepEqual(status.response.baton.state, { artifacts: [], results: [] });
@@ -115,11 +124,11 @@ test('start-run rejects startup user prompt options; workflow-runner next owns r
 
   const inline = runStart(['--run-id', runId, '--user-prompt', 'raw prompt']);
   assert.notEqual(inline.status, 0);
-  assert.match(inline.stderr, /Unknown option '--user-prompt'|usage: node develop\/lib\/entrypoints\/cli\/start-run\.mjs --run-id <id> \[--workflow <workflow\.json>\]/);
+  assert.match(inline.stderr, /Unknown option '--user-prompt'|usage: node develop\/lib\/entrypoints\/cli\/start-run\.mjs --run-id <id>/);
 
   const file = runStart(['--run-id', runId, '--user-prompt-file', '']);
   assert.notEqual(file.status, 0);
-  assert.match(file.stderr, /Unknown option '--user-prompt-file'|usage: node develop\/lib\/entrypoints\/cli\/start-run\.mjs --run-id <id> \[--workflow <workflow\.json>\]/);
+  assert.match(file.stderr, /Unknown option '--user-prompt-file'|usage: node develop\/lib\/entrypoints\/cli\/start-run\.mjs --run-id <id>/);
 });
 
 test('start-run resumes existing baton without overwriting it', () => {
@@ -132,7 +141,8 @@ test('start-run resumes existing baton without overwriting it', () => {
   const beforeBaton = readFileSync(path.join(runDir, 'baton.json'), 'utf8');
   const beforeHistory = readFileSync(path.join(runDir, 'history.md'), 'utf8');
 
-  const result = runStart(['--run-id', runId]);
+  const token = createClaimedRun(runId);
+  const result = runStart(['--run-id', runId], { token });
   const status = parseSuccess('resume run', result);
 
   assert.equal(status.initialized, false);
@@ -149,7 +159,8 @@ test('start-run creates missing history when resuming an existing baton', () => 
   rmSync(runDir, { recursive: true, force: true });
   writeJson(path.join(runDir, 'baton.json'), baton());
 
-  const result = runStart(['--run-id', runId]);
+  const token = createClaimedRun(runId);
+  const result = runStart(['--run-id', runId], { token });
   const status = parseSuccess('resume no history', result);
 
   assert.equal(status.resumed, true);
@@ -165,11 +176,24 @@ test('start-run rejects invalid existing baton without overwriting it', () => {
   mkdirSync(runDir, { recursive: true });
   writeFileSync(path.join(runDir, 'baton.json'), invalid);
 
-  const result = runStart(['--run-id', runId]);
+  const token = createClaimedRun(runId);
+  const result = runStart(['--run-id', runId], { token });
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /baton failed schema validation|must have required property/);
   assert.equal(readFileSync(path.join(runDir, 'baton.json'), 'utf8'), invalid);
+});
+
+test('start-run rejects missing token without creating run state', () => {
+  const runId = prefixedRunId('missing-token');
+  const runDir = runPath(runId);
+  rmSync(runDir, { recursive: true, force: true });
+
+  const result = runStart(['--run-id', runId], { token: '' });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /workflow run token is required/);
+  assert.equal(existsSync(runDir), false);
 });
 
 test('start-run requires concrete run id', () => {
