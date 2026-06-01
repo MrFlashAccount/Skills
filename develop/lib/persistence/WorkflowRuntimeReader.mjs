@@ -4,7 +4,7 @@ import { readJson } from './json-io.mjs';
 import { readWorkflowFileRef, defaultRepositoryRootForWorkflow } from './resource-resolver.mjs';
 import { loadOutputSchema } from './output-schema.mjs';
 import { isInside } from './path-utils.mjs';
-import { WorkflowRuntimeError } from '../entities/errors.mjs';
+import { WorkflowRuntimeError } from '../errors.mjs';
 import { listAllowedWorkflowRoles, workflowRoleMaterialPath, REQUIRED_WORKFLOW_ROLE_MATERIAL_FILES } from './role-material-catalog.mjs';
 import { assertBatonSchema, assertWorkflowSchema } from '../schemas/workflow-schema.mjs';
 

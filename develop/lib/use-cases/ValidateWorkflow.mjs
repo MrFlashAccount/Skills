@@ -4,7 +4,7 @@ import { WorkflowResultDTO } from '../dtos/WorkflowResultDTO.mjs';
 import { WorkflowRuntimeError } from '../entities/errors.mjs';
 import { WorkflowSchemaError, assertWorkflowSchema } from '../schemas/workflow-schema.mjs';
 
-export function validateWorkflow({ workflowDTO, outputSchemas = new Map(), allowedRoles = [] } = {}) {
+export function validateWorkflow({ workflowDTO, outputSchemas = new Map(), allowedRoles } = {}) {
   const workflowDoc = typeof workflowDTO?.toJSON === 'function' ? workflowDTO.toJSON() : workflowDTO;
   try {
     assertWorkflowSchema(workflowDoc);

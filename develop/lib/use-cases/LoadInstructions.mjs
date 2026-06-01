@@ -36,7 +36,7 @@ export function loadInstructions({ workflowDTO, runStateDTO, instructionDTO, res
 
   const workflow = new Workflow(workflowData);
   workflow.validate({
-    allowedRoles: resources?.allowedRoles ?? [],
+    allowedRoles: resources?.allowedRoles,
     outputSchemas: outputSchemasByStep(workflowData, resources),
   });
 

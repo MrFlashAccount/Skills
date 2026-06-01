@@ -75,8 +75,19 @@ function assertWorkflowInputStateSelectors(workflow) {
   }
 }
 
-function assertWorkflowStepRoles(workflow, allowedRoleNames = []) {
-  const allowedRoles = new Set(allowedRoleNames);
+function normalizeAllowedRoleCatalog(allowedRoleNames) {
+  if (allowedRoleNames === undefined) return { loaded: false, names: [] };
+  if (Array.isArray(allowedRoleNames)) return { loaded: allowedRoleNames.loaded !== false, names: allowedRoleNames };
+  if (allowedRoleNames && typeof allowedRoleNames === 'object') {
+    const names = Array.isArray(allowedRoleNames.names) ? allowedRoleNames.names : [];
+    return { loaded: allowedRoleNames.loaded !== false, names };
+  }
+  return { loaded: true, names: [] };
+}
+
+function assertWorkflowStepRoles(workflow, allowedRoleNames) {
+  const roleCatalog = normalizeAllowedRoleCatalog(allowedRoleNames);
+  const allowedRoles = new Set(roleCatalog.names);
   for (const [stepId, step] of Object.entries(workflow.steps)) {
     if (step.kind !== 'worker') continue;
     const role = step.input?.role;
@@ -87,7 +98,7 @@ function assertWorkflowStepRoles(workflow, allowedRoleNames = []) {
       if (error instanceof WorkflowRuntimeError) fail(`step '${stepId}' ${error.message.replace(/^workflow role validation failed: /, '')}`);
       throw error;
     }
-    if (allowedRoles.size > 0 && !allowedRoles.has(role)) {
+    if (roleCatalog.loaded && !allowedRoles.has(role)) {
       const expected = [...allowedRoles].join(', ');
       fail(`step '${stepId}' input.role '${role}' is not an allowed role${expected ? `; expected one of: ${expected}` : ''}`);
     }
@@ -555,7 +566,7 @@ function validateWorkflowDocument(workflow, options = {}) {
   assertWorkflowStepIds(workflow);
   assertWorkflowRootTargets(workflow);
   assertWorkflowInputStateSelectors(workflow);
-  assertWorkflowStepRoles(workflow, options.allowedRoles ?? []);
+  assertWorkflowStepRoles(workflow, options.allowedRoles);
   const warnings = [];
   const schemasByStep = normalizeStepOutputSchemas({
     workflow,

@@ -1,6 +1,6 @@
 import { readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
-import { WorkflowRuntimeError } from '../entities/errors.mjs';
+import { WorkflowRuntimeError } from '../errors.mjs';
 import { isInside } from './path-utils.mjs';
 
 export function workflowResourceBase({ workflowPath }) {

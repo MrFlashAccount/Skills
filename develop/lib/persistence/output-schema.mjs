@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { WorkflowRuntimeError } from '../entities/errors.mjs';
+import { WorkflowRuntimeError } from '../errors.mjs';
 import { resolveWorkflowFileRef } from './resource-resolver.mjs';
 export { workflowResourceBase } from './resource-resolver.mjs';
 

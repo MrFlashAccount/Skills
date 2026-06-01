@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { WorkflowRuntimeError } from '../entities/errors.mjs';
+import { WorkflowRuntimeError } from '../errors.mjs';
 
 export function readJson(path, name) {
   try {

@@ -9,6 +9,11 @@ export function workflowRoleMaterialPath(role, fileName) {
   return path.join('roles', role, fileName);
 }
 
+function roleCatalog(names, { loaded }) {
+  Object.defineProperty(names, 'loaded', { value: loaded, enumerable: false });
+  return names;
+}
+
 export function listAllowedWorkflowRoles({ repositoryRoot }) {
   const root = realpathSync(repositoryRoot);
   const rolesRoot = path.join(root, 'roles');
@@ -16,12 +21,12 @@ export function listAllowedWorkflowRoles({ repositoryRoot }) {
   try {
     entries = readdirSync(rolesRoot, { withFileTypes: true });
   } catch {
-    return [];
+    return roleCatalog([], { loaded: false });
   }
-  return entries
+  return roleCatalog(entries
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .filter(isRoleDirectoryName)
     .filter((role) => REQUIRED_WORKFLOW_ROLE_MATERIAL_FILES.every((fileName) => existsSync(path.join(rolesRoot, role, fileName))))
-    .sort();
+    .sort(), { loaded: true });
 }

@@ -481,6 +481,18 @@ test('validateWorkflowFile derives the role repository root from the workflow pa
   });
 });
 
+
+test('validateWorkflowFile rejects worker roles when loaded role catalog is empty', () => {
+  const projectRoot = path.join(tempDir, 'empty-role-catalog-project');
+  const workflowDir = path.join(projectRoot, 'workflows', 'role-fixture');
+  mkdirSync(workflowDir, { recursive: true });
+  mkdirSync(path.join(projectRoot, 'roles'), { recursive: true });
+  const workflowPath = path.join(workflowDir, 'workflow.json');
+  writeFileSync(workflowPath, `${JSON.stringify(genericWorkflowWithWorkerRole('missing-role'), null, 2)}\n`);
+
+  assert.throws(() => validateWorkflowFile(workflowPath), /step 'worker_step' input\.role 'missing-role' is not an allowed role/);
+});
+
 test('workflow semantic validation rejects invalid worker roles in generic workflows', () => {
   const doc = genericWorkflowWithWorkerRole('missing-workflow-role');
 
