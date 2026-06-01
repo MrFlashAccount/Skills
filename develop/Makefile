@@ -1,6 +1,6 @@
 .PHONY: test test-workflow-e2e validate workflow-validate
 
-TEST_FILES := lib/tests/*.test.mjs
+TEST_FILES := $(shell find lib/tests lib/entities lib/use-cases -name '*.test.mjs' -type f ! -path 'lib/tests/E2E/*' | sort)
 WORKFLOW_E2E_TEST_FILES := lib/tests/E2E/*.test.mjs
 
 test:
