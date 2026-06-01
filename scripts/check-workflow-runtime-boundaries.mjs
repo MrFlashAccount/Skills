@@ -61,6 +61,7 @@ scan([...entrypoints, ...persistence, ...useCases], /entities\/workflow-helpers\
 scan(schemas, /\.\.(?:\/\.\.)*\/entities\//, 'schemas must not import entities');
 scan(schemas, /from ['"].*persistence/, 'schemas must not import persistence');
 scan(persistence, /from ['"].*use-cases\//, 'persistence must not import use-cases');
+scan([path.join(root, 'develop/lib/persistence/WorkflowFileReader.mjs')], /WorkflowRuntimeReader\.mjs/, 'workflow file reader must use resource-specific catalogs instead of the runtime reader');
 scan(persistence, /entities\/roles\.mjs|entities\/role-utils\.mjs|entities\/workflow-helpers\/roles\.mjs/, 'persistence must not import entity-owned role/resource helpers');
 scan([...entrypoints, ...persistence], /use-cases\/runtime/, 'entrypoints/persistence must not import private use-case runtime');
 scan(lib, /from ['"].*entities\/(role-utils|state-keys)(\.mjs)?['"]/, 'deleted facade import is forbidden');

@@ -1,10 +1,15 @@
 import path from 'node:path';
 
 export const REQUIRED_ROLE_MATERIAL_FILES = ['ROLE.md', 'RUBRIC.md'];
+export const ROLE_DIRECTORY_NAME_PATTERN = /^[A-Za-z0-9_-]+$/;
+
+export function isRoleDirectoryName(role) {
+  return typeof role === 'string' && ROLE_DIRECTORY_NAME_PATTERN.test(role);
+}
 
 export function assertRoleDirectoryName(role, { errorPrefix = 'workflow role validation failed' } = {}) {
   if (typeof role !== 'string' || role.length === 0) return;
-  if (!/^[A-Za-z0-9_-]+$/.test(role)) {
+  if (!isRoleDirectoryName(role)) {
     throw new Error(`${errorPrefix}: input.role must be a role directory name: ${role}`);
   }
 }

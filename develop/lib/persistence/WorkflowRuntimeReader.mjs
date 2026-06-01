@@ -1,10 +1,11 @@
-import { existsSync, readFileSync, realpathSync, readdirSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { readJson } from './json-io.mjs';
 import { readWorkflowFileRef, defaultRepositoryRootForWorkflow } from './resource-resolver.mjs';
 import { loadOutputSchema } from './output-schema.mjs';
 import { isInside } from './path-utils.mjs';
 import { WorkflowRuntimeError } from '../entities/errors.mjs';
+import { listAllowedWorkflowRoles } from './role-material-catalog.mjs';
 import { roleMaterialPath, REQUIRED_ROLE_MATERIAL_FILES } from '../resource-helpers/role-material.mjs';
 import { assertBatonSchema, assertWorkflowSchema } from '../schemas/workflow-schema.mjs';
 
@@ -31,23 +32,6 @@ function roleNames(workflow) {
   const roles = new Set();
   for (const step of Object.values(workflow?.steps ?? {})) if (step?.input?.role) roles.add(step.input.role);
   return roles;
-}
-
-export function listAllowedWorkflowRoles({ repositoryRoot }) {
-  const root = realpathSync(repositoryRoot);
-  const rolesRoot = path.join(root, 'roles');
-  let entries;
-  try {
-    entries = readdirSync(rolesRoot, { withFileTypes: true });
-  } catch {
-    return [];
-  }
-  return entries
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .filter((role) => /^[A-Za-z0-9_-]+$/.test(role))
-    .filter((role) => REQUIRED_ROLE_MATERIAL_FILES.every((fileName) => existsSync(path.join(rolesRoot, role, fileName))))
-    .sort();
 }
 
 function isDeferredMissingResource(error) {

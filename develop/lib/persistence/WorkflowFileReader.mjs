@@ -3,7 +3,7 @@ import { readJson as readWorkflowJson } from './json-io.mjs';
 import { readOutputSchema } from './output-schema-validation.mjs';
 import { defaultRepositoryRootForWorkflow } from './resource-resolver.mjs';
 import { WorkflowDTO } from '../dtos/WorkflowDTO.mjs';
-import { listAllowedWorkflowRoles } from './WorkflowRuntimeReader.mjs';
+import { listAllowedWorkflowRoles } from './role-material-catalog.mjs';
 import { assertWorkflowSchema } from '../schemas/workflow-schema.mjs';
 
 export function read(path) {
