@@ -43,10 +43,11 @@ function response(nextBaton = baton()) {
 }
 
 function setupRunDir(name, initialBaton = baton()) {
-  const runDir = path.join(tempDir, name);
+  const runId = `persisted-state-test-${process.pid}-${name}`;
   const workflowPath = path.join(tempDir, `${name}-workflow.json`);
   writeJson(workflowPath, { name: name.replace(/_/g, '-'), version: 1, start: 'prepare', done: 'done', blocked: 'blocked', steps: { prepare: { name: 'Prepare', kind: 'worker', output: { template: 'output.md' }, next: 'done' }, done: { name: 'Done', kind: 'done' }, blocked: { name: 'Blocked', kind: 'blocked' } } });
-  const paths = resolveRunPaths({ runDir, workflowPath });
+  const paths = resolveRunPaths({ runId, workflowPath });
+  rmSync(paths.runDir, { recursive: true, force: true });
   mkdirSync(paths.runnerDir, { recursive: true });
   mkdirSync(paths.instructionsDir, { recursive: true });
   writeJson(paths.batonPath, initialBaton);
@@ -129,7 +130,13 @@ test('persisted-state writer acquires run-state lock before writing', async () =
       instructions: [],
       history: { source: 'test', baton: baton({ cursor: 'done', status: 'done' }) },
     }),
-    /continue is already in progress/,
+    (error) => {
+      assert.match(error.message, /continue is already in progress for runId/);
+      assert.match(error.message, new RegExp(paths.runId));
+      assert.equal(error.message.includes(paths.runDir), false);
+      assert.equal(error.message.includes(paths.continueLockPath), false);
+      return true;
+    },
   );
 
   assert.equal(existsSync(paths.durableCommitPath), false);

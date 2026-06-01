@@ -1,10 +1,12 @@
 #!/usr/bin/env node
-import { lstat, mkdir, readFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { assertBatonSchema } from '../../entities/Baton/schema/baton-schema.mjs';
 import { assertResponseSchema } from '../../use-cases/runtime/output/response-schema.mjs';
 import { writePersistedRunStateUpdate } from '../../persistence/run-state/PersistedRunStateWriter.mjs';
+import { assertFreshTokenAuthority, WORKFLOW_RUN_TOKEN_ENV } from '../../persistence/run-state/lease-authority.mjs';
 import { ensureRunFiles, resolveRunPaths } from '../../persistence/run-state/paths.mjs';
+import { readRunsIndex, runsIndexPathsForRoot, upsertRunIndexEntry } from '../../persistence/run-state/run-index.mjs';
 
 function fail(message) {
   console.error(`persist-run-state: ${message}`);
@@ -16,18 +18,19 @@ function parseCliArgs(argv) {
     return parseArgs({
       args: argv,
       options: {
-        'run-dir': { type: 'string' },
+        'run-id': { type: 'string' },
         'workflow': { type: 'string' },
         response: { type: 'string' },
         baton: { type: 'string' },
         output: { type: 'string' },
         decision: { type: 'string' },
+        'lease-token': { type: 'string' },
       },
       strict: true,
       allowPositionals: false,
     }).values;
   } catch (error) {
-    fail(`${error.message}\nusage: node develop/lib/entrypoints/cli/persist-run-state.mjs --run-dir <dir> [--workflow <workflow.json>] (--response <workflow-interpreter-response.json> | --baton <new-baton.json>) [--output <worker-output-path>] [--decision <text>]`);
+    fail(`${error.message}\nusage: node develop/lib/entrypoints/cli/persist-run-state.mjs --run-id <id> [--workflow <workflow.json>] (--response <workflow-interpreter-response.json> | --baton <new-baton.json>) [--output <worker-output-path>] [--decision <text>] [--lease-token <token>|WORKFLOW_RUN_TOKEN]`);
   }
 }
 
@@ -45,15 +48,6 @@ function assertPersistSchema(assertFn, value) {
     assertFn(value);
   } catch (error) {
     fail(error.message);
-  }
-}
-
-async function assertRunDirIsNotSymlink(path) {
-  try {
-    if ((await lstat(path)).isSymbolicLink()) fail(`refusing to use symlinked run dir: ${path}`);
-  } catch (error) {
-    if (error?.code === 'ENOENT') return;
-    fail(`cannot inspect run dir ${path}: ${error.message}`);
   }
 }
 
@@ -77,6 +71,17 @@ function compact(value) {
   return String(value).replace(/\s+/g, ' ').trim();
 }
 
+function effectiveLeaseToken(value) {
+  return value ?? process.env[WORKFLOW_RUN_TOKEN_ENV];
+}
+
+async function assertTokenAuthority(paths, token) {
+  const index = await readRunsIndex(runsIndexPathsForRoot(paths.runsRoot));
+  const run = index.runs[paths.runId];
+  try { assertFreshTokenAuthority(run?.workerLease, token, { runId: paths.runId }); }
+  catch (error) { fail(error.message); }
+}
+
 function historyPatch({ baton, steps, source, output, decision }) {
   return {
     baton,
@@ -88,7 +93,7 @@ function historyPatch({ baton, steps, source, output, decision }) {
 }
 
 const values = parseCliArgs(process.argv.slice(2));
-const runDir = requireString(values['run-dir'], '--run-dir');
+const runId = requireString(values['run-id'], '--run-id');
 const responsePath = values.response;
 const batonPath = values.baton;
 
@@ -110,12 +115,10 @@ const baton = responsePath ? input.baton : input;
 const steps = responsePath ? input.steps : undefined;
 requireObject(baton, 'baton');
 
-await assertRunDirIsNotSymlink(runDir);
-const paths = resolveRunPaths({ runDir, workflowPath: values.workflow });
-await mkdir(paths.runDir, { recursive: true });
-await mkdir(paths.runnerDir, { recursive: true });
-await mkdir(paths.instructionsDir, { recursive: true });
+const paths = resolveRunPaths({ runId, workflowPath: values.workflow });
+await assertTokenAuthority(paths, effectiveLeaseToken(values['lease-token']));
 await ensureRunFiles(paths);
+await upsertRunIndexEntry(paths, { status: 'running', workflowPath: paths.workflowPath });
 
 try {
   await writePersistedRunStateUpdate(paths, {
@@ -130,7 +133,7 @@ try {
     }),
   });
 } catch (error) {
-  fail(`cannot persist run state in ${runDir}: ${error.message}`);
+  fail(`cannot persist run state for ${runId}: ${error.message}`);
 }
 
-console.log(JSON.stringify({ ok: true, baton: paths.batonPath, history: paths.historyPath }));
+console.log(JSON.stringify({ ok: true, runId: paths.runId }));

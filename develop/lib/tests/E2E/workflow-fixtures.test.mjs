@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { resolveRunPaths } from '../../persistence/run-state/paths.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
 const fixturesDir = path.join(root, 'develop/lib/tests/E2E/fixtures');
@@ -22,7 +23,18 @@ function output(name) {
 
 function runDir(label) {
   runCounter += 1;
-  return path.join(tempDir, `${runCounter}-${label}`);
+  const runId = `workflow-e2e-${process.pid}-${runCounter}-${label}`;
+  const runDir = resolveRunPaths({ runId }).runDir;
+  rmSync(runDir, { recursive: true, force: true });
+  return { runId, runDir };
+}
+
+function runId(run) {
+  return typeof run === 'string' ? run : run.runId;
+}
+
+function runPath(run) {
+  return typeof run === 'string' ? run : run.runDir;
 }
 
 function runRunner(args) {
@@ -45,26 +57,26 @@ function expectRunnerFailure(args, label) {
 }
 
 function next(run, workflow, extra = []) {
-  return expectRunner(['next', '--run-dir', run, '--workflow', workflow, ...extra], `next ${path.basename(workflow)}`);
+  return expectRunner(['next', '--run-id', runId(run), '--workflow', workflow, ...extra], `next ${path.basename(workflow)}`);
 }
 
 function continueWith(run, workflow, refs, label = 'continue') {
   const normalized = Array.isArray(refs) ? refs : [refs];
-  return expectRunner(['continue', '--run-dir', run, '--workflow', workflow, ...normalized.flatMap((ref) => ['--output', ref])], label);
+  return expectRunner(['continue', '--run-id', runId(run), '--workflow', workflow, ...normalized.flatMap((ref) => ['--output', ref])], label);
 }
 
 function instructions(run, stepId) {
-  const result = runRunner(['instructions', '--run-dir', run, '--step-id', stepId]);
+  const result = runRunner(['instructions', '--run-id', runId(run), '--step-id', stepId]);
   assert.equal(result.status, 0, result.stderr);
   return result.stdout;
 }
 
 function readBaton(run) {
-  return JSON.parse(readFileSync(path.join(run, 'baton.json'), 'utf8'));
+  return JSON.parse(readFileSync(path.join(runPath(run), 'baton.json'), 'utf8'));
 }
 
 function readHistory(run) {
-  return readFileSync(path.join(run, 'history.md'), 'utf8');
+  return readFileSync(path.join(runPath(run), 'history.md'), 'utf8');
 }
 
 after(() => rmSync(tempDir, { recursive: true, force: true }));
@@ -157,7 +169,7 @@ test('E2E fixture: mixed static and match fanout requires named branch outputs a
   const unnamedRun = runDir('parallel-unnamed-output');
   next(unnamedRun, workflow);
   continueWith(unnamedRun, workflow, output('parallel-prepare-ready.json'), 'continue unnamed setup');
-  const unnamed = expectRunnerFailure(['continue', '--run-dir', unnamedRun, '--workflow', workflow, '--output', output('lint-ready.json')], 'unnamed parallel output');
+  const unnamed = expectRunnerFailure(['continue', '--run-id', runId(unnamedRun), '--workflow', workflow, '--output', output('lint-ready.json')], 'unnamed parallel output');
   assert.match(unnamed.stderr, /parallel host outputs must use --output <step-id>=<path>/);
 });
 
@@ -182,7 +194,7 @@ test('E2E fixture: output schema retries preserve baton attempts, then valid out
   next(failureRun, workflow);
   continueWith(failureRun, workflow, output('schema-invalid.json'), 'schema failure attempt one');
   continueWith(failureRun, workflow, output('schema-invalid.json'), 'schema failure attempt two');
-  const failed = expectRunnerFailure(['continue', '--run-dir', failureRun, '--workflow', workflow, '--output', output('schema-invalid.json')], 'schema failure attempt three');
+  const failed = expectRunnerFailure(['continue', '--run-id', runId(failureRun), '--workflow', workflow, '--output', output('schema-invalid.json')], 'schema failure attempt three');
   assert.match(failed.stderr, /output schema validation failed for step 'schema_worker' after 3 attempts/);
   assert.equal(readBaton(failureRun).state.attempts['schema_worker:output.schema'], 2);
 });

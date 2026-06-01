@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { mkdir, open, rm } from 'node:fs/promises';
+import { open, rm } from 'node:fs/promises';
+import { createManagedDirectory } from './atomic-file.mjs';
 
 const runStateLockStorage = new AsyncLocalStorage();
 
@@ -7,7 +8,9 @@ export async function withRunStateLock(paths, callback) {
   const heldLocks = runStateLockStorage.getStore();
   if (heldLocks?.has(paths.continueLockPath)) return callback();
 
-  await mkdir(paths.runnerDir, { recursive: true });
+  await createManagedDirectory(paths.runsRoot, 'workflow runs root');
+  await createManagedDirectory(paths.runDir, 'workflow run directory');
+  await createManagedDirectory(paths.runnerDir, 'workflow runner directory');
   let handle;
   let acquired = false;
   try {
@@ -17,7 +20,7 @@ export async function withRunStateLock(paths, callback) {
     await handle.sync();
   } catch (error) {
     if (error?.code === 'EEXIST') {
-      throw new Error(`workflow-runner continue is already in progress for ${paths.runDir}; inspect or remove stale lock ${paths.continueLockPath}`);
+      throw new Error(`workflow-runner continue is already in progress for runId ${paths.runId}`);
     }
     if (acquired) await rm(paths.continueLockPath, { force: true });
     throw error;

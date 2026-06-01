@@ -11,10 +11,12 @@ import { read as readInstructionDTO } from '../../persistence/workflow-resources
 import { writePersistedRunStateUpdate } from '../../persistence/run-state/PersistedRunStateWriter.mjs';
 import { assertSafeStepId, instructionPathForStep, responseStatusForInterpreterResponse, toHostResponse } from './runner/host-requests.mjs';
 import { readText } from '../../persistence/run-state/atomic-file.mjs';
+import { assertFreshTokenAuthority, buildTokenLease, WORKFLOW_RUN_TOKEN_ENV } from '../../persistence/run-state/lease-authority.mjs';
 import { recoverDurableCommit } from '../../persistence/run-state/durable-commit.mjs';
 import { readPersistedRunState } from '../../persistence/run-state/PersistedRunStateReader.mjs';
 import { projectRuntimeRunState } from '../../persistence/run-state/persisted-state-schema.mjs';
 import { ensureRunFiles, pathExists, resolveRunPaths } from '../../persistence/run-state/paths.mjs';
+import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot, upsertRunIndexEntry } from '../../persistence/run-state/run-index.mjs';
 import { withRunStateLock } from '../../persistence/run-state/lock.mjs';
 
 async function readJson(pathname, kind) {
@@ -38,16 +40,46 @@ async function runnerResponseForRendered(paths, rendered, { initialized, resumed
   const workflowDoc = await readJson(paths.workflowPath, 'workflow');
   return {
     ...toHostResponse(rendered, {
-      runDir: paths.runDir,
+      runId: paths.runId,
       workflow: workflowDoc,
       workflowPath: paths.workflowPath,
       repositoryRoot: paths.repositoryRoot,
     }),
-    runDir: paths.runDir,
-    workflow: paths.workflowPath,
+    runId: paths.runId,
     initialized,
     resumed,
   };
+}
+
+function effectiveLeaseToken(leaseToken) {
+  return leaseToken ?? process.env[WORKFLOW_RUN_TOKEN_ENV];
+}
+
+async function assertWorkerLeaseAuthority(paths, { leaseToken, now = new Date() } = {}) {
+  const index = await readRunsIndex(runsIndexPathsForRoot(paths.runsRoot));
+  const run = index.runs[paths.runId];
+  assertFreshTokenAuthority(run?.workerLease, effectiveLeaseToken(leaseToken), { runId: paths.runId, now });
+}
+
+async function initializeMissingRunLease(paths, { leaseToken, now = new Date() } = {}) {
+  const token = effectiveLeaseToken(leaseToken);
+  if (!token) return;
+  const index = await readRunsIndex(runsIndexPathsForRoot(paths.runsRoot));
+  if (index.runs[paths.runId]) return;
+  try {
+    await createRunIndexEntry(paths, {
+      status: 'running',
+      workflowPath: paths.workflowPath,
+      workerLease: buildTokenLease({ token, harness: 'workflow-runner', now }),
+    });
+  } catch (error) {
+    if (!/workflow run already exists/.test(error.message)) throw error;
+  }
+}
+
+async function indexedWorkflowPathForRun(paths) {
+  const index = await readRunsIndex(runsIndexPathsForRoot(paths.runsRoot));
+  return index.runs[paths.runId]?.workflow?.path;
 }
 
 async function persistNextHostResponse(paths, rendered, runState) {
@@ -62,9 +94,12 @@ async function persistNextHostResponse(paths, rendered, runState) {
   return response;
 }
 
-export async function next({ runDir, workflowPath, includeDiagnostics = false, userPrompt, userPromptFile } = {}) {
-  const paths = resolveRunPaths({ runDir, workflowPath });
-  return withRunStateLock(paths, async () => {
+export async function next({ runId, workflowPath, includeDiagnostics = false, userPrompt, userPromptFile, taskKey, taskFingerprint, leaseToken, now = new Date() } = {}) {
+  const lockPaths = resolveRunPaths({ runId });
+  return withRunStateLock(lockPaths, async () => {
+    const paths = await resolveIndexedRunPaths({ runId, workflowPath });
+    await initializeMissingRunLease(paths, { leaseToken, now });
+    await assertWorkerLeaseAuthority(paths, { leaseToken, now });
     const hasExistingBaton = await pathExists(paths.batonPath);
     if (!hasExistingBaton && userPromptFile !== undefined && String(userPromptFile).trim().length === 0) {
       throw new Error('--user-prompt-file path must not be empty or whitespace-only');
@@ -76,15 +111,18 @@ export async function next({ runDir, workflowPath, includeDiagnostics = false, u
       ? undefined
       : startupUserPromptTarget({ workflow: workflowDoc, start: workflowDoc?.start });
     const runState = await ensureRunFiles(paths, { userPrompt: startupUserPrompt, userPromptTarget: startupPromptTarget });
+    await upsertRunIndexEntry(paths, { status: 'running', workflowPath: paths.workflowPath, taskKey, taskFingerprint });
     await recoverDurableCommit(paths);
     const persisted = await readPersistedRunState(paths);
     const runtimeState = projectRuntimeRunState(persisted);
     const runtime = loadWorkflowRuntime({ workflowPath: paths.workflowPath, batonPath: paths.batonPath, baton: runtimeState.baton });
     const rendered = runNext({ workflowDoc: runtime.workflow, batonDoc: runtimeState.baton, resources: runtime.resources, includeDiagnostics });
-    return persistNextHostResponse(paths, rendered, {
+    const response = await persistNextHostResponse(paths, rendered, {
       initialized: runState.initialized,
       resumed: runState.resumed,
     });
+    await upsertRunIndexEntry(paths, { status: response.status, workflowPath: paths.workflowPath, taskKey, taskFingerprint });
+    return response;
   });
 }
 
@@ -197,21 +235,37 @@ async function outputForCurrentState(paths, outputRefs = []) {
   return { outputPath: '<parallel host outputs>', outputValue: { steps }, historyOutput: historyOutput.join(', '), currentBaton: current.baton };
 }
 
-async function resolveContinueRunPaths({ runDir, workflowPath }) {
-  if (workflowPath) return resolveRunPaths({ runDir, workflowPath });
+async function resolveIndexedRunPaths({ runId, workflowPath }) {
+  const paths = resolveRunPaths({ runId });
+  const indexedWorkflowPath = await indexedWorkflowPathForRun(paths);
+  if (workflowPath) {
+    if (typeof indexedWorkflowPath === 'string' && indexedWorkflowPath.length > 0 && resolve(indexedWorkflowPath) !== resolve(workflowPath)) {
+      throw new Error('stale last runner response: requested workflow does not match last-response workflow context; run workflow-runner next with the requested workflow before continue');
+    }
+    return resolveRunPaths({ runId, workflowPath });
+  }
+  return typeof indexedWorkflowPath === 'string' && indexedWorkflowPath.length > 0
+    ? resolveRunPaths({ runId, workflowPath: indexedWorkflowPath })
+    : paths;
+}
 
-  const paths = resolveRunPaths({ runDir });
+async function resolveContinueRunPaths({ runId, workflowPath }) {
+  const indexedPaths = await resolveIndexedRunPaths({ runId, workflowPath });
+  if (indexedPaths.workflowPath !== resolveRunPaths({ runId }).workflowPath || workflowPath) return indexedPaths;
+
+  const paths = indexedPaths;
   await recoverDurableCommit(paths);
   const current = await readPersistedRunState(paths);
   const lastResponse = current.lastResponse;
   if (typeof lastResponse?.workflow !== 'string' || lastResponse.workflow.length === 0) return paths;
-  return resolveRunPaths({ runDir, workflowPath: lastResponse.workflow });
+  return resolveRunPaths({ runId, workflowPath: lastResponse.workflow });
 }
 
-export async function continueRun({ runDir, workflowPath, output, includeDiagnostics = false }) {
-  const lockPaths = resolveRunPaths({ runDir });
+export async function continueRun({ runId, workflowPath, output, includeDiagnostics = false, leaseToken, now = new Date() }) {
+  const lockPaths = resolveRunPaths({ runId });
   return withRunStateLock(lockPaths, async () => {
-    const paths = await resolveContinueRunPaths({ runDir, workflowPath });
+    const paths = await resolveContinueRunPaths({ runId, workflowPath });
+    await assertWorkerLeaseAuthority(paths, { leaseToken, now });
     await ensureRunFiles(paths);
     await recoverDurableCommit(paths);
     const { outputPath, outputValue, historyOutput, currentBaton } = await outputForCurrentState(paths, normalizeOutputRefs(output));
@@ -227,32 +281,41 @@ export async function continueRun({ runDir, workflowPath, output, includeDiagnos
       instructions: stepInstructionsFor(paths, rendered),
       history: { source: 'workflow-runner-continue', baton: applied.baton, output: historyOutput, requests: response.requests },
     });
+    await upsertRunIndexEntry(paths, { status: response.status, workflowPath: paths.workflowPath });
     return response;
   });
 }
 
-export async function loadInstructions({ runDir, workflowPath, stepId }) {
+export async function loadInstructions({ runId, workflowPath, stepId, leaseToken, now = new Date() }) {
   assertSafeStepId(stepId);
-  const paths = resolveRunPaths({ runDir });
-  await recoverDurableCommit(paths);
-  const current = await readPersistedRunState(paths);
-  const lastResponse = current.lastResponse;
-  if (lastResponse?.status !== 'needs_host_actions') throw new Error(`unknown current workflow step id: ${stepId}`);
-  if (workflowPath) assertLastResponseMatchesWorkflowPath(lastResponse, resolveRunPaths({ runDir, workflowPath }).workflowPath);
-  assertLastResponseMatchesCurrentBaton(lastResponse, current.baton);
-  const runtimePaths = typeof lastResponse.workflow === 'string' && lastResponse.workflow.length > 0
-    ? resolveRunPaths({ runDir, workflowPath: lastResponse.workflow })
-    : paths;
-  const runtime = loadWorkflowRuntime({ workflowPath: runtimePaths.workflowPath, batonPath: paths.batonPath, baton: current.baton });
-  const instructionPath = instructionPathForStep(paths.instructionsDir, stepId);
-  loadInstructionsUseCase({
-    workflowDTO: runtime.workflow,
-    runStateDTO: { baton: runtime.baton, requests: lastResponse.requests ?? [], responseStatus: lastResponse.status },
-    instructionDTO: { path: instructionPath, content: '' },
-    resources: runtime.resources,
-    stepId,
-  });
+  const lockPaths = resolveRunPaths({ runId });
+  return withRunStateLock(lockPaths, async () => {
+    const paths = resolveRunPaths({ runId });
+    await assertWorkerLeaseAuthority(paths, { leaseToken, now });
+    await recoverDurableCommit(paths);
+    const current = await readPersistedRunState(paths);
+    const lastResponse = current.lastResponse;
+    if (lastResponse?.status !== 'needs_host_actions') throw new Error(`unknown current workflow step id: ${stepId}`);
+    if (workflowPath) await resolveIndexedRunPaths({ runId, workflowPath });
+    if (workflowPath) assertLastResponseMatchesWorkflowPath(lastResponse, resolveRunPaths({ runId, workflowPath }).workflowPath);
+    assertLastResponseMatchesCurrentBaton(lastResponse, current.baton);
+    const indexedWorkflowPath = await indexedWorkflowPathForRun(paths);
+    const runtimePaths = typeof indexedWorkflowPath === 'string' && indexedWorkflowPath.length > 0
+      ? resolveRunPaths({ runId, workflowPath: indexedWorkflowPath })
+      : (typeof lastResponse.workflow === 'string' && lastResponse.workflow.length > 0
+        ? resolveRunPaths({ runId, workflowPath: lastResponse.workflow })
+        : paths);
+    const runtime = loadWorkflowRuntime({ workflowPath: runtimePaths.workflowPath, batonPath: paths.batonPath, baton: current.baton });
+    const instructionPath = instructionPathForStep(paths.instructionsDir, stepId);
+    loadInstructionsUseCase({
+      workflowDTO: runtime.workflow,
+      runStateDTO: { baton: runtime.baton, requests: lastResponse.requests ?? [], responseStatus: lastResponse.status },
+      instructionDTO: { path: instructionPath, content: '' },
+      resources: runtime.resources,
+      stepId,
+    });
 
-  const instruction = await readInstructionDTO(instructionPath, `instructions for workflow step ${stepId}`);
-  return instruction.toJSON().content;
+    const instruction = await readInstructionDTO(instructionPath, `instructions for workflow step ${stepId}`);
+    return instruction.toJSON().content;
+  });
 }

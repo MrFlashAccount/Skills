@@ -3,7 +3,10 @@ import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { ensureRunFiles, resolveRunPaths } from '../../persistence/run-state/paths.mjs';
+import { createManagedDirectory } from '../../persistence/run-state/atomic-file.mjs';
+import { assertFreshTokenAuthority, buildTokenLease, WORKFLOW_RUN_TOKEN_ENV } from '../../persistence/run-state/lease-authority.mjs';
+import { ensureRunFiles, pathExists, resolveRunPaths } from '../../persistence/run-state/paths.mjs';
+import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot, upsertRunIndexEntry } from '../../persistence/run-state/run-index.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(scriptDir, '../../..');
@@ -19,14 +22,15 @@ function parseCliArgs(argv) {
     return parseArgs({
       args: argv,
       options: {
-        'run-dir': { type: 'string' },
+        'run-id': { type: 'string' },
         workflow: { type: 'string' },
+        'lease-token': { type: 'string' },
       },
       strict: true,
       allowPositionals: false,
     }).values;
   } catch (error) {
-    fail(`${error.message}\nusage: node develop/lib/entrypoints/cli/start-run.mjs --run-dir <dir> [--workflow <workflow.json>]`);
+    fail(`${error.message}\nusage: node develop/lib/entrypoints/cli/start-run.mjs --run-id <id> [--workflow <workflow.json>] [--lease-token <token>|WORKFLOW_RUN_TOKEN]`);
   }
 }
 
@@ -52,19 +56,46 @@ function inspectWorkflow(workflowPath, batonPath) {
   }
 }
 
-const values = parseCliArgs(process.argv.slice(2));
-const runDir = requireString(values['run-dir'], '--run-dir');
-const workflowPath = resolve(values.workflow ?? defaultWorkflowPath);
-const paths = resolveRunPaths({ runDir, workflowPath });
+function effectiveLeaseToken(value) {
+  return value ?? process.env[WORKFLOW_RUN_TOKEN_ENV];
+}
 
+async function assertOrCreateTokenAuthority(paths, token) {
+  if (!token) fail('workflow run token is required');
+  await createManagedDirectory(paths.runsRoot, 'workflow runs root');
+  const index = await readRunsIndex(runsIndexPathsForRoot(paths.runsRoot));
+  const existing = index.runs[paths.runId];
+  if (existing) {
+    try { assertFreshTokenAuthority(existing.workerLease, token, { runId: paths.runId }); }
+    catch (error) { fail(error.message); }
+    return;
+  }
+
+  if (await pathExists(paths.batonPath)) {
+    fail(`legacy unindexed run state cannot be resumed without an existing token lease: ${paths.runId}`);
+  }
+
+  await createRunIndexEntry(paths, {
+    status: 'running',
+    workflowPath: paths.workflowPath,
+    workerLease: buildTokenLease({ token, harness: 'start-run' }),
+  });
+}
+
+const values = parseCliArgs(process.argv.slice(2));
+const runId = requireString(values['run-id'], '--run-id');
+const workflowPath = resolve(values.workflow ?? defaultWorkflowPath);
+const paths = resolveRunPaths({ runId, workflowPath });
+const leaseToken = effectiveLeaseToken(values['lease-token']);
+
+await assertOrCreateTokenAuthority(paths, leaseToken);
 const { resumed } = await ensureRunFiles(paths);
+await upsertRunIndexEntry(paths, { status: 'running', workflowPath: paths.workflowPath });
 const response = inspectWorkflow(paths.workflowPath, paths.batonPath);
 
 console.log(JSON.stringify({
   ok: true,
-  runDir: paths.runDir,
-  baton: paths.batonPath,
-  history: paths.historyPath,
+  runId: paths.runId,
   initialized: !resumed,
   resumed,
   response,

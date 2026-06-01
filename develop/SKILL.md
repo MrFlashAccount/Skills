@@ -9,29 +9,61 @@ Run workflows by driving the `workflow-runner` request loop from the repository 
 
 ## Variables
 
-- `<run-dir>`: current run directory; keep using the same value for the whole run.
+- `<run-id>`: public workflow run identity; keep using the same value for the whole run. Runtime files and topology are private runner state.
 - `<workflow>`: workflow definition path for the initial `next`; same-run `continue` reuses the workflow stored in the run unless you explicitly override it.
 - `<result.json>`: JSON host-output file produced for one host request.
 - `<step-id>`: id of a request/step from `response.requests[]`.
+
+## Run identity selection
+
+Before calling `workflow-runner`, always discover public runs through the index helper instead of inspecting private runner files yourself:
+
+```bash
+node develop/lib/entrypoints/cli/workflow-runs.mjs list
+```
+
+Use the JSON output to match resumable/current candidates semantically by human-readable fields such as `runId`, title/summary, workflow identity, status, timestamps, task key/fingerprint, and occupancy state. Do not ask the user to choose by private directories or hidden authority metadata.
+
+- If exactly one candidate clearly matches the current task, reuse its `runId` only after claiming it.
+- If multiple plausible candidates match, ask the user to choose using human-readable summaries from the JSON.
+- If extra info is needed to disambiguate, ask for that specific info with the candidate summaries.
+- If a candidate has `occupancy.state: "occupied"`, it has a fresh worker lease. Do not attach blindly; ask the user whether to wait, choose another task/run, or explicitly resolve the occupation.
+- If a candidate has `occupancy.state: "stale"`, its lease expired and may be taken over by claiming it.
+- If no candidate matches, create/register a new run identity and claim it in the same command:
+
+```bash
+node develop/lib/entrypoints/cli/workflow-runs.mjs create --claim --workflow <workflow> --title <title> --summary <summary> --owner <owner> --harness <harness> --session-id <session-id>
+```
+
+Before starting or resuming any run, claim the selected `runId` atomically. Unclaimed/stale claims issue a transient `leaseToken`; export it in the shell/session that drives runner commands:
+
+```bash
+claim_json=$(node develop/lib/entrypoints/cli/workflow-runs.mjs claim --run-id <run-id> --owner <owner> --harness <harness> --session-id <session-id>)
+export WORKFLOW_RUN_TOKEN=$(node -e 'const fs=require("node:fs"); process.stdout.write(JSON.parse(fs.readFileSync(0,"utf8")).leaseToken)' <<<"$claim_json")
+```
+
+Lease metadata is diagnostics only: `owner`, `harness`, `sessionId`, and `workerId` describe the caller without granting authority. Durable storage keeps only the token hash/epoch/expiry plus optional metadata, and list/conflict output never projects the authority tuple. A fresh lease requires the raw token via `WORKFLOW_RUN_TOKEN` or `--lease-token`; metadata alone must return occupied. Long-running harnesses should renew with `heartbeat --lease-token` or `WORKFLOW_RUN_TOKEN` before `leaseExpiresAt`.
+
+Create-with-claim and claim responses may include `leaseToken` for the holder only. Use only the public `--run-id <run-id>` plus the transient token with runtime commands after selection/creation; do not pass or derive private `runDir`/`runsRoot` paths.
 
 ## Runner commands
 
 Start or resume a run from the repo root:
 
 ```bash
-node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-dir <run-dir> --workflow <workflow>
+WORKFLOW_RUN_TOKEN="$WORKFLOW_RUN_TOKEN" node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-id <run-id>
 ```
 
 Continue after host request outputs are ready:
 
 ```bash
-node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-dir <run-dir> --output <result.json>
+WORKFLOW_RUN_TOKEN="$WORKFLOW_RUN_TOKEN" node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-id <run-id> --output <result.json>
 ```
 
 For multiple request outputs, name every output:
 
 ```bash
-node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-dir <run-dir> \
+WORKFLOW_RUN_TOKEN="$WORKFLOW_RUN_TOKEN" node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-id <run-id> \
   --output <step-id>=<result.json> \
   --output <step-id>=<result.json>
 ```
@@ -39,7 +71,7 @@ node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-dir <run-dir
 Load instructions for one request:
 
 ```bash
-node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-dir <run-dir> --step-id <step-id>
+WORKFLOW_RUN_TOKEN="$WORKFLOW_RUN_TOKEN" node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-id <run-id> --step-id <step-id>
 ```
 
 ## Request loop
@@ -59,7 +91,7 @@ node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-dir <run
 
 - Treat `response.requests[]` as the complete list of required host actions.
 - Execute every request in the list before continuing.
-- Do not run two `workflow-runner continue` commands concurrently for the same `<run-dir>`; the runner rejects same-run concurrent continues with a lock error. Collect all current outputs, then continue once.
+- Do not run two `workflow-runner continue` commands concurrently for the same `<run-id>`; the runner rejects same-run concurrent continues with a lock error. Collect all current outputs, then continue once.
 - `run_worker` may appear more than once; run those workers in parallel when safe.
 - `wait_for_approval` is also a host request; do not skip it, infer approval, or force it into a fixed approval envelope.
 - User input for `wait_for_approval` may be an approval verdict, an option choice, or free-form text.
