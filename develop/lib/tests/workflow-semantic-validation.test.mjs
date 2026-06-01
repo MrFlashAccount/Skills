@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import test, { after } from 'node:test';
 import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -13,6 +14,9 @@ import { readOutputSchemas, readAllowedRoles } from '../persistence/workflow-res
 import { validateAgainstOutputSchema } from '../use-cases/runtime/output/output-schema-validation.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
+function runNode(args) {
+  return spawnSync(process.execPath, args, { cwd: REPO_ROOT, encoding: 'utf8' });
+}
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-semantic-validation-'));
 mkdirSync(path.join(tempDir, 'schemas'), { recursive: true });
 cpSync(path.join(REPO_ROOT, 'workflows/dev-harness/schemas'), path.join(tempDir, 'schemas'), { recursive: true });
@@ -869,6 +873,17 @@ test('workflow semantic validation rejects dynamic array target schemas with inv
   );
 });
 
+
+test('validateWorkflowFile rejects a missing workflow path with a controlled error', () => {
+  assert.throws(() => validateWorkflowFile(''), /workflow path is required/);
+});
+
+test('validate-workflow CLI requires an explicit workflow path', () => {
+  const result = runNode(['develop/lib/entrypoints/cli/validate-workflow.mjs']);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /validate-workflow: workflow path is required/);
+});
 
 test('workflow semantic validation uses approval output.schema for output match cases when declared', () => {
   cpSync(path.join(REPO_ROOT, 'develop/lib/tests/fixtures/approval-choice-output.schema.json'), path.join(tempDir, 'approval-choice-output.schema.json'));

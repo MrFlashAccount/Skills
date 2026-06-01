@@ -9,7 +9,7 @@ function fail(message) {
 
 const workflowPaths = process.argv.slice(2);
 if (workflowPaths.length === 0) {
-  workflowPaths.push('workflows/dev-harness/workflow.json', 'workflows/research-critic/workflow.json');
+  fail('workflow path is required');
 }
 
 try {
