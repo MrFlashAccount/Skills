@@ -12,6 +12,9 @@ import { resolveRunPaths } from '../persistence/run-state/paths.mjs';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-runner-check-'));
 writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
+const testLeaseToken = `workflow-runner-test-token-${process.pid}`;
+const leaseTokensByRunId = new Map();
+process.env.WORKFLOW_RUN_TOKEN = testLeaseToken;
 
 const workflowDoc = {
     name: 'runner-check',
@@ -58,29 +61,83 @@ function writeJson(filePath, value) {
   writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
 }
 
+function claimRunForTest(paths) {
+  const knownToken = leaseTokensByRunId.get(paths.runId);
+  if (knownToken) {
+    process.env.WORKFLOW_RUN_TOKEN = knownToken;
+    return knownToken;
+  }
+  const createArgs = ['develop/lib/entrypoints/cli/workflow-runs.mjs', 'create', '--claim', '--run-id', paths.runId, '--workflow', paths.workflowPath];
+  const created = spawnSync(process.execPath, createArgs, { cwd: root, encoding: 'utf8', env: process.env });
+  if (created.status === 0) {
+    const token = JSON.parse(created.stdout).leaseToken;
+    leaseTokensByRunId.set(paths.runId, token);
+    process.env.WORKFLOW_RUN_TOKEN = token;
+    return token;
+  }
+  const token = knownToken ?? testLeaseToken;
+  const claimed = spawnSync(process.execPath, ['develop/lib/entrypoints/cli/workflow-runs.mjs', 'claim', '--run-id', paths.runId, '--lease-token', token], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUN_TOKEN: token } });
+  assert.equal(claimed.status, 0, `claim ${paths.runId} failed\ncreate stderr:\n${created.stderr}\nclaim stderr:\n${claimed.stderr}`);
+  leaseTokensByRunId.set(paths.runId, token);
+  process.env.WORKFLOW_RUN_TOKEN = token;
+  return token;
+}
+
 function runCase(label, workflowPath) {
   const runId = `workflow-runner-test-${process.pid}-${label}`;
-  const runDir = resolveRunPaths({ runId, workflowPath }).runDir;
-  rmSync(runDir, { recursive: true, force: true });
-  return { runId, runDir };
+  const paths = resolveRunPaths({ runId, workflowPath });
+  rmSync(paths.runDir, { recursive: true, force: true });
+  if (workflowPath !== undefined) claimRunForTest(paths);
+  return { runId, runDir: paths.runDir };
 }
 
 function runCaseNamed(name, label, workflowPath) {
   const runId = `workflow-runner-test-${process.pid}-${label}`;
-  const runDir = resolveRunPaths({ runId, workflowPath }).runDir;
-  rmSync(runDir, { recursive: true, force: true });
-  return { [`${name}RunId`]: runId, [`${name}RunDir`]: runDir };
+  const paths = resolveRunPaths({ runId, workflowPath });
+  rmSync(paths.runDir, { recursive: true, force: true });
+  if (workflowPath !== undefined) claimRunForTest(paths);
+  return { [`${name}RunId`]: runId, [`${name}RunDir`]: paths.runDir };
 }
 
 
+function valueAfter(args, name) {
+  const index = args.indexOf(name);
+  return index >= 0 ? args[index + 1] : undefined;
+}
+
+function claimRunForRunnerArgs(args) {
+  const runId = valueAfter(args, '--run-id');
+  if (!runId) return undefined;
+  const workflowPath = valueAfter(args, '--workflow');
+  const knownToken = leaseTokensByRunId.get(runId);
+  if (knownToken) return knownToken;
+  const createArgs = ['develop/lib/entrypoints/cli/workflow-runs.mjs', 'create', '--claim', '--run-id', runId];
+  if (workflowPath !== undefined) createArgs.push('--workflow', workflowPath);
+  const created = spawnSync(process.execPath, createArgs, { cwd: root, encoding: 'utf8', env: process.env });
+  if (created.status === 0) {
+    const token = JSON.parse(created.stdout).leaseToken;
+    leaseTokensByRunId.set(runId, token);
+    return token;
+  }
+  const token = knownToken ?? testLeaseToken;
+  const claimArgs = ['develop/lib/entrypoints/cli/workflow-runs.mjs', 'claim', '--run-id', runId, '--lease-token', token];
+  if (workflowPath !== undefined) claimArgs.push('--workflow', workflowPath);
+  const claimed = spawnSync(process.execPath, claimArgs, { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUN_TOKEN: token } });
+  assert.equal(claimed.status, 0, `claim ${runId} failed\ncreate stderr:\n${created.stderr}\nclaim stderr:\n${claimed.stderr}`);
+  return token;
+}
+
 function runRunner(args, options = {}) {
-  return spawnSync(process.execPath, ['develop/lib/entrypoints/cli/workflow-runner.mjs', ...args], { cwd: root, encoding: 'utf8', env: { ...process.env, ...(options.env ?? {}) } });
+  const token = claimRunForRunnerArgs(args);
+  return spawnSync(process.execPath, ['develop/lib/entrypoints/cli/workflow-runner.mjs', ...args], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUN_TOKEN: token ?? testLeaseToken, ...(options.env ?? {}) } });
 }
 
 async function runRunnerAsync(args) {
+  const token = claimRunForRunnerArgs(args);
   const child = spawn(process.execPath, ['develop/lib/entrypoints/cli/workflow-runner.mjs', ...args], {
     cwd: root,
     encoding: 'utf8',
+    env: { ...process.env, WORKFLOW_RUN_TOKEN: token ?? testLeaseToken },
   });
   let stdout = '';
   let stderr = '';
@@ -157,6 +214,7 @@ test('runner: resumed next validates persisted aggregate instruction refs before
   const singleWorkflow = structuredClone(workflowDoc);
   singleWorkflow.steps.prepare.next = 'done';
   writeJson(workflowPath, singleWorkflow);
+  claimRunForTest(resolveRunPaths({ runId, workflowPath }));
 
   const first = await runnerNext({ runId, workflowPath });
   assert.equal(first.status, 'needs_host_actions');
@@ -294,6 +352,7 @@ test('runner: API next rejects empty user prompt before persisting baton', async
   writeJson(workflowPath, workflowDoc);
 
   const { runId: emptyRunId, runDir: emptyRunDir } = runCase('api-empty-user-prompt-next');
+  claimRunForTest(resolveRunPaths({ runId: emptyRunId, workflowPath }));
   await assert.rejects(
     runnerNext({ runId: emptyRunId, workflowPath, userPrompt: '' }),
     /--user-prompt must not be empty or whitespace-only/,
@@ -301,6 +360,7 @@ test('runner: API next rejects empty user prompt before persisting baton', async
   assert.equal(existsSync(path.join(emptyRunDir, 'baton.json')), false);
 
   const { runId: whitespaceRunId, runDir: whitespaceRunDir } = runCase('api-whitespace-user-prompt-next');
+  claimRunForTest(resolveRunPaths({ runId: whitespaceRunId, workflowPath }));
   await assert.rejects(
     runnerNext({ runId: whitespaceRunId, workflowPath, userPrompt: '  \n\t' }),
     /--user-prompt must not be empty or whitespace-only/,

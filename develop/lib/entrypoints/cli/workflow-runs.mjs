@@ -8,7 +8,7 @@ function fail(message) {
 }
 
 function usage() {
-  return 'usage: node develop/lib/entrypoints/cli/workflow-runs.mjs list [--human] | create [--claim] [--run-id <id>] [--workflow <workflow.json>] [--workflow-identity <identity>] [--title <title>] [--summary <summary>] [--task-key <key>] [--task-fingerprint <fingerprint>] [lease metadata] | claim --run-id <id> [--workflow <workflow.json>] [lease metadata] | heartbeat --run-id <id> [--workflow <workflow.json>] [lease metadata]';
+  return 'usage: node develop/lib/entrypoints/cli/workflow-runs.mjs list [--human] | create [--claim] [--run-id <id>] [--workflow <workflow.json>] [--workflow-identity <identity>] [--title <title>] [--summary <summary>] [--task-key <key>] [--task-fingerprint <fingerprint>] [lease token/env + diagnostics metadata] | claim --run-id <id> [--workflow <workflow.json>] [lease token/env + diagnostics metadata] | heartbeat --run-id <id> [--workflow <workflow.json>] [lease token/env + diagnostics metadata]';
 }
 
 const options = {
@@ -23,6 +23,7 @@ const options = {
   harness: { type: 'string' },
   'session-id': { type: 'string' },
   'worker-id': { type: 'string' },
+  'lease-token': { type: 'string' },
   'lease-ms': { type: 'string' },
   claim: { type: 'boolean', default: false },
   human: { type: 'boolean', default: false },
@@ -51,6 +52,7 @@ function leaseArgs(values) {
     harness: values.harness,
     sessionId: values['session-id'],
     workerId: values['worker-id'],
+    leaseToken: values['lease-token'] ?? process.env.WORKFLOW_RUN_TOKEN,
     leaseMs: values['lease-ms'] === undefined ? undefined : Number(values['lease-ms']),
   };
 }

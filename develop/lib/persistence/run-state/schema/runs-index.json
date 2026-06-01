@@ -58,6 +58,8 @@
                 "harness": { "type": "string", "minLength": 1 },
                 "sessionId": { "type": "string", "minLength": 1 },
                 "workerId": { "type": "string", "minLength": 1 },
+                "tokenHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+                "tokenEpoch": { "type": "integer", "minimum": 1 },
                 "heartbeatAt": { "type": "string", "minLength": 1 },
                 "leaseExpiresAt": { "type": "string", "minLength": 1 }
               },

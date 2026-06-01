@@ -9,7 +9,7 @@ function fail(message) {
 }
 
 function usage() {
-  return 'usage: node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-id <id> [--workflow <workflow.json>] [--diagnostics] [--user-prompt <text> | --user-prompt-file <path>] [lease metadata] | continue --run-id <id> --output <worker-output.json> [--output <step-id=worker-output.json> ...] [--workflow <workflow.json>] [--diagnostics] [lease metadata] | instructions --run-id <id> --step-id <id> [--workflow <workflow.json>] [lease metadata]';
+  return 'usage: node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-id <id> [--workflow <workflow.json>] [--diagnostics] [--user-prompt <text> | --user-prompt-file <path>] [lease token/env + diagnostics metadata] | continue --run-id <id> --output <worker-output.json> [--output <step-id=worker-output.json> ...] [--workflow <workflow.json>] [--diagnostics] [lease token/env + diagnostics metadata] | instructions --run-id <id> --step-id <id> [--workflow <workflow.json>] [lease token/env + diagnostics metadata]';
 }
 
 function parseCliArgs(argv) {
@@ -30,6 +30,7 @@ function parseCliArgs(argv) {
         harness: { type: 'string' },
         'session-id': { type: 'string' },
         'worker-id': { type: 'string' },
+  'lease-token': { type: 'string' },
       },
       strict: true,
       allowPositionals: false,
@@ -52,6 +53,7 @@ function leaseArgs(values) {
     harness: values.harness,
     sessionId: values['session-id'],
     workerId: values['worker-id'],
+    leaseToken: values['lease-token'] ?? process.env.WORKFLOW_RUN_TOKEN,
   };
 }
 

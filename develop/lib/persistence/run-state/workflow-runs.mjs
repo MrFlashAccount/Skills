@@ -1,20 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
-import { createManagedDirectory, writeJsonAtomic } from './atomic-file.mjs';
 import { assertSafeRunId, defaultWorkflowPath, resolveRunPaths, workflowRunsRoot } from './paths.mjs';
 import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot, updateRunIndexEntry } from './run-index.mjs';
-
-const DEFAULT_LEASE_MS = 30 * 60 * 1000;
-const LEASE_IDENTITY_FIELDS = ['owner', 'harness', 'sessionId', 'workerId'];
-
-function occupancyForLease(workerLease, now = new Date()) {
-  if (!workerLease) return { state: 'unclaimed', claimed: false };
-  const expiresAt = Date.parse(workerLease.leaseExpiresAt ?? '');
-  const hasFreshExpiry = Number.isFinite(expiresAt) && expiresAt > now.getTime();
-  return hasFreshExpiry
-    ? { state: 'occupied', claimed: true, leaseExpiresAt: workerLease.leaseExpiresAt }
-    : { state: 'stale', claimed: false, leaseExpiresAt: workerLease.leaseExpiresAt };
-}
+import { assertFreshTokenAuthority, buildTokenLease, generateLeaseToken, occupancyForLease, toLeaseMetadata } from './lease-authority.mjs';
+import { withRunStateLock } from './lock.mjs';
 
 function publicRun(entry, { now = new Date() } = {}) {
   const workflow = {
@@ -62,104 +51,66 @@ function generatedRunId() {
   return assertSafeRunId(`run-${randomUUID()}`);
 }
 
-function toLeaseMetadata({ owner, harness, sessionId, workerId } = {}) {
-  const metadata = { owner, harness, sessionId, workerId };
-  for (const key of Object.keys(metadata)) if (metadata[key] === undefined) delete metadata[key];
-  return metadata;
-}
-
-function leaseIdentityKeys(metadata = {}) {
-  return LEASE_IDENTITY_FIELDS.filter((key) => metadata[key] !== undefined);
-}
-
-function leaseIdentityMatches(existingLease, requestedMetadata) {
-  const existingKeys = leaseIdentityKeys(existingLease);
-  const requestedKeys = leaseIdentityKeys(requestedMetadata);
-  if (existingKeys.length === 0 || requestedKeys.length === 0) return false;
-  if (existingKeys.length !== requestedKeys.length) return false;
-  if (!existingKeys.every((key) => requestedKeys.includes(key))) return false;
-  return existingKeys.every((key) => existingLease?.[key] === requestedMetadata[key]);
-}
-
-function rejectPartialLeaseIdentity(existingLease, requestedMetadata) {
-  const existingKeys = leaseIdentityKeys(existingLease);
-  const requestedKeys = leaseIdentityKeys(requestedMetadata);
-  if (existingKeys.length === 0 || requestedKeys.length === 0) return;
-  const isSameShape = existingKeys.length === requestedKeys.length && existingKeys.every((key) => requestedKeys.includes(key));
-  if (!isSameShape) throw new Error('partial worker lease identity is not authorized');
-}
-
-function freshLeaseConflict(existingLease, requestedMetadata, now) {
-  if (occupancyForLease(existingLease, now).state !== 'occupied') return false;
-  return !leaseIdentityMatches(existingLease, requestedMetadata);
-}
-
-function buildWorkerLease({ owner, harness, sessionId, workerId, leaseMs = DEFAULT_LEASE_MS, now = new Date() } = {}) {
-  const ms = Number(leaseMs);
-  if (!Number.isFinite(ms) || ms <= 0) throw new Error('leaseMs must be a positive number');
-  return {
-    ...toLeaseMetadata({ owner, harness, sessionId, workerId }),
-    heartbeatAt: now.toISOString(),
-    leaseExpiresAt: new Date(now.getTime() + ms).toISOString(),
-  };
-}
-
 function workflowPathForCreate(workflowPath) {
   return workflowPath === undefined ? defaultWorkflowPath : resolve(workflowPath);
-}
-
-async function writePrivateAuthority(paths, workerLease) {
-  if (!workerLease) return;
-  await createManagedDirectory(paths.runDir, 'workflow run directory');
-  await createManagedDirectory(paths.runnerDir, 'workflow runner directory');
-  await writeJsonAtomic(paths.authorityPath, {
-    owner: workerLease.owner,
-    harness: workerLease.harness,
-    sessionId: workerLease.sessionId,
-    workerId: workerLease.workerId,
-    leaseExpiresAt: workerLease.leaseExpiresAt,
-  });
 }
 
 export async function registerWorkflowRunAtRoot({ runId, title, summary, workflowPath, workflowIdentity, status = 'running', taskKey, taskFingerprint, runsRoot = workflowRunsRoot, claim = false, owner, harness, sessionId, workerId, leaseMs, now = new Date() } = {}) {
   const safeRunId = runId === undefined ? generatedRunId() : assertSafeRunId(runId);
   const paths = resolveRunPaths({ runId: safeRunId, workflowPath: workflowPathForCreate(workflowPath), runsRoot });
-  const workerLease = claim ? buildWorkerLease({ owner, harness, sessionId, workerId, leaseMs, now }) : null;
-  const entry = await createRunIndexEntry(paths, {
-    title,
-    summary,
-    workflowPath: paths.workflowPath,
-    workflowIdentity,
-    status,
-    taskKey,
-    taskFingerprint,
-    workerLease,
+  const leaseToken = claim ? generateLeaseToken() : undefined;
+  const workerLease = claim ? buildTokenLease({ token: leaseToken, owner, harness, sessionId, workerId, leaseMs, now }) : null;
+  return withRunStateLock(paths, async () => {
+    const entry = await createRunIndexEntry(paths, {
+      title,
+      summary,
+      workflowPath: paths.workflowPath,
+      workflowIdentity,
+      status,
+      taskKey,
+      taskFingerprint,
+      workerLease,
+    });
+    const response = publicRun(entry, { now });
+    if (leaseToken) response.leaseToken = leaseToken;
+    return response;
   });
-  await writePrivateAuthority(paths, workerLease);
-  return publicRun(entry, { now });
 }
 
-export async function claimWorkflowRunAtRoot({ runId, workflowPath, runsRoot = workflowRunsRoot, owner, harness, sessionId, workerId, leaseMs, now = new Date() } = {}) {
+export async function claimWorkflowRunAtRoot({ runId, workflowPath, runsRoot = workflowRunsRoot, owner, harness, sessionId, workerId, leaseMs, leaseToken, now = new Date() } = {}) {
   const safeRunId = assertSafeRunId(runId);
   const paths = resolveRunPaths({ runId: safeRunId, workflowPath: workflowPathForCreate(workflowPath), runsRoot });
-  const requestedMetadata = toLeaseMetadata({ owner, harness, sessionId, workerId });
+  const issuedLeaseToken = leaseToken || generateLeaseToken();
   try {
-    const entry = await updateRunIndexEntry(paths, (existing) => {
-      rejectPartialLeaseIdentity(existing.workerLease, requestedMetadata);
-      if (freshLeaseConflict(existing.workerLease, requestedMetadata, now)) {
-        const conflict = new Error(`workflow run is occupied: ${safeRunId}`);
-        conflict.code = 'WORKFLOW_RUN_OCCUPIED';
-        conflict.run = publicRun(existing, { now });
-        throw conflict;
-      }
-      return {
-        ...existing,
-        updatedAt: now.toISOString(),
-        workerLease: buildWorkerLease({ owner, harness, sessionId, workerId, leaseMs, now }),
-      };
+    return await withRunStateLock(paths, async () => {
+      let tokenWasIssued = false;
+      const entry = await updateRunIndexEntry(paths, (existing) => {
+        const occupancy = occupancyForLease(existing.workerLease, now);
+        if (occupancy.state === 'occupied' || leaseToken) {
+          try { assertFreshTokenAuthority(existing.workerLease, leaseToken, { runId: safeRunId, now }); }
+          catch (error) {
+            const conflict = new Error(error.message);
+            conflict.code = 'WORKFLOW_RUN_OCCUPIED';
+            conflict.run = publicRun(existing, { now });
+            throw conflict;
+          }
+          return {
+            ...existing,
+            updatedAt: now.toISOString(),
+            workerLease: { ...existing.workerLease, ...toLeaseMetadata({ owner, harness, sessionId, workerId }), heartbeatAt: now.toISOString(), leaseExpiresAt: buildTokenLease({ token: leaseToken, owner, harness, sessionId, workerId, leaseMs, now, tokenEpoch: existing.workerLease.tokenEpoch ?? 1 }).leaseExpiresAt },
+          };
+        }
+        tokenWasIssued = true;
+        return {
+          ...existing,
+          updatedAt: now.toISOString(),
+          workerLease: buildTokenLease({ token: issuedLeaseToken, owner, harness, sessionId, workerId, leaseMs, now }),
+        };
+      });
+      const response = { ok: true, claimed: true, runId: safeRunId, run: publicRun(entry, { now }) };
+      if (tokenWasIssued) response.leaseToken = issuedLeaseToken;
+      return response;
     });
-    await writePrivateAuthority(paths, entry.workerLease);
-    return { ok: true, claimed: true, runId: safeRunId, run: publicRun(entry, { now }) };
   } catch (error) {
     if (error?.code === 'WORKFLOW_RUN_OCCUPIED') {
       return { ok: false, claimed: false, reason: 'occupied', runId: safeRunId, run: error.run };
@@ -168,6 +119,7 @@ export async function claimWorkflowRunAtRoot({ runId, workflowPath, runsRoot = w
   }
 }
 
-export async function heartbeatWorkflowRunAtRoot(options = {}) {
-  return claimWorkflowRunAtRoot(options);
+export async function heartbeatWorkflowRunAtRoot({ leaseToken, ...options } = {}) {
+  if (!leaseToken) throw new Error('workflow run token is required');
+  return claimWorkflowRunAtRoot({ ...options, leaseToken });
 }

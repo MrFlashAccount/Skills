@@ -35,34 +35,35 @@ Use the JSON output to match resumable/current candidates semantically by human-
 node develop/lib/entrypoints/cli/workflow-runs.mjs create --claim --workflow <workflow> --title <title> --summary <summary> --owner <owner> --harness <harness> --session-id <session-id>
 ```
 
-Before starting or resuming any run, claim the selected `runId` atomically:
+Before starting or resuming any run, claim the selected `runId` atomically. Unclaimed/stale claims issue a transient `leaseToken`; export it in the shell/session that drives runner commands:
 
 ```bash
-node develop/lib/entrypoints/cli/workflow-runs.mjs claim --run-id <run-id> --owner <owner> --harness <harness> --session-id <session-id>
+claim_json=$(node develop/lib/entrypoints/cli/workflow-runs.mjs claim --run-id <run-id> --owner <owner> --harness <harness> --session-id <session-id>)
+export WORKFLOW_RUN_TOKEN=$(node -e 'const fs=require("node:fs"); process.stdout.write(JSON.parse(fs.readFileSync(0,"utf8")).leaseToken)' <<<"$claim_json")
 ```
 
-Lease metadata is portable and optional: `owner`, `harness`, `sessionId`, and `workerId` describe the caller without assuming a specific harness. It is stored as private runner authority and is not projected by list/conflict output. A fresh lease owned by someone else must return an occupied response instead of attaching. Long-running harnesses should renew by re-running `claim`/`heartbeat` before `leaseExpiresAt`; `heartbeat` is an alias for claim renewal.
+Lease metadata is diagnostics only: `owner`, `harness`, `sessionId`, and `workerId` describe the caller without granting authority. Durable storage keeps only the token hash/epoch/expiry plus optional metadata, and list/conflict output never projects the authority tuple. A fresh lease requires the raw token via `WORKFLOW_RUN_TOKEN` or `--lease-token`; metadata alone must return occupied. Long-running harnesses should renew with `heartbeat --lease-token` or `WORKFLOW_RUN_TOKEN` before `leaseExpiresAt`.
 
-The create/claim commands return JSON containing the public `runId` and occupancy only. Use only `--run-id <run-id>` with runtime commands after selection/creation; do not pass or derive private `runDir`/`runsRoot` paths.
+Create-with-claim and claim responses may include `leaseToken` for the holder only. Use only the public `--run-id <run-id>` plus the transient token with runtime commands after selection/creation; do not pass or derive private `runDir`/`runsRoot` paths.
 
 ## Runner commands
 
 Start or resume a run from the repo root:
 
 ```bash
-node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-id <run-id>
+WORKFLOW_RUN_TOKEN="$WORKFLOW_RUN_TOKEN" node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-id <run-id>
 ```
 
 Continue after host request outputs are ready:
 
 ```bash
-node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-id <run-id> --output <result.json>
+WORKFLOW_RUN_TOKEN="$WORKFLOW_RUN_TOKEN" node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-id <run-id> --output <result.json>
 ```
 
 For multiple request outputs, name every output:
 
 ```bash
-node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-id <run-id> \
+WORKFLOW_RUN_TOKEN="$WORKFLOW_RUN_TOKEN" node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-id <run-id> \
   --output <step-id>=<result.json> \
   --output <step-id>=<result.json>
 ```
@@ -70,7 +71,7 @@ node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-id <run-id> 
 Load instructions for one request:
 
 ```bash
-node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-id <run-id> --step-id <step-id>
+WORKFLOW_RUN_TOKEN="$WORKFLOW_RUN_TOKEN" node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-id <run-id> --step-id <step-id>
 ```
 
 ## Request loop

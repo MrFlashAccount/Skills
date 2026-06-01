@@ -11,6 +11,8 @@ import { readRunsIndex, runsIndexPathsForRoot } from '../persistence/run-state/r
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const workflowPath = path.join(root, 'develop/lib/tests/fixtures/runid-single.workflow.json');
+const testLeaseToken = `workflow-runid-runtime-test-token-${process.pid}`;
+process.env.WORKFLOW_RUN_TOKEN = testLeaseToken;
 
 function runId(label) {
   return `test-${process.pid}-${Date.now()}-${label}`;

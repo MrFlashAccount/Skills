@@ -32,10 +32,10 @@ export async function registerWorkflowRun({ runId, title, summary, workflowPath,
   });
 }
 
-export async function claimWorkflowRun({ runId, workflowPath, owner, harness, sessionId, workerId, leaseMs, now = new Date() } = {}) {
-  return claimWorkflowRunAtRoot({ runId, workflowPath, owner, harness, sessionId, workerId, leaseMs, now });
+export async function claimWorkflowRun({ runId, workflowPath, owner, harness, sessionId, workerId, leaseMs, leaseToken, now = new Date() } = {}) {
+  return claimWorkflowRunAtRoot({ runId, workflowPath, owner, harness, sessionId, workerId, leaseMs, leaseToken, now });
 }
 
 export async function heartbeatWorkflowRun(options = {}) {
-  return claimWorkflowRun(options);
+  return heartbeatWorkflowRunAtRoot(options);
 }
