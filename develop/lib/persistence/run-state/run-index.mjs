@@ -59,7 +59,7 @@ export async function withRunsIndexLock(paths, callback) {
         continue;
       }
       throw error?.code === 'EEXIST'
-        ? new Error(`workflow runs index is locked: ${paths.runsIndexLockPath}`)
+        ? new Error('workflow runs index is locked')
         : error;
     } finally {
       if (handle) await handle.close();
