@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { link, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 
 export const RUN_STATE_LOCK_HEARTBEAT_MS = 3_000;
 export const RUN_STATE_LOCK_STALE_MS = 12_000;
@@ -67,8 +67,28 @@ export async function removeStaleLock(path, options = {}) {
   await options.beforeRemove?.();
   const current = await readLockMetadata(path);
   if (!sameLock(second, current) || !isStaleLockMetadata(current, options)) return false;
-  await rm(path, { force: true });
-  return true;
+
+  const tombstonePath = `${path}.${randomUUID()}.stale`;
+  try {
+    await rename(path, tombstonePath);
+  } catch (error) {
+    if (error?.code === 'ENOENT') return false;
+    throw error;
+  }
+
+  const quarantined = await readLockMetadata(tombstonePath);
+  if (sameLock(current, quarantined) && isStaleLockMetadata(quarantined, options)) {
+    await rm(tombstonePath, { force: true });
+    return true;
+  }
+
+  try {
+    await link(tombstonePath, path);
+    await rm(tombstonePath, { force: true });
+  } catch (error) {
+    if (error?.code !== 'EEXIST') throw error;
+  }
+  return false;
 }
 
 async function writeLockMetadata(path, metadata, shouldWrite = () => true) {

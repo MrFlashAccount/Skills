@@ -10,7 +10,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../.
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-start-'));
 writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
 const helperPath = path.join(root, 'develop/lib/entrypoints/cli/start-run.mjs');
-const runsRoot = path.join(root, 'develop/.workflow-runs');
+const runsRoot = path.join(tempDir, '.workflow-runs');
 const runPrefix = `start-${process.pid}-`;
 function prefixedRunId(label) { return `${runPrefix}${label}`; }
 function runPath(runId) { return path.join(runsRoot, runId); }
@@ -40,11 +40,11 @@ writeFileSync(fixtureWorkflowPath, `${JSON.stringify(fixtureWorkflowDoc, null, 2
 
 function runStart(args, { token = `start-token-${process.pid}` } = {}) {
   const tokenArgs = token ? [`--lease-token=${token}`] : [];
-  return spawnSync(process.execPath, [helperPath, '--workflow', fixtureWorkflowPath, ...args, ...tokenArgs], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUN_TOKEN: 'ignored-env-token' } });
+  return spawnSync(process.execPath, [helperPath, '--workflow', fixtureWorkflowPath, ...args, ...tokenArgs], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUNS_ROOT: runsRoot, WORKFLOW_RUN_TOKEN: 'ignored-env-token' } });
 }
 
 function createClaimedRun(runId) {
-  const result = spawnSync(process.execPath, ['develop/lib/entrypoints/cli/workflow-runs.mjs', 'create', '--claim', '--run-id', runId, '--workflow', fixtureWorkflowPath], { cwd: root, encoding: 'utf8' });
+  const result = spawnSync(process.execPath, ['develop/lib/entrypoints/cli/workflow-runs.mjs', 'create', '--claim', '--run-id', runId, '--workflow', fixtureWorkflowPath], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUNS_ROOT: runsRoot } });
   assert.equal(result.status, 0, `claim failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
   return JSON.parse(result.stdout).leaseToken;
 }

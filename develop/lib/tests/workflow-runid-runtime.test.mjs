@@ -6,38 +6,39 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { next } from '../entrypoints/api/workflowRunner.mjs';
-import { assertSafeRunId, resolveRunPaths, workflowRunsRoot } from '../persistence/run-state/paths.mjs';
+import { assertSafeRunId, resolveRunPaths } from '../persistence/run-state/paths.mjs';
 import { readRunsIndex, runsIndexPathsForRoot, upsertRunIndexEntry } from '../persistence/run-state/run-index.mjs';
 import { assertRunsIndexSchema } from '../persistence/run-state/schema/runs-index-schema.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const workflowPath = path.join(root, 'develop/lib/tests/fixtures/runid-single.workflow.json');
 const testLeaseToken = `workflow-runid-runtime-test-token-${process.pid}`;
+const defaultRunsRoot = mkdtempSync(path.join(tmpdir(), 'workflow-runid-runtime-root-'));
 
 function runId(label) {
   return `test-${process.pid}-${Date.now()}-${label}`;
 }
 
 function cleanup(id) {
-  rmSync(path.join(workflowRunsRoot, id), { recursive: true, force: true });
+  rmSync(path.join(defaultRunsRoot, id), { recursive: true, force: true });
 }
 
 test('workflow runner derives private run directory from public runId and indexes run', async () => {
   const id = runId('positive');
   cleanup(id);
   try {
-    const response = await next({ runId: id, workflowPath, userPrompt: 'sensitive raw prompt', leaseToken: testLeaseToken });
+    const response = await next({ runId: id, workflowPath, userPrompt: 'sensitive raw prompt', leaseToken: testLeaseToken, runsRoot: defaultRunsRoot });
     assert.equal(response.runId, id);
     assert.equal('runDir' in response, false);
     assert.match(response.requests[0].loadInstructionsCommand, /--run-id/);
     assert.doesNotMatch(response.requests[0].loadInstructionsCommand, /--run-dir/);
 
-    const paths = resolveRunPaths({ runId: id, workflowPath });
+    const paths = resolveRunPaths({ runId: id, workflowPath, runsRoot: defaultRunsRoot });
     assert.equal(existsSync(path.join(paths.runDir, 'baton.json')), true);
     assert.equal(existsSync(path.join(paths.runDir, 'history.md')), true);
     assert.equal(existsSync(path.join(paths.runDir, '.workflow-runner', 'last-response.json')), true);
 
-    const index = JSON.parse(readFileSync(path.join(workflowRunsRoot, 'runs.json'), 'utf8'));
+    const index = JSON.parse(readFileSync(path.join(defaultRunsRoot, 'runs.json'), 'utf8'));
     assert.equal(index.runs[id].runId, id);
     assert.equal(index.runs[id].status, 'needs_host_actions');
     assert.equal(index.runs[id].workflow.path, workflowPath);
@@ -51,8 +52,8 @@ test('same runId resumes the same derived run directory', async () => {
   const id = runId('resume');
   cleanup(id);
   try {
-    const first = await next({ runId: id, workflowPath, leaseToken: testLeaseToken });
-    const second = await next({ runId: id, workflowPath, leaseToken: testLeaseToken });
+    const first = await next({ runId: id, workflowPath, leaseToken: testLeaseToken, runsRoot: defaultRunsRoot });
+    const second = await next({ runId: id, workflowPath, leaseToken: testLeaseToken, runsRoot: defaultRunsRoot });
     assert.equal(first.initialized, true);
     assert.equal(second.resumed, true);
     assert.deepEqual(second.baton, first.baton);
@@ -71,7 +72,7 @@ test('workflow-runner CLI exposes runId and rejects runDir', () => {
   const id = runId('cli');
   cleanup(id);
   try {
-    const ok = spawnSync(process.execPath, ['develop/lib/entrypoints/cli/workflow-runner.mjs', 'next', '--run-id', id, '--workflow', workflowPath, '--lease-token', testLeaseToken], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUN_TOKEN: 'ignored-env-token' } });
+    const ok = spawnSync(process.execPath, ['develop/lib/entrypoints/cli/workflow-runner.mjs', 'next', '--run-id', id, '--workflow', workflowPath, '--lease-token', testLeaseToken], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUNS_ROOT: defaultRunsRoot, WORKFLOW_RUN_TOKEN: 'ignored-env-token' } });
     assert.equal(ok.status, 0, ok.stderr);
     const response = JSON.parse(ok.stdout);
     assert.equal(response.runId, id);

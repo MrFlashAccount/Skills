@@ -122,7 +122,7 @@ function indexEntryForPaths(paths, patch = {}, existing) {
     updatedAt: now,
     taskKey: patch.taskKey ?? existing?.taskKey,
     taskFingerprint: patch.taskFingerprint ?? existing?.taskFingerprint,
-    workerLease: patch.workerLease ?? existing?.workerLease ?? null,
+    workerLease: Object.hasOwn(patch, 'workerLease') ? patch.workerLease : (existing?.workerLease ?? null),
   };
   pruneUndefinedProperties(entry.workflow);
   pruneUndefinedProperties(entry);

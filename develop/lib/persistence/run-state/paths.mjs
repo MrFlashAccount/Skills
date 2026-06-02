@@ -9,7 +9,7 @@ import { runsIndexPathsForRoot } from './run-index.mjs';
 const runnerDir = dirname(fileURLToPath(import.meta.url));
 export const repositoryRoot = resolve(runnerDir, '../../../..');
 export const defaultWorkflowPath = join(repositoryRoot, 'workflows/dev-harness/workflow.json');
-export const workflowRunsRoot = join(repositoryRoot, 'develop/.workflow-runs');
+export const workflowRunsRoot = resolve(process.env.WORKFLOW_RUNS_ROOT ?? join(repositoryRoot, 'develop/.workflow-runs'));
 
 const SAFE_RUN_ID = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/;
 

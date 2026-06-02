@@ -74,7 +74,7 @@ async function assertPreLockWorkerLeaseAuthority(paths, { leaseToken, now = new 
 
 async function initializeMissingRunLease(paths, { leaseToken, now = new Date() } = {}) {
   const index = await readRunsIndex(runsIndexPathsForRoot(paths.runsRoot));
-  if (index.runs[paths.runId]) return;
+  if (index.runs[paths.runId]) return false;
   const hasExistingRunState = await pathExists(paths.batonPath) || await pathExists(paths.historyPath) || await pathExists(paths.lastResponsePath);
   if (hasExistingRunState) {
     throw new Error(`workflow run requires indexed lease authority: ${paths.runId}`);
@@ -83,6 +83,17 @@ async function initializeMissingRunLease(paths, { leaseToken, now = new Date() }
     status: 'running',
     workflowPath: paths.workflowPath,
     workerLease: buildTokenLease({ token: leaseToken, now }),
+  });
+  return true;
+}
+
+async function markNewRunFailed(paths, { taskKey, taskFingerprint } = {}) {
+  await upsertRunIndexEntry(paths, {
+    status: 'failed',
+    workflowPath: paths.workflowPath,
+    taskKey,
+    taskFingerprint,
+    workerLease: null,
   });
 }
 
@@ -103,35 +114,40 @@ async function persistNextHostResponse(paths, rendered, runState) {
   return response;
 }
 
-export async function next({ runId, workflowPath, includeDiagnostics = false, userPrompt, userPromptFile, taskKey, taskFingerprint, leaseToken, now = new Date() } = {}) {
-  const lockPaths = resolveRunPaths({ runId });
+export async function next({ runId, workflowPath, includeDiagnostics = false, userPrompt, userPromptFile, taskKey, taskFingerprint, leaseToken, now = new Date(), runsRoot } = {}) {
+  const lockPaths = resolveRunPaths({ runId, runsRoot });
   await assertPreLockWorkerLeaseAuthority(lockPaths, { leaseToken, now, allowUnclaimed: true });
   return withRunStateLock(lockPaths, async () => {
-    const paths = await resolveIndexedRunPaths({ runId, workflowPath });
-    await initializeMissingRunLease(paths, { leaseToken, now });
-    await assertWorkerLeaseAuthority(paths, { leaseToken, now });
-    const hasExistingBaton = await pathExists(paths.batonPath);
-    if (!hasExistingBaton && userPromptFile !== undefined && String(userPromptFile).trim().length === 0) {
-      throw new Error('--user-prompt-file path must not be empty or whitespace-only');
+    const paths = await resolveIndexedRunPaths({ runId, workflowPath, runsRoot });
+    const createdIndexEntry = await initializeMissingRunLease(paths, { leaseToken, now });
+    try {
+      await assertWorkerLeaseAuthority(paths, { leaseToken, now });
+      const hasExistingBaton = await pathExists(paths.batonPath);
+      if (!hasExistingBaton && userPromptFile !== undefined && String(userPromptFile).trim().length === 0) {
+        throw new Error('--user-prompt-file path must not be empty or whitespace-only');
+      }
+      const userPromptFileContent = (!hasExistingBaton && userPromptFile !== undefined) ? await readText(userPromptFile, '--user-prompt-file') : undefined;
+      const startupUserPrompt = hasExistingBaton ? undefined : resolveStartupUserPrompt({ userPrompt, userPromptFileContent });
+      const workflowDoc = startupUserPrompt === undefined ? undefined : await readJson(paths.workflowPath, 'workflow');
+      const startupPromptTarget = startupUserPrompt === undefined
+        ? undefined
+        : startupUserPromptTarget({ workflow: workflowDoc, start: workflowDoc?.start });
+      const runState = await ensureRunFiles(paths, { userPrompt: startupUserPrompt, userPromptTarget: startupPromptTarget });
+      await recoverDurableCommit(paths);
+      const persisted = await readPersistedRunState(paths);
+      const runtimeState = projectRuntimeRunState(persisted);
+      const runtime = loadWorkflowRuntime({ workflowPath: paths.workflowPath, batonPath: paths.batonPath, baton: runtimeState.baton });
+      const rendered = runNext({ workflowDoc: runtime.workflow, batonDoc: runtimeState.baton, resources: runtime.resources, includeDiagnostics });
+      const response = await persistNextHostResponse(paths, rendered, {
+        initialized: runState.initialized,
+        resumed: runState.resumed,
+      });
+      await upsertRunIndexEntry(paths, { status: response.status, workflowPath: paths.workflowPath, taskKey, taskFingerprint });
+      return response;
+    } catch (error) {
+      if (createdIndexEntry) await markNewRunFailed(paths, { taskKey, taskFingerprint });
+      throw error;
     }
-    const userPromptFileContent = (!hasExistingBaton && userPromptFile !== undefined) ? await readText(userPromptFile, '--user-prompt-file') : undefined;
-    const startupUserPrompt = hasExistingBaton ? undefined : resolveStartupUserPrompt({ userPrompt, userPromptFileContent });
-    const workflowDoc = startupUserPrompt === undefined ? undefined : await readJson(paths.workflowPath, 'workflow');
-    const startupPromptTarget = startupUserPrompt === undefined
-      ? undefined
-      : startupUserPromptTarget({ workflow: workflowDoc, start: workflowDoc?.start });
-    const runState = await ensureRunFiles(paths, { userPrompt: startupUserPrompt, userPromptTarget: startupPromptTarget });
-    await recoverDurableCommit(paths);
-    const persisted = await readPersistedRunState(paths);
-    const runtimeState = projectRuntimeRunState(persisted);
-    const runtime = loadWorkflowRuntime({ workflowPath: paths.workflowPath, batonPath: paths.batonPath, baton: runtimeState.baton });
-    const rendered = runNext({ workflowDoc: runtime.workflow, batonDoc: runtimeState.baton, resources: runtime.resources, includeDiagnostics });
-    const response = await persistNextHostResponse(paths, rendered, {
-      initialized: runState.initialized,
-      resumed: runState.resumed,
-    });
-    await upsertRunIndexEntry(paths, { status: response.status, workflowPath: paths.workflowPath, taskKey, taskFingerprint });
-    return response;
   });
 }
 
@@ -237,16 +253,16 @@ async function outputForCurrentState(paths, outputRefs = []) {
   return { outputPath: '<parallel host outputs>', outputValue: { steps }, historyOutput: historyOutput.join(', '), currentBaton: current.baton };
 }
 
-async function resolveIndexedRunPaths({ runId, workflowPath }) {
-  const defaultPaths = resolveRunPaths({ runId });
+async function resolveIndexedRunPaths({ runId, workflowPath, runsRoot }) {
+  const defaultPaths = resolveRunPaths({ runId, runsRoot });
   const indexedWorkflowPath = await indexedWorkflowPathForRun(defaultPaths);
   if (typeof indexedWorkflowPath === 'string' && indexedWorkflowPath.length > 0) {
     if (workflowPath && resolve(indexedWorkflowPath) !== resolve(workflowPath)) {
       throw new Error(`workflow run is already bound to a different workflow: ${runId}`);
     }
-    return resolveRunPaths({ runId, workflowPath: indexedWorkflowPath });
+    return resolveRunPaths({ runId, workflowPath: indexedWorkflowPath, runsRoot });
   }
-  return workflowPath ? resolveRunPaths({ runId, workflowPath }) : defaultPaths;
+  return workflowPath ? resolveRunPaths({ runId, workflowPath, runsRoot }) : defaultPaths;
 }
 
 async function resolveContinueRunPaths({ runId, workflowPath }) {

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after, beforeEach } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { summarizeWorkflowRuns } from '../entrypoints/api/workflowRuns.mjs';
+import { listWorkflowRuns, summarizeWorkflowRuns } from '../entrypoints/api/workflowRuns.mjs';
 import { publicErrorMessage } from '../entrypoints/cli/public-error.mjs';
 import { claimWorkflowRunAtRoot, heartbeatWorkflowRunAtRoot, listWorkflowRunsAtRoot, registerWorkflowRunAtRoot } from '../persistence/run-state/workflow-runs.mjs';
 import { buildTokenLease, formatLeaseTokenEntropy } from '../persistence/run-state/lease-authority.mjs';
@@ -14,6 +14,7 @@ import { resolveRunPaths, workflowRunsRoot } from '../persistence/run-state/path
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-runs-api-'));
 const runsRoot = path.join(tempDir, 'runs');
+const cliRunsRoot = path.join(tempDir, 'cli-runs');
 const runsIndexPath = path.join(runsRoot, 'runs.json');
 const defaultWorkflow = path.join(root, 'workflows/dev-harness/workflow.json');
 const runPrefix = `runs-api-${process.pid}-`;
@@ -46,14 +47,14 @@ function resetIndex(content) {
 }
 
 function removeDefaultRunsForTestPrefix() {
-  const runsIndexPath = path.join(workflowRunsRoot, 'runs.json');
+  const runsIndexPath = path.join(cliRunsRoot, 'runs.json');
   if (!existsSync(runsIndexPath)) return;
   const index = JSON.parse(readFileSync(runsIndexPath, 'utf8'));
   let changed = false;
   for (const runId of Object.keys(index.runs ?? {})) {
     if (!runId.startsWith(runPrefix)) continue;
     delete index.runs[runId];
-    rmSync(path.join(workflowRunsRoot, runId), { recursive: true, force: true });
+    rmSync(path.join(cliRunsRoot, runId), { recursive: true, force: true });
     changed = true;
   }
   if (changed) writeFileSync(runsIndexPath, `${JSON.stringify(index, null, 2)}\n`);
@@ -192,7 +193,7 @@ test('workflow runs lease token generation keeps dash-leading base64url entropy 
   assert.equal(leaseToken.endsWith(rawToken), true);
 
   await createRunIndexEntry(
-    resolveRunPaths({ runId, workflowPath: defaultWorkflow, runsRoot: workflowRunsRoot }),
+    resolveRunPaths({ runId, workflowPath: defaultWorkflow, runsRoot: cliRunsRoot }),
     { workerLease: buildTokenLease({ token: leaseToken, leaseMs: 60_000 }) },
   );
 
@@ -205,7 +206,7 @@ test('workflow runs lease token generation keeps dash-leading base64url entropy 
     leaseToken,
     '--lease-ms',
     '60000',
-  ], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUN_TOKEN: 'wrong-env-token-must-be-ignored' } });
+  ], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUNS_ROOT: cliRunsRoot, WORKFLOW_RUN_TOKEN: 'wrong-env-token-must-be-ignored' } });
 
   assert.equal(result.status, 0, result.stderr);
   const response = JSON.parse(result.stdout);
@@ -255,9 +256,9 @@ test('workflow-runs CLI ignores stale WORKFLOW_RUN_TOKEN env when reclaiming sta
   const helperPath = path.join(root, 'develop/lib/entrypoints/cli/workflow-runs.mjs');
   const runId = `${runPrefix}cli-stale-env-reclaim`;
   removeDefaultRunsForTestPrefix();
-  await registerWorkflowRunAtRoot({ runsRoot: workflowRunsRoot, runId, claim: true, owner: 'alice', leaseMs: 1_000, now: new Date('2026-06-01T10:00:00.000Z') });
+  await registerWorkflowRunAtRoot({ runsRoot: cliRunsRoot, runId, claim: true, owner: 'alice', leaseMs: 1_000, now: new Date('2026-06-01T10:00:00.000Z') });
 
-  const result = spawnSync(process.execPath, [helperPath, 'claim', '--run-id', runId, '--owner', 'bob', '--lease-ms', '60000'], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUN_TOKEN: 'wrong-stale-env-token' } });
+  const result = spawnSync(process.execPath, [helperPath, 'claim', '--run-id', runId, '--owner', 'bob', '--lease-ms', '60000'], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUNS_ROOT: cliRunsRoot, WORKFLOW_RUN_TOKEN: 'wrong-stale-env-token' } });
 
   assert.equal(result.status, 0, result.stderr);
   const response = JSON.parse(result.stdout);
@@ -343,10 +344,10 @@ test('workflow-runs CLI list exposes occupancy JSON and human-readable display',
   const { spawnSync } = await import('node:child_process');
   const helperPath = path.join(root, 'develop/lib/entrypoints/cli/workflow-runs.mjs');
   removeDefaultRunsForTestPrefix();
-  await registerWorkflowRunAtRoot({ runsRoot: workflowRunsRoot, runId: `${runPrefix}cli-occupied`, title: 'CLI Occupied', claim: true, owner: 'alice', leaseMs: 60_000 });
-  await registerWorkflowRunAtRoot({ runsRoot: workflowRunsRoot, runId: `${runPrefix}cli-unclaimed`, title: 'CLI Unclaimed' });
+  await registerWorkflowRunAtRoot({ runsRoot: cliRunsRoot, runId: `${runPrefix}cli-occupied`, title: 'CLI Occupied', claim: true, owner: 'alice', leaseMs: 60_000 });
+  await registerWorkflowRunAtRoot({ runsRoot: cliRunsRoot, runId: `${runPrefix}cli-unclaimed`, title: 'CLI Unclaimed' });
 
-  const jsonResult = spawnSync(process.execPath, [helperPath, 'list'], { cwd: root, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 });
+  const jsonResult = spawnSync(process.execPath, [helperPath, 'list'], { cwd: root, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024, env: { ...process.env, WORKFLOW_RUNS_ROOT: cliRunsRoot } });
   assert.equal(jsonResult.status, 0, jsonResult.stderr);
   const runs = JSON.parse(jsonResult.stdout);
   const occupiedRun = runs.find((run) => run.runId === `${runPrefix}cli-occupied`);
@@ -357,7 +358,7 @@ test('workflow-runs CLI list exposes occupancy JSON and human-readable display',
   assert.equal('workerId' in occupiedRun.occupancy, false);
   assert.equal(runs.find((run) => run.runId === `${runPrefix}cli-unclaimed`).occupancy.state, 'unclaimed');
 
-  const humanResult = spawnSync(process.execPath, [helperPath, 'list', '--human'], { cwd: root, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 });
+  const humanResult = spawnSync(process.execPath, [helperPath, 'list', '--human'], { cwd: root, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024, env: { ...process.env, WORKFLOW_RUNS_ROOT: cliRunsRoot } });
   assert.equal(humanResult.status, 0, humanResult.stderr);
   assert.match(humanResult.stdout, new RegExp(`${runPrefix}cli-occupied: running, occupied`));
 });
@@ -366,7 +367,7 @@ test('workflow-runs CLI usage documents heartbeat', async () => {
   const { spawnSync } = await import('node:child_process');
   const helperPath = path.join(root, 'develop/lib/entrypoints/cli/workflow-runs.mjs');
 
-  const result = spawnSync(process.execPath, [helperPath, 'heartbeat'], { cwd: root, encoding: 'utf8' });
+  const result = spawnSync(process.execPath, [helperPath, 'heartbeat'], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUNS_ROOT: cliRunsRoot } });
 
   assert.equal(result.status, 1);
   assert.match(result.stderr, /heartbeat --run-id <id>/);
@@ -379,6 +380,23 @@ test('workflow-runs CLI public errors do not leak internal runs index path', () 
   assert.match(message, /workflow runs index/);
   assert.doesNotMatch(message, /\.workflow-runs\/runs\.json/);
   assert.doesNotMatch(message, new RegExp(indexPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+});
+
+test('workflow runs public API redacts corrupt index storage path', async () => {
+  const apiRunsRoot = path.join(tempDir, '.workflow-runs-api-redaction');
+  mkdirSync(apiRunsRoot, { recursive: true });
+  writeFileSync(path.join(apiRunsRoot, 'runs.json'), '{not-json', { mode: 0o600 });
+
+  await assert.rejects(
+    () => listWorkflowRuns({ runsRoot: apiRunsRoot }),
+    (error) => {
+      assert.match(error.message, /workflow runs index/);
+      assert.doesNotMatch(error.message, /\.workflow-runs-api-redaction/);
+      assert.doesNotMatch(error.message, /runs\.json/);
+      assert.doesNotMatch(error.message, new RegExp(apiRunsRoot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+      return true;
+    },
+  );
 });
 
 test('workflow-runs CLI public errors redact internal run-state lock paths', () => {
@@ -395,9 +413,9 @@ test('workflow-runs CLI heartbeat renews worker lease', async () => {
   const helperPath = path.join(root, 'develop/lib/entrypoints/cli/workflow-runs.mjs');
   const runId = `${runPrefix}cli-heartbeat`;
   removeDefaultRunsForTestPrefix();
-  const claim = await registerWorkflowRunAtRoot({ runsRoot: workflowRunsRoot, runId, claim: true, owner: 'alice', harness: 'portable', sessionId: 'session-a', leaseMs: 72 * 60 * 60 * 1000, now: new Date('2026-06-01T10:00:00.000Z') });
+  const claim = await registerWorkflowRunAtRoot({ runsRoot: cliRunsRoot, runId, claim: true, owner: 'alice', harness: 'portable', sessionId: 'session-a', leaseMs: 72 * 60 * 60 * 1000, now: new Date('2026-06-01T10:00:00.000Z') });
 
-  const result = spawnSync(process.execPath, [helperPath, 'heartbeat', '--run-id', runId, '--owner', 'alice', '--harness', 'portable', '--session-id', 'session-a', '--lease-ms', '60000', `--lease-token=${claim.leaseToken}`], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUN_TOKEN: 'wrong-env-token-must-be-ignored' } });
+  const result = spawnSync(process.execPath, [helperPath, 'heartbeat', '--run-id', runId, '--owner', 'alice', '--harness', 'portable', '--session-id', 'session-a', '--lease-ms', '60000', `--lease-token=${claim.leaseToken}`], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUNS_ROOT: cliRunsRoot, WORKFLOW_RUN_TOKEN: 'wrong-env-token-must-be-ignored' } });
 
   assert.equal(result.status, 0, result.stderr);
   const response = JSON.parse(result.stdout);
