@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { next as runnerNext } from '../entrypoints/api/workflowRunner.mjs';
+import { continueRun as runnerContinueRun, loadInstructions as runnerLoadInstructions, next as runnerNext } from '../entrypoints/api/workflowRunner.mjs';
 import { resolveRunPaths } from '../persistence/run-state/paths.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -417,4 +417,34 @@ test('runner: instructions rejects unknown, unsafe, and missing instructions', (
   const missing = runRunner(['instructions', '--run-id', runId, '--step-id', 'prepare']);
   assert.notEqual(missing.status, 0);
   assert.match(missing.stderr, /cannot read instructions for workflow step prepare/);
+});
+
+test('runner API propagates custom runsRoot through next, instructions, and continue', async () => {
+  const runId = `workflow-runner-test-${process.pid}-custom-runs-root`;
+  const runsRoot = path.join(tempDir, 'custom-runs-root');
+  const workflowPath = path.join(tempDir, 'custom-runs-root-workflow.json');
+  const outputPath = path.join(tempDir, 'custom-runs-root-output.json');
+  const leaseToken = `custom-runs-root-token-${process.pid}`;
+  writeJson(workflowPath, workflowDoc);
+  writeJson(outputPath, workerOutput('prepared under custom root'));
+  rmSync(runsRoot, { recursive: true, force: true });
+
+  const first = await runnerNext({ runId, workflowPath, runsRoot, leaseToken });
+
+  assert.equal(first.status, 'needs_host_actions');
+  assert.equal(first.requests[0].stepId, 'prepare');
+  assert.equal(first.requests[0].loadInstructionsCommand.includes(`--runs-root '${runsRoot}'`), true);
+
+  const instructions = await runnerLoadInstructions({ runId, stepId: 'prepare', runsRoot, leaseToken });
+  assert.match(instructions, /Prepare branch\./);
+
+  const continued = await runnerContinueRun({ runId, runsRoot, output: outputPath, leaseToken });
+
+  assert.equal(continued.status, 'needs_host_actions');
+  assert.deepEqual(continued.requests.map((request) => request.stepId).sort(), ['branch_a', 'branch_b']);
+  for (const request of continued.requests) {
+    assert.equal(request.loadInstructionsCommand.includes(`--runs-root '${runsRoot}'`), true);
+  }
+  assert.equal(existsSync(path.join(resolveRunPaths({ runId, runsRoot }).runDir, 'baton.json')), true);
+  assert.equal(existsSync(resolveRunPaths({ runId }).runDir), false);
 });

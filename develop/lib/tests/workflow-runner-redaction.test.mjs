@@ -37,6 +37,37 @@ test('public error redaction hides workflow-runner private storage paths', () =>
   assert.match(redacted, /workflow runs index/);
 });
 
+test('public error redaction hides custom workflow-runner roots without .workflow-runs sentinel', () => {
+  const runsRoot = path.join(tmpdir(), `private-workflow-runs-${process.pid}`);
+  const privateRunFile = path.join(runsRoot, 'redact-me', '.workflow-runner', 'last-response.json');
+  const privateIndex = path.join(runsRoot, 'runs.json');
+
+  const redacted = publicErrorMessage(`cannot read ${privateRunFile}; cannot lock ${privateIndex}`, { runsRoot });
+
+  assert.doesNotMatch(redacted, /private-workflow-runs/);
+  assert.doesNotMatch(redacted, /redact-me/);
+  assert.doesNotMatch(redacted, /last-response\.json/);
+  assert.doesNotMatch(redacted, /runs\.json/);
+  assert.match(redacted, /workflow run private state/);
+  assert.match(redacted, /workflow runs index/);
+});
+
+test('public error redaction hides Windows-style workflow-runner paths', () => {
+  const runsRoot = 'C:\\Users\\Sergey\\private-runs';
+  const redacted = publicErrorMessage(
+    `cannot read ${runsRoot}\\redact-me\\.workflow-runner\\last-response.json; cannot lock ${runsRoot}\\runs.json`,
+    { runsRoot },
+  );
+
+  assert.doesNotMatch(redacted, /C:\\Users/);
+  assert.doesNotMatch(redacted, /redact-me/);
+  assert.doesNotMatch(redacted, /last-response\.json/);
+  assert.doesNotMatch(redacted, /runs\.json/);
+  assert.match(redacted, /workflow run private state/);
+  assert.match(redacted, /workflow runs index/);
+});
+
+
 test('workflow runner API corrupt runs index errors do not expose raw private index pathnames', async () => {
   const tempDir = await mkdtemp(path.join(tmpdir(), 'workflow-redaction-index-'));
   tempRoots.push(tempDir);

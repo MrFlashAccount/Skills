@@ -15,7 +15,7 @@ import { assertFreshTokenAuthority, buildTokenLease } from '../../persistence/ru
 import { recoverDurableCommit } from '../../persistence/run-state/durable-commit.mjs';
 import { readPersistedRunState } from '../../persistence/run-state/PersistedRunStateReader.mjs';
 import { projectRuntimeRunState } from '../../persistence/run-state/persisted-state-schema.mjs';
-import { ensureRunFiles, pathExists, resolveRunPaths } from '../../persistence/run-state/paths.mjs';
+import { ensureRunFiles, pathExists, resolveRunPaths, workflowRunsRoot } from '../../persistence/run-state/paths.mjs';
 import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot, upsertRunIndexEntry } from '../../persistence/run-state/run-index.mjs';
 import { withRunStateLock } from '../../persistence/run-state/lock.mjs';
 import { publicErrorMessage } from '../cli/public-error.mjs';
@@ -52,6 +52,7 @@ async function runnerResponseForRendered(paths, rendered, { initialized, resumed
       workflow: workflowDoc,
       workflowPath: paths.workflowPath,
       repositoryRoot: paths.repositoryRoot,
+      runsRoot: paths.runsRoot === workflowRunsRoot ? undefined : paths.runsRoot,
     }),
     runId: paths.runId,
     initialized,
@@ -115,15 +116,15 @@ async function persistNextHostResponse(paths, rendered, runState) {
   return response;
 }
 
-function publicApiError(error) {
-  const redacted = new Error(publicErrorMessage(error?.message ?? error));
+function publicApiError(error, options = {}) {
+  const redacted = new Error(publicErrorMessage(error?.message ?? error, options));
   if (error?.code) redacted.code = error.code;
   return redacted;
 }
 
-async function publicApiCall(callback) {
+async function publicApiCall(callback, options = {}) {
   try { return await callback(); }
-  catch (error) { throw publicApiError(error); }
+  catch (error) { throw publicApiError(error, options); }
 }
 
 async function nextInternal({ runId, workflowPath, includeDiagnostics = false, userPrompt, userPromptFile, taskKey, taskFingerprint, leaseToken, now = new Date(), runsRoot } = {}) {
@@ -277,19 +278,19 @@ async function resolveIndexedRunPaths({ runId, workflowPath, runsRoot }) {
   return workflowPath ? resolveRunPaths({ runId, workflowPath, runsRoot }) : defaultPaths;
 }
 
-async function resolveContinueRunPaths({ runId, workflowPath }) {
-  return resolveIndexedRunPaths({ runId, workflowPath });
+async function resolveContinueRunPaths({ runId, workflowPath, runsRoot }) {
+  return resolveIndexedRunPaths({ runId, workflowPath, runsRoot });
 }
 
 export async function next(options = {}) {
-  return publicApiCall(() => nextInternal(options));
+  return publicApiCall(() => nextInternal(options), { runsRoot: options.runsRoot });
 }
 
-async function continueRunInternal({ runId, workflowPath, output, includeDiagnostics = false, leaseToken, now = new Date() }) {
-  const lockPaths = resolveRunPaths({ runId });
+async function continueRunInternal({ runId, workflowPath, output, includeDiagnostics = false, leaseToken, now = new Date(), runsRoot } = {}) {
+  const lockPaths = resolveRunPaths({ runId, runsRoot });
   await assertPreLockWorkerLeaseAuthority(lockPaths, { leaseToken, now });
   return withRunStateLock(lockPaths, async () => {
-    const paths = await resolveContinueRunPaths({ runId, workflowPath });
+    const paths = await resolveContinueRunPaths({ runId, workflowPath, runsRoot });
     await assertWorkerLeaseAuthority(paths, { leaseToken, now });
     await ensureRunFiles(paths);
     await recoverDurableCommit(paths);
@@ -312,21 +313,21 @@ async function continueRunInternal({ runId, workflowPath, output, includeDiagnos
 }
 
 export async function continueRun(options = {}) {
-  return publicApiCall(() => continueRunInternal(options));
+  return publicApiCall(() => continueRunInternal(options), { runsRoot: options.runsRoot });
 }
 
-async function loadInstructionsInternal({ runId, workflowPath, stepId, leaseToken, now = new Date() }) {
+async function loadInstructionsInternal({ runId, workflowPath, stepId, leaseToken, now = new Date(), runsRoot } = {}) {
   assertSafeStepId(stepId);
-  const lockPaths = resolveRunPaths({ runId });
+  const lockPaths = resolveRunPaths({ runId, runsRoot });
   await assertPreLockWorkerLeaseAuthority(lockPaths, { leaseToken, now });
   return withRunStateLock(lockPaths, async () => {
-    const paths = resolveRunPaths({ runId });
+    const paths = resolveRunPaths({ runId, runsRoot });
     await assertWorkerLeaseAuthority(paths, { leaseToken, now });
     await recoverDurableCommit(paths);
     const current = await readPersistedRunState(paths);
     const lastResponse = current.lastResponse;
     if (lastResponse?.status !== 'needs_host_actions') throw new Error(`unknown current workflow step id: ${stepId}`);
-    const runtimePaths = await resolveIndexedRunPaths({ runId, workflowPath });
+    const runtimePaths = await resolveIndexedRunPaths({ runId, workflowPath, runsRoot });
     assertLastResponseMatchesCurrentBaton(lastResponse, current.baton);
     const runtime = loadWorkflowRuntime({ workflowPath: runtimePaths.workflowPath, batonPath: paths.batonPath, baton: current.baton });
     const instructionPath = instructionPathForStep(paths.instructionsDir, stepId);
@@ -344,5 +345,5 @@ async function loadInstructionsInternal({ runId, workflowPath, stepId, leaseToke
 }
 
 export async function loadInstructions(options = {}) {
-  return publicApiCall(() => loadInstructionsInternal(options));
+  return publicApiCall(() => loadInstructionsInternal(options), { runsRoot: options.runsRoot });
 }

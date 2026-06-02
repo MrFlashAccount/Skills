@@ -11,7 +11,7 @@ function fail(message) {
 }
 
 function usage() {
-  return 'usage: node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-id <id> [--workflow <workflow.json>] [--diagnostics] [--user-prompt <text> | --user-prompt-file <path>] [--lease-token <token> + diagnostics metadata] | continue --run-id <id> --output <worker-output.json> [--output <step-id=worker-output.json> ...] [--workflow <workflow.json>] [--diagnostics] [--lease-token <token> + diagnostics metadata] | instructions --run-id <id> --step-id <id> [--workflow <workflow.json>] [--lease-token <token> + diagnostics metadata]';
+  return 'usage: node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-id <id> [--workflow <workflow.json>] [--runs-root <dir>] [--diagnostics] [--user-prompt <text> | --user-prompt-file <path>] [--lease-token <token> + diagnostics metadata] | continue --run-id <id> --output <worker-output.json> [--output <step-id=worker-output.json> ...] [--workflow <workflow.json>] [--runs-root <dir>] [--diagnostics] [--lease-token <token> + diagnostics metadata] | instructions --run-id <id> --step-id <id> [--workflow <workflow.json>] [--runs-root <dir>] [--lease-token <token> + diagnostics metadata]';
 }
 
 function parseCliArgs(argv) {
@@ -24,6 +24,7 @@ function parseCliArgs(argv) {
         'run-id': { type: 'string' },
         'step-id': { type: 'string' },
         workflow: { type: 'string' },
+        'runs-root': { type: 'string' },
         diagnostics: { type: 'boolean', default: false },
         output: { type: 'string', multiple: true },
         'user-prompt': { type: 'string' },
@@ -65,6 +66,7 @@ try {
     const instructions = await loadInstructions({
       runId: values['run-id'],
       workflowPath: values.workflow,
+      runsRoot: values['runs-root'],
       stepId: values['step-id'],
       ...leaseArgs(values),
     });
@@ -74,6 +76,7 @@ try {
     const response = await command({
       runId: values['run-id'],
       workflowPath: values.workflow,
+      runsRoot: values['runs-root'],
       includeDiagnostics: values.diagnostics,
       output: values.output,
       userPrompt: values['user-prompt'],

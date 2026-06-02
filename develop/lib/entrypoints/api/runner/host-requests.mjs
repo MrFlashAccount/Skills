@@ -19,9 +19,10 @@ export function instructionPathForStep(instructionsDir, stepId) {
   return join(instructionsDir, `${stepId}.md`);
 }
 
-export function loadInstructionsCommandForStep(runId, stepId) {
+export function loadInstructionsCommandForStep(runId, stepId, { runsRoot } = {}) {
   assertSafeStepId(stepId);
-  return `node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-id ${shellQuote(runId)} --step-id ${shellQuote(stepId)} --lease-token <lease-token>`;
+  const runsRootArg = runsRoot ? ` --runs-root ${shellQuote(runsRoot)}` : '';
+  return `node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-id ${shellQuote(runId)} --step-id ${shellQuote(stepId)}${runsRootArg} --lease-token <lease-token>`;
 }
 
 export function responseStatusForInterpreterResponse(interpreterResponse) {
@@ -41,7 +42,7 @@ function resolvedOutputSchemaForStep(step, { workflow, workflowPath, repositoryR
   };
 }
 
-export function buildHostRequests(interpreterResponse, { runId, workflow, workflowPath, repositoryRoot }) {
+export function buildHostRequests(interpreterResponse, { runId, workflow, workflowPath, repositoryRoot, runsRoot }) {
   const status = responseStatusForInterpreterResponse(interpreterResponse);
   if (status !== 'needs_host_actions') return [];
 
@@ -52,7 +53,7 @@ export function buildHostRequests(interpreterResponse, { runId, workflow, workfl
         id: step.id,
         stepId: step.id,
         action: step.action,
-        loadInstructionsCommand: loadInstructionsCommandForStep(runId, step.id),
+        loadInstructionsCommand: loadInstructionsCommandForStep(runId, step.id, { runsRoot }),
       };
       const resolvedOutputSchema = resolvedOutputSchemaForStep(step, { workflow, workflowPath, repositoryRoot });
       if (resolvedOutputSchema) {
