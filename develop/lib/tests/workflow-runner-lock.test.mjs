@@ -130,6 +130,30 @@ test('runner: API next render failure marks newly indexed run failed and clears 
   assert.equal(index.runs[runId].workerLease, null);
 });
 
+
+test('runner: API next metadata upsert failure marks newly indexed run failed and clears lease', async () => {
+  const runId = `lock-${process.pid}-api-next-invalid-metadata-clears-lease`;
+  const workflowPath = path.join(tempDir, 'api-next-invalid-metadata-clears-lease-workflow.json');
+  const paths = resolveRunPaths({ runId, workflowPath, runsRoot });
+  const leaseToken = `invalid-metadata-clears-lease-${process.pid}`;
+  const validWorkflow = workflowDoc();
+  validWorkflow.steps.prepare.input = { prompt: 'Render succeeds before index metadata validation fails.' };
+  rmSync(paths.runDir, { recursive: true, force: true });
+  writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
+  writeJson(workflowPath, validWorkflow);
+
+  await assert.rejects(
+    runnerNext({ runId, workflowPath, runsRoot, leaseToken, taskKey: 'invalid task key', now: new Date('2026-06-01T10:00:01.000Z') }),
+    /taskKey|runs index|schema validation/,
+  );
+
+  const index = await readRunsIndex(runsIndexPathsForRoot(paths.runsRoot));
+  assert.equal(index.runs[runId].status, 'failed');
+  assert.equal(index.runs[runId].workerLease, null);
+  assert.equal(Object.hasOwn(index.runs[runId], 'taskKey'), false);
+  assert.equal(Object.hasOwn(index.runs[runId], 'taskFingerprint'), false);
+});
+
 test('runner: API next keeps fresh-heartbeat run-state lock held by live owner', async () => {
   const runId = `lock-${process.pid}-api-next-fresh-heartbeat-continue-lock`;
   const workflowPath = path.join(tempDir, 'api-next-fresh-heartbeat-continue-lock-workflow.json');

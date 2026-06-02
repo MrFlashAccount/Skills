@@ -89,12 +89,10 @@ async function initializeMissingRunLease(paths, { leaseToken, now = new Date() }
   return true;
 }
 
-async function markNewRunFailed(paths, { taskKey, taskFingerprint } = {}) {
+async function markNewRunFailed(paths) {
   await upsertRunIndexEntry(paths, {
     status: 'failed',
     workflowPath: paths.workflowPath,
-    taskKey,
-    taskFingerprint,
     workerLease: null,
   });
 }
@@ -158,7 +156,7 @@ async function nextInternal({ runId, workflowPath, includeDiagnostics = false, u
       await upsertRunIndexEntry(paths, { status: response.status, workflowPath: paths.workflowPath, taskKey, taskFingerprint });
       return response;
     } catch (error) {
-      if (createdIndexEntry) await markNewRunFailed(paths, { taskKey, taskFingerprint });
+      if (createdIndexEntry) await markNewRunFailed(paths);
       throw error;
     }
   });
