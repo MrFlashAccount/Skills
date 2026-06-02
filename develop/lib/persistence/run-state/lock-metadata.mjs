@@ -59,14 +59,30 @@ function sameLock(left, right) {
   return left?.pid === right?.pid && left?.createdAt === right?.createdAt && left?.heartbeatAt === right?.heartbeatAt;
 }
 
-function sameFile(left, right) {
-  return left.dev === right.dev && left.ino === right.ino;
+function safeTombstoneIdentity(metadata) {
+  const lockId = typeof metadata?.lockId === 'string' && metadata.lockId.length > 0
+    ? metadata.lockId
+    : `invalid-${Number.isFinite(Number(metadata?.invalidLockFileMtimeMs)) ? Number(metadata.invalidLockFileMtimeMs) : 'unknown'}`;
+  return lockId.replace(/[^a-zA-Z0-9._-]/g, '_');
 }
 
-async function statIfExists(path) {
-  try { return await stat(path); }
-  catch (error) {
-    if (error?.code === 'ENOENT') return undefined;
+async function renameIfExists(fromPath, toPath) {
+  try {
+    await rename(fromPath, toPath);
+    return true;
+  } catch (error) {
+    if (error?.code === 'ENOENT') return false;
+    throw error;
+  }
+}
+
+async function restoreTombstoneIfPublicPathIsFree(tombstonePath, publicPath) {
+  try {
+    await link(tombstonePath, publicPath);
+    await rm(tombstonePath, { force: true });
+    return true;
+  } catch (error) {
+    if (error?.code === 'EEXIST' || error?.code === 'ENOENT') return false;
     throw error;
   }
 }
@@ -76,33 +92,28 @@ export async function removeStaleLock(path, options = {}) {
   if (!isStaleLockMetadata(first, options)) return false;
   const second = await readLockMetadata(path);
   if (!sameLock(first, second) || !isStaleLockMetadata(second, options)) return false;
-  await options.beforeRemove?.();
-  const current = await readLockMetadata(path);
-  if (!sameLock(second, current) || !isStaleLockMetadata(current, options)) return false;
 
-  const tombstonePath = `${path}.${randomUUID()}.stale`;
-  // Claim the verified stale file by inode before unlinking the public lock path;
-  // a fresh replacement must not be renamed or removed as part of stale cleanup.
-  try {
-    await link(path, tombstonePath);
-  } catch (error) {
-    if (error?.code === 'ENOENT') return false;
-    throw error;
-  }
+  const tombstonePath = `${path}.${safeTombstoneIdentity(second)}.${Date.now()}.${process.pid}.${randomUUID()}.stale`;
+  await options.beforeRename?.();
 
-  try {
-    const quarantined = await readLockMetadata(tombstonePath);
-    if (!sameLock(current, quarantined) || !isStaleLockMetadata(quarantined, options)) return false;
-    await options.beforeUnlinkOriginal?.();
-    const originalStats = await statIfExists(path);
-    const tombstoneStats = await stat(tombstonePath);
-    if (!originalStats || !sameFile(originalStats, tombstoneStats)) return false;
-    await rm(path, { force: true });
-    return true;
-  } finally {
-    await rm(tombstonePath, { force: true });
+  // Atomically remove the public lock path by moving the stale instance into a
+  // private tombstone.  After this point cleanup may only delete tombstonePath;
+  // never unlink the original path based on stale metadata observed earlier.
+  if (!await renameIfExists(path, tombstonePath)) return false;
+
+  const tombstone = await readLockMetadata(tombstonePath);
+  if (!sameLock(second, tombstone) || !isStaleLockMetadata(tombstone, options)) {
+    // The path changed between verification and rename. Put the moved lock back
+    // only when the public path is still free; never overwrite a fresh lock and
+    // never delete this tombstone because it may be the fresh replacement.
+    await restoreTombstoneIfPublicPathIsFree(tombstonePath, path);
+    return false;
   }
+  await options.afterRename?.(tombstonePath);
+  await rm(tombstonePath, { force: true });
+  return true;
 }
+
 
 async function writeLockMetadata(path, metadata, shouldWrite = () => true) {
   const tempPath = `${path}.${metadata.lockId}.tmp`;

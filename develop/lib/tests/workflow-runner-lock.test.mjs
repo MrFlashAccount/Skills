@@ -146,9 +146,9 @@ test('runner: API next keeps fresh-heartbeat run-state lock held by live owner',
   assert.equal(existsSync(paths.continueLockPath), true);
 });
 
-test('run-state stale cleanup does not remove a fresh replacement observed after stale checks', async () => {
-  const runId = `lock-${process.pid}-cleanup-preserves-post-check-replacement`;
-  const workflowPath = path.join(tempDir, 'cleanup-preserves-post-check-replacement-workflow.json');
+test('run-state stale cleanup does not delete a fresh replacement observed before stale rename', async () => {
+  const runId = `lock-${process.pid}-cleanup-preserves-pre-rename-replacement`;
+  const workflowPath = path.join(tempDir, 'cleanup-preserves-pre-rename-replacement-workflow.json');
   const paths = resolveRunPaths({ runId, workflowPath, runsRoot });
   rmSync(paths.runDir, { recursive: true, force: true });
   mkdirSync(paths.runnerDir, { recursive: true });
@@ -156,7 +156,8 @@ test('run-state stale cleanup does not remove a fresh replacement observed after
   const replacement = createLockMetadata();
 
   const removed = await removeStaleLock(paths.continueLockPath, {
-    beforeRemove: async () => {
+    beforeRename: async () => {
+      rmSync(paths.continueLockPath, { force: true });
       writeFileSync(paths.continueLockPath, `${JSON.stringify(replacement)}\n`);
     },
   });
@@ -166,25 +167,53 @@ test('run-state stale cleanup does not remove a fresh replacement observed after
   rmSync(paths.continueLockPath, { force: true });
 });
 
-test('run-state stale cleanup does not remove a fresh replacement after final verification', async () => {
-  const runId = `lock-${process.pid}-cleanup-preserves-post-verify-replacement`;
-  const workflowPath = path.join(tempDir, 'cleanup-preserves-post-verify-replacement-workflow.json');
+test('run-state stale cleanup renames stale lock to tombstone and allows a new lock', async () => {
+  const runId = `lock-${process.pid}-cleanup-rename-then-new-lock`;
+  const workflowPath = path.join(tempDir, 'cleanup-rename-then-new-lock-workflow.json');
   const paths = resolveRunPaths({ runId, workflowPath, runsRoot });
   rmSync(paths.runDir, { recursive: true, force: true });
   mkdirSync(paths.runnerDir, { recursive: true });
-  writeFileSync(paths.continueLockPath, `${JSON.stringify({ lockId: 'stale-before-final-race', pid: process.pid + 1_000_000, createdAt: '1970-01-01T00:00:00.000Z' })}\n`);
-  const replacement = createLockMetadata();
+  const stale = { lockId: 'stale-rename-target', pid: process.pid + 1_000_000, createdAt: '1970-01-01T00:00:00.000Z' };
+  let observedTombstonePath;
+  writeFileSync(paths.continueLockPath, `${JSON.stringify(stale)}\n`);
 
   const removed = await removeStaleLock(paths.continueLockPath, {
-    beforeUnlinkOriginal: async () => {
+    afterRename: async (tombstonePath) => {
+      observedTombstonePath = tombstonePath;
+      assert.equal(existsSync(paths.continueLockPath), false);
+      assert.equal(JSON.parse(readFileSync(tombstonePath, 'utf8')).lockId, stale.lockId);
+      assert.match(tombstonePath, /stale-rename-target/);
+    },
+  });
+
+  assert.equal(removed, true);
+  assert.equal(existsSync(paths.continueLockPath), false);
+  assert.equal(existsSync(observedTombstonePath), false);
+
+  let replacementLockId;
+  await withRunStateLock(paths, async () => {
+    replacementLockId = JSON.parse(readFileSync(paths.continueLockPath, 'utf8')).lockId;
+  });
+  assert.notEqual(replacementLockId, stale.lockId);
+  assert.equal(existsSync(paths.continueLockPath), false);
+});
+
+test('run-state stale cleanup aborts safely when stale rename fails', async () => {
+  const runId = `lock-${process.pid}-cleanup-rename-fails`;
+  const workflowPath = path.join(tempDir, 'cleanup-rename-fails-workflow.json');
+  const paths = resolveRunPaths({ runId, workflowPath, runsRoot });
+  rmSync(paths.runDir, { recursive: true, force: true });
+  mkdirSync(paths.runnerDir, { recursive: true });
+  writeFileSync(paths.continueLockPath, `${JSON.stringify({ lockId: 'stale-rename-fails', pid: process.pid + 1_000_000, createdAt: '1970-01-01T00:00:00.000Z' })}\n`);
+
+  const removed = await removeStaleLock(paths.continueLockPath, {
+    beforeRename: async () => {
       rmSync(paths.continueLockPath, { force: true });
-      writeFileSync(paths.continueLockPath, `${JSON.stringify(replacement)}\n`);
     },
   });
 
   assert.equal(removed, false);
-  assert.equal(JSON.parse(readFileSync(paths.continueLockPath, 'utf8')).lockId, replacement.lockId);
-  rmSync(paths.continueLockPath, { force: true });
+  assert.equal(existsSync(paths.continueLockPath), false);
 });
 
 
