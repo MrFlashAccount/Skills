@@ -200,7 +200,7 @@ test('runner: next returns a single host action request with load command only',
   assert.equal(Object.hasOwn(response.requests[0], 'compiledPrompt'), false);
   assert.equal(response.requests[0].stepId, 'prepare');
   assert.equal(Object.hasOwn(response.requests[0], 'instructionRef'), false);
-  assert.match(response.requests[0].loadInstructionsCommand, /workflow-runner\.mjs instructions --run-id .* --step-id 'prepare'/);
+  assert.match(response.requests[0].loadInstructionsCommand, /workflow-runner\.mjs instructions --run-id .* --step-id 'prepare' --lease-token <lease-token>/);
   assert.equal(Object.hasOwn(response.requests[0], 'outputPath'), false);
 
   const lastResponse = JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8'));

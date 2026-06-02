@@ -62,9 +62,12 @@ async function readJson(path, name) {
   const { readFile } = await import('node:fs/promises');
   let content;
   try { content = await readFile(path, 'utf8'); }
-  catch (error) { throw new Error(`cannot read ${name} from ${path}: ${error.message}`); }
+  catch (error) {
+    const code = typeof error?.code === 'string' ? `: ${error.code}` : '';
+    throw new Error(`cannot read ${name}${code}`);
+  }
   try { return JSON.parse(content); }
-  catch (error) { throw new Error(`cannot parse ${name} from ${path}: ${error.message}`); }
+  catch (error) { throw new Error(`cannot parse ${name}: ${error.message}`); }
 }
 
 async function createFileIfMissing(path, content) {

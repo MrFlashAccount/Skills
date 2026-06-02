@@ -21,7 +21,7 @@ export function instructionPathForStep(instructionsDir, stepId) {
 
 export function loadInstructionsCommandForStep(runId, stepId) {
   assertSafeStepId(stepId);
-  return `node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-id ${shellQuote(runId)} --step-id ${shellQuote(stepId)} --lease-token "$WORKFLOW_RUN_TOKEN"`;
+  return `node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-id ${shellQuote(runId)} --step-id ${shellQuote(stepId)} --lease-token <lease-token>`;
 }
 
 export function responseStatusForInterpreterResponse(interpreterResponse) {

@@ -20,10 +20,17 @@ import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot, upsertRunInd
 import { withRunStateLock } from '../../persistence/run-state/lock.mjs';
 
 async function readJson(pathname, kind) {
+  let content;
   try {
-    return JSON.parse(await readFile(pathname, 'utf8'));
+    content = await readFile(pathname, 'utf8');
   } catch (error) {
-    throw new Error(`failed to read ${kind} JSON '${pathname}': ${error.message}`);
+    const code = typeof error?.code === 'string' ? `: ${error.code}` : '';
+    throw new Error(`failed to read ${kind} JSON${code}`);
+  }
+  try {
+    return JSON.parse(content);
+  } catch (error) {
+    throw new Error(`failed to parse ${kind} JSON: ${error.message}`);
   }
 }
 
