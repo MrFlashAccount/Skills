@@ -127,14 +127,20 @@ function claimRunForRunnerArgs(args) {
   return token;
 }
 
+function withLeaseTokenArg(args, token) {
+  if (args.includes('--lease-token') || !token) return args;
+  const [mode, ...rest] = args;
+  return [mode, `--lease-token=${token}`, ...rest];
+}
+
 function runRunner(args, options = {}) {
   const token = claimRunForRunnerArgs(args);
-  return spawnSync(process.execPath, ['develop/lib/entrypoints/cli/workflow-runner.mjs', ...args], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUN_TOKEN: token ?? testLeaseToken, ...(options.env ?? {}) } });
+  return spawnSync(process.execPath, ['develop/lib/entrypoints/cli/workflow-runner.mjs', ...withLeaseTokenArg(args, token)], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUN_TOKEN: token ?? testLeaseToken, ...(options.env ?? {}) } });
 }
 
 async function runRunnerAsync(args) {
   const token = claimRunForRunnerArgs(args);
-  const child = spawn(process.execPath, ['develop/lib/entrypoints/cli/workflow-runner.mjs', ...args], {
+  const child = spawn(process.execPath, ['develop/lib/entrypoints/cli/workflow-runner.mjs', ...withLeaseTokenArg(args, token)], {
     cwd: root,
     encoding: 'utf8',
     env: { ...process.env, WORKFLOW_RUN_TOKEN: token ?? testLeaseToken },
@@ -208,6 +214,30 @@ test('runner: next returns a single host action request with load command only',
   assert.equal(existsSync(path.join(runDir, 'baton.json')), true);
 });
 
+test('runner: next rejects existing unindexed legacy run state instead of minting authority', () => {
+  const runId = `workflow-runner-test-${process.pid}-legacy-unindexed`;
+  const workflowPath = path.join(tempDir, 'legacy-unindexed-workflow.json');
+  const singleWorkflow = structuredClone(workflowDoc);
+  singleWorkflow.steps.prepare.next = 'done';
+  writeJson(workflowPath, singleWorkflow);
+  const paths = resolveRunPaths({ runId, workflowPath });
+  rmSync(paths.runDir, { recursive: true, force: true });
+  mkdirSync(paths.runDir, { recursive: true });
+  writeJson(paths.batonPath, { cursor: 'prepare', status: 'running', state: { artifacts: [], results: [] } });
+
+  const result = spawnSync(process.execPath, [
+    'develop/lib/entrypoints/cli/workflow-runner.mjs',
+    'next',
+    '--run-id', runId,
+    '--workflow', workflowPath,
+    '--lease-token', 'legacy-token-must-not-create-authority',
+  ], { cwd: root, encoding: 'utf8' });
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /requires indexed lease authority/);
+  assert.doesNotMatch(result.stderr, /\.workflow-runs\/runs\.json/);
+});
+
 test('runner: resumed next validates persisted aggregate instruction refs before rendering', async () => {
   const { runId, runDir } = runCase('next-validates-persisted-state');
   const workflowPath = path.join(tempDir, 'next-validates-persisted-state-workflow.json');
@@ -216,7 +246,8 @@ test('runner: resumed next validates persisted aggregate instruction refs before
   writeJson(workflowPath, singleWorkflow);
   claimRunForTest(resolveRunPaths({ runId, workflowPath }));
 
-  const first = await runnerNext({ runId, workflowPath });
+  const leaseToken = leaseTokensByRunId.get(runId);
+  const first = await runnerNext({ runId, workflowPath, leaseToken });
   assert.equal(first.status, 'needs_host_actions');
 
   const instructionPath = path.join(runDir, '.workflow-runner', 'instructions', 'prepare.md');
@@ -224,7 +255,7 @@ test('runner: resumed next validates persisted aggregate instruction refs before
   rmSync(instructionPath);
 
   await assert.rejects(
-    () => runnerNext({ runId, workflowPath }),
+    () => runnerNext({ runId, workflowPath, leaseToken }),
     /missing committed instruction file/,
   );
   assert.equal(existsSync(instructionPath), false);
@@ -352,17 +383,17 @@ test('runner: API next rejects empty user prompt before persisting baton', async
   writeJson(workflowPath, workflowDoc);
 
   const { runId: emptyRunId, runDir: emptyRunDir } = runCase('api-empty-user-prompt-next');
-  claimRunForTest(resolveRunPaths({ runId: emptyRunId, workflowPath }));
+  const emptyLeaseToken = claimRunForTest(resolveRunPaths({ runId: emptyRunId, workflowPath }));
   await assert.rejects(
-    runnerNext({ runId: emptyRunId, workflowPath, userPrompt: '' }),
+    runnerNext({ runId: emptyRunId, workflowPath, userPrompt: '', leaseToken: emptyLeaseToken }),
     /--user-prompt must not be empty or whitespace-only/,
   );
   assert.equal(existsSync(path.join(emptyRunDir, 'baton.json')), false);
 
   const { runId: whitespaceRunId, runDir: whitespaceRunDir } = runCase('api-whitespace-user-prompt-next');
-  claimRunForTest(resolveRunPaths({ runId: whitespaceRunId, workflowPath }));
+  const whitespaceLeaseToken = claimRunForTest(resolveRunPaths({ runId: whitespaceRunId, workflowPath }));
   await assert.rejects(
-    runnerNext({ runId: whitespaceRunId, workflowPath, userPrompt: '  \n\t' }),
+    runnerNext({ runId: whitespaceRunId, workflowPath, userPrompt: '  \n\t', leaseToken: whitespaceLeaseToken }),
     /--user-prompt must not be empty or whitespace-only/,
   );
   assert.equal(existsSync(path.join(whitespaceRunDir, 'baton.json')), false);

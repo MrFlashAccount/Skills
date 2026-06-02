@@ -48,7 +48,8 @@ function response(overrides = {}) {
 }
 
 function runPersist(args, { token = `persist-token-${process.pid}` } = {}) {
-  return spawnSync(process.execPath, [helperPath, ...args], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUN_TOKEN: token } });
+  const tokenArgs = token ? ['--lease-token', token] : [];
+  return spawnSync(process.execPath, [helperPath, ...args, ...tokenArgs], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUN_TOKEN: 'ignored-env-token' } });
 }
 
 function createClaimedRun(id) {

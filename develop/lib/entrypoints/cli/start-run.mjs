@@ -4,7 +4,8 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { createManagedDirectory } from '../../persistence/run-state/atomic-file.mjs';
-import { assertFreshTokenAuthority, buildTokenLease, WORKFLOW_RUN_TOKEN_ENV } from '../../persistence/run-state/lease-authority.mjs';
+import { publicErrorMessage } from './public-error.mjs';
+import { assertFreshTokenAuthority, buildTokenLease } from '../../persistence/run-state/lease-authority.mjs';
 import { ensureRunFiles, pathExists, resolveRunPaths } from '../../persistence/run-state/paths.mjs';
 import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot, upsertRunIndexEntry } from '../../persistence/run-state/run-index.mjs';
 
@@ -13,7 +14,7 @@ const repositoryRoot = resolve(scriptDir, '../../..');
 const defaultWorkflowPath = join(repositoryRoot, 'workflows/dev-harness/workflow.json');
 
 function fail(message) {
-  console.error(`start-run: ${message}`);
+  console.error(`start-run: ${publicErrorMessage(message)}`);
   process.exit(1);
 }
 
@@ -30,7 +31,7 @@ function parseCliArgs(argv) {
       allowPositionals: false,
     }).values;
   } catch (error) {
-    fail(`${error.message}\nusage: node develop/lib/entrypoints/cli/start-run.mjs --run-id <id> [--workflow <workflow.json>] [--lease-token <token>|WORKFLOW_RUN_TOKEN]`);
+    fail(`${error.message}\nusage: node develop/lib/entrypoints/cli/start-run.mjs --run-id <id> [--workflow <workflow.json>] [--lease-token <token>]`);
   }
 }
 
@@ -54,10 +55,6 @@ function inspectWorkflow(workflowPath, batonPath) {
   } catch (error) {
     fail(`workflow interpreter returned invalid JSON: ${error.message}`);
   }
-}
-
-function effectiveLeaseToken(value) {
-  return value ?? process.env[WORKFLOW_RUN_TOKEN_ENV];
 }
 
 async function assertOrCreateTokenAuthority(paths, token) {
@@ -86,7 +83,7 @@ const values = parseCliArgs(process.argv.slice(2));
 const runId = requireString(values['run-id'], '--run-id');
 const workflowPath = resolve(values.workflow ?? defaultWorkflowPath);
 const paths = resolveRunPaths({ runId, workflowPath });
-const leaseToken = effectiveLeaseToken(values['lease-token']);
+const leaseToken = values['lease-token'];
 
 await assertOrCreateTokenAuthority(paths, leaseToken);
 const { resumed } = await ensureRunFiles(paths);

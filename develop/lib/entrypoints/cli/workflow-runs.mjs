@@ -1,14 +1,16 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
 import { claimWorkflowRun, heartbeatWorkflowRun, listWorkflowRuns, registerWorkflowRun, summarizeWorkflowRuns } from '../api/workflowRuns.mjs';
+import { publicErrorMessage } from './public-error.mjs';
+
 
 function fail(message) {
-  console.error(`workflow-runs: ${message}`);
+  console.error(`workflow-runs: ${publicErrorMessage(message)}`);
   process.exit(1);
 }
 
 function usage() {
-  return 'usage: node develop/lib/entrypoints/cli/workflow-runs.mjs list [--human] | create [--claim] [--run-id <id>] [--workflow <workflow.json>] [--workflow-identity <identity>] [--title <title>] [--summary <summary>] [--task-key <key>] [--task-fingerprint <fingerprint>] [lease token/env + diagnostics metadata] | claim --run-id <id> [--workflow <workflow.json>] [lease token/env + diagnostics metadata] | heartbeat --run-id <id> [--workflow <workflow.json>] [lease token/env + diagnostics metadata]';
+  return 'usage: node develop/lib/entrypoints/cli/workflow-runs.mjs list [--human] | create [--claim] [--run-id <id>] [--workflow <workflow.json>] [--workflow-identity <identity>] [--title <title>] [--summary <summary>] [--task-key <key>] [--task-fingerprint <fingerprint>] [--lease-token <token> + diagnostics metadata] | claim --run-id <id> [--workflow <workflow.json>] [--lease-token <token> + diagnostics metadata] | heartbeat --run-id <id> [--workflow <workflow.json>] [--lease-token <token> + diagnostics metadata]';
 }
 
 const options = {
@@ -52,7 +54,7 @@ function leaseArgs(values) {
     harness: values.harness,
     sessionId: values['session-id'],
     workerId: values['worker-id'],
-    leaseToken: values['lease-token'] ?? process.env.WORKFLOW_RUN_TOKEN,
+    leaseToken: values['lease-token'],
     leaseMs: values['lease-ms'] === undefined ? undefined : Number(values['lease-ms']),
   };
 }

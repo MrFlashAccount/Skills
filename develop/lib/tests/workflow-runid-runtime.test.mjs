@@ -13,7 +13,6 @@ import { assertRunsIndexSchema } from '../persistence/run-state/schema/runs-inde
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const workflowPath = path.join(root, 'develop/lib/tests/fixtures/runid-single.workflow.json');
 const testLeaseToken = `workflow-runid-runtime-test-token-${process.pid}`;
-process.env.WORKFLOW_RUN_TOKEN = testLeaseToken;
 
 function runId(label) {
   return `test-${process.pid}-${Date.now()}-${label}`;
@@ -27,7 +26,7 @@ test('workflow runner derives private run directory from public runId and indexe
   const id = runId('positive');
   cleanup(id);
   try {
-    const response = await next({ runId: id, workflowPath, userPrompt: 'sensitive raw prompt' });
+    const response = await next({ runId: id, workflowPath, userPrompt: 'sensitive raw prompt', leaseToken: testLeaseToken });
     assert.equal(response.runId, id);
     assert.equal('runDir' in response, false);
     assert.match(response.requests[0].loadInstructionsCommand, /--run-id/);
@@ -52,8 +51,8 @@ test('same runId resumes the same derived run directory', async () => {
   const id = runId('resume');
   cleanup(id);
   try {
-    const first = await next({ runId: id, workflowPath });
-    const second = await next({ runId: id, workflowPath });
+    const first = await next({ runId: id, workflowPath, leaseToken: testLeaseToken });
+    const second = await next({ runId: id, workflowPath, leaseToken: testLeaseToken });
     assert.equal(first.initialized, true);
     assert.equal(second.resumed, true);
     assert.deepEqual(second.baton, first.baton);
@@ -72,7 +71,7 @@ test('workflow-runner CLI exposes runId and rejects runDir', () => {
   const id = runId('cli');
   cleanup(id);
   try {
-    const ok = spawnSync(process.execPath, ['develop/lib/entrypoints/cli/workflow-runner.mjs', 'next', '--run-id', id, '--workflow', workflowPath], { cwd: root, encoding: 'utf8' });
+    const ok = spawnSync(process.execPath, ['develop/lib/entrypoints/cli/workflow-runner.mjs', 'next', '--run-id', id, '--workflow', workflowPath, '--lease-token', testLeaseToken], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUN_TOKEN: 'ignored-env-token' } });
     assert.equal(ok.status, 0, ok.stderr);
     const response = JSON.parse(ok.stdout);
     assert.equal(response.runId, id);

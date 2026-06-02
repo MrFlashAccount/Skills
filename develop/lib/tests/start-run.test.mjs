@@ -39,7 +39,8 @@ writeFileSync(fixtureWorkflowPath, `${JSON.stringify(fixtureWorkflowDoc, null, 2
 `);
 
 function runStart(args, { token = `start-token-${process.pid}` } = {}) {
-  return spawnSync(process.execPath, [helperPath, '--workflow', fixtureWorkflowPath, ...args], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUN_TOKEN: token } });
+  const tokenArgs = token ? [`--lease-token=${token}`] : [];
+  return spawnSync(process.execPath, [helperPath, '--workflow', fixtureWorkflowPath, ...args, ...tokenArgs], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUN_TOKEN: 'ignored-env-token' } });
 }
 
 function createClaimedRun(runId) {

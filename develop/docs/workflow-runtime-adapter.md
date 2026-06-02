@@ -20,12 +20,12 @@ The host adapter is thin. It executes requests with whatever capabilities the en
 ## Runner commands
 
 ```bash
-WORKFLOW_RUN_TOKEN=<token> node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-id <run-id> [--workflow <workflow.json>] [--user-prompt <text> | --user-prompt-file <path>]
-WORKFLOW_RUN_TOKEN=<token> node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-id <run-id> --output <worker-output.json> [--output <step-id=worker-output.json> ...] [--workflow <workflow.json>]
-WORKFLOW_RUN_TOKEN=<token> node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-id <run-id> --step-id <id>
+node develop/lib/entrypoints/cli/workflow-runner.mjs next --lease-token <token> --run-id <run-id> [--workflow <workflow.json>] [--user-prompt <text> | --user-prompt-file <path>]
+node develop/lib/entrypoints/cli/workflow-runner.mjs continue --lease-token <token> --run-id <run-id> --output <worker-output.json> [--output <step-id=worker-output.json> ...] [--workflow <workflow.json>]
+node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --lease-token <token> --run-id <run-id> --step-id <id>
 ```
 
-`next` creates the run files if needed and returns the current host work. `continue` applies host-provided artifact paths from the previous host requests, persists the new baton, and returns the next host work. `instructions` prints only the compiled instructions for one current requested step and fails for unknown, unsafe, or missing step instructions. Every write-capable or instruction-loading command requires the fresh lease token through `WORKFLOW_RUN_TOKEN` or `--lease-token`; `runId` is identity only, and lease metadata is diagnostics only.
+`next` creates the run files if needed and returns the current host work. `continue` applies host-provided artifact paths from the previous host requests, persists the new baton, and returns the next host work. `instructions` prints only the compiled instructions for one current requested step and fails for unknown, unsafe, or missing step instructions. Every write-capable or instruction-loading command requires the fresh lease token via explicit `--lease-token`; `runId` is identity only, and lease metadata is diagnostics only.
 
 ### Startup user prompt
 
@@ -102,13 +102,13 @@ Missing host capability is represented as blocked output, not as a transition de
 For one requested step, pass the wrapper-owned artifact back on continue:
 
 ```bash
-WORKFLOW_RUN_TOKEN="$WORKFLOW_RUN_TOKEN" node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-id "$RUN_ID" --output "/host/artifacts/step_id.json" --workflow "$WORKFLOW"
+node develop/lib/entrypoints/cli/workflow-runner.mjs continue --lease-token "$WORKFLOW_RUN_TOKEN" --run-id "$RUN_ID" --output "/host/artifacts/step_id.json" --workflow "$WORKFLOW"
 ```
 
 For parallel branch requests, pass one named output per requested step. `continue` collects those files into the existing portable `{ "steps": { ... } }` envelope internally before applying workflow state.
 
 ```bash
-WORKFLOW_RUN_TOKEN="$WORKFLOW_RUN_TOKEN" node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-id "$RUN_ID" \
+node develop/lib/entrypoints/cli/workflow-runner.mjs continue --lease-token "$WORKFLOW_RUN_TOKEN" --run-id "$RUN_ID" \
   --output "branch_a=/host/artifacts/branch_a.structured.json" \
   --output "branch_b=/host/artifacts/branch_b.output.json" \
   --workflow "$WORKFLOW"

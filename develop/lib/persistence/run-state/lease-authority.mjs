@@ -2,7 +2,6 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 
 export const DEFAULT_LEASE_MS = 30 * 60 * 1000;
 export const DEFAULT_TOKEN_EPOCH = 1;
-export const WORKFLOW_RUN_TOKEN_ENV = 'WORKFLOW_RUN_TOKEN';
 
 export const LEASE_METADATA_FIELDS = ['owner', 'harness', 'sessionId', 'workerId'];
 

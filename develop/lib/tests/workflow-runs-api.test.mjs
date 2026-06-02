@@ -5,6 +5,7 @@ import path from 'node:path';
 import test, { after, beforeEach } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { summarizeWorkflowRuns } from '../entrypoints/api/workflowRuns.mjs';
+import { publicErrorMessage } from '../entrypoints/cli/public-error.mjs';
 import { claimWorkflowRunAtRoot, heartbeatWorkflowRunAtRoot, listWorkflowRunsAtRoot, registerWorkflowRunAtRoot } from '../persistence/run-state/workflow-runs.mjs';
 import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot } from '../persistence/run-state/run-index.mjs';
 import { resolveRunPaths, workflowRunsRoot } from '../persistence/run-state/paths.mjs';
@@ -210,6 +211,22 @@ test('workflow runs API issues a new token when claiming a stale lease', async (
   assert.equal(response.run.occupancy.state, 'occupied');
 });
 
+test('workflow-runs CLI ignores stale WORKFLOW_RUN_TOKEN env when reclaiming stale lease', async () => {
+  const { spawnSync } = await import('node:child_process');
+  const helperPath = path.join(root, 'develop/lib/entrypoints/cli/workflow-runs.mjs');
+  const runId = `${runPrefix}cli-stale-env-reclaim`;
+  removeDefaultRunsForTestPrefix();
+  await registerWorkflowRunAtRoot({ runsRoot: workflowRunsRoot, runId, claim: true, owner: 'alice', leaseMs: 1_000, now: new Date('2026-06-01T10:00:00.000Z') });
+
+  const result = spawnSync(process.execPath, [helperPath, 'claim', '--run-id', runId, '--owner', 'bob', '--lease-ms', '60000'], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUN_TOKEN: 'wrong-stale-env-token' } });
+
+  assert.equal(result.status, 0, result.stderr);
+  const response = JSON.parse(result.stdout);
+  assert.equal(response.ok, true);
+  assert.equal(typeof response.leaseToken, 'string');
+  assert.notEqual(response.leaseToken, 'wrong-stale-env-token');
+});
+
 test('workflow runs API rejects symlinked runs root for list without reading escaped index', async () => {
   const { escapedTarget, symlinkedRunsRoot } = makeSymlinkedRunsRoot();
   writeFileSync(path.join(escapedTarget, 'runs.json'), JSON.stringify({
@@ -316,6 +333,15 @@ test('workflow-runs CLI usage documents heartbeat', async () => {
   assert.match(result.stderr, /heartbeat --run-id <id>/);
 });
 
+test('workflow-runs CLI public errors do not leak internal runs index path', () => {
+  const indexPath = path.join(workflowRunsRoot, 'runs.json');
+  const message = publicErrorMessage(`cannot parse workflow runs index from ${indexPath}: Unexpected token`);
+
+  assert.match(message, /workflow runs index/);
+  assert.doesNotMatch(message, /\.workflow-runs\/runs\.json/);
+  assert.doesNotMatch(message, new RegExp(indexPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+});
+
 test('workflow-runs CLI heartbeat renews worker lease', async () => {
   const { spawnSync } = await import('node:child_process');
   const helperPath = path.join(root, 'develop/lib/entrypoints/cli/workflow-runs.mjs');
@@ -323,7 +349,7 @@ test('workflow-runs CLI heartbeat renews worker lease', async () => {
   removeDefaultRunsForTestPrefix();
   const claim = await registerWorkflowRunAtRoot({ runsRoot: workflowRunsRoot, runId, claim: true, owner: 'alice', harness: 'portable', sessionId: 'session-a', leaseMs: 24 * 60 * 60 * 1000, now: new Date('2026-06-01T10:00:00.000Z') });
 
-  const result = spawnSync(process.execPath, [helperPath, 'heartbeat', '--run-id', runId, '--owner', 'alice', '--harness', 'portable', '--session-id', 'session-a', '--lease-ms', '60000'], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUN_TOKEN: claim.leaseToken } });
+  const result = spawnSync(process.execPath, [helperPath, 'heartbeat', '--run-id', runId, '--owner', 'alice', '--harness', 'portable', '--session-id', 'session-a', '--lease-ms', '60000', '--lease-token', claim.leaseToken], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUN_TOKEN: 'wrong-env-token-must-be-ignored' } });
 
   assert.equal(result.status, 0, result.stderr);
   const response = JSON.parse(result.stdout);

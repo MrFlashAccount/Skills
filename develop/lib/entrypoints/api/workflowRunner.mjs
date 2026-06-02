@@ -11,7 +11,7 @@ import { read as readInstructionDTO } from '../../persistence/workflow-resources
 import { writePersistedRunStateUpdate } from '../../persistence/run-state/PersistedRunStateWriter.mjs';
 import { assertSafeStepId, instructionPathForStep, responseStatusForInterpreterResponse, toHostResponse } from './runner/host-requests.mjs';
 import { readText } from '../../persistence/run-state/atomic-file.mjs';
-import { assertFreshTokenAuthority, buildTokenLease, WORKFLOW_RUN_TOKEN_ENV } from '../../persistence/run-state/lease-authority.mjs';
+import { assertFreshTokenAuthority, buildTokenLease } from '../../persistence/run-state/lease-authority.mjs';
 import { recoverDurableCommit } from '../../persistence/run-state/durable-commit.mjs';
 import { readPersistedRunState } from '../../persistence/run-state/PersistedRunStateReader.mjs';
 import { projectRuntimeRunState } from '../../persistence/run-state/persisted-state-schema.mjs';
@@ -51,30 +51,24 @@ async function runnerResponseForRendered(paths, rendered, { initialized, resumed
   };
 }
 
-function effectiveLeaseToken(leaseToken) {
-  return leaseToken ?? process.env[WORKFLOW_RUN_TOKEN_ENV];
-}
-
 async function assertWorkerLeaseAuthority(paths, { leaseToken, now = new Date() } = {}) {
   const index = await readRunsIndex(runsIndexPathsForRoot(paths.runsRoot));
   const run = index.runs[paths.runId];
-  assertFreshTokenAuthority(run?.workerLease, effectiveLeaseToken(leaseToken), { runId: paths.runId, now });
+  assertFreshTokenAuthority(run?.workerLease, leaseToken, { runId: paths.runId, now });
 }
 
 async function initializeMissingRunLease(paths, { leaseToken, now = new Date() } = {}) {
-  const token = effectiveLeaseToken(leaseToken);
-  if (!token) return;
   const index = await readRunsIndex(runsIndexPathsForRoot(paths.runsRoot));
   if (index.runs[paths.runId]) return;
-  try {
-    await createRunIndexEntry(paths, {
-      status: 'running',
-      workflowPath: paths.workflowPath,
-      workerLease: buildTokenLease({ token, harness: 'workflow-runner', now }),
-    });
-  } catch (error) {
-    if (!/workflow run already exists/.test(error.message)) throw error;
+  const hasExistingRunState = await pathExists(paths.batonPath) || await pathExists(paths.historyPath) || await pathExists(paths.lastResponsePath);
+  if (hasExistingRunState) {
+    throw new Error(`workflow run requires indexed lease authority: ${paths.runId}`);
   }
+  await createRunIndexEntry(paths, {
+    status: 'running',
+    workflowPath: paths.workflowPath,
+    workerLease: buildTokenLease({ token: leaseToken, harness: 'workflow-runner', now }),
+  });
 }
 
 async function indexedWorkflowPathForRun(paths) {

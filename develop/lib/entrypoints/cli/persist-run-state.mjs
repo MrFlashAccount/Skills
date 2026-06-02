@@ -2,14 +2,15 @@
 import { readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { assertBatonSchema } from '../../entities/Baton/schema/baton-schema.mjs';
+import { publicErrorMessage } from './public-error.mjs';
 import { assertResponseSchema } from '../../use-cases/runtime/output/response-schema.mjs';
 import { writePersistedRunStateUpdate } from '../../persistence/run-state/PersistedRunStateWriter.mjs';
-import { assertFreshTokenAuthority, WORKFLOW_RUN_TOKEN_ENV } from '../../persistence/run-state/lease-authority.mjs';
+import { assertFreshTokenAuthority } from '../../persistence/run-state/lease-authority.mjs';
 import { ensureRunFiles, resolveRunPaths } from '../../persistence/run-state/paths.mjs';
 import { readRunsIndex, runsIndexPathsForRoot, upsertRunIndexEntry } from '../../persistence/run-state/run-index.mjs';
 
 function fail(message) {
-  console.error(`persist-run-state: ${message}`);
+  console.error(`persist-run-state: ${publicErrorMessage(message)}`);
   process.exit(1);
 }
 
@@ -30,7 +31,7 @@ function parseCliArgs(argv) {
       allowPositionals: false,
     }).values;
   } catch (error) {
-    fail(`${error.message}\nusage: node develop/lib/entrypoints/cli/persist-run-state.mjs --run-id <id> [--workflow <workflow.json>] (--response <workflow-interpreter-response.json> | --baton <new-baton.json>) [--output <worker-output-path>] [--decision <text>] [--lease-token <token>|WORKFLOW_RUN_TOKEN]`);
+    fail(`${error.message}\nusage: node develop/lib/entrypoints/cli/persist-run-state.mjs --run-id <id> [--workflow <workflow.json>] (--response <workflow-interpreter-response.json> | --baton <new-baton.json>) [--output <worker-output-path>] [--decision <text>] [--lease-token <token>]`);
   }
 }
 
@@ -69,10 +70,6 @@ async function readJson(path, name) {
 function compact(value) {
   if (value === undefined || value === null || value === '') return undefined;
   return String(value).replace(/\s+/g, ' ').trim();
-}
-
-function effectiveLeaseToken(value) {
-  return value ?? process.env[WORKFLOW_RUN_TOKEN_ENV];
 }
 
 async function assertTokenAuthority(paths, token) {
@@ -116,7 +113,7 @@ const steps = responsePath ? input.steps : undefined;
 requireObject(baton, 'baton');
 
 const paths = resolveRunPaths({ runId, workflowPath: values.workflow });
-await assertTokenAuthority(paths, effectiveLeaseToken(values['lease-token']));
+await assertTokenAuthority(paths, values['lease-token']);
 await ensureRunFiles(paths);
 await upsertRunIndexEntry(paths, { status: 'running', workflowPath: paths.workflowPath });
 

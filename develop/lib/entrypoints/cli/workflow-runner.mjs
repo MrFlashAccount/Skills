@@ -2,14 +2,16 @@
 import { parseArgs } from 'node:util';
 import { WorkflowRuntimeError } from '../../errors.mjs';
 import { continueRun, loadInstructions, next } from '../api/workflowRunner.mjs';
+import { publicErrorMessage } from './public-error.mjs';
+
 
 function fail(message) {
-  console.error(`workflow-runner: ${message}`);
+  console.error(`workflow-runner: ${publicErrorMessage(message)}`);
   process.exit(1);
 }
 
 function usage() {
-  return 'usage: node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-id <id> [--workflow <workflow.json>] [--diagnostics] [--user-prompt <text> | --user-prompt-file <path>] [lease token/env + diagnostics metadata] | continue --run-id <id> --output <worker-output.json> [--output <step-id=worker-output.json> ...] [--workflow <workflow.json>] [--diagnostics] [lease token/env + diagnostics metadata] | instructions --run-id <id> --step-id <id> [--workflow <workflow.json>] [lease token/env + diagnostics metadata]';
+  return 'usage: node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-id <id> [--workflow <workflow.json>] [--diagnostics] [--user-prompt <text> | --user-prompt-file <path>] [--lease-token <token> + diagnostics metadata] | continue --run-id <id> --output <worker-output.json> [--output <step-id=worker-output.json> ...] [--workflow <workflow.json>] [--diagnostics] [--lease-token <token> + diagnostics metadata] | instructions --run-id <id> --step-id <id> [--workflow <workflow.json>] [--lease-token <token> + diagnostics metadata]';
 }
 
 function parseCliArgs(argv) {
@@ -53,7 +55,7 @@ function leaseArgs(values) {
     harness: values.harness,
     sessionId: values['session-id'],
     workerId: values['worker-id'],
-    leaseToken: values['lease-token'] ?? process.env.WORKFLOW_RUN_TOKEN,
+    leaseToken: values['lease-token'],
   };
 }
 
