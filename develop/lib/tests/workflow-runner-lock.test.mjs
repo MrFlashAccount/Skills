@@ -166,6 +166,28 @@ test('run-state stale cleanup does not remove a fresh replacement observed after
   rmSync(paths.continueLockPath, { force: true });
 });
 
+test('run-state stale cleanup does not remove a fresh replacement after final verification', async () => {
+  const runId = `lock-${process.pid}-cleanup-preserves-post-verify-replacement`;
+  const workflowPath = path.join(tempDir, 'cleanup-preserves-post-verify-replacement-workflow.json');
+  const paths = resolveRunPaths({ runId, workflowPath, runsRoot });
+  rmSync(paths.runDir, { recursive: true, force: true });
+  mkdirSync(paths.runnerDir, { recursive: true });
+  writeFileSync(paths.continueLockPath, `${JSON.stringify({ lockId: 'stale-before-final-race', pid: process.pid + 1_000_000, createdAt: '1970-01-01T00:00:00.000Z' })}\n`);
+  const replacement = createLockMetadata();
+
+  const removed = await removeStaleLock(paths.continueLockPath, {
+    beforeUnlinkOriginal: async () => {
+      rmSync(paths.continueLockPath, { force: true });
+      writeFileSync(paths.continueLockPath, `${JSON.stringify(replacement)}\n`);
+    },
+  });
+
+  assert.equal(removed, false);
+  assert.equal(JSON.parse(readFileSync(paths.continueLockPath, 'utf8')).lockId, replacement.lockId);
+  rmSync(paths.continueLockPath, { force: true });
+});
+
+
 test('run-state lock cleanup does not remove a replacement lock file', async () => {
   const runId = `lock-${process.pid}-cleanup-preserves-replacement`;
   const workflowPath = path.join(tempDir, 'cleanup-preserves-replacement-workflow.json');

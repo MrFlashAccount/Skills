@@ -18,6 +18,7 @@ import { projectRuntimeRunState } from '../../persistence/run-state/persisted-st
 import { ensureRunFiles, pathExists, resolveRunPaths } from '../../persistence/run-state/paths.mjs';
 import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot, upsertRunIndexEntry } from '../../persistence/run-state/run-index.mjs';
 import { withRunStateLock } from '../../persistence/run-state/lock.mjs';
+import { publicErrorMessage } from '../cli/public-error.mjs';
 
 async function readJson(pathname, kind) {
   let content;
@@ -114,7 +115,18 @@ async function persistNextHostResponse(paths, rendered, runState) {
   return response;
 }
 
-export async function next({ runId, workflowPath, includeDiagnostics = false, userPrompt, userPromptFile, taskKey, taskFingerprint, leaseToken, now = new Date(), runsRoot } = {}) {
+function publicApiError(error) {
+  const redacted = new Error(publicErrorMessage(error?.message ?? error));
+  if (error?.code) redacted.code = error.code;
+  return redacted;
+}
+
+async function publicApiCall(callback) {
+  try { return await callback(); }
+  catch (error) { throw publicApiError(error); }
+}
+
+async function nextInternal({ runId, workflowPath, includeDiagnostics = false, userPrompt, userPromptFile, taskKey, taskFingerprint, leaseToken, now = new Date(), runsRoot } = {}) {
   const lockPaths = resolveRunPaths({ runId, runsRoot });
   await assertPreLockWorkerLeaseAuthority(lockPaths, { leaseToken, now, allowUnclaimed: true });
   return withRunStateLock(lockPaths, async () => {
@@ -269,7 +281,11 @@ async function resolveContinueRunPaths({ runId, workflowPath }) {
   return resolveIndexedRunPaths({ runId, workflowPath });
 }
 
-export async function continueRun({ runId, workflowPath, output, includeDiagnostics = false, leaseToken, now = new Date() }) {
+export async function next(options = {}) {
+  return publicApiCall(() => nextInternal(options));
+}
+
+async function continueRunInternal({ runId, workflowPath, output, includeDiagnostics = false, leaseToken, now = new Date() }) {
   const lockPaths = resolveRunPaths({ runId });
   await assertPreLockWorkerLeaseAuthority(lockPaths, { leaseToken, now });
   return withRunStateLock(lockPaths, async () => {
@@ -295,7 +311,11 @@ export async function continueRun({ runId, workflowPath, output, includeDiagnost
   });
 }
 
-export async function loadInstructions({ runId, workflowPath, stepId, leaseToken, now = new Date() }) {
+export async function continueRun(options = {}) {
+  return publicApiCall(() => continueRunInternal(options));
+}
+
+async function loadInstructionsInternal({ runId, workflowPath, stepId, leaseToken, now = new Date() }) {
   assertSafeStepId(stepId);
   const lockPaths = resolveRunPaths({ runId });
   await assertPreLockWorkerLeaseAuthority(lockPaths, { leaseToken, now });
@@ -321,4 +341,8 @@ export async function loadInstructions({ runId, workflowPath, stepId, leaseToken
     const instruction = await readInstructionDTO(instructionPath, `instructions for workflow step ${stepId}`);
     return instruction.toJSON().content;
   });
+}
+
+export async function loadInstructions(options = {}) {
+  return publicApiCall(() => loadInstructionsInternal(options));
 }

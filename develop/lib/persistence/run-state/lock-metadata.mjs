@@ -59,6 +59,18 @@ function sameLock(left, right) {
   return left?.pid === right?.pid && left?.createdAt === right?.createdAt && left?.heartbeatAt === right?.heartbeatAt;
 }
 
+function sameFile(left, right) {
+  return left.dev === right.dev && left.ino === right.ino;
+}
+
+async function statIfExists(path) {
+  try { return await stat(path); }
+  catch (error) {
+    if (error?.code === 'ENOENT') return undefined;
+    throw error;
+  }
+}
+
 export async function removeStaleLock(path, options = {}) {
   const first = await readLockMetadata(path);
   if (!isStaleLockMetadata(first, options)) return false;
@@ -69,26 +81,27 @@ export async function removeStaleLock(path, options = {}) {
   if (!sameLock(second, current) || !isStaleLockMetadata(current, options)) return false;
 
   const tombstonePath = `${path}.${randomUUID()}.stale`;
+  // Claim the verified stale file by inode before unlinking the public lock path;
+  // a fresh replacement must not be renamed or removed as part of stale cleanup.
   try {
-    await rename(path, tombstonePath);
+    await link(path, tombstonePath);
   } catch (error) {
     if (error?.code === 'ENOENT') return false;
     throw error;
   }
 
-  const quarantined = await readLockMetadata(tombstonePath);
-  if (sameLock(current, quarantined) && isStaleLockMetadata(quarantined, options)) {
-    await rm(tombstonePath, { force: true });
-    return true;
-  }
-
   try {
-    await link(tombstonePath, path);
+    const quarantined = await readLockMetadata(tombstonePath);
+    if (!sameLock(current, quarantined) || !isStaleLockMetadata(quarantined, options)) return false;
+    await options.beforeUnlinkOriginal?.();
+    const originalStats = await statIfExists(path);
+    const tombstoneStats = await stat(tombstonePath);
+    if (!originalStats || !sameFile(originalStats, tombstoneStats)) return false;
+    await rm(path, { force: true });
+    return true;
+  } finally {
     await rm(tombstonePath, { force: true });
-  } catch (error) {
-    if (error?.code !== 'EEXIST') throw error;
   }
-  return false;
 }
 
 async function writeLockMetadata(path, metadata, shouldWrite = () => true) {

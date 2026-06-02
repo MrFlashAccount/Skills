@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { rmSync } from 'node:fs';
-import { mkdtemp } from 'node:fs/promises';
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
@@ -36,6 +36,27 @@ test('public error redaction hides workflow-runner private storage paths', () =>
   assert.match(redacted, /workflow run private state/);
   assert.match(redacted, /workflow runs index/);
 });
+
+test('workflow runner API corrupt runs index errors do not expose raw private index pathnames', async () => {
+  const tempDir = await mkdtemp(path.join(tmpdir(), 'workflow-redaction-index-'));
+  tempRoots.push(tempDir);
+  const runsRoot = path.join(tempDir, '.workflow-runs');
+  await mkdir(runsRoot, { recursive: true });
+  await writeFile(path.join(runsRoot, 'runs.json'), '{not json\n');
+  const id = runId('corrupt-index');
+
+  await assert.rejects(
+    () => next({ runId: id, runsRoot, leaseToken: `redaction-index-token-${process.pid}` }),
+    (error) => {
+      assert.match(error.message, /cannot parse workflow runs index from workflow runs index/);
+      assert.doesNotMatch(error.message, /\.workflow-runs/);
+      assert.doesNotMatch(error.message, /runs\.json/);
+      assert.doesNotMatch(error.message, new RegExp(tempDir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+      return true;
+    },
+  );
+});
+
 
 test('workflow runner API read errors do not expose raw workflow pathnames', async () => {
   const tempDir = await mkdtemp(path.join(tmpdir(), 'workflow-redaction-'));
