@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { summarizeWorkflowRuns } from '../entrypoints/api/workflowRuns.mjs';
 import { publicErrorMessage } from '../entrypoints/cli/public-error.mjs';
 import { claimWorkflowRunAtRoot, heartbeatWorkflowRunAtRoot, listWorkflowRunsAtRoot, registerWorkflowRunAtRoot } from '../persistence/run-state/workflow-runs.mjs';
+import { buildTokenLease, formatLeaseTokenEntropy } from '../persistence/run-state/lease-authority.mjs';
 import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot } from '../persistence/run-state/run-index.mjs';
 import { resolveRunPaths, workflowRunsRoot } from '../persistence/run-state/paths.mjs';
 
@@ -175,6 +176,40 @@ test('workflow runs API create-with-claim issues token but stores only hash auth
   assert.equal(storedLease.tokenHash.includes(response.leaseToken), false);
   assert.equal(JSON.stringify(await listWorkflowRunsAtRoot({ runsRoot })).includes(response.leaseToken), false);
   assert.equal(JSON.stringify(await listWorkflowRunsAtRoot({ runsRoot })).includes(storedLease.tokenHash), false);
+});
+
+test('workflow runs lease token generation keeps dash-leading base64url entropy CLI-safe', async () => {
+  const { spawnSync } = await import('node:child_process');
+  const helperPath = path.join(root, 'develop/lib/entrypoints/cli/workflow-runs.mjs');
+  const runId = `${runPrefix}dash-leading-token`;
+  const dashLeadingEntropy = Buffer.concat([Buffer.from([0xf8]), Buffer.alloc(31)]);
+  const rawToken = dashLeadingEntropy.toString('base64url');
+  const leaseToken = formatLeaseTokenEntropy(dashLeadingEntropy);
+  removeDefaultRunsForTestPrefix();
+
+  assert.match(rawToken, /^-/);
+  assert.doesNotMatch(leaseToken, /^-/);
+  assert.equal(leaseToken.endsWith(rawToken), true);
+
+  await createRunIndexEntry(
+    resolveRunPaths({ runId, workflowPath: defaultWorkflow, runsRoot: workflowRunsRoot }),
+    { workerLease: buildTokenLease({ token: leaseToken, leaseMs: 60_000 }) },
+  );
+
+  const result = spawnSync(process.execPath, [
+    helperPath,
+    'heartbeat',
+    '--run-id',
+    runId,
+    '--lease-token',
+    leaseToken,
+    '--lease-ms',
+    '60000',
+  ], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUN_TOKEN: 'wrong-env-token-must-be-ignored' } });
+
+  assert.equal(result.status, 0, result.stderr);
+  const response = JSON.parse(result.stdout);
+  assert.equal(response.ok, true);
 });
 
 test('workflow runs API heartbeat renews matching worker lease', async () => {

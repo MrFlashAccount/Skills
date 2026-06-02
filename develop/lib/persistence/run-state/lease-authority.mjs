@@ -2,9 +2,14 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 
 export const DEFAULT_LEASE_MS = 30 * 60 * 1000;
 export const DEFAULT_TOKEN_EPOCH = 1;
+export const LEASE_TOKEN_PREFIX = 't';
+
+export function formatLeaseTokenEntropy(entropy) {
+  return `${LEASE_TOKEN_PREFIX}${Buffer.from(entropy).toString('base64url')}`;
+}
 
 export function generateLeaseToken() {
-  return randomBytes(32).toString('base64url');
+  return formatLeaseTokenEntropy(randomBytes(32));
 }
 
 export function hashLeaseToken(token) {
