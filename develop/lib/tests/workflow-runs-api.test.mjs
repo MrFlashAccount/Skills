@@ -342,12 +342,21 @@ test('workflow-runs CLI public errors do not leak internal runs index path', () 
   assert.doesNotMatch(message, new RegExp(indexPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
 });
 
+test('workflow-runs CLI public errors redact internal run-state lock paths', () => {
+  const lockPath = path.join(workflowRunsRoot, `${runPrefix}redacted-lock`, '.workflow-runner', 'continue.lock');
+  const message = publicErrorMessage(`cannot open ${lockPath}: EEXIST`);
+
+  assert.match(message, /workflow run private state/);
+  assert.doesNotMatch(message, /\.workflow-runs\//);
+  assert.doesNotMatch(message, /continue\.lock/);
+});
+
 test('workflow-runs CLI heartbeat renews worker lease', async () => {
   const { spawnSync } = await import('node:child_process');
   const helperPath = path.join(root, 'develop/lib/entrypoints/cli/workflow-runs.mjs');
   const runId = `${runPrefix}cli-heartbeat`;
   removeDefaultRunsForTestPrefix();
-  const claim = await registerWorkflowRunAtRoot({ runsRoot: workflowRunsRoot, runId, claim: true, owner: 'alice', harness: 'portable', sessionId: 'session-a', leaseMs: 24 * 60 * 60 * 1000, now: new Date('2026-06-01T10:00:00.000Z') });
+  const claim = await registerWorkflowRunAtRoot({ runsRoot: workflowRunsRoot, runId, claim: true, owner: 'alice', harness: 'portable', sessionId: 'session-a', leaseMs: 72 * 60 * 60 * 1000, now: new Date('2026-06-01T10:00:00.000Z') });
 
   const result = spawnSync(process.execPath, [helperPath, 'heartbeat', '--run-id', runId, '--owner', 'alice', '--harness', 'portable', '--session-id', 'session-a', '--lease-ms', '60000', '--lease-token', claim.leaseToken], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUN_TOKEN: 'wrong-env-token-must-be-ignored' } });
 

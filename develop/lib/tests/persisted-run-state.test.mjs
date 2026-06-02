@@ -121,7 +121,7 @@ test('persisted-state reader rejects missing committed instruction file', async 
 
 test('persisted-state writer acquires run-state lock before writing', async () => {
   const paths = setupRunDir('writer_lock');
-  writeFileSync(paths.continueLockPath, 'held');
+  writeFileSync(paths.continueLockPath, `${JSON.stringify({ lockId: 'held', pid: process.pid, createdAt: '1970-01-01T00:00:00.000Z', heartbeatAt: new Date().toISOString() })}\n`);
 
   await assert.rejects(
     () => writePersistedRunStateUpdate(paths, {

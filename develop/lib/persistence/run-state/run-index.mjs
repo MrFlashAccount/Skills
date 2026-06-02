@@ -1,12 +1,13 @@
 import { constants } from 'node:fs';
-import { access, open, readFile, rm } from 'node:fs/promises';
+import { access, open, readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { assertManagedDirectory, assertManagedRunStateFile, createManagedDirectory, writeJsonAtomic } from './atomic-file.mjs';
+import { createLockMetadata, isStaleLockMetadata, readLockMetadata, removeStaleLock, startLockHeartbeat } from './lock-metadata.mjs';
 import { assertRunsIndexSchema } from './schema/runs-index-schema.mjs';
 
 export const RUNS_INDEX_SCHEMA_VERSION = 1;
 export const RUNS_INDEX_TOPOLOGY_VERSION = 'workflow-runs-v1';
-const RUNS_INDEX_LOCK_STALE_MS = 60_000;
+const RUNS_INDEX_LOCK_WAIT_MS = 30_000;
 
 async function exists(path) {
   try { await access(path, constants.F_OK); return true; } catch { return false; }
@@ -54,56 +55,23 @@ async function sleep(ms) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function readLockMetadata(path) {
-  try { return JSON.parse(await readFile(path, 'utf8')); }
-  catch { return {}; }
-}
-
-function lockCreatedAt(metadata) {
-  const createdAt = Date.parse(metadata?.createdAt);
-  return Number.isFinite(createdAt) ? createdAt : Date.now();
-}
-
-function isProcessAlive(pid) {
-  if (!Number.isInteger(pid) || pid <= 0) return false;
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (error) {
-    if (error?.code === 'ESRCH') return false;
-    return true;
-  }
-}
-
-async function readRunsIndexLockState(path, { now = Date.now(), staleMs = RUNS_INDEX_LOCK_STALE_MS } = {}) {
-  const metadata = await readLockMetadata(path);
-  const pastStaleAge = now - lockCreatedAt(metadata) >= staleMs;
-  return { ownerAlive: isProcessAlive(metadata?.pid), pastStaleAge };
-}
-
-async function removeStaleRunsIndexLock(path, options = {}) {
-  const state = await readRunsIndexLockState(path, options);
-  if (state.ownerAlive || !state.pastStaleAge) return false;
-  await rm(path, { force: true });
-  return true;
-}
-
-export async function withRunsIndexLock(paths, callback) {
+export async function withRunsIndexLock(paths, callback, { waitMs = RUNS_INDEX_LOCK_WAIT_MS } = {}) {
   await createManagedDirectory(paths.runsRoot, 'workflow runs root');
   await assertManagedRunStateFile(paths.runsIndexLockPath, 'workflow runs index lock');
-  let handle;
-  const deadline = Date.now() + 10_000;
-  while (!handle) {
+  let metadata;
+  const deadline = Date.now() + waitMs;
+  while (!metadata) {
+    let handle;
+    const candidate = createLockMetadata();
     try {
       handle = await open(paths.runsIndexLockPath, 'wx', 0o600);
-      await handle.writeFile(`${JSON.stringify({ pid: process.pid, createdAt: new Date().toISOString() })}
-`, 'utf8');
+      await handle.writeFile(`${JSON.stringify(candidate)}\n`, 'utf8');
       await handle.sync();
+      metadata = candidate;
     } catch (error) {
       if (error?.code === 'EEXIST') {
-        const lockState = await readRunsIndexLockState(paths.runsIndexLockPath);
-        if (!lockState.ownerAlive && lockState.pastStaleAge && await removeStaleRunsIndexLock(paths.runsIndexLockPath)) continue;
-        if (!(lockState.ownerAlive && lockState.pastStaleAge) && Date.now() < deadline) {
+        if (await removeStaleLock(paths.runsIndexLockPath)) continue;
+        if (!isStaleLockMetadata(await readLockMetadata(paths.runsIndexLockPath)) && Date.now() < deadline) {
           await sleep(25);
           continue;
         }
@@ -116,8 +84,9 @@ export async function withRunsIndexLock(paths, callback) {
     }
   }
 
+  const stopHeartbeat = startLockHeartbeat(paths.runsIndexLockPath, metadata);
   try { return await callback(); }
-  finally { await rm(paths.runsIndexLockPath, { force: true }); }
+  finally { await stopHeartbeat(); }
 }
 
 function assertWorkflowBinding(paths, patch = {}, existing) {
