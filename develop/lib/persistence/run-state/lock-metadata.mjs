@@ -99,7 +99,8 @@ export async function removeStaleLock(path, options = {}) {
   // Atomically remove the public lock path by moving the stale instance into a
   // private tombstone.  After this point cleanup may only delete tombstonePath;
   // never unlink the original path based on stale metadata observed earlier.
-  if (!await renameIfExists(path, tombstonePath)) return false;
+  const renameLock = options.renameLock ?? renameIfExists;
+  if (!await renameLock(path, tombstonePath)) return false;
 
   const tombstone = await readLockMetadata(tombstonePath);
   if (!sameLock(second, tombstone) || !isStaleLockMetadata(tombstone, options)) {

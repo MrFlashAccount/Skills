@@ -207,13 +207,13 @@ test('run-state stale cleanup aborts safely when stale rename fails', async () =
   writeFileSync(paths.continueLockPath, `${JSON.stringify({ lockId: 'stale-rename-fails', pid: process.pid + 1_000_000, createdAt: '1970-01-01T00:00:00.000Z' })}\n`);
 
   const removed = await removeStaleLock(paths.continueLockPath, {
-    beforeRename: async () => {
-      rmSync(paths.continueLockPath, { force: true });
-    },
+    renameLock: async () => false,
   });
 
   assert.equal(removed, false);
-  assert.equal(existsSync(paths.continueLockPath), false);
+  assert.equal(existsSync(paths.continueLockPath), true);
+  assert.equal(JSON.parse(readFileSync(paths.continueLockPath, 'utf8')).lockId, 'stale-rename-fails');
+  rmSync(paths.continueLockPath, { force: true });
 });
 
 
