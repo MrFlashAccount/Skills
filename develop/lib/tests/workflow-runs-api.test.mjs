@@ -362,7 +362,7 @@ test('workflow-runs CLI heartbeat renews worker lease', async () => {
   removeDefaultRunsForTestPrefix();
   const claim = await registerWorkflowRunAtRoot({ runsRoot: workflowRunsRoot, runId, claim: true, owner: 'alice', harness: 'portable', sessionId: 'session-a', leaseMs: 72 * 60 * 60 * 1000, now: new Date('2026-06-01T10:00:00.000Z') });
 
-  const result = spawnSync(process.execPath, [helperPath, 'heartbeat', '--run-id', runId, '--owner', 'alice', '--harness', 'portable', '--session-id', 'session-a', '--lease-ms', '60000', '--lease-token', claim.leaseToken], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUN_TOKEN: 'wrong-env-token-must-be-ignored' } });
+  const result = spawnSync(process.execPath, [helperPath, 'heartbeat', '--run-id', runId, '--owner', 'alice', '--harness', 'portable', '--session-id', 'session-a', '--lease-ms', '60000', `--lease-token=${claim.leaseToken}`], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUN_TOKEN: 'wrong-env-token-must-be-ignored' } });
 
   assert.equal(result.status, 0, result.stderr);
   const response = JSON.parse(result.stdout);
