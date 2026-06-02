@@ -1,0 +1,30 @@
+{
+  "name": "runid-single",
+  "version": 1,
+  "start": "prepare",
+  "done": "done",
+  "blocked": "blocked",
+  "steps": {
+    "prepare": {
+      "name": "Prepare",
+      "kind": "worker",
+      "input": {
+        "prompt": "Prepare the answer."
+      },
+      "output": {
+        "template": "runid-output.md"
+      },
+      "next": "done"
+    },
+    "done": {
+      "name": "Done",
+      "kind": "done",
+      "input": { "prompt": "Finished." }
+    },
+    "blocked": {
+      "name": "Blocked",
+      "kind": "blocked",
+      "input": { "prompt": "Blocked." }
+    }
+  }
+}

@@ -47,6 +47,13 @@ function instructionRefForRequest(paths, request) {
   };
 }
 
+function quarantineLegacyHostResponse(response) {
+  if (!response || typeof response !== 'object' || Array.isArray(response)) return response;
+  if (!Object.hasOwn(response, 'workflow')) return response;
+  const { workflow, ...publicResponse } = response;
+  return publicResponse;
+}
+
 async function committedInstructionRefs(paths, lastResponse) {
   if (lastResponse?.status !== 'needs_host_actions') return [];
   const refs = [];
@@ -64,7 +71,7 @@ async function committedInstructionRefs(paths, lastResponse) {
 export async function readPersistedRunState(paths) {
   const baton = await readJsonIfExists(paths.batonPath, 'baton');
   if (baton === undefined) throw new Error(`cannot read persisted run state: missing baton at ${paths.batonPath}`);
-  const lastResponse = await readJsonIfExists(paths.lastResponsePath, 'last runner response');
+  const lastResponse = quarantineLegacyHostResponse(await readJsonIfExists(paths.lastResponsePath, 'last runner response'));
   const historyText = await readTextIfExists(paths.historyPath, 'workflow history');
   const pendingCommit = await readJsonIfExists(paths.durableCommitPath, 'pending durable workflow commit');
   assertPendingCommitInstructionRefs(paths, pendingCommit);

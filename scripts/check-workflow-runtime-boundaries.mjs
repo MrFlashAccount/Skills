@@ -121,7 +121,6 @@ function checkBoundaries() {
   assertContains(apiRunner, /readPersistedRunState\(paths\)/, 'API runner must read persisted run-state before rendering');
   assertContains(apiRunner, /projectRuntimeRunState\(persisted\)/, 'API runner must project persisted run-state before rendering');
   assertContains(apiRunner, /assertLastResponseMatchesCurrentBaton\(lastResponse, current\.baton\)/, 'API runner must reject stale last-response baton before continue');
-  assertContains(apiRunner, /assertLastResponseMatchesWorkflowPath\(lastResponse, paths\.workflowPath\)/, 'API runner must reject stale last-response workflow path before continue');
   assertContains(apiRunner, /lastResponse\.requests \?\? \[\]/, 'API runner must validate current lastResponse.requests when loading instructions');
   assertContains(apiRunner, /assertNamedOutputRefsMatchRequests\(parsedOutputRefs, requests\)/, 'API runner must validate host outputs against lastResponse.requests before continue');
   assertContains(apiRunner, /readInstructionDTO\(instructionPath, `instructions for workflow step \$\{stepId\}`\)/, 'API runner must read/validate committed instruction files before serving instructions');

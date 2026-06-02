@@ -20,12 +20,12 @@ The host adapter is thin. It executes requests with whatever capabilities the en
 ## Runner commands
 
 ```bash
-node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-dir <run-dir> [--workflow <workflow.json>] [--user-prompt <text> | --user-prompt-file <path>]
-node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-dir <run-dir> --output <worker-output.json> [--output <step-id=worker-output.json> ...] [--workflow <workflow.json>]
-node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-dir <run-dir> --step-id <id>
+node develop/lib/entrypoints/cli/workflow-runner.mjs next --lease-token <token> --run-id <run-id> [--workflow <workflow.json>] [--user-prompt <text> | --user-prompt-file <path>]
+node develop/lib/entrypoints/cli/workflow-runner.mjs continue --lease-token <token> --run-id <run-id> --output <worker-output.json> [--output <step-id=worker-output.json> ...] [--workflow <workflow.json>]
+node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --lease-token <token> --run-id <run-id> --step-id <id>
 ```
 
-`next` creates the run files if needed and returns the current host work. `continue` applies host-provided artifact paths from the previous host requests, persists the new baton, and returns the next host work. `instructions` prints only the compiled instructions for one current requested step and fails for unknown, unsafe, or missing step instructions.
+`next` creates the run files if needed and returns the current host work. `continue` applies host-provided artifact paths from the previous host requests, persists the new baton, and returns the next host work. `instructions` prints only the compiled instructions for one current requested step and fails for unknown, unsafe, or missing step instructions. Every write-capable or instruction-loading command validates a fresh explicit `--lease-token` before creating run directories, locks, index entries, baton/history, last-response, or instruction artifacts; `runId` is identity only, and durable lease state keeps only token hash, token epoch, and lease expiry.
 
 ### Startup user prompt
 
@@ -48,11 +48,13 @@ When host work is needed, the runner returns:
       "id": "step_id",
       "stepId": "step_id",
       "action": "run_worker",
-      "loadInstructionsCommand": "node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-dir '/run' --step-id 'step_id'"
+      "loadInstructionsCommand": "node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-id 'run_id' --step-id 'step_id' --lease-token <lease-token>"
     }
   ]
 }
 ```
+
+Hosts must substitute the `<lease-token>` placeholder with the fresh explicit lease token before executing `loadInstructionsCommand`; the runner does not read a token from environment variables.
 
 The public host request contract is intentionally narrow: requested action identity, step identity, and the instruction-loader command are always public. Approval requests may additionally include output-schema metadata when the workflow step declares `output.schema`. `outputSchema` is the legacy raw workflow reference. `resolvedOutputSchema` is the preferred host-adapter contract when present: it contains `{ ref, schema }`, where `ref` is the same raw workflow reference and `schema` is the JSON payload describing the normalized answer expected back from the host. Neither field exposes runner filesystem paths. Instruction storage paths are private runner state. Output path and filename are wrapper-owned transport details, not runner/interpreter request contract.
 
@@ -102,13 +104,13 @@ Missing host capability is represented as blocked output, not as a transition de
 For one requested step, pass the wrapper-owned artifact back on continue:
 
 ```bash
-node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-dir "$RUN_DIR" --output "/host/artifacts/step_id.json" --workflow "$WORKFLOW"
+node develop/lib/entrypoints/cli/workflow-runner.mjs continue --lease-token "$WORKFLOW_RUN_TOKEN" --run-id "$RUN_ID" --output "/host/artifacts/step_id.json" --workflow "$WORKFLOW"
 ```
 
 For parallel branch requests, pass one named output per requested step. `continue` collects those files into the existing portable `{ "steps": { ... } }` envelope internally before applying workflow state.
 
 ```bash
-node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-dir "$RUN_DIR" \
+node develop/lib/entrypoints/cli/workflow-runner.mjs continue --lease-token "$WORKFLOW_RUN_TOKEN" --run-id "$RUN_ID" \
   --output "branch_a=/host/artifacts/branch_a.structured.json" \
   --output "branch_b=/host/artifacts/branch_b.output.json" \
   --workflow "$WORKFLOW"
@@ -144,7 +146,7 @@ This mapping is not part of the portable workflow contract. Other hosts can exec
 
 - The runner request schema is not yet split into a standalone JSON schema.
 - Host action types beyond the existing workflow actions are intentionally minimal.
-- `workflow-runner.mjs continue` uses a per-run `.workflow-runner/continue.lock` guard so only one host continue operation mutates a run directory at a time.
+- `workflow-runner.mjs continue` uses an internal per-run lock guard so only one host continue operation mutates a single run at a time; lock paths are private runner state.
 - The CLI shape is small on purpose and can be renamed after review.
 
-`develop/lib/entrypoints/cli/start-run.mjs` is legacy initialization/inspection only. It does not accept `--user-prompt` or `--user-prompt-file`; use `workflow-runner next` for startup prompt capture and instruction rendering.
+`develop/lib/entrypoints/cli/start-run.mjs` is legacy initialization/inspection only. It requires the same lease token carrier and never exposes private baton/history paths. It does not accept `--user-prompt` or `--user-prompt-file`; use `workflow-runner next` for startup prompt capture and instruction rendering.

@@ -2,14 +2,16 @@
 import { parseArgs } from 'node:util';
 import { WorkflowRuntimeError } from '../../errors.mjs';
 import { continueRun, loadInstructions, next } from '../api/workflowRunner.mjs';
+import { publicErrorMessage } from './public-error.mjs';
+
 
 function fail(message) {
-  console.error(`workflow-runner: ${message}`);
+  console.error(`workflow-runner: ${publicErrorMessage(message)}`);
   process.exit(1);
 }
 
 function usage() {
-  return 'usage: node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-dir <dir> [--workflow <workflow.json>] [--diagnostics] [--user-prompt <text> | --user-prompt-file <path>] | continue --run-dir <dir> --output <worker-output.json> [--output <step-id=worker-output.json> ...] [--workflow <workflow.json>] [--diagnostics] | instructions --run-dir <dir> --step-id <id> [--workflow <workflow.json>]';
+  return 'usage: node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-id <id> [--workflow <workflow.json>] [--runs-root <dir>] [--diagnostics] [--user-prompt <text> | --user-prompt-file <path>] [--lease-token <token> + diagnostics metadata] | continue --run-id <id> --output <worker-output.json> [--output <step-id=worker-output.json> ...] [--workflow <workflow.json>] [--runs-root <dir>] [--diagnostics] [--lease-token <token> + diagnostics metadata] | instructions --run-id <id> --step-id <id> [--workflow <workflow.json>] [--runs-root <dir>] [--lease-token <token> + diagnostics metadata]';
 }
 
 function parseCliArgs(argv) {
@@ -19,18 +21,24 @@ function parseCliArgs(argv) {
     const parsed = parseArgs({
       args: rest,
       options: {
-        'run-dir': { type: 'string' },
+        'run-id': { type: 'string' },
         'step-id': { type: 'string' },
         workflow: { type: 'string' },
+        'runs-root': { type: 'string' },
         diagnostics: { type: 'boolean', default: false },
         output: { type: 'string', multiple: true },
         'user-prompt': { type: 'string' },
         'user-prompt-file': { type: 'string' },
+        owner: { type: 'string' },
+        harness: { type: 'string' },
+        'session-id': { type: 'string' },
+        'worker-id': { type: 'string' },
+  'lease-token': { type: 'string' },
       },
       strict: true,
       allowPositionals: false,
     });
-    if (!parsed.values['run-dir']) fail(usage());
+    if (!parsed.values['run-id']) fail(usage());
     if (mode === 'instructions' && !parsed.values['step-id']) fail(usage());
     if (mode !== 'instructions' && parsed.values['step-id']) fail(usage());
     if (mode !== 'continue' && parsed.values.output?.length) fail(usage());
@@ -42,24 +50,38 @@ function parseCliArgs(argv) {
   }
 }
 
+function leaseArgs(values) {
+  return {
+    owner: values.owner,
+    harness: values.harness,
+    sessionId: values['session-id'],
+    workerId: values['worker-id'],
+    leaseToken: values['lease-token'],
+  };
+}
+
 try {
   const { mode, values } = parseCliArgs(process.argv.slice(2));
   if (mode === 'instructions') {
     const instructions = await loadInstructions({
-      runDir: values['run-dir'],
+      runId: values['run-id'],
       workflowPath: values.workflow,
+      runsRoot: values['runs-root'],
       stepId: values['step-id'],
+      ...leaseArgs(values),
     });
     process.stdout.write(instructions);
   } else {
     const command = mode === 'next' ? next : continueRun;
     const response = await command({
-      runDir: values['run-dir'],
+      runId: values['run-id'],
       workflowPath: values.workflow,
+      runsRoot: values['runs-root'],
       includeDiagnostics: values.diagnostics,
       output: values.output,
       userPrompt: values['user-prompt'],
       userPromptFile: values['user-prompt-file'],
+      ...leaseArgs(values),
     });
     console.log(JSON.stringify(response, null, 2));
   }

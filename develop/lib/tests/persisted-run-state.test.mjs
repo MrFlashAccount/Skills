@@ -43,10 +43,11 @@ function response(nextBaton = baton()) {
 }
 
 function setupRunDir(name, initialBaton = baton()) {
-  const runDir = path.join(tempDir, name);
+  const runId = `persisted-state-test-${process.pid}-${name}`;
   const workflowPath = path.join(tempDir, `${name}-workflow.json`);
   writeJson(workflowPath, { name: name.replace(/_/g, '-'), version: 1, start: 'prepare', done: 'done', blocked: 'blocked', steps: { prepare: { name: 'Prepare', kind: 'worker', output: { template: 'output.md' }, next: 'done' }, done: { name: 'Done', kind: 'done' }, blocked: { name: 'Blocked', kind: 'blocked' } } });
-  const paths = resolveRunPaths({ runDir, workflowPath });
+  const paths = resolveRunPaths({ runId, workflowPath });
+  rmSync(paths.runDir, { recursive: true, force: true });
   mkdirSync(paths.runnerDir, { recursive: true });
   mkdirSync(paths.instructionsDir, { recursive: true });
   writeJson(paths.batonPath, initialBaton);
@@ -120,7 +121,7 @@ test('persisted-state reader rejects missing committed instruction file', async 
 
 test('persisted-state writer acquires run-state lock before writing', async () => {
   const paths = setupRunDir('writer_lock');
-  writeFileSync(paths.continueLockPath, 'held');
+  writeFileSync(paths.continueLockPath, `${JSON.stringify({ lockId: 'held', pid: process.pid, createdAt: '1970-01-01T00:00:00.000Z', heartbeatAt: new Date().toISOString() })}\n`);
 
   await assert.rejects(
     () => writePersistedRunStateUpdate(paths, {
@@ -129,7 +130,13 @@ test('persisted-state writer acquires run-state lock before writing', async () =
       instructions: [],
       history: { source: 'test', baton: baton({ cursor: 'done', status: 'done' }) },
     }),
-    /continue is already in progress/,
+    (error) => {
+      assert.match(error.message, /continue is already in progress for runId/);
+      assert.match(error.message, new RegExp(paths.runId));
+      assert.equal(error.message.includes(paths.runDir), false);
+      assert.equal(error.message.includes(paths.continueLockPath), false);
+      return true;
+    },
   );
 
   assert.equal(existsSync(paths.durableCommitPath), false);
@@ -258,3 +265,30 @@ test('persisted-state reader rejects symlinked split storage file', async () => 
 
 // Keep writeJsonAtomic imported so this test file also verifies the public atomic primitive remains loadable.
 assert.equal(typeof writeJsonAtomic, 'function');
+
+test('persisted-state reader quarantines legacy host response workflow path projection', async () => {
+  const paths = setupRunDir('legacy_response_workflow_quarantine');
+  const legacyWorkflowPath = path.join(tempDir, 'private-legacy-workflow.json');
+  writeJson(paths.lastResponsePath, { ...response(), workflow: legacyWorkflowPath });
+  writeFileSync(path.join(paths.instructionsDir, 'prepare.md'), '# Prepare instructions');
+
+  const persisted = await readPersistedRunState(paths);
+
+  assert.equal('workflow' in persisted.lastResponse, false);
+  assert.doesNotMatch(JSON.stringify(persisted.lastResponse), /private-legacy-workflow/);
+});
+
+test('runner host response schema rejects public legacy workflow path projection', () => {
+  assert.throws(
+    () => assertPersistedRunState({
+      version: 1,
+      storageTopology: 'split-files-v1',
+      run: { runDir: '/private/run', workflowPath: '/private/workflow.json', repositoryRoot: '/private' },
+      baton: baton(),
+      lastResponse: { ...response(), workflow: '/private/workflow.json' },
+      instructions: [],
+      history: { mode: 'embedded-text', path: '/private/history.md', text: '' },
+    }),
+    /must NOT have additional properties|additionalProperties/,
+  );
+});
