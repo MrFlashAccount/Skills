@@ -25,7 +25,7 @@ node develop/lib/entrypoints/cli/workflow-runner.mjs continue --lease-token <tok
 node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --lease-token <token> --run-id <run-id> --step-id <id>
 ```
 
-`next` creates the run files if needed and returns the current host work. `continue` applies host-provided artifact paths from the previous host requests, persists the new baton, and returns the next host work. `instructions` prints only the compiled instructions for one current requested step and fails for unknown, unsafe, or missing step instructions. Every write-capable or instruction-loading command requires the fresh lease token via explicit `--lease-token`; `runId` is identity only, and lease metadata is diagnostics only.
+`next` creates the run files if needed and returns the current host work. `continue` applies host-provided artifact paths from the previous host requests, persists the new baton, and returns the next host work. `instructions` prints only the compiled instructions for one current requested step and fails for unknown, unsafe, or missing step instructions. Every write-capable or instruction-loading command validates a fresh explicit `--lease-token` before creating run directories, locks, index entries, baton/history, last-response, or instruction artifacts; `runId` is identity only, and durable lease state keeps only token hash, token epoch, and lease expiry.
 
 ### Startup user prompt
 

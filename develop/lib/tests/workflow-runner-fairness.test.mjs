@@ -48,6 +48,11 @@ function readIfExists(filePath) {
 function snapshotRunState(paths) {
   const indexContent = readIfExists(paths.runsIndexPath);
   return {
+    runDirExists: existsSync(paths.runDir),
+    runnerDirExists: existsSync(paths.runnerDir),
+    continueLockExists: existsSync(paths.continueLockPath),
+    instructionsDirExists: existsSync(paths.instructionsDir),
+    lastResponseExists: existsSync(paths.lastResponsePath),
     baton: readIfExists(paths.batonPath),
     history: readIfExists(paths.historyPath),
     indexEntry: indexContent === undefined ? undefined : JSON.parse(indexContent).runs[paths.runId],
@@ -59,6 +64,21 @@ function workerOutput(summary) {
 }
 
 after(() => rmSync(tempDir, { recursive: true, force: true }));
+
+test('runner fairness: missing-token API next does not create runtime artifacts for an unregistered run', async () => {
+  const workflowPath = path.join(tempDir, 'missing-token-next-no-artifacts.json');
+  writeJson(workflowPath, workflowDoc);
+  const { runId } = runCase('missing-token-next-no-artifacts', workflowPath);
+  const paths = resolveRunPaths({ runId, workflowPath });
+  const before = snapshotRunState(paths);
+
+  await assert.rejects(
+    () => runnerNext({ runId, workflowPath, now: new Date('2026-06-01T10:00:01.000Z') }),
+    /workflow run token is required/,
+  );
+
+  assert.deepEqual(snapshotRunState(paths), before);
+});
 
 test('runner fairness: unauthorized API next does not mutate baton, history, or runs index', async () => {
   const workflowPath = path.join(tempDir, 'unauthorized-next-no-mutation.json');

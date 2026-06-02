@@ -47,7 +47,7 @@ test('runner: API next acquires run-state lock before loading and rendering curr
   writeFileSync(path.join(runDir, '.workflow-runner', 'continue.lock'), `${JSON.stringify({ lockId: 'held', pid: process.pid, createdAt: '1970-01-01T00:00:00.000Z', heartbeatAt: new Date().toISOString() })}\n`);
 
   await assert.rejects(
-    runnerNext({ runId, workflowPath }),
+    runnerNext({ runId, workflowPath, leaseToken: `held-run-lock-token-${process.pid}` }),
     /workflow-runner continue is already in progress/,
   );
   assert.equal(existsSync(path.join(runDir, 'baton.json')), false);

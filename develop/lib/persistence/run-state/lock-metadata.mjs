@@ -79,17 +79,19 @@ async function writeLockMetadata(path, metadata, shouldWrite = () => true) {
   }
 }
 
+export async function refreshLockHeartbeat(path, metadata, shouldWrite = () => true) {
+  const current = await readLockMetadata(path);
+  if (!sameLock(metadata, current)) return false;
+  metadata.heartbeatAt = new Date().toISOString();
+  await writeLockMetadata(path, metadata, shouldWrite);
+  return true;
+}
+
 export function startLockHeartbeat(path, metadata, { heartbeatMs = RUN_STATE_LOCK_HEARTBEAT_MS } = {}) {
   let stopped = false;
   const beat = async () => {
     if (stopped) return;
-    const current = await readLockMetadata(path);
-    if (stopped || !sameLock(metadata, current)) {
-      stopped = true;
-      return;
-    }
-    metadata.heartbeatAt = new Date().toISOString();
-    if (!stopped) await writeLockMetadata(path, metadata, () => !stopped);
+    if (!await refreshLockHeartbeat(path, metadata, () => !stopped)) stopped = true;
   };
   const timer = setInterval(() => { beat().catch(() => { stopped = true; }); }, heartbeatMs);
   timer.unref?.();

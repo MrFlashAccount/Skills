@@ -84,7 +84,7 @@ async function assertOrCreateTokenAuthority(paths, token) {
   await createRunIndexEntry(paths, {
     status: 'running',
     workflowPath: paths.workflowPath,
-    workerLease: buildTokenLease({ token, harness: 'start-run' }),
+    workerLease: buildTokenLease({ token }),
   });
 }
 

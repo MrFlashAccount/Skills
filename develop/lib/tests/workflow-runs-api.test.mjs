@@ -168,8 +168,10 @@ test('workflow runs API create-with-claim issues token but stores only hash auth
   assert.equal('workerLease' in response, false);
   const index = await readRunsIndex(runsIndexPathsForRoot(runsRoot));
   const storedLease = index.runs[runId].workerLease;
+  assert.deepEqual(Object.keys(storedLease).sort(), ['leaseExpiresAt', 'tokenEpoch', 'tokenHash']);
   assert.match(storedLease.tokenHash, /^[0-9a-f]{64}$/);
   assert.equal(storedLease.tokenEpoch, 1);
+  assert.equal(storedLease.leaseExpiresAt, '2026-06-01T10:01:00.000Z');
   assert.equal(storedLease.tokenHash.includes(response.leaseToken), false);
   assert.equal(JSON.stringify(await listWorkflowRunsAtRoot({ runsRoot })).includes(response.leaseToken), false);
   assert.equal(JSON.stringify(await listWorkflowRunsAtRoot({ runsRoot })).includes(storedLease.tokenHash), false);
@@ -184,6 +186,8 @@ test('workflow runs API heartbeat renews matching worker lease', async () => {
   assert.equal(response.ok, true);
   assert.equal('workerLease' in response.run, false);
   assert.equal(response.run.occupancy.leaseExpiresAt, '2026-06-01T10:01:00.500Z');
+  const storedLease = (await readRunsIndex(runsIndexPathsForRoot(runsRoot))).runs[runId].workerLease;
+  assert.deepEqual(Object.keys(storedLease).sort(), ['leaseExpiresAt', 'tokenEpoch', 'tokenHash']);
 });
 
 test('workflow runs API rejects tokenless renewal without mutating lease', async () => {

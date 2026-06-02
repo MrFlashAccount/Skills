@@ -3,14 +3,6 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 export const DEFAULT_LEASE_MS = 30 * 60 * 1000;
 export const DEFAULT_TOKEN_EPOCH = 1;
 
-export const LEASE_METADATA_FIELDS = ['owner', 'harness', 'sessionId', 'workerId'];
-
-export function toLeaseMetadata({ owner, harness, sessionId, workerId } = {}) {
-  const metadata = { owner, harness, sessionId, workerId };
-  for (const key of Object.keys(metadata)) if (metadata[key] === undefined) delete metadata[key];
-  return metadata;
-}
-
 export function generateLeaseToken() {
   return randomBytes(32).toString('base64url');
 }
@@ -31,14 +23,23 @@ export function safeTokenHashMatches(expectedHash, token) {
   return expected.length === actual.length && timingSafeEqual(expected, actual);
 }
 
-export function buildTokenLease({ token, owner, harness, sessionId, workerId, leaseMs = DEFAULT_LEASE_MS, now = new Date(), tokenEpoch = DEFAULT_TOKEN_EPOCH } = {}) {
+export function buildTokenLease({ token, leaseMs = DEFAULT_LEASE_MS, now = new Date(), tokenEpoch = DEFAULT_TOKEN_EPOCH } = {}) {
   const ms = Number(leaseMs);
   if (!Number.isFinite(ms) || ms <= 0) throw new Error('leaseMs must be a positive number');
   return {
-    ...toLeaseMetadata({ owner, harness, sessionId, workerId }),
     tokenHash: hashLeaseToken(token),
     tokenEpoch,
-    heartbeatAt: now.toISOString(),
+    leaseExpiresAt: new Date(now.getTime() + ms).toISOString(),
+  };
+}
+
+export function renewTokenLease(workerLease, { leaseMs = DEFAULT_LEASE_MS, now = new Date() } = {}) {
+  if (!workerLease?.tokenHash || !workerLease?.tokenEpoch) throw new Error('workflow run lease authority is invalid');
+  const ms = Number(leaseMs);
+  if (!Number.isFinite(ms) || ms <= 0) throw new Error('leaseMs must be a positive number');
+  return {
+    tokenHash: workerLease.tokenHash,
+    tokenEpoch: workerLease.tokenEpoch,
     leaseExpiresAt: new Date(now.getTime() + ms).toISOString(),
   };
 }

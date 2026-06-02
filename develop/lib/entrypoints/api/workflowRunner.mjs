@@ -64,6 +64,14 @@ async function assertWorkerLeaseAuthority(paths, { leaseToken, now = new Date() 
   assertFreshTokenAuthority(run?.workerLease, leaseToken, { runId: paths.runId, now });
 }
 
+async function assertPreLockWorkerLeaseAuthority(paths, { leaseToken, now = new Date(), allowUnclaimed = false } = {}) {
+  if (!leaseToken) throw new Error('workflow run token is required');
+  const index = await readRunsIndex(runsIndexPathsForRoot(paths.runsRoot));
+  const run = index.runs[paths.runId];
+  if (!run && allowUnclaimed) return;
+  assertFreshTokenAuthority(run?.workerLease, leaseToken, { runId: paths.runId, now });
+}
+
 async function initializeMissingRunLease(paths, { leaseToken, now = new Date() } = {}) {
   const index = await readRunsIndex(runsIndexPathsForRoot(paths.runsRoot));
   if (index.runs[paths.runId]) return;
@@ -74,7 +82,7 @@ async function initializeMissingRunLease(paths, { leaseToken, now = new Date() }
   await createRunIndexEntry(paths, {
     status: 'running',
     workflowPath: paths.workflowPath,
-    workerLease: buildTokenLease({ token: leaseToken, harness: 'workflow-runner', now }),
+    workerLease: buildTokenLease({ token: leaseToken, now }),
   });
 }
 
@@ -97,6 +105,7 @@ async function persistNextHostResponse(paths, rendered, runState) {
 
 export async function next({ runId, workflowPath, includeDiagnostics = false, userPrompt, userPromptFile, taskKey, taskFingerprint, leaseToken, now = new Date() } = {}) {
   const lockPaths = resolveRunPaths({ runId });
+  await assertPreLockWorkerLeaseAuthority(lockPaths, { leaseToken, now, allowUnclaimed: true });
   return withRunStateLock(lockPaths, async () => {
     const paths = await resolveIndexedRunPaths({ runId, workflowPath });
     await initializeMissingRunLease(paths, { leaseToken, now });
@@ -247,6 +256,7 @@ async function resolveContinueRunPaths({ runId, workflowPath }) {
 
 export async function continueRun({ runId, workflowPath, output, includeDiagnostics = false, leaseToken, now = new Date() }) {
   const lockPaths = resolveRunPaths({ runId });
+  await assertPreLockWorkerLeaseAuthority(lockPaths, { leaseToken, now });
   return withRunStateLock(lockPaths, async () => {
     const paths = await resolveContinueRunPaths({ runId, workflowPath });
     await assertWorkerLeaseAuthority(paths, { leaseToken, now });
@@ -273,6 +283,7 @@ export async function continueRun({ runId, workflowPath, output, includeDiagnost
 export async function loadInstructions({ runId, workflowPath, stepId, leaseToken, now = new Date() }) {
   assertSafeStepId(stepId);
   const lockPaths = resolveRunPaths({ runId });
+  await assertPreLockWorkerLeaseAuthority(lockPaths, { leaseToken, now });
   return withRunStateLock(lockPaths, async () => {
     const paths = resolveRunPaths({ runId });
     await assertWorkerLeaseAuthority(paths, { leaseToken, now });

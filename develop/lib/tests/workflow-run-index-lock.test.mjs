@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
-import { createLockMetadata, startLockHeartbeat } from '../persistence/run-state/lock-metadata.mjs';
+import { createLockMetadata, refreshLockHeartbeat, startLockHeartbeat } from '../persistence/run-state/lock-metadata.mjs';
 import { runsIndexPathsForRoot, withRunsIndexLock } from '../persistence/run-state/run-index.mjs';
 
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-run-index-lock-'));
@@ -59,14 +59,14 @@ test('runs index lock: live legacy lock without heartbeat is not stale solely by
   rmSync(paths.runsIndexLockPath, { force: true });
 });
 
-test('runs index lock metadata heartbeat refreshes while held and removes on stop', async () => {
+test('runs index lock metadata heartbeat refreshes deterministically and removes on stop', async () => {
   const paths = indexPathsFor('heartbeat-refreshes-index-lock');
   const metadata = createLockMetadata({ now: new Date('1970-01-01T00:00:00.000Z') });
   writeFileSync(paths.runsIndexLockPath, `${JSON.stringify(metadata)}\n`);
 
-  const stopHeartbeat = startLockHeartbeat(paths.runsIndexLockPath, metadata, { heartbeatMs: 10 });
-  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.equal(await refreshLockHeartbeat(paths.runsIndexLockPath, metadata), true);
   const refreshed = JSON.parse(readFileSync(paths.runsIndexLockPath, 'utf8'));
+  const stopHeartbeat = startLockHeartbeat(paths.runsIndexLockPath, metadata, { heartbeatMs: 10_000 });
   await stopHeartbeat();
 
   assert.equal(refreshed.lockId, metadata.lockId);

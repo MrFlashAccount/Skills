@@ -42,7 +42,7 @@ claim_json=$(node develop/lib/entrypoints/cli/workflow-runs.mjs claim --run-id <
 lease_token=$(node -e 'const fs=require("node:fs"); process.stdout.write(JSON.parse(fs.readFileSync(0,"utf8")).leaseToken)' <<<"$claim_json")
 ```
 
-Lease metadata is diagnostics only: `owner`, `harness`, `sessionId`, and `workerId` describe the caller without granting authority. Durable storage keeps only the token hash/epoch/expiry plus optional metadata, and list/conflict output never projects the authority tuple. A fresh lease requires the raw token via explicit `--lease-token`; metadata alone must return occupied. Long-running harnesses should renew with `heartbeat --lease-token "$lease_token"` before `leaseExpiresAt`.
+Lease metadata is diagnostics only: `owner`, `harness`, `sessionId`, and `workerId` may describe the caller at command time but never grants authority and is not retained in durable lease state. Durable storage keeps only the token hash, token epoch, and lease expiry. A fresh lease requires the raw token via explicit `--lease-token`; metadata alone must return occupied. Long-running harnesses should renew with `heartbeat --lease-token "$lease_token"` before `leaseExpiresAt`.
 
 Create-with-claim and claim responses may include `leaseToken` for the holder only. Use only the public `--run-id <run-id>` plus the transient explicit token with runtime commands after selection/creation; do not pass or derive private `runDir`/`runsRoot` paths.
 

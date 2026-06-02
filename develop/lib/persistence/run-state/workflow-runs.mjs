@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 import { assertSafeRunId, defaultWorkflowPath, resolveRunPaths, workflowRunsRoot } from './paths.mjs';
 import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot, updateRunIndexEntry } from './run-index.mjs';
-import { assertFreshTokenAuthority, buildTokenLease, generateLeaseToken, occupancyForLease, toLeaseMetadata } from './lease-authority.mjs';
+import { assertFreshTokenAuthority, buildTokenLease, generateLeaseToken, occupancyForLease, renewTokenLease } from './lease-authority.mjs';
 import { withRunStateLock } from './lock.mjs';
 
 function publicRun(entry, { now = new Date() } = {}) {
@@ -67,7 +67,7 @@ export async function registerWorkflowRunAtRoot({ runId, title, summary, workflo
   const safeRunId = runId === undefined ? generatedRunId() : assertSafeRunId(runId);
   const paths = resolveRunPaths({ runId: safeRunId, workflowPath: workflowPathForCreate(workflowPath), runsRoot });
   const leaseToken = claim ? generateLeaseToken() : undefined;
-  const workerLease = claim ? buildTokenLease({ token: leaseToken, owner, harness, sessionId, workerId, leaseMs, now }) : null;
+  const workerLease = claim ? buildTokenLease({ token: leaseToken, leaseMs, now }) : null;
   return withRunStateLock(paths, async () => {
     const entry = await createRunIndexEntry(paths, {
       title,
@@ -88,6 +88,12 @@ export async function registerWorkflowRunAtRoot({ runId, title, summary, workflo
 export async function claimWorkflowRunAtRoot({ runId, workflowPath, runsRoot = workflowRunsRoot, owner, harness, sessionId, workerId, leaseMs, leaseToken, now = new Date() } = {}) {
   const safeRunId = assertSafeRunId(runId);
   const paths = resolveRunPaths({ runId: safeRunId, workflowPath: workflowPathForCreate(workflowPath), runsRoot });
+  if (leaseToken) {
+    const index = await readRunsIndex(runsIndexPathsForRoot(paths.runsRoot));
+    const existing = index.runs[safeRunId];
+    assertExistingWorkflowBinding(existing, paths, { requestedWorkflowPath: workflowPath });
+    assertFreshTokenAuthority(existing?.workerLease, leaseToken, { runId: safeRunId, now });
+  }
   const issuedLeaseToken = leaseToken || generateLeaseToken();
   try {
     return await withRunStateLock(paths, async () => {
@@ -106,14 +112,14 @@ export async function claimWorkflowRunAtRoot({ runId, workflowPath, runsRoot = w
           return {
             ...existing,
             updatedAt: now.toISOString(),
-            workerLease: { ...existing.workerLease, ...toLeaseMetadata({ owner, harness, sessionId, workerId }), heartbeatAt: now.toISOString(), leaseExpiresAt: buildTokenLease({ token: leaseToken, owner, harness, sessionId, workerId, leaseMs, now, tokenEpoch: existing.workerLease.tokenEpoch ?? 1 }).leaseExpiresAt },
+            workerLease: renewTokenLease(existing.workerLease, { leaseMs, now }),
           };
         }
         tokenWasIssued = true;
         return {
           ...existing,
           updatedAt: now.toISOString(),
-          workerLease: buildTokenLease({ token: issuedLeaseToken, owner, harness, sessionId, workerId, leaseMs, now }),
+          workerLease: buildTokenLease({ token: issuedLeaseToken, leaseMs, now }),
         };
       });
       const response = { ok: true, claimed: true, runId: safeRunId, run: publicRun(entry, { now }) };

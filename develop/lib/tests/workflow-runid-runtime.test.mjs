@@ -160,10 +160,14 @@ test('runs.json index record key mismatch remains semantic validation', async ()
 
 test('runs.json schema requires token authority fields for occupied leases', () => {
   const missingTokenHash = validRunsIndex();
-  missingTokenHash.runs['schema-test-run'].workerLease = { tokenEpoch: 1, heartbeatAt: '2026-06-01T00:00:00.000Z', leaseExpiresAt: '2026-06-01T00:30:00.000Z' };
+  missingTokenHash.runs['schema-test-run'].workerLease = { tokenEpoch: 1, leaseExpiresAt: '2026-06-01T00:30:00.000Z' };
   assert.throws(() => assertRunsIndexSchema(missingTokenHash), /tokenHash|must have required property 'tokenHash'/);
 
   const missingTokenEpoch = validRunsIndex();
-  missingTokenEpoch.runs['schema-test-run'].workerLease = { tokenHash: '0'.repeat(64), heartbeatAt: '2026-06-01T00:00:00.000Z', leaseExpiresAt: '2026-06-01T00:30:00.000Z' };
+  missingTokenEpoch.runs['schema-test-run'].workerLease = { tokenHash: '0'.repeat(64), leaseExpiresAt: '2026-06-01T00:30:00.000Z' };
   assert.throws(() => assertRunsIndexSchema(missingTokenEpoch), /tokenEpoch|must have required property 'tokenEpoch'/);
+
+  const durableMetadata = validRunsIndex();
+  durableMetadata.runs['schema-test-run'].workerLease = { tokenHash: '0'.repeat(64), tokenEpoch: 1, leaseExpiresAt: '2026-06-01T00:30:00.000Z', owner: 'alice' };
+  assert.throws(() => assertRunsIndexSchema(durableMetadata), /owner|must NOT have additional properties/);
 });
