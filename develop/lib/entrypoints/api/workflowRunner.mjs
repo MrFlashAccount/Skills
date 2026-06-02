@@ -121,7 +121,6 @@ export async function next({ runId, workflowPath, includeDiagnostics = false, us
       ? undefined
       : startupUserPromptTarget({ workflow: workflowDoc, start: workflowDoc?.start });
     const runState = await ensureRunFiles(paths, { userPrompt: startupUserPrompt, userPromptTarget: startupPromptTarget });
-    await upsertRunIndexEntry(paths, { status: 'running', workflowPath: paths.workflowPath, taskKey, taskFingerprint });
     await recoverDurableCommit(paths);
     const persisted = await readPersistedRunState(paths);
     const runtimeState = projectRuntimeRunState(persisted);

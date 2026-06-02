@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { next as runnerNext } from '../entrypoints/api/workflowRunner.mjs';
-import { createLockMetadata } from '../persistence/run-state/lock-metadata.mjs';
+import { buildTokenLease } from '../persistence/run-state/lease-authority.mjs';
+import { createLockMetadata, removeStaleLock } from '../persistence/run-state/lock-metadata.mjs';
+import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot } from '../persistence/run-state/run-index.mjs';
 import { withRunStateLock } from '../persistence/run-state/lock.mjs';
 import { resolveRunPaths } from '../persistence/run-state/paths.mjs';
 
@@ -85,6 +87,29 @@ test('runner: API next recovers missed-heartbeat run-state lock even when owner 
   assert.equal(existsSync(paths.continueLockPath), false);
 });
 
+test('runner: API next render failure does not overwrite existing index lifecycle status', async () => {
+  const runId = `lock-${process.pid}-api-next-render-failure-preserves-index-status`;
+  const workflowPath = path.join(tempDir, 'api-next-render-failure-preserves-index-status-workflow.json');
+  const paths = resolveRunPaths({ runId, workflowPath });
+  const leaseToken = `render-failure-preserves-index-status-${process.pid}`;
+  rmSync(paths.runDir, { recursive: true, force: true });
+  writeJson(workflowPath, workflowDoc());
+  await createRunIndexEntry(paths, {
+    status: 'done',
+    workflowPath,
+    workerLease: buildTokenLease({ token: leaseToken, now: new Date('2026-06-01T10:00:00.000Z') }),
+  });
+
+  await assert.rejects(
+    runnerNext({ runId, workflowPath, leaseToken, now: new Date('2026-06-01T10:00:01.000Z') }),
+    /workflow prompt render failed|missing-input-template/,
+  );
+
+  const index = await readRunsIndex(runsIndexPathsForRoot(paths.runsRoot));
+  assert.equal(index.runs[runId].status, 'done');
+  assert.equal(existsSync(path.join(paths.runnerDir, 'last-response.json')), false);
+});
+
 test('runner: API next keeps fresh-heartbeat run-state lock held by live owner', async () => {
   const runId = `lock-${process.pid}-api-next-fresh-heartbeat-continue-lock`;
   const workflowPath = path.join(tempDir, 'api-next-fresh-heartbeat-continue-lock-workflow.json');
@@ -99,6 +124,26 @@ test('runner: API next keeps fresh-heartbeat run-state lock held by live owner',
     /workflow-runner continue is already in progress/,
   );
   assert.equal(existsSync(paths.continueLockPath), true);
+});
+
+test('run-state stale cleanup does not remove a fresh replacement observed after stale checks', async () => {
+  const runId = `lock-${process.pid}-cleanup-preserves-post-check-replacement`;
+  const workflowPath = path.join(tempDir, 'cleanup-preserves-post-check-replacement-workflow.json');
+  const paths = resolveRunPaths({ runId, workflowPath });
+  rmSync(paths.runDir, { recursive: true, force: true });
+  mkdirSync(paths.runnerDir, { recursive: true });
+  writeFileSync(paths.continueLockPath, `${JSON.stringify({ lockId: 'stale-before-replacement', pid: process.pid + 1_000_000, createdAt: '1970-01-01T00:00:00.000Z' })}\n`);
+  const replacement = createLockMetadata();
+
+  const removed = await removeStaleLock(paths.continueLockPath, {
+    beforeRemove: async () => {
+      writeFileSync(paths.continueLockPath, `${JSON.stringify(replacement)}\n`);
+    },
+  });
+
+  assert.equal(removed, false);
+  assert.equal(JSON.parse(readFileSync(paths.continueLockPath, 'utf8')).lockId, replacement.lockId);
+  rmSync(paths.continueLockPath, { force: true });
 });
 
 test('run-state lock cleanup does not remove a replacement lock file', async () => {

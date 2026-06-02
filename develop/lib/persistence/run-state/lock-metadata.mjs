@@ -64,6 +64,9 @@ export async function removeStaleLock(path, options = {}) {
   if (!isStaleLockMetadata(first, options)) return false;
   const second = await readLockMetadata(path);
   if (!sameLock(first, second) || !isStaleLockMetadata(second, options)) return false;
+  await options.beforeRemove?.();
+  const current = await readLockMetadata(path);
+  if (!sameLock(second, current) || !isStaleLockMetadata(current, options)) return false;
   await rm(path, { force: true });
   return true;
 }
