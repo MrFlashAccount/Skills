@@ -43,12 +43,14 @@ function isProcessAlive(pid) {
 }
 
 export function isStaleLockMetadata(metadata, { now = Date.now(), staleMs = RUN_STATE_LOCK_STALE_MS } = {}) {
-  const heartbeatAt = timestampMs(metadata?.heartbeatAt) ?? timestampMs(metadata?.createdAt);
-  if (!Number.isFinite(heartbeatAt)) {
-    const invalidMtime = Number(metadata?.invalidLockFileMtimeMs);
-    return Number.isFinite(invalidMtime) && now - invalidMtime >= staleMs;
-  }
-  return !isProcessAlive(metadata?.pid) || now - heartbeatAt >= staleMs;
+  const alive = isProcessAlive(metadata?.pid);
+  const heartbeatAt = timestampMs(metadata?.heartbeatAt);
+  if (Number.isFinite(heartbeatAt)) return !alive || now - heartbeatAt >= staleMs;
+  if (alive) return false;
+  const createdAt = timestampMs(metadata?.createdAt);
+  if (Number.isFinite(createdAt)) return now - createdAt >= staleMs;
+  const invalidMtime = Number(metadata?.invalidLockFileMtimeMs);
+  return Number.isFinite(invalidMtime) && now - invalidMtime >= staleMs;
 }
 
 function sameLock(left, right) {

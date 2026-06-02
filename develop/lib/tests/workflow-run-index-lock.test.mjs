@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
-import { createLockMetadata } from '../persistence/run-state/lock-metadata.mjs';
+import { createLockMetadata, startLockHeartbeat } from '../persistence/run-state/lock-metadata.mjs';
 import { runsIndexPathsForRoot, withRunsIndexLock } from '../persistence/run-state/run-index.mjs';
 
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-run-index-lock-'));
@@ -44,6 +44,33 @@ test('runs index lock: old lock from dead process is recovered', async () => {
   const result = await withRunsIndexLock(paths, async () => 'entered');
 
   assert.equal(result, 'entered');
+  assert.equal(existsSync(paths.runsIndexLockPath), false);
+});
+
+test('runs index lock: live legacy lock without heartbeat is not stale solely by age', async () => {
+  const paths = indexPathsFor('live-legacy-index-lock');
+  writeFileSync(paths.runsIndexLockPath, `${JSON.stringify({ pid: process.pid, createdAt: '1970-01-01T00:00:00.000Z' })}\n`);
+
+  await assert.rejects(
+    withRunsIndexLock(paths, async () => 'entered', { waitMs: 50 }),
+    /workflow runs index is locked/,
+  );
+  assert.equal(existsSync(paths.runsIndexLockPath), true);
+  rmSync(paths.runsIndexLockPath, { force: true });
+});
+
+test('runs index lock metadata heartbeat refreshes while held and removes on stop', async () => {
+  const paths = indexPathsFor('heartbeat-refreshes-index-lock');
+  const metadata = createLockMetadata({ now: new Date('1970-01-01T00:00:00.000Z') });
+  writeFileSync(paths.runsIndexLockPath, `${JSON.stringify(metadata)}\n`);
+
+  const stopHeartbeat = startLockHeartbeat(paths.runsIndexLockPath, metadata, { heartbeatMs: 10 });
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  const refreshed = JSON.parse(readFileSync(paths.runsIndexLockPath, 'utf8'));
+  await stopHeartbeat();
+
+  assert.equal(refreshed.lockId, metadata.lockId);
+  assert.notEqual(refreshed.heartbeatAt, '1970-01-01T00:00:00.000Z');
   assert.equal(existsSync(paths.runsIndexLockPath), false);
 });
 
