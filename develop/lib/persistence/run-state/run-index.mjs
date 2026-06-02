@@ -1,6 +1,6 @@
 import { constants } from 'node:fs';
 import { access, open, readFile, rm } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { assertManagedDirectory, assertManagedRunStateFile, createManagedDirectory, writeJsonAtomic } from './atomic-file.mjs';
 import { assertRunsIndexSchema } from './schema/runs-index-schema.mjs';
 
@@ -54,19 +54,36 @@ async function sleep(ms) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function lockCreatedAt(path) {
+async function readLockMetadata(path) {
+  try { return JSON.parse(await readFile(path, 'utf8')); }
+  catch { return {}; }
+}
+
+function lockCreatedAt(metadata) {
+  const createdAt = Date.parse(metadata?.createdAt);
+  return Number.isFinite(createdAt) ? createdAt : Date.now();
+}
+
+function isProcessAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
   try {
-    const metadata = JSON.parse(await readFile(path, 'utf8'));
-    const createdAt = Date.parse(metadata?.createdAt);
-    return Number.isFinite(createdAt) ? createdAt : 0;
-  } catch {
-    return Date.now();
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    if (error?.code === 'ESRCH') return false;
+    return true;
   }
 }
 
-async function removeStaleRunsIndexLock(path, { now = Date.now(), staleMs = RUNS_INDEX_LOCK_STALE_MS } = {}) {
-  const createdAt = await lockCreatedAt(path);
-  if (now - createdAt < staleMs) return false;
+async function readRunsIndexLockState(path, { now = Date.now(), staleMs = RUNS_INDEX_LOCK_STALE_MS } = {}) {
+  const metadata = await readLockMetadata(path);
+  const pastStaleAge = now - lockCreatedAt(metadata) >= staleMs;
+  return { ownerAlive: isProcessAlive(metadata?.pid), pastStaleAge };
+}
+
+async function removeStaleRunsIndexLock(path, options = {}) {
+  const state = await readRunsIndexLockState(path, options);
+  if (state.ownerAlive || !state.pastStaleAge) return false;
   await rm(path, { force: true });
   return true;
 }
@@ -75,7 +92,7 @@ export async function withRunsIndexLock(paths, callback) {
   await createManagedDirectory(paths.runsRoot, 'workflow runs root');
   await assertManagedRunStateFile(paths.runsIndexLockPath, 'workflow runs index lock');
   let handle;
-  const deadline = Date.now() + 2000;
+  const deadline = Date.now() + 10_000;
   while (!handle) {
     try {
       handle = await open(paths.runsIndexLockPath, 'wx', 0o600);
@@ -84,8 +101,9 @@ export async function withRunsIndexLock(paths, callback) {
       await handle.sync();
     } catch (error) {
       if (error?.code === 'EEXIST') {
-        if (await removeStaleRunsIndexLock(paths.runsIndexLockPath)) continue;
-        if (Date.now() < deadline) {
+        const lockState = await readRunsIndexLockState(paths.runsIndexLockPath);
+        if (!lockState.ownerAlive && lockState.pastStaleAge && await removeStaleRunsIndexLock(paths.runsIndexLockPath)) continue;
+        if (!(lockState.ownerAlive && lockState.pastStaleAge) && Date.now() < deadline) {
           await sleep(25);
           continue;
         }
@@ -102,7 +120,16 @@ export async function withRunsIndexLock(paths, callback) {
   finally { await rm(paths.runsIndexLockPath, { force: true }); }
 }
 
+function assertWorkflowBinding(paths, patch = {}, existing) {
+  const existingWorkflowPath = existing?.workflow?.path;
+  const requestedWorkflowPath = patch.workflowPath ?? paths.workflowPath;
+  if (typeof existingWorkflowPath === 'string' && existingWorkflowPath.length > 0 && resolve(existingWorkflowPath) !== resolve(requestedWorkflowPath)) {
+    throw new Error(`workflow run is already bound to a different workflow: ${paths.runId}`);
+  }
+}
+
 function indexEntryForPaths(paths, patch = {}, existing) {
+  assertWorkflowBinding(paths, patch, existing);
   const now = new Date().toISOString();
   const entry = {
     runId: paths.runId,
@@ -110,7 +137,7 @@ function indexEntryForPaths(paths, patch = {}, existing) {
     title: existing?.title,
     workflow: {
       identity: patch.workflowIdentity ?? existing?.workflow?.identity,
-      path: patch.workflowPath ?? existing?.workflow?.path ?? paths.workflowPath,
+      path: existing?.workflow?.path ?? patch.workflowPath ?? paths.workflowPath,
     },
     status: patch.status ?? existing?.status ?? 'running',
     createdAt: existing?.createdAt ?? now,

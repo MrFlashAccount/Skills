@@ -57,6 +57,15 @@ function inspectWorkflow(workflowPath, batonPath) {
   }
 }
 
+async function resolveIndexedRunPaths({ runId, workflowPath }) {
+  const paths = resolveRunPaths({ runId });
+  const index = await readRunsIndex(runsIndexPathsForRoot(paths.runsRoot));
+  const indexedWorkflowPath = index.runs[runId]?.workflow?.path;
+  if (typeof indexedWorkflowPath !== 'string' || indexedWorkflowPath.length === 0) return resolveRunPaths({ runId, workflowPath: workflowPath ?? defaultWorkflowPath });
+  if (workflowPath && resolve(indexedWorkflowPath) !== resolve(workflowPath)) fail(`workflow run is already bound to a different workflow: ${runId}`);
+  return resolveRunPaths({ runId, workflowPath: indexedWorkflowPath });
+}
+
 async function assertOrCreateTokenAuthority(paths, token) {
   if (!token) fail('workflow run token is required');
   await createManagedDirectory(paths.runsRoot, 'workflow runs root');
@@ -81,8 +90,8 @@ async function assertOrCreateTokenAuthority(paths, token) {
 
 const values = parseCliArgs(process.argv.slice(2));
 const runId = requireString(values['run-id'], '--run-id');
-const workflowPath = resolve(values.workflow ?? defaultWorkflowPath);
-const paths = resolveRunPaths({ runId, workflowPath });
+const workflowPath = values.workflow === undefined ? undefined : resolve(values.workflow);
+const paths = await resolveIndexedRunPaths({ runId, workflowPath });
 const leaseToken = values['lease-token'];
 
 await assertOrCreateTokenAuthority(paths, leaseToken);

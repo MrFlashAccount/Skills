@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { assertBatonSchema } from '../../entities/Baton/schema/baton-schema.mjs';
 import { publicErrorMessage } from './public-error.mjs';
@@ -72,6 +73,15 @@ function compact(value) {
   return String(value).replace(/\s+/g, ' ').trim();
 }
 
+async function resolveIndexedRunPaths({ runId, workflowPath }) {
+  const paths = resolveRunPaths({ runId });
+  const index = await readRunsIndex(runsIndexPathsForRoot(paths.runsRoot));
+  const indexedWorkflowPath = index.runs[runId]?.workflow?.path;
+  if (typeof indexedWorkflowPath !== 'string' || indexedWorkflowPath.length === 0) return workflowPath ? resolveRunPaths({ runId, workflowPath }) : paths;
+  if (workflowPath && resolve(indexedWorkflowPath) !== resolve(workflowPath)) fail(`workflow run is already bound to a different workflow: ${runId}`);
+  return resolveRunPaths({ runId, workflowPath: indexedWorkflowPath });
+}
+
 async function assertTokenAuthority(paths, token) {
   const index = await readRunsIndex(runsIndexPathsForRoot(paths.runsRoot));
   const run = index.runs[paths.runId];
@@ -112,7 +122,7 @@ const baton = responsePath ? input.baton : input;
 const steps = responsePath ? input.steps : undefined;
 requireObject(baton, 'baton');
 
-const paths = resolveRunPaths({ runId, workflowPath: values.workflow });
+const paths = await resolveIndexedRunPaths({ runId, workflowPath: values.workflow });
 await assertTokenAuthority(paths, values['lease-token']);
 await ensureRunFiles(paths);
 await upsertRunIndexEntry(paths, { status: 'running', workflowPath: paths.workflowPath });

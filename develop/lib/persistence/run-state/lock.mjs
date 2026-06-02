@@ -9,19 +9,31 @@ function staleLockMessage(runId) {
   return `workflow-runner continue is already in progress for runId ${runId}`;
 }
 
-async function lockCreatedAt(path) {
+async function readLockMetadata(path) {
+  try { return JSON.parse(await readFile(path, 'utf8')); }
+  catch { return {}; }
+}
+
+function lockCreatedAt(metadata) {
+  const createdAt = Date.parse(metadata?.createdAt);
+  return Number.isFinite(createdAt) ? createdAt : Date.now();
+}
+
+function isProcessAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
   try {
-    const metadata = JSON.parse(await readFile(path, 'utf8'));
-    const createdAt = Date.parse(metadata?.createdAt);
-    return Number.isFinite(createdAt) ? createdAt : 0;
-  } catch {
-    return Date.now();
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    if (error?.code === 'ESRCH') return false;
+    return true;
   }
 }
 
 async function removeStaleRunStateLock(path, { now = Date.now(), staleMs = RUN_STATE_LOCK_STALE_MS } = {}) {
-  const createdAt = await lockCreatedAt(path);
-  if (now - createdAt < staleMs) return false;
+  const metadata = await readLockMetadata(path);
+  if (isProcessAlive(metadata?.pid)) return false;
+  if (now - lockCreatedAt(metadata) < staleMs) return false;
   await rm(path, { force: true });
   return true;
 }

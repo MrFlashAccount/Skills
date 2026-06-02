@@ -12,6 +12,7 @@ const fixturesDir = path.join(root, 'develop/lib/tests/E2E/fixtures');
 const outputsDir = path.join(fixturesDir, 'outputs');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-e2e-fixtures-'));
 let runCounter = 0;
+const leaseTokensByRunId = new Map();
 
 function fixture(name) {
   return path.join(fixturesDir, name);
@@ -37,8 +38,34 @@ function runPath(run) {
   return typeof run === 'string' ? run : run.runDir;
 }
 
+function valueAfter(args, name) {
+  const index = args.indexOf(name);
+  return index >= 0 ? args[index + 1] : undefined;
+}
+
+function claimRunForRunnerArgs(args) {
+  const runIdValue = valueAfter(args, '--run-id');
+  if (!runIdValue) return undefined;
+  const known = leaseTokensByRunId.get(runIdValue);
+  if (known) return known;
+  const createArgs = ['develop/lib/entrypoints/cli/workflow-runs.mjs', 'create', '--claim', '--run-id', runIdValue];
+  const workflow = valueAfter(args, '--workflow');
+  if (workflow !== undefined) createArgs.push('--workflow', workflow);
+  const created = spawnSync(process.execPath, createArgs, { cwd: root, encoding: 'utf8' });
+  assert.equal(created.status, 0, `claim ${runIdValue} failed\nstdout:\n${created.stdout}\nstderr:\n${created.stderr}`);
+  const token = JSON.parse(created.stdout).leaseToken;
+  leaseTokensByRunId.set(runIdValue, token);
+  return token;
+}
+
+function withLeaseToken(args, token) {
+  if (!token || args.includes('--lease-token')) return args;
+  return [...args, '--lease-token', token];
+}
+
 function runRunner(args) {
-  return spawnSync(process.execPath, ['develop/lib/entrypoints/cli/workflow-runner.mjs', ...args], {
+  const token = claimRunForRunnerArgs(args);
+  return spawnSync(process.execPath, ['develop/lib/entrypoints/cli/workflow-runner.mjs', ...withLeaseToken(args, token)], {
     cwd: root,
     encoding: 'utf8',
   });

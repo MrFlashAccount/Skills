@@ -135,7 +135,7 @@ test('stale runs.json lock is recovered before index write', async () => {
   const tempRoot = mkdtempSync(path.join(tmpdir(), 'workflow-runs-index-stale-lock-'));
   const paths = resolveRunPaths({ runId: 'stale-index-lock-run', workflowPath, runsRoot: tempRoot });
   mkdirSync(tempRoot, { recursive: true });
-  writeFileSync(paths.runsIndexLockPath, `${JSON.stringify({ pid: 1, createdAt: '1970-01-01T00:00:00.000Z' })}\n`, { mode: 0o600 });
+  writeFileSync(paths.runsIndexLockPath, `${JSON.stringify({ pid: process.pid + 1_000_000, createdAt: '1970-01-01T00:00:00.000Z' })}\n`, { mode: 0o600 });
   try {
     const entry = await upsertRunIndexEntry(paths, { status: 'running', workflowPath });
     assert.equal(entry.runId, 'stale-index-lock-run');

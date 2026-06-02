@@ -55,6 +55,14 @@ function workflowPathForCreate(workflowPath) {
   return workflowPath === undefined ? defaultWorkflowPath : resolve(workflowPath);
 }
 
+function assertExistingWorkflowBinding(existing, paths, { requestedWorkflowPath } = {}) {
+  const existingWorkflowPath = existing?.workflow?.path;
+  if (requestedWorkflowPath === undefined || typeof existingWorkflowPath !== 'string' || existingWorkflowPath.length === 0) return;
+  if (resolve(existingWorkflowPath) !== resolve(requestedWorkflowPath)) {
+    throw new Error(`workflow run is already bound to a different workflow: ${paths.runId}`);
+  }
+}
+
 export async function registerWorkflowRunAtRoot({ runId, title, summary, workflowPath, workflowIdentity, status = 'running', taskKey, taskFingerprint, runsRoot = workflowRunsRoot, claim = false, owner, harness, sessionId, workerId, leaseMs, now = new Date() } = {}) {
   const safeRunId = runId === undefined ? generatedRunId() : assertSafeRunId(runId);
   const paths = resolveRunPaths({ runId: safeRunId, workflowPath: workflowPathForCreate(workflowPath), runsRoot });
@@ -85,6 +93,7 @@ export async function claimWorkflowRunAtRoot({ runId, workflowPath, runsRoot = w
     return await withRunStateLock(paths, async () => {
       let tokenWasIssued = false;
       const entry = await updateRunIndexEntry(paths, (existing) => {
+        assertExistingWorkflowBinding(existing, paths, { requestedWorkflowPath: workflowPath });
         const occupancy = occupancyForLease(existing.workerLease, now);
         if (occupancy.state === 'occupied' || leaseToken) {
           try { assertFreshTokenAuthority(existing.workerLease, leaseToken, { runId: safeRunId, now }); }

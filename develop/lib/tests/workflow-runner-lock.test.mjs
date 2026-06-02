@@ -58,11 +58,27 @@ test('runner: API next recovers stale run-state lock left by killed process', as
   rmSync(paths.runDir, { recursive: true, force: true });
   writeJson(workflowPath, workflowDoc());
   mkdirSync(paths.runnerDir, { recursive: true });
-  writeFileSync(paths.continueLockPath, `${JSON.stringify({ pid: 1, createdAt: '1970-01-01T00:00:00.000Z' })}\n`);
+  writeFileSync(paths.continueLockPath, `${JSON.stringify({ pid: process.pid + 1_000_000, createdAt: '1970-01-01T00:00:00.000Z' })}\n`);
 
   await assert.rejects(
     runnerNext({ runId, workflowPath, leaseToken: `stale-run-lock-token-${process.pid}` }),
     /workflow prompt render failed|missing-input-template/,
   );
   assert.equal(existsSync(paths.continueLockPath), false);
+});
+
+test('runner: API next does not recover an old lock while its owner process is alive', async () => {
+  const runId = `lock-${process.pid}-api-next-live-old-continue-lock`;
+  const workflowPath = path.join(tempDir, 'api-next-live-old-continue-lock-workflow.json');
+  const paths = resolveRunPaths({ runId, workflowPath });
+  rmSync(paths.runDir, { recursive: true, force: true });
+  writeJson(workflowPath, workflowDoc());
+  mkdirSync(paths.runnerDir, { recursive: true });
+  writeFileSync(paths.continueLockPath, `${JSON.stringify({ pid: process.pid, createdAt: '1970-01-01T00:00:00.000Z' })}\n`);
+
+  await assert.rejects(
+    runnerNext({ runId, workflowPath, leaseToken: `live-old-run-lock-token-${process.pid}` }),
+    /workflow-runner continue is already in progress/,
+  );
+  assert.equal(existsSync(paths.continueLockPath), true);
 });
