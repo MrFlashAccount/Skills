@@ -6,6 +6,7 @@ import { assertRunsIndexSchema } from './schema/runs-index-schema.mjs';
 
 export const RUNS_INDEX_SCHEMA_VERSION = 1;
 export const RUNS_INDEX_TOPOLOGY_VERSION = 'workflow-runs-v1';
+const RUNS_INDEX_LOCK_STALE_MS = 60_000;
 
 async function exists(path) {
   try { await access(path, constants.F_OK); return true; } catch { return false; }
@@ -53,6 +54,23 @@ async function sleep(ms) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function lockCreatedAt(path) {
+  try {
+    const metadata = JSON.parse(await readFile(path, 'utf8'));
+    const createdAt = Date.parse(metadata?.createdAt);
+    return Number.isFinite(createdAt) ? createdAt : 0;
+  } catch {
+    return Date.now();
+  }
+}
+
+async function removeStaleRunsIndexLock(path, { now = Date.now(), staleMs = RUNS_INDEX_LOCK_STALE_MS } = {}) {
+  const createdAt = await lockCreatedAt(path);
+  if (now - createdAt < staleMs) return false;
+  await rm(path, { force: true });
+  return true;
+}
+
 export async function withRunsIndexLock(paths, callback) {
   await createManagedDirectory(paths.runsRoot, 'workflow runs root');
   await assertManagedRunStateFile(paths.runsIndexLockPath, 'workflow runs index lock');
@@ -61,12 +79,16 @@ export async function withRunsIndexLock(paths, callback) {
   while (!handle) {
     try {
       handle = await open(paths.runsIndexLockPath, 'wx', 0o600);
-      await handle.writeFile(`${JSON.stringify({ pid: process.pid, createdAt: new Date().toISOString() })}\n`, 'utf8');
+      await handle.writeFile(`${JSON.stringify({ pid: process.pid, createdAt: new Date().toISOString() })}
+`, 'utf8');
       await handle.sync();
     } catch (error) {
-      if (error?.code === 'EEXIST' && Date.now() < deadline) {
-        await sleep(25);
-        continue;
+      if (error?.code === 'EEXIST') {
+        if (await removeStaleRunsIndexLock(paths.runsIndexLockPath)) continue;
+        if (Date.now() < deadline) {
+          await sleep(25);
+          continue;
+        }
       }
       throw error?.code === 'EEXIST'
         ? new Error('workflow runs index is locked')

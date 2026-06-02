@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { rmSync } from 'node:fs';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -51,4 +52,25 @@ test('workflow runner API read errors do not expose raw workflow pathnames', asy
       return true;
     },
   );
+});
+
+
+test('workflow runner CLI errors do not expose raw workflow pathnames', async () => {
+  const tempDir = await mkdtemp(path.join(tmpdir(), 'workflow-redaction-cli-'));
+  tempRoots.push(tempDir);
+  const workflowPath = path.join(tempDir, 'missing-private-cli-workflow.json');
+  const id = runId('missing-cli-workflow');
+
+  const result = spawnSync(process.execPath, [
+    'develop/lib/entrypoints/cli/workflow-runner.mjs',
+    'next',
+    '--run-id', id,
+    '--workflow', workflowPath,
+    '--lease-token', `redaction-cli-token-${process.pid}`,
+  ], { cwd: root, encoding: 'utf8' });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /failed to read workflow JSON: ENOENT|cannot read workflow: ENOENT/);
+  assert.doesNotMatch(result.stderr, /missing-private-cli-workflow\.json/);
+  assert.doesNotMatch(result.stderr, new RegExp(tempDir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
 });

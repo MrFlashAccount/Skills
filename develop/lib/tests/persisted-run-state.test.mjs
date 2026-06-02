@@ -265,3 +265,30 @@ test('persisted-state reader rejects symlinked split storage file', async () => 
 
 // Keep writeJsonAtomic imported so this test file also verifies the public atomic primitive remains loadable.
 assert.equal(typeof writeJsonAtomic, 'function');
+
+test('persisted-state reader quarantines legacy host response workflow path projection', async () => {
+  const paths = setupRunDir('legacy_response_workflow_quarantine');
+  const legacyWorkflowPath = path.join(tempDir, 'private-legacy-workflow.json');
+  writeJson(paths.lastResponsePath, { ...response(), workflow: legacyWorkflowPath });
+  writeFileSync(path.join(paths.instructionsDir, 'prepare.md'), '# Prepare instructions');
+
+  const persisted = await readPersistedRunState(paths);
+
+  assert.equal('workflow' in persisted.lastResponse, false);
+  assert.doesNotMatch(JSON.stringify(persisted.lastResponse), /private-legacy-workflow/);
+});
+
+test('runner host response schema rejects public legacy workflow path projection', () => {
+  assert.throws(
+    () => assertPersistedRunState({
+      version: 1,
+      storageTopology: 'split-files-v1',
+      run: { runDir: '/private/run', workflowPath: '/private/workflow.json', repositoryRoot: '/private' },
+      baton: baton(),
+      lastResponse: { ...response(), workflow: '/private/workflow.json' },
+      instructions: [],
+      history: { mode: 'embedded-text', path: '/private/history.md', text: '' },
+    }),
+    /must NOT have additional properties|additionalProperties/,
+  );
+});

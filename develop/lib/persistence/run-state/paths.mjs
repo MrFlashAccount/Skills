@@ -88,7 +88,7 @@ async function createFileIfMissing(path, content) {
 
 function workflowStart(workflowDoc, workflowPath) {
   const start = workflowDoc?.start;
-  if (typeof start !== 'string' || start.length === 0) throw new Error(`workflow missing string start: ${workflowPath}`);
+  if (typeof start !== 'string' || start.length === 0) throw new Error('workflow missing string start');
   return start;
 }
 

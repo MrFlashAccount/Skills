@@ -50,3 +50,19 @@ test('runner: API next acquires run-state lock before loading and rendering curr
   );
   assert.equal(existsSync(path.join(runDir, 'baton.json')), false);
 });
+
+test('runner: API next recovers stale run-state lock left by killed process', async () => {
+  const runId = `lock-${process.pid}-api-next-stale-continue-lock`;
+  const workflowPath = path.join(tempDir, 'api-next-stale-continue-lock-workflow.json');
+  const paths = resolveRunPaths({ runId, workflowPath });
+  rmSync(paths.runDir, { recursive: true, force: true });
+  writeJson(workflowPath, workflowDoc());
+  mkdirSync(paths.runnerDir, { recursive: true });
+  writeFileSync(paths.continueLockPath, `${JSON.stringify({ pid: 1, createdAt: '1970-01-01T00:00:00.000Z' })}\n`);
+
+  await assert.rejects(
+    runnerNext({ runId, workflowPath, leaseToken: `stale-run-lock-token-${process.pid}` }),
+    /workflow prompt render failed|missing-input-template/,
+  );
+  assert.equal(existsSync(paths.continueLockPath), false);
+});

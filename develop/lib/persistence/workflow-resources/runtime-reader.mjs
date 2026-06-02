@@ -12,7 +12,7 @@ function readJson(pathname, kind) {
   try {
     return JSON.parse(readFileSync(pathname, 'utf8'));
   } catch (error) {
-    throw new WorkflowRuntimeError(`failed to read ${kind} JSON '${pathname}': ${error.message}`);
+    throw new WorkflowRuntimeError(`failed to read ${kind} JSON: ${error.message}`);
   }
 }
 

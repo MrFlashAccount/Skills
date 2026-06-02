@@ -154,7 +154,7 @@ test('runner fairness: private claim authority lets generated run-id-only comman
 
   assert.equal(response.status, 'needs_host_actions');
   assert.equal('workflow' in response, false);
-  assert.equal(response.requests[0].loadInstructionsCommand, `node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-id '${runId}' --step-id 'prepare' --lease-token "$WORKFLOW_RUN_TOKEN"`);
+  assert.equal(response.requests[0].loadInstructionsCommand, `node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-id '${runId}' --step-id 'prepare' --lease-token <lease-token>`);
   assert.doesNotMatch(JSON.stringify(response), new RegExp(`alice|session-a|portable|${claim.leaseToken}`));
 });
 

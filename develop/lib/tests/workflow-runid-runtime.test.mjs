@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { next } from '../entrypoints/api/workflowRunner.mjs';
 import { assertSafeRunId, resolveRunPaths, workflowRunsRoot } from '../persistence/run-state/paths.mjs';
-import { readRunsIndex, runsIndexPathsForRoot } from '../persistence/run-state/run-index.mjs';
+import { readRunsIndex, runsIndexPathsForRoot, upsertRunIndexEntry } from '../persistence/run-state/run-index.mjs';
 import { assertRunsIndexSchema } from '../persistence/run-state/schema/runs-index-schema.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -129,6 +129,21 @@ async function assertRunsIndexSchemaFailure(mutator, pattern) {
     rmSync(tempRoot, { recursive: true, force: true });
   }
 }
+
+
+test('stale runs.json lock is recovered before index write', async () => {
+  const tempRoot = mkdtempSync(path.join(tmpdir(), 'workflow-runs-index-stale-lock-'));
+  const paths = resolveRunPaths({ runId: 'stale-index-lock-run', workflowPath, runsRoot: tempRoot });
+  mkdirSync(tempRoot, { recursive: true });
+  writeFileSync(paths.runsIndexLockPath, `${JSON.stringify({ pid: 1, createdAt: '1970-01-01T00:00:00.000Z' })}\n`, { mode: 0o600 });
+  try {
+    const entry = await upsertRunIndexEntry(paths, { status: 'running', workflowPath });
+    assert.equal(entry.runId, 'stale-index-lock-run');
+    assert.equal(existsSync(paths.runsIndexLockPath), false);
+  } finally {
+    rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
 
 test('runs.json index records fail through JSON Schema validation', async () => {
   await assertRunsIndexSchemaFailure((index) => { index.extra = true; }, /runs index failed schema validation: .*must NOT have additional properties/);
