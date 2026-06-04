@@ -21,24 +21,22 @@ Required fields:
 
 - `id`: artifact id unique within the producer step.
 - `content_type`: MIME/content type, for example `text/markdown` or `application/json`.
-- `path`: run-relative path using the current step artifact directory convention.
 
 Optional fields:
 
+- `path`: run-relative path. Current local artifacts conventionally use `<stepId>/artifacts/<artifactId>...` under the run directory.
 - `summary`: compact handoff text.
-- `ref`: optional/derived compact locator, normally omitted when step id + `id` + `path` are enough.
 
 Not included: `type`, `kind`, `producer_step_id`, `version`, `replaces`, aliases, promotion, or final/approved artifact semantics.
 
-## Producer vs reader usage metadata
+## Artifact usage metadata
 
-Artifact field semantics live with the schema:
+Artifact field semantics live with the schema using the existing metadata style only:
 
 - `description`: neutral field meaning.
-- `x-use`: producer guidance, rendered near the output schema when a step must emit artifacts.
-- `x-read-usage`: reader guidance, rendered near projected baton state when a later step consumes a projected output containing artifacts.
+- `x-usage`: producer/reader usage guidance rendered as schema-derived field notes.
 
-This keeps low-level mechanics out of reusable markdown templates and workflow prompts. A producer sees schema-derived fill notes; a reader sees schema-derived usage notes for projected values.
+This keeps low-level mechanics out of reusable markdown templates and workflow prompts. A producer sees schema-derived fill notes; a reader sees schema-derived usage notes for projected values from the same central metadata.
 
 ## Prompt separation rule
 
@@ -60,16 +58,25 @@ Those mechanics belong in schema definitions and renderer-generated field notes.
 
 ## DevHarness end-to-end flow
 
-1. `research_draft` creates the structured `research_packet` and emits `artifacts[0]` for the human-facing markdown packet, for example `id = research-packet`, `content_type = text/markdown`, `path = research_draft/artifacts/research-packet.md`.
-2. `research_attack` projects `research_draft`; renderer-generated reader notes explain artifact metadata semantics. The step prompt only says to attack the projected research packet artifact as the human-facing source of truth and use structured JSON for branching/context.
+1. `research_draft` creates the structured `research_packet` and emits `artifacts[0]` for the full human-facing markdown packet, for example:
+
+   ```json
+   {
+     "id": "research-packet",
+     "content_type": "text/markdown",
+     "path": "research_draft/artifacts/research-packet.md",
+     "summary": "Research packet for approval."
+   }
+   ```
+
+2. `research_attack` reads artifact `research-packet` from `research_draft` and reviews/attacks that artifact; structured JSON remains branching/context metadata.
 3. If attack returns `needs_revision`, `research_draft` projects `research_attack`, revises the packet, and emits a fresh artifact for the revised packet using the same central schema contract.
-4. `approve_research` projects `research_draft` and `research_attack`; its prompt only says to show the projected research packet artifact plus verdict and wait for explicit approval.
-5. On approval, `architecture_draft` projects the approved research state and produces the minimal architecture decision/structural contract required by that approved research. If architecture work is unnecessary, it records the explicit no-artifact decision in `architecture_contract`.
+4. `approve_research` presents artifact `research-packet` from `research_draft` plus `research_attack.verdict` and waits for explicit human approval.
+5. On approval, `architecture_draft` uses the approved/current `research-packet` artifact from `research_draft` as the research source of truth and produces the minimal architecture decision/structural contract required by that approved research. If architecture work is unnecessary, it records the explicit no-artifact decision in `architecture_contract`.
 
 The JSON output remains authoritative for workflow branching, state projection, and gates. The markdown artifact is the human-facing packet for review/approval.
 
 ## Open questions
 
-- Should `ref` exist at all, or should consumers derive any display locator from step context + `id` + `path`?
-- Should `path` be mandatory for every artifact, or can some future artifact metadata describe externally persisted files? This prototype keeps `path` mandatory because runtime storage is intentionally not implemented.
+- Should `path` remain emitted by prototype workers, or should a later runtime derive local artifact paths from step id and artifact id?
 - Should the schema eventually enforce the current step artifact directory convention, or should that remain renderer/runtime guidance outside JSON Schema?

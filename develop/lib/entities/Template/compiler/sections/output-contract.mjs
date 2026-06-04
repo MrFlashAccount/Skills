@@ -23,7 +23,7 @@ export function finalOutputReminder(outputContract) {
   return outputContract ? section('Final reminder', 'Return exactly according to the output contract above.') : '';
 }
 
-export function outputContractSection(outputTemplate, templatePath, outputSchema, schemaPath, outputSchemaValue) {
+export function outputContractSection(outputTemplate, templatePath, outputSchema, schemaPath, outputSchemaValue, options = {}) {
   if (!outputTemplate && !outputSchema) return '';
   const parts = [];
   if (outputTemplate) {
@@ -32,7 +32,7 @@ export function outputContractSection(outputTemplate, templatePath, outputSchema
   }
   if (outputSchema) {
     const schemaComment = schemaPath ? `\n\n<!-- output schema: ${schemaPath} -->` : '';
-    const artifactNotes = outputSchemaValue ? artifactOutputFieldNotes(outputSchemaValue) : '';
+    const artifactNotes = outputSchemaValue ? artifactOutputFieldNotes(outputSchemaValue, { schemaDefinitions: options.schemaDefinitions }) : '';
     const schemaParts = [];
     if (artifactNotes) schemaParts.push(artifactNotes);
     schemaParts.push(`Return valid JSON matching this schema. If a validation command or tool is available in this agent/subagent context, validate the generated JSON against this schema before the final answer; fix validation errors and repeat for a bounded number of attempts. The harness/orchestrator will validate the final returned JSON again after the answer, so this agent-side validation is a preflight, not the final authority. If no validation command or tool is available in this context, still return strict schema-matching JSON and expect harness-level validation.${schemaComment}\n\n\`\`\`json\n${trimStable(outputSchema)}\n\`\`\``);

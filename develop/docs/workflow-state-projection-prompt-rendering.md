@@ -129,7 +129,7 @@ Do not silently ignore a declared `input.template`; missing declared templates f
 
 `output.template` is a markdown output contract. The renderer loads the referenced markdown file and appends it as strict worker return instructions.
 
-`output.schema` is optional prompt guidance. When present, the renderer resolves it using the same canonical workflow-file resolver as output templates: refs are relative to the directory containing the active `workflow.json`. It verifies the file is parseable JSON and injects an instruction to return valid JSON matching that schema. When a validation command or tool is available in the agent/subagent context, the injected instruction requires preflight validation of the generated JSON against the schema before the final answer, fixing validation errors and repeating for a bounded number of attempts. The harness/orchestrator still validates the final returned JSON again after the answer, so agent-side validation is preflight, not the final authority. If no validation command or tool is available in that context, the agent should still return strict schema-matching JSON and expect harness-level validation. For output schemas that emit `artifacts`, the renderer also prints deterministic schema-derived artifact field notes from `description` and `x-use` annotations, resolving local `$ref` and the central Baton artifact `$defs` reference. The renderer does not validate future worker output while rendering. The runtime/harness validates the returned worker JSON against this schema during `apply`.
+`output.schema` is optional prompt guidance. When present, the renderer resolves it using the same canonical workflow-file resolver as output templates: refs are relative to the directory containing the active `workflow.json`. It verifies the file is parseable JSON and injects an instruction to return valid JSON matching that schema. When a validation command or tool is available in the agent/subagent context, the injected instruction requires preflight validation of the generated JSON against the schema before the final answer, fixing validation errors and repeating for a bounded number of attempts. The harness/orchestrator still validates the final returned JSON again after the answer, so agent-side validation is preflight, not the final authority. If no validation command or tool is available in that context, the agent should still return strict schema-matching JSON and expect harness-level validation. For output schemas that emit `artifacts`, the renderer also prints deterministic schema-derived artifact field notes from `description` and `x-usage` annotations, resolving local `$ref` and the central Baton artifact `$defs` reference. The renderer does not validate future worker output while rendering. The runtime/harness validates the returned worker JSON against this schema during `apply`.
 
 Rules:
 
@@ -236,7 +236,7 @@ Projected field notes:
 - before the fenced JSON, the renderer may print `Field notes for projected step outputs` for fields present in projected step outputs;
 - field notes come from the producer step `output.schema`, resolving local `$ref` and the central Baton artifact `$defs` reference;
 - `description` explains field meaning;
-- `x-read-usage` is preferred for downstream reader guidance; `x-usage` remains the compatibility fallback;
+- `x-usage` provides downstream reader guidance using the same existing metadata style as producer notes;
 - notes are explanatory only and lower priority than system/workflow/step instructions.
 
 Serialization rules:
@@ -310,9 +310,9 @@ Return output that satisfies the workflow worker-output envelope and follows thi
 <template contents>
 ```
 
-When an `output.schema` exists, the same section appends generated schema-derived notes and the strict JSON schema. Artifact producer mechanics come from schema `description`/`x-use` metadata, not workflow prompt prose or markdown templates. The envelope remains the existing worker/approval output JSON contract (`outcome` or `approval`, optional `artifacts`, `results`, `blocker`). The markdown template describes artifact content expected from the child, not a JSON schema.
+When an `output.schema` exists, the same section appends generated schema-derived notes and the strict JSON schema. Artifact producer mechanics come from schema `description`/`x-usage` metadata, not workflow prompt prose or markdown templates. The envelope remains the existing worker/approval output JSON contract (`outcome` or `approval`, optional `artifacts`, `results`, `blocker`). The markdown template describes artifact content expected from the child, not a JSON schema.
 
-Projected baton state may also prepend schema-derived reader notes from projected producer schemas. Artifact consumer mechanics come from schema `description`/`x-read-usage` metadata; the projected JSON value remains authoritative.
+Projected baton state may also prepend schema-derived reader notes from projected producer schemas. Artifact consumer mechanics come from schema `description`/`x-usage` metadata; the projected JSON value remains authoritative.
 
 ### Unsupported placeholder policy
 

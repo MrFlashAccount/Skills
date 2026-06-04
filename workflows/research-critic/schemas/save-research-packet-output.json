@@ -38,7 +38,7 @@
       },
       "minItems": 1,
       "description": "Saved research packet artifact metadata.",
-      "x-usage": "Use artifact files as the source of truth for human-facing research content; structured JSON remains for workflow branching. Exact artifact field mechanics come from the shared baton artifact schema."
+      "x-usage": "Use artifact files as the source of truth for human-facing research content; structured JSON remains for workflow branching. Exact artifact field semantics come from the shared baton artifact schema."
     },
     "results": {
       "type": "array",

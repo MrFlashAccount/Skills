@@ -17,7 +17,7 @@ export function projectedFieldNotes({ workflow, projectedState, projectedKeys, r
     const projectedValue = projectedState?.[key];
     if (!projectedValue || typeof projectedValue !== 'object' || Array.isArray(projectedValue)) continue;
 
-    lines.push(...projectedValueFieldNotes({ stepId: key, schema, value: projectedValue }));
+    lines.push(...projectedValueFieldNotes({ stepId: key, schema, value: projectedValue, schemaDefinitions: resources?.schemaDefinitions }));
   }
 
   if (lines.length === 0) return '';

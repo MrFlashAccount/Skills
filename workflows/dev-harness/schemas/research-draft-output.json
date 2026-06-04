@@ -84,7 +84,7 @@
         "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact"
       },
       "description": "Producer must emit the research packet artifact metadata when outcome is ready_for_attack.",
-      "x-usage": "The research packet markdown is the source of truth for human approval. Use id + path; ref is optional/derived and should not be required for lookup.",
+      "x-usage": "Emit the human-facing research packet artifact. Exact artifact field semantics come from the shared baton artifact schema.",
       "minItems": 1
     },
     "results": {
