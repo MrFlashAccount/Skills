@@ -112,6 +112,8 @@ function checkBoundaries() {
   scan(walk(abs('develop/lib/entities')), /from ['"].*persistence\//, 'entities must not import persistence');
   scan(walk(abs('develop/lib/entities')), /from ['"].*entrypoints\//, 'entities must not import entrypoints');
   scan(walk(abs('develop/lib/entities/Workflow')), /use-cases\/runtime\/output|entrypoints\/cli\/schema|persistence\/run-state\/schema|workflows\/dev-harness|dtos\//, 'Workflow owner imports forbidden external owner');
+  scan(walk(abs('develop/lib/entities/Workflow')), /from ['"].*Baton\/schema\//, 'Workflow owner imports forbidden Baton schema owner');
+  scan([abs('develop/lib/entities/Workflow/index.mjs')], /from ['"]\.\.\/Step\/index\.mjs['"]/, 'Workflow entity must not import Step entity');
   scan(walk(abs('develop/lib/persistence/run-state')), /from ['"].*dtos\//, 'run-state persistence must not import DTOs');
   scan(walk(abs('develop/lib/persistence')), /from ['"].*use-cases\//, 'persistence must not import use-cases');
   scan([...walk(abs('develop/lib/entities/Baton')), ...walk(abs('develop/lib/use-cases')), ...walk(abs('develop/lib/persistence')), ...walk(abs('develop/lib/entrypoints'))], /WorkflowSchemaError/, 'WorkflowSchemaError must stay file-contract-owned');
@@ -128,7 +130,7 @@ function checkBoundaries() {
 }
 
 const fixture = abs('develop/lib/entities/Workflow/__boundary-negative-fixture.mjs');
-writeFileSync(fixture, "import '../../persistence/run-state/schema/runner-host-response-schema.mjs';\n");
+writeFileSync(fixture, "import { batonSchema } from '../Baton/schema/baton-schema.mjs';\nvoid batonSchema;\n");
 const before = process.exitCode;
 selfTestMode = true;
 checkBoundaries();

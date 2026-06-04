@@ -30,13 +30,13 @@ const outputSchema = {
   additionalProperties: false,
 };
 
-test('Workflow clones input and returns Step entities for start/current cursor lookups', () => {
+test('Workflow clones input and returns plain step data for start/current cursor lookups', () => {
   const doc = workflowDoc();
   const workflow = new Workflow(doc);
   doc.steps.start.next = 'blocked';
 
   assert.equal(workflow.getStartStep().id, 'start');
-  assert.equal(workflow.getStartStep().toJSON().next, 'done');
+  assert.equal(workflow.getStartStep().next, 'done');
   assert.equal(workflow.inferStep({ cursor: 'start' }).id, 'start');
   assert.throws(() => workflow.getStep('missing'), /workflow step not found: missing/);
   assert.throws(() => workflow.inferStep({ cursor: 'missing' }), /baton cursor not found in workflow: missing/);

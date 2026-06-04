@@ -6,13 +6,16 @@ import { WorkflowRuntimeError } from '../../errors.mjs';
 import { RESERVED_STATE_KEYS, DANGEROUS_OBJECT_KEYS, assertProjectableStateSelector, isDangerousObjectKey, isReservedStateKey } from './state-keys.mjs';
 import { assertRoleDirectoryName } from './role-ref.mjs';
 import { compileWorkflowOutputSchema } from './schema-ref-validation.mjs';
-import { normalizeWorkflowSemanticValidationContext } from './semantic-validation.mjs';
-import { assertTransitionDescriptorTargets, normalizeTransitionNext } from '../Step/index.mjs';
-import { Step } from '../Step/index.mjs';
+import { normalizeWorkflowSemanticValidationContext } from '../workflow-semantic-validation-context.mjs';
+import { assertTransitionDescriptorTargets, normalizeTransitionNext } from '../transition-next.mjs';
 import { statusForStep } from './status.mjs';
 
 function cloneBoundaryData(dto) {
   return typeof dto?.toJSON === 'function' ? dto.toJSON() : structuredClone(dto);
+}
+
+function cloneStepBoundaryData(stepId, step) {
+  return structuredClone({ id: stepId, ...step });
 }
 
 const WORKFLOW_NAME = /^[a-z][a-z0-9-]*$/;
@@ -599,7 +602,7 @@ export class Workflow {
   }
 
   validate(options = {}) {
-    return validateWorkflowDocument(this.toJSON(), options);
+    return validateWorkflowDocument(this.toJSON(), normalizeWorkflowSemanticValidationContext({ workflow: this, ...options }));
   }
 
   validateStaticTransitions() {
@@ -625,7 +628,7 @@ export class Workflow {
   getStep(stepId) {
     const step = this.steps[stepId];
     if (!step) throw new WorkflowRuntimeError(`workflow step not found: ${stepId}`);
-    return new Step({ id: stepId, ...step });
+    return cloneStepBoundaryData(stepId, step);
   }
 
   hasStep(stepId) {

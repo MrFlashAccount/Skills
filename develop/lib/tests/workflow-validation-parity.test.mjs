@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
@@ -8,7 +8,7 @@ import researchCriticWorkflowDoc from '../../../workflows/research-critic/workfl
 import { Workflow } from '../entities/Workflow/index.mjs';
 import { loadInstructions as runnerLoadInstructions, next as runnerNext } from '../entrypoints/api/workflowRunner.mjs';
 import { validateWorkflowFile } from '../entrypoints/api/validateWorkflow.mjs';
-import { readOutputSchemas } from '../persistence/workflow-resources/workflow-file-reader.mjs';
+import { readAllowedRoles, readOutputSchemas } from '../persistence/workflow-resources/workflow-file-reader.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-validation-parity-'));
@@ -40,12 +40,19 @@ function parityWorkflowDoc(schemaRef) {
   };
 }
 
-test('validate-workflow, Workflow.validateOutputSchemas, and workflow-runner share baton $ref semantic-validation parity', async () => {
+test('validate-workflow, direct Workflow validation, Workflow.validateOutputSchemas, and workflow-runner share baton $ref semantic-validation parity', async () => {
   const workflowPath = path.join(REPO_ROOT, 'workflows/research-critic/workflow.json');
   const outputSchemas = readOutputSchemas({ workflow: researchCriticWorkflowDoc, workflowPath, repositoryRoot: REPO_ROOT });
+  const allowedRoles = readAllowedRoles({ repositoryRoot: REPO_ROOT });
+  const directValidation = new Workflow(researchCriticWorkflowDoc).validate({ outputSchemas, allowedRoles });
   const schemaValidation = new Workflow(researchCriticWorkflowDoc).validateOutputSchemas(outputSchemas);
   const validation = validateWorkflowFile(workflowPath);
 
+  assert.deepEqual(directValidation, {
+    ok: true,
+    workflow: 'research-critic',
+    steps: Object.keys(researchCriticWorkflowDoc.steps).length,
+  });
   assert.equal(schemaValidation.ok, true);
   assert.equal(schemaValidation.warnings.length, 0);
   assert.equal(schemaValidation.schemasByStep.has('save_research_packet'), true);
@@ -115,16 +122,26 @@ test('validate-workflow and workflow-runner reject unresolved external refs with
   );
 });
 
-test('semantic-validation adapters do not import baton schema directly', () => {
+test('workflow validation boundaries keep baton schema composition and Step entity materialization outside Workflow owner', () => {
   const adapterPaths = [
     'develop/lib/use-cases/ValidateWorkflow.mjs',
     'develop/lib/use-cases/runtime/guards/workflow.mjs',
     'develop/lib/use-cases/LoadInstructions.mjs',
   ];
+  const workflowOwnerPaths = readdirSync(path.join(REPO_ROOT, 'develop/lib/entities/Workflow'))
+    .filter((entry) => entry.endsWith('.mjs'))
+    .map((entry) => path.join('develop/lib/entities/Workflow', entry));
 
   for (const relativePath of adapterPaths) {
     const source = readFileSync(path.join(REPO_ROOT, relativePath), 'utf8');
     assert.doesNotMatch(source, /baton-schema\.mjs/);
-    assert.match(source, /semantic-validation\.mjs/);
   }
+
+  for (const relativePath of workflowOwnerPaths) {
+    const source = readFileSync(path.join(REPO_ROOT, relativePath), 'utf8');
+    assert.doesNotMatch(source, /Baton\/schema\/baton-schema\.mjs/);
+  }
+
+  const workflowIndex = readFileSync(path.join(REPO_ROOT, 'develop/lib/entities/Workflow/index.mjs'), 'utf8');
+  assert.doesNotMatch(workflowIndex, /\.\.\/Step\/index\.mjs/);
 });

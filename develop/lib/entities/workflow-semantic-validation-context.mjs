@@ -1,6 +1,5 @@
 /** Canonical seam for workflow semantic-validation context normalization and shared external schema registry. */
-import { batonSchema } from '../Baton/schema/baton-schema.mjs';
-import { validateWorkflowDocument } from './index.mjs';
+import { batonSchema } from './Baton/schema/baton-schema.mjs';
 
 const WORKFLOW_SEMANTIC_EXTERNAL_SCHEMAS = Object.freeze([batonSchema]);
 
@@ -40,11 +39,6 @@ export function normalizeWorkflowSemanticValidationContext({
     outputSchemas: normalizeWorkflowOutputSchemas(workflowDoc, outputSchemas),
     externalSchemas: [...WORKFLOW_SEMANTIC_EXTERNAL_SCHEMAS, ...externalSchemas],
   };
-}
-
-export function validateWorkflowSemantics(workflow, options = {}) {
-  const workflowDoc = materialize(workflow);
-  return validateWorkflowDocument(workflowDoc, normalizeWorkflowSemanticValidationContext({ workflow: workflowDoc, ...options }));
 }
 
 export { WORKFLOW_SEMANTIC_EXTERNAL_SCHEMAS };

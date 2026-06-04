@@ -1,6 +1,5 @@
 /** ValidateWorkflow use-case coordinates DTO -> Workflow entity validation. */
 import { Workflow } from '../entities/Workflow/index.mjs';
-import { validateWorkflowSemantics } from '../entities/Workflow/semantic-validation.mjs';
 import { WorkflowResultDTO } from '../dtos/WorkflowResultDTO.mjs';
 import { WorkflowRuntimeError } from '../errors.mjs';
 import { assertWorkflowSchema } from '../file-contracts/workflow-document-schema.mjs';
@@ -14,7 +13,7 @@ export function validateWorkflow({ workflowDTO, outputSchemas = new Map(), allow
     throw error;
   }
   const workflow = new Workflow(workflowDTO);
-  return new WorkflowResultDTO(validateWorkflowSemantics(workflow, { outputSchemas, allowedRoles }));
+  return new WorkflowResultDTO(workflow.validate({ outputSchemas, allowedRoles }));
 }
 
 export const ValidateWorkflow = { execute: validateWorkflow };
