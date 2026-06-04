@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Workflow } from '../index.mjs';
-import { actionForStep, statusForStep } from '../status.mjs';
-import { assertProjectableStateSelector, isDangerousObjectKey, isReservedStateKey, isTopLevelStateSelector } from '../state-keys.mjs';
-import { assertRoleDirectoryName, isRoleDirectoryName } from '../role-ref.mjs';
 import { compileWorkflowOutputSchema } from '../schema-ref-validation.mjs';
+import { assertRoleDirectoryName, isRoleDirectoryName } from '../../../runtime/role-ref.mjs';
+import { assertProjectableStateSelector, isDangerousObjectKey, isReservedStateKey, isTopLevelStateSelector } from '../../../runtime/state-keys.mjs';
+import { actionForStep, statusForStep } from '../../../runtime/step-status.mjs';
 
 function workflowDoc(overrides = {}) {
   return {

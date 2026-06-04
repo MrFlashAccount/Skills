@@ -4,10 +4,10 @@
  */
 import { readPath } from './expressions/index.mjs';
 import { invariant } from '../../errors.mjs';
-import { projectState } from './projection.mjs';
-import { assertParallelTargets, assertTransitionTarget } from '../Workflow/transition-targets.mjs';
-import { Baton } from '../Baton/index.mjs';
-import { statusForStep } from '../Workflow/status.mjs';
+import { applyOutputToBatonState } from '../../runtime/baton-state.mjs';
+import { projectState } from '../../runtime/state-projection.mjs';
+import { statusForStep } from '../../runtime/step-status.mjs';
+import { assertParallelTargets, assertTransitionTarget } from '../../runtime/transition-targets.mjs';
 import {
   assertNoNestedMatchCasesTarget,
   assertTransitionDescriptorTargets,
@@ -15,7 +15,7 @@ import {
   isStaticParallelNext,
   NEXT_KIND,
   normalizeTransitionNext,
-} from '../Workflow/transition-next.mjs';
+} from '../../runtime/transition-next.mjs';
 
 function cloneBoundaryData(dto) {
   return typeof dto?.toJSON === 'function' ? dto.toJSON() : structuredClone(dto);
@@ -184,11 +184,14 @@ export class Step {
   applyOutput({ baton, output, workflow, attempts, storeStepOutput = ['worker', 'approval'].includes(this.data.kind) } = {}) {
     const wf = workflowData(workflow);
     const transition = this.resolveConcreteTargets(baton, wf, output);
-    const stateOwner = new Baton(baton);
+    const batonData = cloneBoundaryData(baton);
     const outputStepId = storeStepOutput ? this.id : undefined;
-    const withOutput = stateOwner.withAppliedOutput(outputStepId, output, attempts ?? transition.attempts, {
-      mirrorToOutputs: Boolean(this.data.output?.schema),
-    });
+    const withOutput = {
+      ...batonData,
+      state: applyOutputToBatonState(batonData, output, attempts ?? transition.attempts, outputStepId, {
+        mirrorToOutputs: Boolean(this.data.output?.schema),
+      }),
+    };
 
     if (transition.targetStepIds) {
       return { ...transition, baton: { ...withOutput, status: 'running' } };
@@ -206,5 +209,3 @@ export class Step {
     return { ...transition, targetStep, baton: updatedBaton };
   }
 }
-
-export { assertNoNestedMatchCasesTarget, assertTransitionDescriptorTargets, isDynamicTransitionNext, isStaticParallelNext, normalizeTransitionNext };

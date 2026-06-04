@@ -1,5 +1,6 @@
 /** InspectWorkflow use-case returns the current unrendered workflow response contract. */
-import { isDynamicTransitionNext, isStaticParallelNext, resolveTransition } from '../entities/Step/index.mjs';
+import { resolveTransition } from '../entities/Step/index.mjs';
+import { isDynamicTransitionNext, isStaticParallelNext } from '../runtime/transition-next.mjs';
 import { assertLoadedWorkflowAndBaton } from './runtime/guards/workflow.mjs';
 import { hasAppliedOutputForStep, responseFor } from './runtime/output/response.mjs';
 

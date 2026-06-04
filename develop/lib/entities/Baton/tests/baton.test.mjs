@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { Baton, applyOutputToBatonState } from '../index.mjs';
 import { WorkflowRuntimeError } from '../../../errors.mjs';
+import { applyOutputToBatonState } from '../../../runtime/baton-state.mjs';
+import { Baton } from '../index.mjs';
 
 const workflow = {
   name: 'baton-fixture',

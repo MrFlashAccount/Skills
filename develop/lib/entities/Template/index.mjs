@@ -2,7 +2,7 @@
  * Template entity owns prompt rendering and expression compilation mechanics.
  * It receives render context; file/resource loading stays in persistence/legacy adapters.
  */
-import { parsePathExpression } from '../Workflow/expression.mjs';
+import { parsePathExpression } from '../../runtime/expression.mjs';
 import { renderWorkflowPrompt as renderCompiledWorkflowPrompt } from './compiler/index.mjs';
 
 function cloneBoundaryData(dto) {

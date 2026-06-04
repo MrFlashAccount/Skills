@@ -1,4 +1,4 @@
-import { assertRoleDirectoryName } from '../../../Workflow/role-ref.mjs';
+import { assertRoleDirectoryName } from '../../../../runtime/role-ref.mjs';
 import { trimStable } from '../utils.mjs';
 
 function roleMaterialRecords(resources, role) {

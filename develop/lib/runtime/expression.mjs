@@ -1,4 +1,4 @@
-import { WorkflowRuntimeError } from '../../errors.mjs';
+import { WorkflowRuntimeError } from '../errors.mjs';
 
 const EXPRESSION_PATTERN = /^\$\{\{\s*([A-Za-z_][A-Za-z0-9_-]*(?:\.[A-Za-z_][A-Za-z0-9_-]*)*)\s*\}\}$/;
 const SEGMENT_PATTERN = /^[A-Za-z_][A-Za-z0-9_-]*$/;

@@ -80,26 +80,21 @@ function formatChain(parents, leaf) {
   return chain.map(rel).join(' -> ');
 }
 
-function assertWorkflowOwnerDoesNotReachStep(entries = walk(abs('develop/lib/entities/Workflow')).filter((file) => file.endsWith('.mjs'))) {
-  const queue = [...entries.filter(existsSync)];
-  const seen = new Set();
-  const parents = new Map();
+function entityOwnerFor(file) {
+  const relativePath = rel(file);
+  const match = relativePath.match(/^develop\/lib\/entities\/([^/]+)\//);
+  return match?.[1];
+}
 
-  while (queue.length > 0) {
-    const file = queue.shift();
-    if (seen.has(file)) continue;
-    seen.add(file);
+function assertNoCrossEntityImports(entries = walk(abs('develop/lib/entities')).filter((file) => /\.(?:mjs|js|json)$/.test(file))) {
+  for (const file of entries.filter(existsSync)) {
+    const owner = entityOwnerFor(file);
+    if (!owner) continue;
 
-    if (rel(file).startsWith('develop/lib/entities/Step/')) {
-      fail(`Workflow owner reaches Step owner: ${formatChain(parents, file)}`);
-      continue;
-    }
-
-    if (!rel(file).startsWith('develop/lib/entities/')) continue;
     for (const imported of relativeModuleImports(file)) {
-      if (!rel(imported).startsWith('develop/lib/entities/')) continue;
-      if (!parents.has(imported)) parents.set(imported, file);
-      queue.push(imported);
+      const importedOwner = entityOwnerFor(imported);
+      if (!importedOwner || importedOwner === owner) continue;
+      fail(`cross-entity import forbidden: ${rel(file)} -> ${rel(imported)}`);
     }
   }
 }
@@ -116,6 +111,13 @@ function checkBoundaries() {
     'develop/lib/entities/Step.mjs',
     'develop/lib/entities/Template.mjs',
     'develop/lib/entities/Baton.mjs',
+    'develop/lib/entities/Workflow/expression.mjs',
+    'develop/lib/entities/Workflow/role-ref.mjs',
+    'develop/lib/entities/Workflow/state-keys.mjs',
+    'develop/lib/entities/Workflow/status.mjs',
+    'develop/lib/entities/Workflow/transition-next.mjs',
+    'develop/lib/entities/Workflow/transition-targets.mjs',
+    'develop/lib/entities/Step/projection.mjs',
     'develop/lib/entities/Step/expressions/parse.mjs',
     'develop/lib/entities/Step/transition-targets.mjs',
     'develop/lib/entities/errors.mjs',
@@ -150,12 +152,17 @@ function checkBoundaries() {
 
   [
     'develop/lib/entities/Workflow/index.mjs',
-    'develop/lib/entities/Workflow/expression.mjs',
-    'develop/lib/entities/Workflow/transition-next.mjs',
-    'develop/lib/entities/Workflow/transition-targets.mjs',
     'develop/lib/entities/Step/index.mjs',
     'develop/lib/entities/Template/index.mjs',
     'develop/lib/entities/Baton/index.mjs',
+    'develop/lib/runtime/baton-state.mjs',
+    'develop/lib/runtime/expression.mjs',
+    'develop/lib/runtime/role-ref.mjs',
+    'develop/lib/runtime/state-keys.mjs',
+    'develop/lib/runtime/state-projection.mjs',
+    'develop/lib/runtime/step-status.mjs',
+    'develop/lib/runtime/transition-next.mjs',
+    'develop/lib/runtime/transition-targets.mjs',
     'develop/lib/persistence/workflow-resources/runtime-reader.mjs',
     'develop/lib/persistence/workflow-resources/workflow-file-reader.mjs',
     'develop/lib/persistence/workflow-resources/resource-resolver.mjs',
@@ -176,7 +183,8 @@ function checkBoundaries() {
     'develop/lib/entrypoints/cli/schema/workflow-interpreter-args.json',
   ].forEach(assertExists);
 
-  scan(sourceFiles, /entities\/(Workflow|Step|Template|Baton)\.mjs|entities\/errors\.mjs|entities\/Workflow\/schema|entities\/(workflow-helpers|step-helpers|template-compiler)|entities\/Step\/(expressions\/parse|transition-targets)\.mjs|resource-helpers|persistence\/(runner|WorkflowRuntimeReader|WorkflowFileReader|resource-resolver|role-material-catalog|json-io|path-utils|output-schema-validation|output-schema|RunStateFileWriter|RunStateFileReader|InstructionFileReader|InstructionFileWriter|TemplateFileReader)|persistence\/workflow-resources\/instruction-file-writer\.mjs|use-cases\/runtime\/parallel\/targets\.mjs|develop\/lib\/schemas|schemas\/output-schema-validation|dtos\/index\.mjs|RunStateDTO/, 'forbidden old workflow runtime surface reference');
+  scan(sourceFiles, /entities\/(Workflow|Step|Template|Baton)\.mjs|entities\/errors\.mjs|entities\/Workflow\/schema|entities\/Workflow\/(expression|transition-next|transition-targets|state-keys|role-ref|status)\.mjs|entities\/(workflow-helpers|step-helpers|template-compiler)|entities\/Step\/(expressions\/parse|projection|transition-targets)\.mjs|resource-helpers|persistence\/(runner|WorkflowRuntimeReader|WorkflowFileReader|resource-resolver|role-material-catalog|json-io|path-utils|output-schema-validation|output-schema|RunStateFileWriter|RunStateFileReader|InstructionFileReader|InstructionFileWriter|TemplateFileReader)|persistence\/workflow-resources\/instruction-file-writer\.mjs|use-cases\/runtime\/parallel\/targets\.mjs|develop\/lib\/schemas|schemas\/output-schema-validation|dtos\/index\.mjs|RunStateDTO/, 'forbidden old workflow runtime surface reference');
+  scan(sourceFiles, /applyOutputToBatonState[^\n]*entities\/Baton\/index\.mjs|entities\/Baton\/index\.mjs[^\n]*applyOutputToBatonState/, 'forbidden Baton helper import path');
 
   scan(walk(abs('develop/docs')), /develop\/lib\/entities\/(Workflow|Baton|Step|Template)\.mjs|develop\/lib\/entities\/Workflow\/schema\//, 'develop docs cite stale workflow runtime layout reference');
 
@@ -184,7 +192,7 @@ function checkBoundaries() {
   scan(walk(abs('develop/lib/entities')), /from ['"].*entrypoints\//, 'entities must not import entrypoints');
   scan(walk(abs('develop/lib/entities/Workflow')), /use-cases\/runtime\/output|entrypoints\/cli\/schema|persistence\/run-state\/schema|workflows\/dev-harness|dtos\//, 'Workflow owner imports forbidden external owner');
   scan(walk(abs('develop/lib/entities')).filter((file) => !rel(file).startsWith('develop/lib/entities/Baton/')), /from ['"].*Baton\/schema\//, 'entities outside Baton owner must not import Baton schema owner');
-  assertWorkflowOwnerDoesNotReachStep();
+  assertNoCrossEntityImports();
   scan(walk(abs('develop/lib/persistence/run-state')), /from ['"].*dtos\//, 'run-state persistence must not import DTOs');
   scan(walk(abs('develop/lib/persistence')), /from ['"].*use-cases\//, 'persistence must not import use-cases');
   scan([...walk(abs('develop/lib/entities/Baton')), ...walk(abs('develop/lib/use-cases')), ...walk(abs('develop/lib/persistence')), ...walk(abs('develop/lib/entrypoints'))], /WorkflowSchemaError/, 'WorkflowSchemaError must stay file-contract-owned');
@@ -219,18 +227,18 @@ const batonSelfTestFailed = runNegativeBoundaryCheck(
 );
 if (batonSelfTestFailed) fail('boundary negative self-test failed: forbidden Baton schema import was accepted');
 
-const workflowHelperFixture = abs('develop/lib/entities/__workflow-step-boundary-negative-helper.mjs');
-const workflowEntryFixture = abs('develop/lib/entities/Workflow/__step-boundary-negative-fixture.mjs');
-const stepSelfTestFailed = runNegativeBoundaryCheck(
-  () => {
-    writeFileSync(workflowHelperFixture, "import './Step/index.mjs';\n");
-    writeFileSync(workflowEntryFixture, "import '../__workflow-step-boundary-negative-helper.mjs';\n");
-  },
-  () => {
-    rmSync(workflowHelperFixture, { force: true });
-    rmSync(workflowEntryFixture, { force: true });
-  },
+const stepToWorkflowFixture = abs('develop/lib/entities/Step/__cross-entity-negative-fixture.mjs');
+const stepToWorkflowSelfTestFailed = runNegativeBoundaryCheck(
+  () => writeFileSync(stepToWorkflowFixture, "import '../Workflow/index.mjs';\n"),
+  () => rmSync(stepToWorkflowFixture, { force: true }),
 );
-if (stepSelfTestFailed) fail('boundary negative self-test failed: Workflow owner Step reachability was accepted');
+if (stepToWorkflowSelfTestFailed) fail('boundary negative self-test failed: Step owner Workflow import was accepted');
+
+const workflowToStepFixture = abs('develop/lib/entities/Workflow/__cross-entity-negative-fixture.mjs');
+const workflowToStepSelfTestFailed = runNegativeBoundaryCheck(
+  () => writeFileSync(workflowToStepFixture, "import '../Step/index.mjs';\n"),
+  () => rmSync(workflowToStepFixture, { force: true }),
+);
+if (workflowToStepSelfTestFailed) fail('boundary negative self-test failed: Workflow owner Step import was accepted');
 
 checkBoundaries();

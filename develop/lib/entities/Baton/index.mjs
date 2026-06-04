@@ -2,7 +2,8 @@
  * Baton entity owns runtime cursor/status/state consistency and safe state updates.
  */
 import { WorkflowRuntimeError } from '../../errors.mjs';
-import { statusForStep } from '../Workflow/status.mjs';
+import { applyOutputToBatonState } from '../../runtime/baton-state.mjs';
+import { statusForStep } from '../../runtime/step-status.mjs';
 
 function cloneBoundaryData(dto) {
   return typeof dto?.toJSON === 'function' ? dto.toJSON() : structuredClone(dto);
@@ -12,30 +13,6 @@ function workflowData(workflow) {
   return typeof workflow?.toJSON === 'function' ? workflow.toJSON() : workflow;
 }
 
-function artifactType(artifact) {
-  return artifact?.type ?? artifact?.id;
-}
-
-function mergeArtifacts(existingArtifacts, newArtifacts = []) {
-  const merged = [...existingArtifacts];
-  for (const artifact of newArtifacts) {
-    const index = artifact.id ? merged.findIndex((existing) => existing.id === artifact.id) : -1;
-    if (index >= 0) merged[index] = artifact;
-    else merged.push(artifact);
-  }
-  return merged;
-}
-
-function appendResults(existingResults = [], newResults = []) {
-  return [...existingResults, ...newResults];
-}
-
-function aggregateArray(output, fieldName) {
-  const value = output[fieldName];
-  if (value === undefined) return [];
-  if (!Array.isArray(value)) throw new WorkflowRuntimeError(`worker output failed schema validation: /${fieldName} must be array`);
-  return value;
-}
 
 export class Baton {
   constructor(batonData) {
@@ -83,27 +60,7 @@ export class Baton {
 
   withAppliedOutput(stepId, output, attempts, { mirrorToOutputs = false } = {}) {
     const baton = this.toJSON();
-    const state = {
-      ...baton.state,
-      artifacts: mergeArtifacts(baton.state?.artifacts ?? [], aggregateArray(output, 'artifacts')),
-      results: appendResults(baton.state?.results ?? [], aggregateArray(output, 'results')),
-    };
-
-    if (stepId) {
-      state[stepId] = structuredClone(output);
-      if (mirrorToOutputs) {
-        state.outputs = {
-          ...(baton.state?.outputs ?? {}),
-          [stepId]: structuredClone(output),
-        };
-      }
-    }
-
-    if (attempts) state.attempts = attempts;
+    const state = applyOutputToBatonState(baton, output, attempts, stepId, { mirrorToOutputs });
     return { ...baton, state };
   }
-}
-
-export function applyOutputToBatonState(baton, output, attempts, stepId, options = {}) {
-  return new Baton(baton).withAppliedOutput(stepId, output, attempts, options).state;
 }

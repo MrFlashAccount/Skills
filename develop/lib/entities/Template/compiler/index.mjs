@@ -1,6 +1,6 @@
 import { finalOutputReminder, outputContractSection, readOutputSchema, readOutputTemplate } from './sections/output-contract.mjs';
 import { projectedStateBlock } from './sections/projected-state.mjs';
-import { projectState } from '../../Step/projection.mjs';
+import { projectState } from '../../../runtime/state-projection.mjs';
 import { section, trimStable } from './utils.mjs';
 import { readInputRole } from './sections/role.mjs';
 import { assertNoUnsupportedPlaceholders, defaultPrompt, readInputTemplate } from './sections/template.mjs';

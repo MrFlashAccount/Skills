@@ -3,11 +3,11 @@
  * It accepts boundary DTO data and never reads files or parses CLI arguments.
  */
 import { WorkflowRuntimeError } from '../../errors.mjs';
-import { RESERVED_STATE_KEYS, DANGEROUS_OBJECT_KEYS, assertProjectableStateSelector, isDangerousObjectKey, isReservedStateKey } from './state-keys.mjs';
-import { assertRoleDirectoryName } from './role-ref.mjs';
+import { assertRoleDirectoryName } from '../../runtime/role-ref.mjs';
+import { RESERVED_STATE_KEYS, DANGEROUS_OBJECT_KEYS, assertProjectableStateSelector, isDangerousObjectKey, isReservedStateKey } from '../../runtime/state-keys.mjs';
+import { statusForStep } from '../../runtime/step-status.mjs';
+import { assertTransitionDescriptorTargets, normalizeTransitionNext } from '../../runtime/transition-next.mjs';
 import { compileWorkflowOutputSchema } from './schema-ref-validation.mjs';
-import { assertTransitionDescriptorTargets, normalizeTransitionNext } from './transition-next.mjs';
-import { statusForStep } from './status.mjs';
 
 function cloneBoundaryData(dto) {
   return typeof dto?.toJSON === 'function' ? dto.toJSON() : structuredClone(dto);

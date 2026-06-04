@@ -1,4 +1,4 @@
-import { applyOutputToBatonState } from '../../../entities/Baton/index.mjs';
+import { applyOutputToBatonState } from '../../../runtime/baton-state.mjs';
 import { renderWorkflowPrompt } from '../../../entities/Template/index.mjs';
 import { invariant } from '../../../errors.mjs';
 import { responseFor } from '../output/response.mjs';

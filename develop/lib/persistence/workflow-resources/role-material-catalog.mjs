@@ -1,7 +1,7 @@
 /** Filesystem catalog for repository-local workflow role material directories. */
 import { existsSync, realpathSync, readdirSync } from 'node:fs';
 import path from 'node:path';
-import { isRoleDirectoryName } from '../../entities/Workflow/role-ref.mjs';
+import { isRoleDirectoryName } from '../../runtime/role-ref.mjs';
 
 export const REQUIRED_WORKFLOW_ROLE_MATERIAL_FILES = ['ROLE.md', 'RUBRIC.md'];
 

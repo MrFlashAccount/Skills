@@ -1,4 +1,4 @@
-import { assertProjectableStateSelector } from '../Workflow/state-keys.mjs';
+import { assertProjectableStateSelector } from './state-keys.mjs';
 
 export function projectState({ batonState = {}, selectors = [], stepId = '' } = {}) {
   const value = {};
@@ -18,5 +18,8 @@ export function projectState({ batonState = {}, selectors = [], stepId = '' } = 
 }
 
 export function fencedJson(value) {
-  return `\`\`\`json\n${JSON.stringify(value, null, 2)}\n\`\`\`\n`;
+  return `\`\`\`json
+${JSON.stringify(value, null, 2)}
+\`\`\`
+`;
 }

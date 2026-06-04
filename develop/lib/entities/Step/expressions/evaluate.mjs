@@ -1,4 +1,4 @@
-import { parsePathExpression } from '../../Workflow/expression.mjs';
+import { parsePathExpression } from '../../../runtime/expression.mjs';
 import { readPath } from './path.mjs';
 
 export function evaluatePathExpression(source, context) {

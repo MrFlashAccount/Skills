@@ -1,19 +1,20 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { Baton, applyOutputToBatonState } from '../entities/Baton/index.mjs';
+import { Baton } from '../entities/Baton/index.mjs';
 import {
-  Step,
   assertNoNestedMatchCasesTarget,
   isDynamicTransitionNext,
   isStaticParallelNext,
   normalizeTransitionNext,
-} from '../entities/Step/index.mjs';
+} from '../runtime/transition-next.mjs';
 import { Workflow } from '../entities/Workflow/index.mjs';
 import { WorkflowDTO } from '../dtos/WorkflowDTO.mjs';
 import { WorkflowRuntimeError } from '../errors.mjs';
+import { applyOutputToBatonState } from '../runtime/baton-state.mjs';
 import { applyWorkflowOutput } from '../use-cases/ApplyWorkflowOutput.mjs';
 import { inspectWorkflow } from '../use-cases/InspectWorkflow.mjs';
 import { validateWorkflow } from '../use-cases/ValidateWorkflow.mjs';
+import { Step } from '../entities/Step/index.mjs';
 
 const routeSchema = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',

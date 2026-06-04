@@ -1,4 +1,4 @@
-import { invariant } from '../../errors.mjs';
+import { invariant } from '../errors.mjs';
 import { parsePathExpression } from './expression.mjs';
 import { assertParallelTargets, assertTransitionTarget } from './transition-targets.mjs';
 
