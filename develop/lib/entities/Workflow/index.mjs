@@ -6,6 +6,7 @@ import { WorkflowRuntimeError } from '../../errors.mjs';
 import { RESERVED_STATE_KEYS, DANGEROUS_OBJECT_KEYS, assertProjectableStateSelector, isDangerousObjectKey, isReservedStateKey } from './state-keys.mjs';
 import { assertRoleDirectoryName } from './role-ref.mjs';
 import { compileWorkflowOutputSchema } from './schema-ref-validation.mjs';
+import { normalizeWorkflowSemanticValidationContext } from './semantic-validation.mjs';
 import { assertTransitionDescriptorTargets, normalizeTransitionNext } from '../Step/index.mjs';
 import { Step } from '../Step/index.mjs';
 import { statusForStep } from './status.mjs';
@@ -611,7 +612,13 @@ export class Workflow {
 
   validateOutputSchemas(outputSchemas = new Map()) {
     const warnings = [];
-    const schemasByStep = normalizeStepOutputSchemas({ workflow: this.data, outputSchemas, warnings });
+    const semanticContext = normalizeWorkflowSemanticValidationContext({ workflow: this, outputSchemas });
+    const schemasByStep = normalizeStepOutputSchemas({
+      workflow: this.data,
+      outputSchemas: semanticContext.outputSchemas,
+      warnings,
+      externalSchemas: semanticContext.externalSchemas,
+    });
     return { ok: true, schemasByStep, warnings };
   }
 

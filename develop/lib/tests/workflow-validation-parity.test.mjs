@@ -5,8 +5,10 @@ import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import researchCriticWorkflowDoc from '../../../workflows/research-critic/workflow.json' with { type: 'json' };
+import { Workflow } from '../entities/Workflow/index.mjs';
 import { loadInstructions as runnerLoadInstructions, next as runnerNext } from '../entrypoints/api/workflowRunner.mjs';
 import { validateWorkflowFile } from '../entrypoints/api/validateWorkflow.mjs';
+import { readOutputSchemas } from '../persistence/workflow-resources/workflow-file-reader.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-validation-parity-'));
@@ -38,10 +40,15 @@ function parityWorkflowDoc(schemaRef) {
   };
 }
 
-test('validate-workflow and workflow-runner load baton-ref workflows through one semantic-validation seam', async () => {
+test('validate-workflow, Workflow.validateOutputSchemas, and workflow-runner share baton $ref semantic-validation parity', async () => {
   const workflowPath = path.join(REPO_ROOT, 'workflows/research-critic/workflow.json');
+  const outputSchemas = readOutputSchemas({ workflow: researchCriticWorkflowDoc, workflowPath, repositoryRoot: REPO_ROOT });
+  const schemaValidation = new Workflow(researchCriticWorkflowDoc).validateOutputSchemas(outputSchemas);
   const validation = validateWorkflowFile(workflowPath);
 
+  assert.equal(schemaValidation.ok, true);
+  assert.equal(schemaValidation.warnings.length, 0);
+  assert.equal(schemaValidation.schemasByStep.has('save_research_packet'), true);
   assert.deepEqual(validation, {
     ok: true,
     workflow: 'research-critic',
