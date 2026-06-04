@@ -4,22 +4,12 @@ import { RunStateProjectionDTO } from '../dtos/RunStateProjectionDTO.mjs';
 import { WorkflowDTO } from '../dtos/WorkflowDTO.mjs';
 import { WorkflowResultDTO } from '../dtos/WorkflowResultDTO.mjs';
 import { Baton } from '../entities/Baton/index.mjs';
+import { Step } from '../entities/Step/index.mjs';
 import { Workflow } from '../entities/Workflow/index.mjs';
+import { workflowSemanticValidationOptions } from './workflow-semantic-validation.mjs';
 
 function materialize(value) {
   return typeof value?.toJSON === 'function' ? value.toJSON() : value;
-}
-
-function outputSchemasByStep(workflow, resources = {}) {
-  const schemas = new Map();
-  for (const [stepId, step] of Object.entries(workflow.steps ?? {})) {
-    const schemaRef = step.output?.schema;
-    if (!schemaRef) continue;
-    const loaded = resources.outputSchemas?.[schemaRef] ?? resources.outputSchemas?.[stepId];
-    if (loaded?.schema) schemas.set(stepId, loaded.schema);
-    else if (loaded) schemas.set(stepId, loaded);
-  }
-  return schemas;
 }
 
 function normalizeRunState({ runStateDTO, batonDoc, batonData }) {
@@ -35,14 +25,11 @@ export function loadInstructions({ workflowDTO, runStateDTO, instructionDTO, res
   const requestedStepId = stepId ?? instruction?.stepId;
 
   const workflow = new Workflow(workflowData);
-  workflow.validate({
-    allowedRoles: resources?.allowedRoles,
-    outputSchemas: outputSchemasByStep(workflowData, resources),
-  });
+  workflow.validate(workflowSemanticValidationOptions({ resources }));
 
   const baton = new Baton(runState.baton);
   baton.validateAgainst(workflow);
-  const step = workflow.inferStep(baton);
+  const step = new Step(workflow.inferStep(baton));
   const validation = step.validateInstructionRequest({ workflow, baton, runState, stepId: requestedStepId });
 
   return materialize(new WorkflowResultDTO({

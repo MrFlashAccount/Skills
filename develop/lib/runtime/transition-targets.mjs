@@ -1,4 +1,4 @@
-import { invariant } from '../../errors.mjs';
+import { invariant } from '../errors.mjs';
 
 export function assertTransitionTarget(workflow, stepId, fieldPath, targetStepId) {
   invariant(

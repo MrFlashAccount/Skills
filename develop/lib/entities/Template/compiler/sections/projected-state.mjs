@@ -1,5 +1,5 @@
 import { projectedFieldNotes } from './projected-field-notes.mjs';
-import { fencedJson } from '../../../Step/projection.mjs';
+import { fencedJson } from '../../../../runtime/state-projection.mjs';
 
 export function projectedStateBlock({ workflow, projection, resources, readOutputSchema }) {
   if (projection.projectedKeys.length === 0) return '';

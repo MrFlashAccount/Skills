@@ -412,8 +412,11 @@ test('workflow-runs CLI heartbeat renews worker lease', async () => {
   const { spawnSync } = await import('node:child_process');
   const helperPath = path.join(root, 'develop/lib/entrypoints/cli/workflow-runs.mjs');
   const runId = `${runPrefix}cli-heartbeat`;
+  const initialNow = new Date();
+  const initialLeaseMs = 5 * 60 * 1000;
   removeDefaultRunsForTestPrefix();
-  const claim = await registerWorkflowRunAtRoot({ runsRoot: cliRunsRoot, runId, claim: true, owner: 'alice', harness: 'portable', sessionId: 'session-a', leaseMs: 72 * 60 * 60 * 1000, now: new Date('2026-06-01T10:00:00.000Z') });
+  const claim = await registerWorkflowRunAtRoot({ runsRoot: cliRunsRoot, runId, claim: true, owner: 'alice', harness: 'portable', sessionId: 'session-a', leaseMs: initialLeaseMs, now: initialNow });
+  const initialLeaseExpiresAt = new Date(initialNow.getTime() + initialLeaseMs).toISOString();
 
   const result = spawnSync(process.execPath, [helperPath, 'heartbeat', '--run-id', runId, '--owner', 'alice', '--harness', 'portable', '--session-id', 'session-a', '--lease-ms', '60000', `--lease-token=${claim.leaseToken}`], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUNS_ROOT: cliRunsRoot, WORKFLOW_RUN_TOKEN: 'wrong-env-token-must-be-ignored' } });
 
@@ -421,5 +424,6 @@ test('workflow-runs CLI heartbeat renews worker lease', async () => {
   const response = JSON.parse(result.stdout);
   assert.equal(response.ok, true);
   assert.equal('workerLease' in response.run, false);
-  assert.notEqual(response.run.occupancy.leaseExpiresAt, '2026-06-01T10:00:01.000Z');
+  assert.notEqual(response.run.occupancy.leaseExpiresAt, initialLeaseExpiresAt);
+  assert.equal(Date.parse(response.run.occupancy.leaseExpiresAt) > Date.now(), true);
 });

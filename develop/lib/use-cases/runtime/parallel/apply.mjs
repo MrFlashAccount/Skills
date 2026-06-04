@@ -1,9 +1,9 @@
 import { invariant } from '../../../errors.mjs';
-import { statusForStep } from '../../../entities/Workflow/status.mjs';
-import { applyOutputToBatonState } from '../../../entities/Baton/index.mjs';
+import { applyOutputToBatonState } from '../../../runtime/baton-state.mjs';
+import { statusForStep } from '../../../runtime/step-status.mjs';
 import { responseFor } from '../output/response.mjs';
 import { assertOutputSchemaIfDeclared } from '../output/worker-output.mjs';
-import { joinForParallelTargets } from '../../../entities/Step/transition-targets.mjs';
+import { joinForParallelTargets } from '../../../runtime/transition-targets.mjs';
 import { shouldMarkUserPromptInjectedForStep, validateSelectedStartupUserPromptTarget } from '../../user-prompt.mjs';
 
 function readParallelOutputForStep(allOutput, stepId) {

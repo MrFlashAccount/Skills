@@ -1,4 +1,4 @@
-import { WorkflowRuntimeError } from '../../errors.mjs';
+import { WorkflowRuntimeError } from '../errors.mjs';
 
 export const RESERVED_STATE_KEYS = Object.freeze(['artifacts', 'results', 'outputs', 'attempts']);
 export const DANGEROUS_OBJECT_KEYS = Object.freeze(['__proto__', 'prototype', 'constructor']);

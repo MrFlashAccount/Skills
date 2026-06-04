@@ -11,6 +11,8 @@ const forbiddenPatterns = [
   /workflow\/prompt-renderer/,
   /workflow\/state/,
   /workflow\/transitions/,
+  /entities\/Workflow\/(?:expression|transition-next|transition-targets|state-keys|role-ref|status)\.mjs/,
+  /entities\/Step\/projection\.mjs/,
   /WorkflowInterpreter/,
   /use-cases\/interpreter/,
 ];

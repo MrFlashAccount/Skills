@@ -3,15 +3,18 @@
  * It accepts boundary DTO data and never reads files or parses CLI arguments.
  */
 import { WorkflowRuntimeError } from '../../errors.mjs';
-import { RESERVED_STATE_KEYS, DANGEROUS_OBJECT_KEYS, assertProjectableStateSelector, isDangerousObjectKey, isReservedStateKey } from './state-keys.mjs';
-import { assertRoleDirectoryName } from './role-ref.mjs';
+import { assertRoleDirectoryName } from '../../runtime/role-ref.mjs';
+import { RESERVED_STATE_KEYS, DANGEROUS_OBJECT_KEYS, assertProjectableStateSelector, isDangerousObjectKey, isReservedStateKey } from '../../runtime/state-keys.mjs';
+import { statusForStep } from '../../runtime/step-status.mjs';
+import { assertTransitionDescriptorTargets, normalizeTransitionNext } from '../../runtime/transition-next.mjs';
 import { compileWorkflowOutputSchema } from './schema-ref-validation.mjs';
-import { assertTransitionDescriptorTargets, normalizeTransitionNext } from '../Step/index.mjs';
-import { Step } from '../Step/index.mjs';
-import { statusForStep } from './status.mjs';
 
 function cloneBoundaryData(dto) {
   return typeof dto?.toJSON === 'function' ? dto.toJSON() : structuredClone(dto);
+}
+
+function cloneStepBoundaryData(stepId, step) {
+  return structuredClone({ id: stepId, ...step });
 }
 
 const WORKFLOW_NAME = /^[a-z][a-z0-9-]*$/;
@@ -609,16 +612,23 @@ export class Workflow {
     return { ok: true };
   }
 
-  validateOutputSchemas(outputSchemas = new Map()) {
+  validateOutputSchemas(outputSchemas = new Map(), options = {}) {
     const warnings = [];
-    const schemasByStep = normalizeStepOutputSchemas({ workflow: this.data, outputSchemas, warnings });
+    const schemasByStep = normalizeStepOutputSchemas({
+      workflow: this.data,
+      outputSchemas,
+      warnings,
+      requireSchemaPresence: options.requireSchemaPresence ?? true,
+      requireWorkerOutcomeContract: options.requireWorkerOutcomeContract ?? true,
+      externalSchemas: options.externalSchemas ?? [],
+    });
     return { ok: true, schemasByStep, warnings };
   }
 
   getStep(stepId) {
     const step = this.steps[stepId];
     if (!step) throw new WorkflowRuntimeError(`workflow step not found: ${stepId}`);
-    return new Step({ id: stepId, ...step });
+    return cloneStepBoundaryData(stepId, step);
   }
 
   hasStep(stepId) {
