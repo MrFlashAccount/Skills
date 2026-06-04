@@ -6,6 +6,7 @@ import { WorkflowResultDTO } from '../dtos/WorkflowResultDTO.mjs';
 import { Baton } from '../entities/Baton/index.mjs';
 import { Step } from '../entities/Step/index.mjs';
 import { Workflow } from '../entities/Workflow/index.mjs';
+import { workflowSemanticValidationOptions } from './workflow-semantic-validation.mjs';
 
 function materialize(value) {
   return typeof value?.toJSON === 'function' ? value.toJSON() : value;
@@ -24,7 +25,7 @@ export function loadInstructions({ workflowDTO, runStateDTO, instructionDTO, res
   const requestedStepId = stepId ?? instruction?.stepId;
 
   const workflow = new Workflow(workflowData);
-  workflow.validate({ resources });
+  workflow.validate(workflowSemanticValidationOptions({ resources }));
 
   const baton = new Baton(runState.baton);
   baton.validateAgainst(workflow);

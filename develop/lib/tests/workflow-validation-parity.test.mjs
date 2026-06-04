@@ -8,6 +8,7 @@ import researchCriticWorkflowDoc from '../../../workflows/research-critic/workfl
 import { Workflow } from '../entities/Workflow/index.mjs';
 import { loadInstructions as runnerLoadInstructions, next as runnerNext } from '../entrypoints/api/workflowRunner.mjs';
 import { validateWorkflowFile } from '../entrypoints/api/validateWorkflow.mjs';
+import { workflowSemanticValidationOptions } from '../use-cases/workflow-semantic-validation.mjs';
 import { readAllowedRoles, readOutputSchemas } from '../persistence/workflow-resources/workflow-file-reader.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -44,8 +45,9 @@ test('validate-workflow, direct Workflow validation, Workflow.validateOutputSche
   const workflowPath = path.join(REPO_ROOT, 'workflows/research-critic/workflow.json');
   const outputSchemas = readOutputSchemas({ workflow: researchCriticWorkflowDoc, workflowPath, repositoryRoot: REPO_ROOT });
   const allowedRoles = readAllowedRoles({ repositoryRoot: REPO_ROOT });
-  const directValidation = new Workflow(researchCriticWorkflowDoc).validate({ outputSchemas, allowedRoles });
-  const schemaValidation = new Workflow(researchCriticWorkflowDoc).validateOutputSchemas(outputSchemas);
+  const validationOptions = workflowSemanticValidationOptions({ outputSchemas, allowedRoles });
+  const directValidation = new Workflow(researchCriticWorkflowDoc).validate(validationOptions);
+  const schemaValidation = new Workflow(researchCriticWorkflowDoc).validateOutputSchemas(validationOptions.outputSchemas, validationOptions);
   const validation = validateWorkflowFile(workflowPath);
 
   assert.deepEqual(directValidation, {

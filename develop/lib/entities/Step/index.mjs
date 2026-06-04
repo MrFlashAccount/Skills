@@ -5,7 +5,7 @@
 import { readPath } from './expressions/index.mjs';
 import { invariant } from '../../errors.mjs';
 import { projectState } from './projection.mjs';
-import { assertParallelTargets, assertTransitionTarget } from './transition-targets.mjs';
+import { assertParallelTargets, assertTransitionTarget } from '../Workflow/transition-targets.mjs';
 import { Baton } from '../Baton/index.mjs';
 import { statusForStep } from '../Workflow/status.mjs';
 import {
@@ -15,7 +15,7 @@ import {
   isStaticParallelNext,
   NEXT_KIND,
   normalizeTransitionNext,
-} from '../transition-next.mjs';
+} from '../Workflow/transition-next.mjs';
 
 function cloneBoundaryData(dto) {
   return typeof dto?.toJSON === 'function' ? dto.toJSON() : structuredClone(dto);

@@ -1,6 +1,6 @@
-import { invariant } from '../errors.mjs';
-import { parsePathExpression } from './Step/expressions/index.mjs';
-import { assertParallelTargets, assertTransitionTarget } from './Step/transition-targets.mjs';
+import { invariant } from '../../errors.mjs';
+import { parsePathExpression } from './expression.mjs';
+import { assertParallelTargets, assertTransitionTarget } from './transition-targets.mjs';
 
 const NEXT_KIND = Object.freeze({
   STATIC_TARGET: 'static-target',

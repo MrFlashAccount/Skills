@@ -6,8 +6,7 @@ import { WorkflowRuntimeError } from '../../errors.mjs';
 import { RESERVED_STATE_KEYS, DANGEROUS_OBJECT_KEYS, assertProjectableStateSelector, isDangerousObjectKey, isReservedStateKey } from './state-keys.mjs';
 import { assertRoleDirectoryName } from './role-ref.mjs';
 import { compileWorkflowOutputSchema } from './schema-ref-validation.mjs';
-import { normalizeWorkflowSemanticValidationContext } from '../workflow-semantic-validation-context.mjs';
-import { assertTransitionDescriptorTargets, normalizeTransitionNext } from '../transition-next.mjs';
+import { assertTransitionDescriptorTargets, normalizeTransitionNext } from './transition-next.mjs';
 import { statusForStep } from './status.mjs';
 
 function cloneBoundaryData(dto) {
@@ -602,7 +601,7 @@ export class Workflow {
   }
 
   validate(options = {}) {
-    return validateWorkflowDocument(this.toJSON(), normalizeWorkflowSemanticValidationContext({ workflow: this, ...options }));
+    return validateWorkflowDocument(this.toJSON(), options);
   }
 
   validateStaticTransitions() {
@@ -613,14 +612,15 @@ export class Workflow {
     return { ok: true };
   }
 
-  validateOutputSchemas(outputSchemas = new Map()) {
+  validateOutputSchemas(outputSchemas = new Map(), options = {}) {
     const warnings = [];
-    const semanticContext = normalizeWorkflowSemanticValidationContext({ workflow: this, outputSchemas });
     const schemasByStep = normalizeStepOutputSchemas({
       workflow: this.data,
-      outputSchemas: semanticContext.outputSchemas,
+      outputSchemas,
       warnings,
-      externalSchemas: semanticContext.externalSchemas,
+      requireSchemaPresence: options.requireSchemaPresence ?? true,
+      requireWorkerOutcomeContract: options.requireWorkerOutcomeContract ?? true,
+      externalSchemas: options.externalSchemas ?? [],
     });
     return { ok: true, schemasByStep, warnings };
   }

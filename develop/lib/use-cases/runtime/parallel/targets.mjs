@@ -1,1 +1,1 @@
-export { assertParallelTargets, assertTransitionTarget, joinForParallelTargets } from '../../../entities/Step/transition-targets.mjs';
+export { assertParallelTargets, assertTransitionTarget, joinForParallelTargets } from '../../../entities/Workflow/transition-targets.mjs';

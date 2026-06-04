@@ -42,6 +42,68 @@ function assertContains(text, pattern, message) {
   if (!pattern.test(text)) fail(message);
 }
 
+const MODULE_SPECIFIER_PATTERN = /\b(?:import|export)\s+(?:[^'"`]*?\sfrom\s+)?['"]([^'"]+)['"]|\bimport\(\s*['"]([^'"]+)['"]\s*\)/g;
+
+function resolveRelativeModule(file, specifier) {
+  if (!specifier.startsWith('.')) return undefined;
+  const base = path.resolve(path.dirname(file), specifier);
+  const candidates = [
+    base,
+    `${base}.mjs`,
+    `${base}.js`,
+    `${base}.json`,
+    path.join(base, 'index.mjs'),
+    path.join(base, 'index.js'),
+    path.join(base, 'index.json'),
+  ];
+  return candidates.find(existsSync);
+}
+
+function relativeModuleImports(file) {
+  const text = readFileSync(file, 'utf8');
+  const imports = [];
+  for (const match of text.matchAll(MODULE_SPECIFIER_PATTERN)) {
+    const specifier = match[1] ?? match[2];
+    const resolved = specifier ? resolveRelativeModule(file, specifier) : undefined;
+    if (resolved) imports.push(resolved);
+  }
+  return imports;
+}
+
+function formatChain(parents, leaf) {
+  const chain = [leaf];
+  let current = leaf;
+  while (parents.has(current)) {
+    current = parents.get(current);
+    chain.unshift(current);
+  }
+  return chain.map(rel).join(' -> ');
+}
+
+function assertWorkflowOwnerDoesNotReachStep(entries = walk(abs('develop/lib/entities/Workflow')).filter((file) => file.endsWith('.mjs'))) {
+  const queue = [...entries.filter(existsSync)];
+  const seen = new Set();
+  const parents = new Map();
+
+  while (queue.length > 0) {
+    const file = queue.shift();
+    if (seen.has(file)) continue;
+    seen.add(file);
+
+    if (rel(file).startsWith('develop/lib/entities/Step/')) {
+      fail(`Workflow owner reaches Step owner: ${formatChain(parents, file)}`);
+      continue;
+    }
+
+    if (!rel(file).startsWith('develop/lib/entities/')) continue;
+    for (const imported of relativeModuleImports(file)) {
+      if (!rel(imported).startsWith('develop/lib/entities/')) continue;
+      if (!parents.has(imported)) parents.set(imported, file);
+      queue.push(imported);
+    }
+  }
+}
+
 function checkBoundaries() {
   const sourceFiles = [
     ...walk(abs('develop/lib')),
@@ -59,6 +121,8 @@ function checkBoundaries() {
     'develop/lib/entities/Workflow/schema',
     'develop/lib/entities/template-compiler',
     'develop/lib/entities/step-helpers',
+    'develop/lib/entities/transition-next.mjs',
+    'develop/lib/entities/workflow-semantic-validation-context.mjs',
     'develop/lib/resource-helpers',
     'develop/lib/persistence/runner',
     'develop/lib/persistence/WorkflowRuntimeReader.mjs',
@@ -83,6 +147,9 @@ function checkBoundaries() {
 
   [
     'develop/lib/entities/Workflow/index.mjs',
+    'develop/lib/entities/Workflow/expression.mjs',
+    'develop/lib/entities/Workflow/transition-next.mjs',
+    'develop/lib/entities/Workflow/transition-targets.mjs',
     'develop/lib/entities/Step/index.mjs',
     'develop/lib/entities/Template/index.mjs',
     'develop/lib/entities/Baton/index.mjs',
@@ -93,6 +160,7 @@ function checkBoundaries() {
     'develop/lib/persistence/workflow-resources/role-material-catalog.mjs',
     'develop/lib/persistence/filesystem/path-safety.mjs',
     'develop/lib/entrypoints/api/runner/host-requests.mjs',
+    'develop/lib/use-cases/workflow-semantic-validation.mjs',
     'develop/lib/use-cases/runtime/output/output-schema-validation.mjs',
     'develop/lib/file-contracts/workflow-document.json',
     'develop/lib/file-contracts/workflow-document-schema.mjs',
@@ -112,8 +180,8 @@ function checkBoundaries() {
   scan(walk(abs('develop/lib/entities')), /from ['"].*persistence\//, 'entities must not import persistence');
   scan(walk(abs('develop/lib/entities')), /from ['"].*entrypoints\//, 'entities must not import entrypoints');
   scan(walk(abs('develop/lib/entities/Workflow')), /use-cases\/runtime\/output|entrypoints\/cli\/schema|persistence\/run-state\/schema|workflows\/dev-harness|dtos\//, 'Workflow owner imports forbidden external owner');
-  scan(walk(abs('develop/lib/entities/Workflow')), /from ['"].*Baton\/schema\//, 'Workflow owner imports forbidden Baton schema owner');
-  scan([abs('develop/lib/entities/Workflow/index.mjs')], /from ['"]\.\.\/Step\/index\.mjs['"]/, 'Workflow entity must not import Step entity');
+  scan(walk(abs('develop/lib/entities')).filter((file) => !rel(file).startsWith('develop/lib/entities/Baton/')), /from ['"].*Baton\/schema\//, 'entities outside Baton owner must not import Baton schema owner');
+  assertWorkflowOwnerDoesNotReachStep();
   scan(walk(abs('develop/lib/persistence/run-state')), /from ['"].*dtos\//, 'run-state persistence must not import DTOs');
   scan(walk(abs('develop/lib/persistence')), /from ['"].*use-cases\//, 'persistence must not import use-cases');
   scan([...walk(abs('develop/lib/entities/Baton')), ...walk(abs('develop/lib/use-cases')), ...walk(abs('develop/lib/persistence')), ...walk(abs('develop/lib/entrypoints'))], /WorkflowSchemaError/, 'WorkflowSchemaError must stay file-contract-owned');
@@ -129,14 +197,37 @@ function checkBoundaries() {
   assertContains(apiRunner, /missing compiled instructions for workflow step/, 'API runner must fail when compiled instructions are missing');
 }
 
-const fixture = abs('develop/lib/entities/Workflow/__boundary-negative-fixture.mjs');
-writeFileSync(fixture, "import { batonSchema } from '../Baton/schema/baton-schema.mjs';\nvoid batonSchema;\n");
-const before = process.exitCode;
-selfTestMode = true;
-checkBoundaries();
-selfTestMode = false;
-const selfTestFailed = process.exitCode !== 1;
-rmSync(fixture, { force: true });
-process.exitCode = before;
-if (selfTestFailed) fail('boundary negative self-test failed: forbidden Workflow import was accepted');
+function runNegativeBoundaryCheck(setup, teardown) {
+  const before = process.exitCode;
+  setup();
+  selfTestMode = true;
+  checkBoundaries();
+  selfTestMode = false;
+  const failed = process.exitCode !== 1;
+  teardown();
+  process.exitCode = before;
+  return failed;
+}
+
+const batonFixture = abs('develop/lib/entities/Workflow/__boundary-negative-fixture.mjs');
+const batonSelfTestFailed = runNegativeBoundaryCheck(
+  () => writeFileSync(batonFixture, "import { batonSchema } from '../Baton/schema/baton-schema.mjs';\nvoid batonSchema;\n"),
+  () => rmSync(batonFixture, { force: true }),
+);
+if (batonSelfTestFailed) fail('boundary negative self-test failed: forbidden Baton schema import was accepted');
+
+const workflowHelperFixture = abs('develop/lib/entities/__workflow-step-boundary-negative-helper.mjs');
+const workflowEntryFixture = abs('develop/lib/entities/Workflow/__step-boundary-negative-fixture.mjs');
+const stepSelfTestFailed = runNegativeBoundaryCheck(
+  () => {
+    writeFileSync(workflowHelperFixture, "import './Step/index.mjs';\n");
+    writeFileSync(workflowEntryFixture, "import '../__workflow-step-boundary-negative-helper.mjs';\n");
+  },
+  () => {
+    rmSync(workflowHelperFixture, { force: true });
+    rmSync(workflowEntryFixture, { force: true });
+  },
+);
+if (stepSelfTestFailed) fail('boundary negative self-test failed: Workflow owner Step reachability was accepted');
+
 checkBoundaries();
