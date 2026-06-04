@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Step, assertNoNestedMatchCasesTarget, isDynamicTransitionNext, isStaticParallelNext, normalizeTransitionNext, resolveTransition } from '../index.mjs';
-import { joinForParallelTargets } from '../transition-targets.mjs';
+import { joinForParallelTargets } from '../../Workflow/transition-targets.mjs';
 
 const workflow = {
   name: 'step-fixture',

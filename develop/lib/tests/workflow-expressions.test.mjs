@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { evaluatePathExpression, parsePathExpression } from '../entities/Step/expressions/index.mjs';
+import { parsePathExpression } from '../entities/Workflow/expression.mjs';
+import { evaluatePathExpression } from '../entities/Step/expressions/index.mjs';
 import { WorkflowRuntimeError } from '../errors.mjs';
 
 const validParserCases = [

@@ -116,6 +116,8 @@ function checkBoundaries() {
     'develop/lib/entities/Step.mjs',
     'develop/lib/entities/Template.mjs',
     'develop/lib/entities/Baton.mjs',
+    'develop/lib/entities/Step/expressions/parse.mjs',
+    'develop/lib/entities/Step/transition-targets.mjs',
     'develop/lib/entities/errors.mjs',
     'develop/lib/entities/workflow-helpers',
     'develop/lib/entities/Workflow/schema',
@@ -139,6 +141,7 @@ function checkBoundaries() {
     'develop/lib/persistence/InstructionFileWriter.mjs',
     'develop/lib/persistence/workflow-resources/instruction-file-writer.mjs',
     'develop/lib/persistence/TemplateFileReader.mjs',
+    'develop/lib/use-cases/runtime/parallel/targets.mjs',
     'develop/lib/dtos/index.mjs',
     'develop/lib/dtos/RunStateDTO.mjs',
     'develop/lib/schemas',
@@ -173,7 +176,7 @@ function checkBoundaries() {
     'develop/lib/entrypoints/cli/schema/workflow-interpreter-args.json',
   ].forEach(assertExists);
 
-  scan(sourceFiles, /entities\/(Workflow|Step|Template|Baton)\.mjs|entities\/errors\.mjs|entities\/Workflow\/schema|entities\/(workflow-helpers|step-helpers|template-compiler)|resource-helpers|persistence\/(runner|WorkflowRuntimeReader|WorkflowFileReader|resource-resolver|role-material-catalog|json-io|path-utils|output-schema-validation|output-schema|RunStateFileWriter|RunStateFileReader|InstructionFileReader|InstructionFileWriter|TemplateFileReader)|persistence\/workflow-resources\/instruction-file-writer\.mjs|develop\/lib\/schemas|schemas\/output-schema-validation|dtos\/index\.mjs|RunStateDTO/, 'forbidden old workflow runtime surface reference');
+  scan(sourceFiles, /entities\/(Workflow|Step|Template|Baton)\.mjs|entities\/errors\.mjs|entities\/Workflow\/schema|entities\/(workflow-helpers|step-helpers|template-compiler)|entities\/Step\/(expressions\/parse|transition-targets)\.mjs|resource-helpers|persistence\/(runner|WorkflowRuntimeReader|WorkflowFileReader|resource-resolver|role-material-catalog|json-io|path-utils|output-schema-validation|output-schema|RunStateFileWriter|RunStateFileReader|InstructionFileReader|InstructionFileWriter|TemplateFileReader)|persistence\/workflow-resources\/instruction-file-writer\.mjs|use-cases\/runtime\/parallel\/targets\.mjs|develop\/lib\/schemas|schemas\/output-schema-validation|dtos\/index\.mjs|RunStateDTO/, 'forbidden old workflow runtime surface reference');
 
   scan(walk(abs('develop/docs')), /develop\/lib\/entities\/(Workflow|Baton|Step|Template)\.mjs|develop\/lib\/entities\/Workflow\/schema\//, 'develop docs cite stale workflow runtime layout reference');
 
