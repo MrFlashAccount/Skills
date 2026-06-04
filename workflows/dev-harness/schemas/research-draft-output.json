@@ -81,10 +81,11 @@
     "artifacts": {
       "type": "array",
       "items": {
-        "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact"
+        "$ref": "#/$defs/artifact"
       },
-      "description": "Producer may emit named structured artifacts created by this stage when they are part of the handoff.",
-      "x-usage": "Use these only as supporting named artifacts to preserve or pass along. Do not treat them as routing decisions unless another field explicitly references them."
+      "description": "Producer must emit the research packet artifact metadata when outcome is ready_for_attack.",
+      "x-usage": "The research packet markdown is the source of truth for human approval. Use id + path; ref is optional/derived and should not be required for lookup.",
+      "minItems": 1
     },
     "results": {
       "type": "array",
@@ -157,7 +158,8 @@
       },
       "then": {
         "required": [
-          "research_packet"
+          "research_packet",
+          "artifacts"
         ]
       }
     },
@@ -178,5 +180,44 @@
         ]
       }
     }
-  ]
+  ],
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "required": [
+        "id",
+        "content_type",
+        "path"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Artifact id unique within the producer step.",
+          "x-usage": "Use with the current producer step id to identify the artifact; do not treat it as globally unique by itself."
+        },
+        "content_type": {
+          "type": "string",
+          "minLength": 1,
+          "description": "MIME/content type, for example text/markdown or application/json.",
+          "x-usage": "Use this to decide how to read/render the file; do not duplicate it with artifact type/kind."
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Run-relative path using <stepId>/artifacts/<artifactId>... layout.",
+          "x-usage": "Treat as run-relative file location under the producer step artifacts directory."
+        },
+        "summary": {
+          "type": "string"
+        },
+        "ref": {
+          "type": "string",
+          "description": "Optional derived locator; prefer path plus step-scoped id unless a consumer needs a compact display reference.",
+          "x-usage": "Optional display locator only; derive it from step context/id/path when absent."
+        }
+      },
+      "additionalProperties": false
+    }
+  }
 }

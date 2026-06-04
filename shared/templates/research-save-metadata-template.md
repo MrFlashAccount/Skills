@@ -11,20 +11,21 @@ When persistence is safe and complete:
   "outcome": "saved",
   "saved": {
     "summary": "Short description of the saved approved research packet.",
-    "artifact_path": "outputs/research-packet.md",
+    "artifact_path": "save_research_packet/artifacts/research-packet.md",
     "history_note": "Optional compact note for run history."
   },
   "artifacts": [
     {
-      "type": "research_packet",
-      "path": "outputs/research-packet.md",
+      "id": "research-packet",
+      "content_type": "text/markdown",
+      "path": "save_research_packet/artifacts/research-packet.md",
       "summary": "Approved research packet."
     }
   ],
   "results": [
     {
       "type": "research_packet_saved",
-      "summary": "Approved research packet saved to outputs/research-packet.md."
+      "summary": "Approved research packet saved to save_research_packet/artifacts/research-packet.md."
     }
   ]
 }
@@ -50,6 +51,8 @@ When the packet cannot be safely saved:
 ## Template rules
 
 - Do not reproduce the full research packet markdown here.
-- Point `saved.artifact_path` and artifact `path` at the saved packet location relative to the current run output area, normally `outputs/research-packet.md`.
+- Point `saved.artifact_path` and artifact `path` at the saved packet location relative to the current run directory using `<stepId>/artifacts/<artifactId>...`, normally `save_research_packet/artifacts/research-packet.md`.
+- Artifact metadata uses `id`, `content_type`, `path`, and optional `summary`; do not emit artifact `type`, `kind`, `producer_step_id`, `version`, `replaces`, aliases, or promotion metadata.
+- `ref` is optional/derived; omit it unless the caller explicitly needs a compact display locator.
 - Keep summaries short and suitable for baton/history projection.
 - Match `workflows/research-critic/schemas/save-research-packet-output.json` exactly.

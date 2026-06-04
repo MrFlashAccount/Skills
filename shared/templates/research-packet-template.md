@@ -73,8 +73,24 @@
 
 <When a structured output schema asks for reviewer selection, mirror the selected reviewer roles here in plain language without turning this research packet into a routing or fan-out plan.>
 
+## Artifact metadata for workflow output
+
+When the workflow output schema includes `artifacts`, return this packet as a file-backed artifact:
+
+```json
+{
+  "id": "research-packet",
+  "content_type": "text/markdown",
+  "path": "<stepId>/artifacts/research-packet.md",
+  "summary": "Research packet for approval."
+}
+```
+
+`ref` is optional/derived; omit it unless the caller explicitly needs a compact display locator. Do not add `type`, `kind`, `producer_step_id`, `version`, `replaces`, aliases, or promotion metadata.
+
 ## Template rules
 
 - Stay at analytical research level: business goal, problem, scope, non-goals, options, risks, and open questions.
 - Do not include file-level implementation details, class/method plans, imports, diffs, or command sequences.
 - Do not write an architecture or implementation proposal here.
+- For artifact-capable workflows, treat the markdown file as the human-facing source of truth and the JSON output as branching/context metadata.

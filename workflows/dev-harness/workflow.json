@@ -10,7 +10,7 @@
       "kind": "worker",
       "input": {
         "role": "researcher",
-        "prompt": "Read the task context, gather local/project evidence, identify constraints, risks, open questions, and architecture-sensitive pressure. Return outcome ready_for_attack when the research_packet is ready, or blocked with blocker.source_step_id = research_draft when implementation-critical input is missing. When revising after research_attack feedback or approve_research rejection, read projected feedback from input.research_attack and input.approve_research and address it explicitly while preserving approved constraints.",
+        "prompt": "Read the task context, gather local/project evidence, identify constraints, risks, open questions, and architecture-sensitive pressure. Return outcome ready_for_attack when the research_packet is ready, or blocked with blocker.source_step_id = research_draft when implementation-critical input is missing. When revising after research_attack feedback or approve_research rejection, read projected feedback from input.research_attack and input.approve_research and address it explicitly while preserving approved constraints. Also create the human-facing research packet as a markdown artifact and return artifact metadata with id \"research-packet\", content_type \"text/markdown\", and path \"research_draft/artifacts/research-packet.md\". Do not include artifact type/kind/version/replaces/producer_step_id; ref is optional and should normally be omitted because step id and artifact id derive the locator.",
         "state": [
           "research_draft",
           "research_attack",
@@ -37,7 +37,7 @@
         "state": [
           "research_draft"
         ],
-        "prompt": "Attack research_draft.research_packet for missing evidence, unsafe assumptions, scope drift, sensitive surfaces, and unclear approval questions. Return approved, needs_revision, or blocked. If blocked, set blocker.source_step_id = research_attack."
+        "prompt": "Attack research_draft.research_packet for missing evidence, unsafe assumptions, scope drift, sensitive surfaces, and unclear approval questions. Return approved, needs_revision, or blocked. If blocked, set blocker.source_step_id = research_attack. Treat the research packet artifact file as the human-facing source of truth; use structured research_packet JSON only for branching/context. Check artifact metadata uses content_type and the <runDir>/<stepId>/artifacts/<artifactId>... layout."
       },
       "output": {
         "template": "../../shared/templates/review-verdict-template.md",
@@ -60,7 +60,7 @@
           "research_draft",
           "research_attack"
         ],
-        "prompt": "Show research_draft.research_packet and research_attack.verdict to the user. Continue only after explicit approval. Return approval approved to continue to architecture_draft, rejected to revise research_draft, or blocked with a blocker."
+        "prompt": "Show the research_draft research packet artifact (normally research_draft/artifacts/research-packet.md) and research_attack.verdict to the user. Continue only after explicit approval. The artifact file is the human-facing source of truth; JSON output remains for workflow branching. Return approval approved to continue to architecture_draft, rejected to revise research_draft, or blocked with a blocker."
       },
       "next": {
         "match": "${{ output.approval }}",
