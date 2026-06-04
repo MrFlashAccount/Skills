@@ -81,7 +81,7 @@
     "artifacts": {
       "type": "array",
       "items": {
-        "$ref": "#/$defs/artifact"
+        "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact"
       },
       "description": "Producer must emit the research packet artifact metadata when outcome is ready_for_attack.",
       "x-usage": "The research packet markdown is the source of truth for human approval. Use id + path; ref is optional/derived and should not be required for lookup.",
@@ -180,44 +180,5 @@
         ]
       }
     }
-  ],
-  "$defs": {
-    "artifact": {
-      "type": "object",
-      "required": [
-        "id",
-        "content_type",
-        "path"
-      ],
-      "properties": {
-        "id": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Artifact id unique within the producer step.",
-          "x-usage": "Use with the current producer step id to identify the artifact; do not treat it as globally unique by itself."
-        },
-        "content_type": {
-          "type": "string",
-          "minLength": 1,
-          "description": "MIME/content type, for example text/markdown or application/json.",
-          "x-usage": "Use this to decide how to read/render the file; do not duplicate it with artifact type/kind."
-        },
-        "path": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Run-relative path using <stepId>/artifacts/<artifactId>... layout.",
-          "x-usage": "Treat as run-relative file location under the producer step artifacts directory."
-        },
-        "summary": {
-          "type": "string"
-        },
-        "ref": {
-          "type": "string",
-          "description": "Optional derived locator; prefer path plus step-scoped id unless a consumer needs a compact display reference.",
-          "x-usage": "Optional display locator only; derive it from step context/id/path when absent."
-        }
-      },
-      "additionalProperties": false
-    }
-  }
+  ]
 }

@@ -134,7 +134,7 @@
           "research_revision",
           "research_attack"
         ],
-        "prompt": "Finalize persistence metadata for the approved research packet using the latest approved research packet and latest research_attack verdict. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. The caller should save concrete worker outputs relative to the current run output area, normally under outputs/ and persist the returned baton/history with the generic persist helper. Return saved after emitting artifact/result references to the saved packet, or blocked if the packet cannot be safely saved."
+        "prompt": "Finalize persistence metadata for the approved research packet using the latest approved research packet and latest research_attack verdict. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Return saved after emitting artifact/result references to the saved packet, or blocked if the packet cannot be safely saved."
       },
       "output": {
         "template": "../../shared/templates/research-save-metadata-template.md",

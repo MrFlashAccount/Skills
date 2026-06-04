@@ -42,17 +42,46 @@ const resources = {
         properties: {
           outcome: { type: 'string', description: 'Producer outcome.' },
           route: { type: 'string', 'x-usage': 'Selects the next route.' },
+          artifacts: {
+            type: 'array',
+            items: { $ref: 'https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact' },
+            description: 'Producer artifacts.',
+            'x-read-usage': 'Read producer artifacts before review.',
+          },
         },
       },
     ],
-    ['consumer.schema.json', { type: 'object', required: ['outcome'], properties: { outcome: { enum: ['ok'] } } }],
+    [
+      'consumer.schema.json',
+      {
+        type: 'object',
+        required: ['outcome'],
+        properties: {
+          outcome: { enum: ['ok'] },
+          artifacts: {
+            type: 'array',
+            items: { $ref: 'https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact' },
+            description: 'Consumer artifacts.',
+            'x-use': 'Emit consumer artifact metadata when producing an artifact.',
+          },
+        },
+      },
+    ],
   ]),
 };
 
 const baton = {
   cursor: 'consumer',
   status: 'running',
-  state: { producer: { outcome: 'ready', route: 'review' }, artifacts: [], results: [] },
+  state: {
+    producer: {
+      outcome: 'ready',
+      route: 'review',
+      artifacts: [{ id: 'research-packet', content_type: 'text/markdown', path: 'producer/artifacts/research-packet.md' }],
+    },
+    artifacts: [],
+    results: [],
+  },
 };
 
 test('Template renders inline content with userPrompt placeholder replacement', () => {
@@ -74,9 +103,13 @@ test('renderWorkflowPrompt assembles templates, role material, output contract, 
   assert.match(rendered.prompt, /## Output contract/);
   assert.match(rendered.prompt, /<!-- output template: consumer-output\.md -->/);
   assert.match(rendered.prompt, /<!-- output schema: consumer\.schema\.json -->/);
+  assert.match(rendered.prompt, /Schema-derived artifact field notes/);
+  assert.match(rendered.prompt, /artifacts\[\]\.content_type/);
+  assert.match(rendered.prompt, /Fill: Emit the MIME\/content type needed to render or parse the file/);
   assert.match(rendered.prompt, /Field notes for projected step outputs/);
   assert.match(rendered.prompt, /Description: Producer outcome\./);
   assert.match(rendered.prompt, /Usage: Selects the next route\./);
+  assert.match(rendered.prompt, /Usage: Use this to decide how to read or render the artifact file/);
   assert.match(rendered.prompt, /"route": "review"/);
   assert.match(rendered.prompt, /## Workflow step prompt\n\nUse projected producer output\./);
   assert.match(rendered.prompt, /## User prompt\n\nextra operator context/);

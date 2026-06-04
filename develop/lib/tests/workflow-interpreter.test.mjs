@@ -14,7 +14,7 @@ const workerOutputSchema = {
   required: ['outcome'],
   properties: {
     outcome: { enum: ['ready', 'retry', 'blocked'] },
-    artifacts: { type: 'array', items: { type: 'object', required: ['type'], additionalProperties: true } },
+    artifacts: { type: 'array', items: { type: 'object', required: ['id', 'content_type', 'path'], additionalProperties: true } },
     results: { type: 'array', items: { type: 'object', required: ['type'], additionalProperties: true } },
     blocker: { type: 'object' },
     summary: { type: 'string' },
@@ -39,7 +39,7 @@ writeFileSync(path.join(tempDir, 'review-output.schema.json'), `${JSON.stringify
   required: ['outcome'],
   properties: {
     outcome: { enum: ['ready', 'blocked'] },
-    artifacts: { type: 'array', items: { type: 'object', required: ['type'], additionalProperties: true } },
+    artifacts: { type: 'array', items: { type: 'object', required: ['id', 'content_type', 'path'], additionalProperties: true } },
     results: { type: 'array', items: { type: 'object', required: ['type'], additionalProperties: true } },
     blocker: { type: 'object' },
     summary: { type: 'string' },
@@ -52,7 +52,7 @@ writeFileSync(path.join(tempDir, 'approval-output.schema.json'), `${JSON.stringi
   required: ['approval'],
   properties: {
     approval: { enum: ['approved', 'rejected', 'blocked'] },
-    artifacts: { type: 'array', items: { type: 'object', required: ['type'], additionalProperties: true } },
+    artifacts: { type: 'array', items: { type: 'object', required: ['id', 'content_type', 'path'], additionalProperties: true } },
     results: { type: 'array', items: { type: 'object', required: ['type'], additionalProperties: true } },
     blocker: { type: 'object' },
     choice: { enum: ['approved', 'blocked'] },
@@ -188,8 +188,12 @@ function finalOutputSchemaAttempt(stepId = 'worker_step', overrides = {}) {
   return doc;
 }
 
+function artifact(id, summary = 'minimal packet', stepId = 'worker_step') {
+  return { id, content_type: 'text/markdown', path: `${stepId}/artifacts/${id}.md`, summary };
+}
+
 function output(overrides = {}) {
-  return { outcome: 'ready', artifacts: [{ type: 'packet', summary: 'minimal packet' }], ...overrides };
+  return { outcome: 'ready', artifacts: [artifact('packet')], ...overrides };
 }
 
 function runNode(args, cwd = root) {
@@ -392,7 +396,7 @@ test('schema validation: step-level extension fields are rejected rather than ig
 
 test('e2e: scripted wrapper runs worker to approval to worker/review to done', () => {
   const final = scriptedApplyLoop('e2e-happy-path', e2eWorkflowDoc, baton(), {
-    worker_step: [output({ outcome: 'ready', artifacts: [{ id: 'worker-packet', type: 'packet', summary: 'ready for approval' }] })],
+    worker_step: [output({ outcome: 'ready', artifacts: [{ id: 'worker-packet', content_type: 'text/markdown', path: 'worker_step/artifacts/worker-packet.md', summary: 'ready for approval' }] })],
     approval_step: [{ approval: 'approved', results: [{ type: 'approval', summary: 'approved' }] }],
     implementation_worker: [output({ outcome: 'ready', results: [{ type: 'implementation', summary: 'implemented' }] })],
     review_worker: [output({ outcome: 'ready', results: [{ type: 'review', summary: 'reviewed' }] })],
@@ -421,8 +425,8 @@ test('e2e: scripted wrapper runs worker to approval to worker/review to done', (
 test('e2e: approval rejection loops back to worker before successful done', () => {
   const final = scriptedApplyLoop('e2e-rejection-rework', e2eWorkflowDoc, baton(), {
     worker_step: [
-      output({ outcome: 'ready', artifacts: [{ id: 'draft', type: 'packet', summary: 'draft' }] }),
-      output({ outcome: 'ready', artifacts: [{ id: 'draft', type: 'packet', summary: 'reworked' }] }),
+      output({ outcome: 'ready', artifacts: [{ id: 'draft', content_type: 'text/markdown', path: 'worker_step/artifacts/draft.md', summary: 'draft' }] }),
+      output({ outcome: 'ready', artifacts: [{ id: 'draft', content_type: 'text/markdown', path: 'worker_step/artifacts/draft.md', summary: 'reworked' }] }),
     ],
     approval_step: [
       { approval: 'rejected', results: [{ type: 'approval', summary: 'needs rework' }] },
@@ -575,7 +579,7 @@ test('apply: matchCases next by worker output field advances to selected target'
   assert.equal(response.baton.cursor, 'approval_step');
   assert.equal(response.baton.status, 'running');
   assert.equal(response.steps[0].action, 'wait_for_approval');
-  assert.equal(response.baton.state.artifacts.at(-1).type, 'packet');
+  assert.equal(response.baton.state.artifacts.at(-1).id, 'packet');
 });
 
 test('apply: transition-only output preserves existing baton state collections', () => {
@@ -583,7 +587,7 @@ test('apply: transition-only output preserves existing baton state collections',
     'state-preserved-by-transition-only-output',
     baton({
       state: {
-        artifacts: [{ id: 'draft', type: 'packet', summary: 'existing draft' }],
+        artifacts: [{ id: 'draft', content_type: 'text/markdown', path: 'worker_step/artifacts/draft.md', summary: 'existing draft' }],
         results: [{ type: 'research', summary: 'existing result' }],
       },
     }),
@@ -591,7 +595,7 @@ test('apply: transition-only output preserves existing baton state collections',
   );
 
   assert.equal(response.baton.cursor, 'approval_step');
-  assert.deepEqual(response.baton.state.artifacts, [{ id: 'draft', type: 'packet', summary: 'existing draft' }]);
+  assert.deepEqual(response.baton.state.artifacts, [{ id: 'draft', content_type: 'text/markdown', path: 'worker_step/artifacts/draft.md', summary: 'existing draft' }]);
   assert.deepEqual(response.baton.state.results, [{ type: 'research', summary: 'existing result' }]);
 });
 
@@ -599,7 +603,7 @@ test('schema validation: worker output cannot replace baton state directly', () 
   const result = runApply(
     'worker-output-direct-state-replacement',
     finalOutputSchemaAttempt(),
-    { outcome: 'ready', state: { artifacts: [{ type: 'packet', summary: 'bypassed merge' }], results: [] } },
+    { outcome: 'ready', state: { artifacts: [{ id: 'packet', content_type: 'text/markdown', path: 'worker_step/artifacts/packet.md', summary: 'bypassed merge' }], results: [] } },
     false,
   );
 
@@ -619,7 +623,7 @@ test('schema validation: worker output rejects unsupported fields instead of sil
 
 test('schema validation: worker output state collections reject malformed entries', () => {
   const artifactMissingType = runApply(
-    'worker-output-artifact-missing-type',
+    'worker-output-artifact-missing-id',
     finalOutputSchemaAttempt(),
     { outcome: 'ready', artifacts: [{ summary: 'untyped artifact would poison baton state' }] },
     false,
@@ -641,8 +645,8 @@ test('apply: output state replaces same-id artifacts while appending new artifac
     baton({
       state: {
         artifacts: [
-          { id: 'draft', type: 'packet', summary: 'old draft' },
-          { type: 'note', summary: 'unkeyed note' },
+          { id: 'draft', content_type: 'text/markdown', path: 'worker_step/artifacts/draft.md', summary: 'old draft' },
+          artifact('note-old', 'note'),
         ],
         results: [{ type: 'research', summary: 'existing result' }],
       },
@@ -650,8 +654,8 @@ test('apply: output state replaces same-id artifacts while appending new artifac
     {
       outcome: 'ready',
       artifacts: [
-        { id: 'draft', type: 'packet', summary: 'revised draft' },
-        { id: 'new', type: 'packet', summary: 'new packet' },
+        { id: 'draft', content_type: 'text/markdown', path: 'worker_step/artifacts/draft.md', summary: 'revised draft' },
+        { id: 'new', content_type: 'text/markdown', path: 'worker_step/artifacts/new.md', summary: 'new packet' },
       ],
       results: [{ type: 'worker', summary: 'new result' }],
     },
@@ -659,9 +663,9 @@ test('apply: output state replaces same-id artifacts while appending new artifac
 
   assert.equal(response.baton.cursor, 'approval_step');
   assert.deepEqual(response.baton.state.artifacts, [
-    { id: 'draft', type: 'packet', summary: 'revised draft' },
-    { type: 'note', summary: 'unkeyed note' },
-    { id: 'new', type: 'packet', summary: 'new packet' },
+    { id: 'draft', content_type: 'text/markdown', path: 'worker_step/artifacts/draft.md', summary: 'revised draft' },
+    artifact('note-old', 'note'),
+    { id: 'new', content_type: 'text/markdown', path: 'worker_step/artifacts/new.md', summary: 'new packet' },
   ]);
   assert.deepEqual(response.baton.state.results, [
     { type: 'research', summary: 'existing result' },
@@ -674,20 +678,20 @@ test('apply: output merge appends unkeyed artifacts even when artifact type matc
     'state-merge-appends-unkeyed-artifacts',
     baton({
       state: {
-        artifacts: [{ type: 'note', summary: 'existing unkeyed note' }],
+        artifacts: [artifact('note-old', 'existing note')],
         results: [],
       },
     }),
     {
       outcome: 'ready',
-      artifacts: [{ type: 'note', summary: 'new unkeyed note' }],
+      artifacts: [artifact('note-new', 'new note')],
     },
   );
 
   assert.equal(response.baton.cursor, 'approval_step');
   assert.deepEqual(response.baton.state.artifacts, [
-    { type: 'note', summary: 'existing unkeyed note' },
-    { type: 'note', summary: 'new unkeyed note' },
+    artifact('note-old', 'existing note'),
+    artifact('note-new', 'new note'),
   ]);
 });
 
@@ -737,7 +741,7 @@ test('apply: matchCases next by approval output field advances to selected targe
 
 test('schema validation: approval output state collections reject malformed entries', () => {
   const artifactMissingType = runApply(
-    'approval-output-artifact-missing-type',
+    'approval-output-artifact-missing-id',
     baton({ cursor: 'approval_step' }),
     { approval: 'approved', artifacts: [{ summary: 'untyped approval artifact would poison baton state' }] },
     false,
@@ -777,7 +781,7 @@ test('apply: next directive exposes target step input state selectors after tran
     baton({
       cursor: 'approval_step',
       state: {
-        artifacts: [{ type: 'packet', summary: 'ready packet' }],
+        artifacts: [{ id: 'packet', content_type: 'text/markdown', path: 'worker_step/artifacts/packet.md', summary: 'ready packet' }],
         results: [],
       },
     }),
@@ -787,7 +791,7 @@ test('apply: next directive exposes target step input state selectors after tran
   assert.equal(response.steps[0].id, 'direct_next_worker');
   assert.equal(response.steps[0].action, 'run_worker');
   assert.deepEqual(response.steps[0].step.input.state, ['worker_step']);
-  assert.deepEqual(response.baton.state.artifacts, [{ type: 'packet', summary: 'ready packet' }]);
+  assert.deepEqual(response.baton.state.artifacts, [{ id: 'packet', content_type: 'text/markdown', path: 'worker_step/artifacts/packet.md', summary: 'ready packet' }]);
   assert.deepEqual(response.baton.state.results, [{ type: 'approval', summary: 'approved' }]);
 });
 
@@ -825,13 +829,13 @@ test('apply: direct string next still merges output state before resolving termi
     baton({
       cursor: 'direct_next_worker',
       state: {
-        artifacts: [{ id: 'draft', type: 'packet', summary: 'before direct next' }],
+        artifacts: [{ id: 'draft', content_type: 'text/markdown', path: 'worker_step/artifacts/draft.md', summary: 'before direct next' }],
         results: [{ type: 'implementation', summary: 'existing result' }],
       },
     }),
     {
       outcome: 'ready',
-      artifacts: [{ id: 'draft', type: 'packet', summary: 'merged before done' }],
+      artifacts: [{ id: 'draft', content_type: 'text/markdown', path: 'worker_step/artifacts/draft.md', summary: 'merged before done' }],
       results: [{ type: 'review', summary: 'terminal evidence' }],
     },
   );
@@ -839,7 +843,7 @@ test('apply: direct string next still merges output state before resolving termi
   assert.equal(response.baton.cursor, 'done');
   assert.equal(response.baton.status, 'done');
   assert.equal(response.steps[0].action, 'stop_done');
-  assert.deepEqual(response.baton.state.artifacts, [{ id: 'draft', type: 'packet', summary: 'merged before done' }]);
+  assert.deepEqual(response.baton.state.artifacts, [{ id: 'draft', content_type: 'text/markdown', path: 'worker_step/artifacts/draft.md', summary: 'merged before done' }]);
   assert.deepEqual(response.baton.state.results, [
     { type: 'implementation', summary: 'existing result' },
     { type: 'review', summary: 'terminal evidence' },

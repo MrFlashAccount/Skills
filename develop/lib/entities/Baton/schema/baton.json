@@ -96,23 +96,46 @@
     "artifact": {
       "type": "object",
       "required": [
-        "type"
+        "id",
+        "content_type",
+        "path"
       ],
       "properties": {
-        "type": {
-          "type": "string"
-        },
         "id": {
-          "type": "string"
+          "type": "string",
+          "minLength": 1,
+          "description": "Artifact id unique within the producer step.",
+          "x-use": "Emit a stable id unique within the current producer step. Use with the step id for lookup; do not treat it as globally unique by itself.",
+          "x-read-usage": "Use with the projected producer step id to identify this artifact; do not require a separate producer_step_id field."
         },
-        "ref": {
-          "type": "string"
+        "content_type": {
+          "type": "string",
+          "minLength": 1,
+          "description": "MIME/content type, for example text/markdown or application/json.",
+          "x-use": "Emit the MIME/content type needed to render or parse the file; do not duplicate it with artifact type/kind.",
+          "x-read-usage": "Use this to decide how to read or render the artifact file. Do not infer artifact kind from id text."
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Run-relative path using <stepId>/artifacts/<artifactId>... layout.",
+          "x-use": "Emit the run-relative artifact file path under the current step artifacts directory, for example research_draft/artifacts/research-packet.md.",
+          "x-read-usage": "Treat this as the artifact file location relative to the run directory. Do not rewrite it unless producing a new artifact."
         },
         "summary": {
-          "type": "string"
+          "type": "string",
+          "description": "Optional compact handoff summary for the artifact.",
+          "x-use": "Use only as compact metadata; the artifact file remains the source of truth for full content.",
+          "x-read-usage": "Use as orientation before opening the artifact file; do not substitute it for the file content when approval or review needs the full artifact."
+        },
+        "ref": {
+          "type": "string",
+          "description": "Optional derived compact locator; normally omitted when id and path are enough.",
+          "x-use": "Normally omit. If present, keep it a display/lookup convenience derived from step context, id, and path.",
+          "x-read-usage": "Optional display locator only; prefer path plus projected step id and artifact id when ref is absent."
         }
       },
-      "additionalProperties": true
+      "additionalProperties": false
     },
     "result": {
       "type": "object",

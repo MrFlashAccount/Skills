@@ -103,7 +103,7 @@ function assertWorkflowError(fn, pattern) {
 test('Baton constructor clones boundary data before freezing internal state', () => {
   const source = batonDoc();
   const baton = new Baton(source);
-  source.state.artifacts.push({ id: 'late', type: 'late' });
+  source.state.artifacts.push({ id: 'late', content_type: 'text/plain', path: 'producer/artifacts/late.txt' });
 
   assert.deepEqual(baton.toJSON().state.artifacts, []);
 });
@@ -129,10 +129,10 @@ test('Baton.validateAgainst accepts a terminal done cursor with done status', ()
 });
 
 test('Baton.withAppliedOutput replaces existing artifacts by id and preserves unrelated artifacts', () => {
-  const baton = new Baton(batonDoc({ state: { artifacts: [{ id: 'same', type: 'old' }, { id: 'keep', type: 'keep' }], results: [] } }));
-  const next = baton.withAppliedOutput('producer', { outcome: 'ready', artifacts: [{ id: 'same', type: 'new' }], results: [] });
+  const baton = new Baton(batonDoc({ state: { artifacts: [{ id: 'same', content_type: 'text/markdown', path: 'producer/artifacts/same.md', summary: 'old' }, { id: 'keep', content_type: 'text/markdown', path: 'producer/artifacts/keep.md', summary: 'keep' }], results: [] } }));
+  const next = baton.withAppliedOutput('producer', { outcome: 'ready', artifacts: [{ id: 'same', content_type: 'text/markdown', path: 'producer/artifacts/same.md', summary: 'new' }], results: [] });
 
-  assert.deepEqual(next.state.artifacts, [{ id: 'same', type: 'new' }, { id: 'keep', type: 'keep' }]);
+  assert.deepEqual(next.state.artifacts, [{ id: 'same', content_type: 'text/markdown', path: 'producer/artifacts/same.md', summary: 'new' }, { id: 'keep', content_type: 'text/markdown', path: 'producer/artifacts/keep.md', summary: 'keep' }]);
 });
 
 test('Baton.withAppliedOutput appends result aggregates without overwriting previous results', () => {
@@ -148,9 +148,9 @@ test('Baton.withAppliedOutput rejects non-array artifact aggregates before mutat
 });
 
 test('applyOutputToBatonState can aggregate output without assigning it to a step key', () => {
-  const state = applyOutputToBatonState(batonDoc(), { artifacts: [{ id: 'a', type: 'artifact' }], results: [] }, undefined, undefined);
+  const state = applyOutputToBatonState(batonDoc(), { artifacts: [{ id: 'a', content_type: 'text/markdown', path: 'producer/artifacts/a.md' }], results: [] }, undefined, undefined);
 
-  assert.deepEqual(state.artifacts, [{ id: 'a', type: 'artifact' }]);
+  assert.deepEqual(state.artifacts, [{ id: 'a', content_type: 'text/markdown', path: 'producer/artifacts/a.md' }]);
   assert.equal(Object.hasOwn(state, 'producer'), false);
 });
 

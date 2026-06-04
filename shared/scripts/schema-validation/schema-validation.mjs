@@ -9,6 +9,8 @@ import Ajv2020 from './vendor/ajv.mjs';
 function createAjv() {
   const ajv = new Ajv2020({ allErrors: true });
   ajv.addKeyword({ keyword: 'x-usage' });
+  ajv.addKeyword({ keyword: 'x-use' });
+  ajv.addKeyword({ keyword: 'x-read-usage' });
   return ajv;
 }
 

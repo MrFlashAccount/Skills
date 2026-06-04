@@ -18,15 +18,10 @@
     "saved": {
       "type": "object",
       "required": [
-        "summary",
-        "artifact_path"
+        "summary"
       ],
       "properties": {
         "summary": {
-          "type": "string",
-          "minLength": 1
-        },
-        "artifact_path": {
           "type": "string",
           "minLength": 1
         },
@@ -39,11 +34,11 @@
     "artifacts": {
       "type": "array",
       "items": {
-        "$ref": "#/$defs/artifact"
+        "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact"
       },
       "minItems": 1,
-      "description": "Saved research packet artifact metadata using id, content_type, and <runDir>/<stepId>/artifacts/<artifactId>... path.",
-      "x-usage": "Use artifact files as the source of truth for human-facing research content; structured JSON remains for workflow branching."
+      "description": "Saved research packet artifact metadata.",
+      "x-usage": "Use artifact files as the source of truth for human-facing research content; structured JSON remains for workflow branching. Exact artifact field mechanics come from the shared baton artifact schema."
     },
     "results": {
       "type": "array",
@@ -87,43 +82,6 @@
         },
         "risk": {
           "type": "string"
-        }
-      },
-      "additionalProperties": false
-    },
-    "artifact": {
-      "type": "object",
-      "required": [
-        "id",
-        "content_type",
-        "path"
-      ],
-      "properties": {
-        "id": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Artifact id unique within the producer step.",
-          "x-usage": "Use with the current producer step id to identify the artifact; do not treat it as globally unique by itself."
-        },
-        "content_type": {
-          "type": "string",
-          "minLength": 1,
-          "description": "MIME/content type, for example text/markdown or application/json.",
-          "x-usage": "Use this to decide how to read/render the file; do not duplicate it with artifact type/kind."
-        },
-        "path": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Run-relative path using <stepId>/artifacts/<artifactId>... layout.",
-          "x-usage": "Treat as run-relative file location under the producer step artifacts directory."
-        },
-        "summary": {
-          "type": "string"
-        },
-        "ref": {
-          "type": "string",
-          "description": "Optional derived locator; prefer path plus step-scoped id unless a consumer needs a compact display reference.",
-          "x-usage": "Optional display locator only; derive it from step context/id/path when absent."
         }
       },
       "additionalProperties": false

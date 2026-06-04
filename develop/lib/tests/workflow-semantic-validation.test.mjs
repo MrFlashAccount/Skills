@@ -204,7 +204,7 @@ test('research critic saved packet output requires projected artifacts and resul
     workflowPath,
     schemaRef: step.output.schema,
     repositoryRoot: REPO_ROOT,
-    output: { outcome: 'saved', saved: { summary: 'Saved.', artifact_path: 'research/packet.md' } },
+    output: { outcome: 'saved', saved: { summary: 'Saved.' } },
   });
   assert.equal(missingProjection.ok, false);
   assert.match(missingProjection.errors, /artifacts/);
@@ -215,7 +215,7 @@ test('research critic saved packet output requires projected artifacts and resul
     workflowPath,
     schemaRef: step.output.schema,
     repositoryRoot: REPO_ROOT,
-    output: { outcome: 'saved', saved: { summary: 'Saved.', artifact_path: 'research/packet.md' }, artifacts: [], results: [] },
+    output: { outcome: 'saved', saved: { summary: 'Saved.' }, artifacts: [], results: [] },
   });
   assert.equal(emptyProjection.ok, false);
   assert.match(emptyProjection.errors, /artifacts/);
@@ -228,7 +228,7 @@ test('research critic saved packet output requires projected artifacts and resul
     repositoryRoot: REPO_ROOT,
     output: {
       outcome: 'saved',
-      saved: { summary: 'Saved.', artifact_path: 'research/packet.md' },
+      saved: { summary: 'Saved.' },
       artifacts: [{ id: 'research-packet', content_type: 'text/markdown', summary: 'Saved packet.', path: 'save_research_packet/artifacts/research-packet.md' }],
       results: [{ summary: 'Saved packet.' }],
     },
@@ -251,7 +251,7 @@ test('research critic save packet output keeps saved and blocked branches exclus
     output: {
       outcome: 'blocked',
       blocker: { summary: 'Cannot save.', source_step_id: 'save_research_packet', needed: 'Writable target.' },
-      saved: { summary: 'Should not coexist.', artifact_path: 'research/packet.md' },
+      saved: { summary: 'Should not coexist.' },
       artifacts: [{ id: 'research-packet', content_type: 'text/markdown', summary: 'Should not aggregate.', path: 'save_research_packet/artifacts/research-packet.md' }],
       results: [{ summary: 'Should not aggregate.' }],
     },
@@ -262,7 +262,7 @@ test('research critic save packet output keeps saved and blocked branches exclus
     ...schemaContext,
     output: {
       outcome: 'saved',
-      saved: { summary: 'Saved.', artifact_path: 'research/packet.md' },
+      saved: { summary: 'Saved.' },
       artifacts: [{ id: 'research-packet', content_type: 'text/markdown', summary: 'Saved packet.', path: 'save_research_packet/artifacts/research-packet.md' }],
       results: [{ summary: 'Saved packet.' }],
       blocker: { summary: 'Should not coexist.', source_step_id: 'save_research_packet', needed: 'Nothing.' },

@@ -24,7 +24,7 @@ function baton(overrides = {}) {
   return {
     cursor: 'approve_research',
     status: 'running',
-    state: { artifacts: [{ type: 'research', summary: 'done' }], results: [] },
+    state: { artifacts: [{ id: 'research', content_type: 'text/markdown', path: 'research_draft/artifacts/research.md', summary: 'done' }], results: [] },
     ...overrides,
   };
 }

@@ -89,7 +89,7 @@ function baton(overrides = {}) {
 }
 
 function output(overrides = {}) {
-  return { outcome: 'ready', artifacts: [{ type: 'packet', summary: 'minimal packet' }], ...overrides };
+  return { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: 'worker_step/artifacts/packet.md', summary: 'minimal packet' }], ...overrides };
 }
 
 function runNode(args, cwd = root) {

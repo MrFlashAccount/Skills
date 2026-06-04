@@ -1,1 +1,1 @@
-{ "outcome": "ready", "artifacts": [{ "id": "plan", "type": "plan", "summary": "plan v1" }], "results": [{ "type": "plan", "summary": "planned" }] }
+{ "outcome": "ready", "artifacts": [{ "id": "plan", "content_type": "text/markdown", "path": "plan/artifacts/plan.md", "summary": "plan v1" }], "results": [{ "type": "plan", "summary": "planned" }] }

@@ -50,20 +50,26 @@ test('Baton semantic validation accepts cursor/status consistency and rejects mi
 });
 
 test('Baton applies output by merging artifacts, appending results, storing attempts, and mirroring schema outputs', () => {
-  const entity = new Baton(baton({ state: { artifacts: [{ id: 'a', content: 'old' }], results: [{ id: 'r1' }] } }));
+  const entity = new Baton(baton({ state: { artifacts: [{ id: 'a', content_type: 'text/plain', path: 'worker/artifacts/a.txt', summary: 'old' }], results: [{ id: 'r1' }] } }));
 
   const applied = entity.withAppliedOutput(
     'worker',
     {
       outcome: 'ok',
-      artifacts: [{ id: 'a', content: 'new' }, { id: 'b', content: 'added' }],
+      artifacts: [
+        { id: 'a', content_type: 'text/plain', path: 'worker/artifacts/a.txt', summary: 'new' },
+        { id: 'b', content_type: 'text/plain', path: 'worker/artifacts/b.txt', summary: 'added' },
+      ],
       results: [{ id: 'r2' }],
     },
     { worker: 2 },
     { mirrorToOutputs: true },
   );
 
-  assert.deepEqual(applied.state.artifacts, [{ id: 'a', content: 'new' }, { id: 'b', content: 'added' }]);
+  assert.deepEqual(applied.state.artifacts, [
+    { id: 'a', content_type: 'text/plain', path: 'worker/artifacts/a.txt', summary: 'new' },
+    { id: 'b', content_type: 'text/plain', path: 'worker/artifacts/b.txt', summary: 'added' },
+  ]);
   assert.deepEqual(applied.state.results, [{ id: 'r1' }, { id: 'r2' }]);
   assert.deepEqual(applied.state.worker.outcome, 'ok');
   assert.deepEqual(applied.state.outputs.worker.outcome, 'ok');

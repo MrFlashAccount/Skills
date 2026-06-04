@@ -319,7 +319,7 @@ test('output.schema: valid structured output passes and is stored by step id', (
 
   const response = runApply('output-schema-valid-stored', baton(), {
     outcome: 'ready',
-    artifacts: [{ type: 'packet', summary: 'structured' }],
+    artifacts: [{ id: 'packet', content_type: 'text/markdown', path: 'worker_step/artifacts/packet.md', summary: 'structured' }],
     payload: { ok: true },
   }, true, doc);
 
@@ -446,7 +446,7 @@ test('output.schema: structured step output is projected by step id into downstr
 
   const applyResponse = runApply('output-schema-structured-project-apply', baton(), {
     outcome: 'ready',
-    artifacts: [{ type: 'packet', summary: 'structured projection artifact' }],
+    artifacts: [{ id: 'packet', content_type: 'text/markdown', path: 'worker_step/artifacts/packet.md', summary: 'structured projection artifact' }],
     payload: { ok: true },
   }, true, doc);
 
@@ -493,7 +493,7 @@ test('output.schema: projected structured output renders schema field notes befo
 
   const applyResponse = runApply('output-schema-field-notes-apply', baton(), {
     outcome: 'ready',
-    artifacts: [{ type: 'packet', summary: 'structured projection artifact' }],
+    artifacts: [{ id: 'packet', content_type: 'text/markdown', path: 'worker_step/artifacts/packet.md', summary: 'structured projection artifact' }],
     payload: { ok: true },
   }, true, doc);
   const workflowPath = writeJson('output-schema-field-notes-workflow.json', doc);
