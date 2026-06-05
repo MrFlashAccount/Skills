@@ -56,6 +56,10 @@ function resolveSchemaRef(rootSchema, ref, schemaDefinitions) {
   return resolveExternalSchemaRef(schemaDefinitions, ref);
 }
 
+function unresolvedRefMessage(ref) {
+  return `schema field notes failed: unresolved schema $ref '${ref}'`;
+}
+
 export function normalizeSchemaForNotes(schema, rootSchema = schema, refStack = [], options = {}) {
   if (!isObject(schema)) return schema;
 
@@ -64,6 +68,7 @@ export function normalizeSchemaForNotes(schema, rootSchema = schema, refStack = 
     if (refStack.includes(schema.$ref)) return schema;
     const resolved = resolveSchemaRef(rootSchema, schema.$ref, options.schemaDefinitions);
     if (resolved.schema) baseSchema = normalizeSchemaForNotes(resolved.schema, resolved.rootSchema ?? rootSchema, [...refStack, schema.$ref], options);
+    else if (options.failOnUnresolvedRefs) throw new Error(unresolvedRefMessage(schema.$ref));
   }
 
   const normalized = { ...baseSchema };
@@ -115,7 +120,7 @@ function collectPropertyNotes(lines, schema, rootSchema, path, options, depth = 
 }
 
 export function artifactOutputFieldNotes(schema, options = {}) {
-  const normalized = normalizeSchemaForNotes(schema, schema, [], options);
+  const normalized = normalizeSchemaForNotes(schema, schema, [], { ...options, failOnUnresolvedRefs: true });
   const artifactsSchema = normalized?.properties?.artifacts;
   if (!artifactsSchema) return '';
   const lines = [];
@@ -130,7 +135,7 @@ export function artifactOutputFieldNotes(schema, options = {}) {
 
 export function projectedValueFieldNotes({ stepId, schema, value, schemaDefinitions }) {
   if (!isObject(schema) || !isObject(value)) return [];
-  const normalized = normalizeSchemaForNotes(schema, schema, [], { schemaDefinitions });
+  const normalized = normalizeSchemaForNotes(schema, schema, [], { schemaDefinitions, failOnUnresolvedRefs: true });
   const lines = [];
   for (const [fieldName, fieldSchema] of Object.entries(normalized.properties ?? {})) {
     if (!Object.hasOwn(value, fieldName) || !isObject(fieldSchema)) continue;

@@ -4,6 +4,30 @@ import { loadOutputSchema } from '../../../persistence/workflow-resources/output
 
 export const OUTPUT_SCHEMA_MAX_ATTEMPTS = 3;
 
+function validateArtifactMetadataArray(output) {
+  if (!output || typeof output !== 'object' || Array.isArray(output) || !Object.hasOwn(output, 'artifacts') || !Array.isArray(output.artifacts)) return [];
+
+  const errors = [];
+  const forbiddenFields = ['type', 'kind', 'ref', 'producer_step_id', 'version', 'replaces', 'aliases'];
+  for (const [index, artifact] of output.artifacts.entries()) {
+    if (artifact && typeof artifact === 'object' && !Array.isArray(artifact)) {
+      for (const field of forbiddenFields) {
+        if (Object.hasOwn(artifact, field)) errors.push(`/artifacts/${index}/${field} is not allowed`);
+      }
+    }
+  }
+  const artifactSchema = {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    $id: 'https://github.com/MrFlashAccount/Skills/schemas/workflow/output-artifact-contract-check',
+    $ref: 'https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact',
+  };
+  for (const [index, artifact] of output.artifacts.entries()) {
+    const validation = validateJsonSchema(artifactSchema, artifact, { schemas: [batonSchema] });
+    if (!validation.ok) errors.push(...formatSchemaErrors(validation.errors).split('; ').map((error) => `/artifacts/${index}${error.startsWith('/') ? error : ` ${error}`}`));
+  }
+  return errors;
+}
+
 export function validateAgainstOutputSchema({ schemaRef = '<inline>', schema, output, externalSchemas = [], workflow, workflowPath, repositoryRoot }) {
   const resolvedSchema = schema ?? ((workflow && workflowPath)
     ? loadOutputSchema({ workflow, workflowPath, schemaRef, repositoryRoot }).schema
@@ -22,6 +46,7 @@ export function validateAgainstOutputSchema({ schemaRef = '<inline>', schema, ou
     else {
       if (Object.hasOwn(output, 'artifacts') && !Array.isArray(output.artifacts)) reservedErrors.push('/artifacts must be array');
       if (Object.hasOwn(output, 'results') && !Array.isArray(output.results)) reservedErrors.push('/results must be array');
+      reservedErrors.push(...validateArtifactMetadataArray(output));
     }
     if (reservedErrors.length > 0) return { ok: false, errors: reservedErrors.join('; ') };
     return { ok: true, output: structuredClone(output), errors: [] };

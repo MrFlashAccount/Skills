@@ -156,3 +156,66 @@ test('renderWorkflowPrompt reports unsupported prompt placeholders from explicit
     /placeholders are unsupported in input template 'consumer-input\.md': {{ oldPlaceholder }}/,
   );
 });
+
+test('renderWorkflowPrompt fails clearly when schema-derived notes contain unresolved external refs', () => {
+  const brokenResources = {
+    ...resources,
+    outputSchemas: new Map([
+      ...resources.outputSchemas,
+      [
+        'consumer.schema.json',
+        {
+          type: 'object',
+          properties: {
+            outcome: { enum: ['ok'] },
+            artifacts: {
+              type: 'array',
+              items: { $ref: 'https://example.invalid/schemas/missing#/$defs/artifact' },
+            },
+          },
+        },
+      ],
+    ]),
+  };
+
+  assert.throws(
+    () => renderWorkflowPrompt({ workflow, baton, stepId: 'consumer', step: workflow.steps.consumer, resources: brokenResources }),
+    /schema field notes failed: unresolved schema \$ref 'https:\/\/example\.invalid\/schemas\/missing#\/\$defs\/artifact'/,
+  );
+});
+
+test('renderWorkflowPrompt keeps local JSON pointer refs in schema-derived notes', () => {
+  const localRefResources = {
+    ...resources,
+    outputSchemas: new Map([
+      ...resources.outputSchemas,
+      [
+        'consumer.schema.json',
+        {
+          type: 'object',
+          properties: {
+            outcome: { enum: ['ok'] },
+            artifacts: {
+              type: 'array',
+              items: { $ref: '#/$defs/localArtifact' },
+              description: 'Consumer artifacts.',
+            },
+          },
+          $defs: {
+            localArtifact: {
+              type: 'object',
+              properties: {
+                content_type: { type: 'string', description: 'Local content type.', 'x-usage': 'Local usage note.' },
+              },
+            },
+          },
+        },
+      ],
+    ]),
+  };
+
+  const rendered = renderWorkflowPrompt({ workflow, baton, stepId: 'consumer', step: workflow.steps.consumer, resources: localRefResources });
+
+  assert.match(rendered.prompt, /artifacts\[\]\.content_type/);
+  assert.match(rendered.prompt, /Fill: Local usage note\./);
+});

@@ -17,7 +17,10 @@
         "additionalProperties": true
       }
     },
-    "artifacts": { "type": "array" }
+    "artifacts": {
+      "type": "array",
+      "items": { "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact" }
+    }
   },
   "additionalProperties": true
 }

@@ -3,6 +3,7 @@ import test from 'node:test';
 import { WorkflowRuntimeError } from '../../../errors.mjs';
 import { applyOutputToBatonState } from '../../../runtime/baton-state.mjs';
 import { Baton } from '../index.mjs';
+import { assertBatonSchema } from '../schema/baton-schema.mjs';
 
 const workflow = {
   name: 'baton-fixture',
@@ -50,7 +51,7 @@ test('Baton semantic validation accepts cursor/status consistency and rejects mi
 });
 
 test('Baton applies output by merging artifacts, appending results, storing attempts, and mirroring schema outputs', () => {
-  const entity = new Baton(baton({ state: { artifacts: [{ id: 'a', content_type: 'text/plain', path: 'worker/artifacts/a.txt', summary: 'old' }], results: [{ id: 'r1' }] } }));
+  const entity = new Baton(baton({ state: { artifacts: [{ producerStepId: 'worker', artifact: { id: 'a', content_type: 'text/plain', path: 'worker/artifacts/a.txt', summary: 'old' } }], results: [{ id: 'r1' }] } }));
 
   const applied = entity.withAppliedOutput(
     'worker',
@@ -67,13 +68,33 @@ test('Baton applies output by merging artifacts, appending results, storing atte
   );
 
   assert.deepEqual(applied.state.artifacts, [
-    { id: 'a', content_type: 'text/plain', path: 'worker/artifacts/a.txt', summary: 'new' },
-    { id: 'b', content_type: 'text/plain', path: 'worker/artifacts/b.txt', summary: 'added' },
+    { producerStepId: 'worker', artifact: { id: 'a', content_type: 'text/plain', path: 'worker/artifacts/a.txt', summary: 'new' } },
+    { producerStepId: 'worker', artifact: { id: 'b', content_type: 'text/plain', path: 'worker/artifacts/b.txt', summary: 'added' } },
   ]);
   assert.deepEqual(applied.state.results, [{ id: 'r1' }, { id: 'r2' }]);
   assert.deepEqual(applied.state.worker.outcome, 'ok');
   assert.deepEqual(applied.state.outputs.worker.outcome, 'ok');
   assert.deepEqual(applied.state.attempts, { worker: 2 });
+});
+
+
+test('Baton aggregate artifact merge keys by producer step id and artifact id', () => {
+  const entity = new Baton(baton({
+    state: {
+      artifacts: [{ producerStepId: 'producer_a', artifact: { id: 'packet', content_type: 'text/plain', summary: 'from a' } }],
+      results: [],
+    },
+  }));
+
+  const fromB = entity.withAppliedOutput('producer_b', {
+    outcome: 'ok',
+    artifacts: [{ id: 'packet', content_type: 'text/plain', summary: 'from b' }],
+  });
+
+  assert.deepEqual(fromB.state.artifacts, [
+    { producerStepId: 'producer_a', artifact: { id: 'packet', content_type: 'text/plain', summary: 'from a' } },
+    { producerStepId: 'producer_b', artifact: { id: 'packet', content_type: 'text/plain', summary: 'from b' } },
+  ]);
 });
 
 test('Baton rejects non-array aggregate output fields before mutating state', () => {
@@ -91,4 +112,52 @@ test('applyOutputToBatonState exposes only the updated state payload', () => {
 
   assert.deepEqual(state.worker, { outcome: 'ok', results: [{ summary: 'done' }] });
   assert.deepEqual(state.results, [{ summary: 'done' }]);
+});
+
+
+test('Baton schema and entity validation reject flat aggregate artifacts', () => {
+  const flatArtifactBaton = baton({
+    state: {
+      artifacts: [{ id: 'flat', content_type: 'text/plain', path: 'worker/artifacts/flat.txt' }],
+      results: [],
+    },
+  });
+
+  assert.throws(() => assertBatonSchema(flatArtifactBaton), /baton/);
+  assert.throws(
+    () => new Baton(flatArtifactBaton).validateAgainst(workflow),
+    /state\.artifacts\/0 must be aggregate artifact/,
+  );
+});
+
+test('Baton rejects legacy aggregate artifacts instead of normalizing or stripping fields', () => {
+  const entity = new Baton(baton({
+    state: {
+      artifacts: [
+        {
+          id: 'packet',
+          content_type: 'text/plain',
+          path: 'worker/artifacts/packet.txt',
+          summary: 'legacy',
+          producer_step_id: 'worker',
+        },
+      ],
+      results: [],
+    },
+  }));
+
+  assert.throws(
+    () => entity.withAppliedOutput('worker', {
+      outcome: 'ok',
+      artifacts: [{ id: 'packet', content_type: 'text/plain', path: 'worker/artifacts/packet.txt', summary: 'replacement' }],
+    }),
+    /state\/artifacts\/0 must be aggregate artifact/,
+  );
+});
+
+test('Baton refuses to fabricate aggregate producer identity for pathless artifacts without step id', () => {
+  assert.throws(
+    () => applyOutputToBatonState(baton(), { outcome: 'ok', artifacts: [{ id: 'packet', content_type: 'text/plain' }] }),
+    (error) => error instanceof WorkflowRuntimeError && /cannot determine producerStepId/.test(error.message) && !error.message.includes('<unknown>'),
+  );
 });

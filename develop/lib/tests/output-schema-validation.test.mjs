@@ -326,7 +326,7 @@ test('output.schema: valid structured output passes and is stored by step id', (
   assert.equal(response.baton.cursor, 'done');
   assert.deepEqual(response.baton.state.worker_step.payload, { ok: true });
   assert.deepEqual(response.baton.state.outputs.worker_step.payload, { ok: true });
-  assert.equal(response.baton.state.artifacts.at(-1).summary, 'structured');
+  assert.equal(response.baton.state.artifacts.at(-1).artifact.summary, 'structured');
 });
 
 
@@ -379,6 +379,32 @@ test('output.schema: invalid approval output retries the approval step with sche
   assert.equal(retry.baton.state.attempts['consumer_step:output.schema'], 1);
   assert.match(retry.steps[0].step.input.prompt, /Previous output failed output\.schema validation/);
   assert.match(retry.steps[0].step.input.prompt, /must be equal to constant/);
+});
+
+
+
+test('output.schema: loose artifacts item schema still enforces central artifact metadata contract', () => {
+  const doc = workflowWithSchema('loose-artifacts-central-contract', {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome', 'artifacts'],
+    properties: {
+      outcome: { const: 'ready' },
+      artifacts: { type: 'array', items: { type: 'object' } },
+    },
+    additionalProperties: false,
+  });
+
+  for (const forbiddenField of ['type', 'kind', 'ref', 'producer_step_id', 'version', 'replaces', 'aliases']) {
+    const retry = runApply(`output-schema-loose-artifact-rejects-${forbiddenField}`, baton(), {
+      outcome: 'ready',
+      artifacts: [{ id: 'packet', content_type: 'text/plain', [forbiddenField]: forbiddenField === 'version' ? 1 : 'legacy' }],
+    }, true, doc);
+
+    assert.equal(retry.baton.cursor, 'worker_step');
+    assert.equal(retry.steps[0].action, 'run_worker');
+    assert.match(retry.steps[0].step.input.prompt, new RegExp(`/artifacts/0.*${forbiddenField}`));
+  }
 });
 
 test('output.schema: reserved aggregate fields must keep array envelope shape', () => {
@@ -591,4 +617,52 @@ test('output.schema: non-structured worker output is projected by step id into d
 
   assert.match(renderResponse.steps[0].compiledPrompt.prompt, /"worker_step"/);
   assert.match(renderResponse.steps[0].compiledPrompt.prompt, /"plain markdown result body"/);
+});
+
+test('output.schema: central artifact contract accepts simplified shape and rejects legacy artifact fields', () => {
+  const schema = {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome', 'artifacts'],
+    properties: {
+      outcome: { const: 'ready' },
+      artifacts: {
+        type: 'array',
+        items: { $ref: 'https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact' },
+      },
+    },
+    additionalProperties: false,
+  };
+
+  assert.equal(validateAgainstOutputSchema({ schema, output: { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown' }] } }).ok, true);
+
+  for (const staleField of ['type', 'kind', 'ref', 'producer_step_id', 'version', 'replaces', 'aliases']) {
+    const validation = validateAgainstOutputSchema({
+      schema,
+      output: { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', [staleField]: staleField === 'aliases' ? [] : 'legacy' }] },
+    });
+    assert.equal(validation.ok, false, `expected stale artifact field '${staleField}' to be rejected`);
+    assert.match(validation.errors, /must NOT have additional properties/);
+  }
+});
+
+test('output.schema: loose step schemas still reject legacy artifact fields', () => {
+  const schema = {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome'],
+    properties: {
+      outcome: { const: 'ready' },
+      artifacts: { type: 'array', items: { type: 'object', additionalProperties: true } },
+    },
+    additionalProperties: true,
+  };
+
+  const validation = validateAgainstOutputSchema({
+    schema,
+    output: { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', producer_step_id: 'worker_step' }] },
+  });
+
+  assert.equal(validation.ok, false);
+  assert.match(validation.errors, /\/artifacts\/0\/producer_step_id is not allowed/);
 });

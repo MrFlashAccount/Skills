@@ -27,7 +27,19 @@ Optional fields:
 - `path`: run-relative path. Current local artifacts conventionally use `<stepId>/artifacts/<artifactId>...` under the run directory.
 - `summary`: compact handoff text.
 
-Not included: `type`, `kind`, `producer_step_id`, `version`, `replaces`, aliases, promotion, or final/approved artifact semantics.
+Not included: `type`, `kind`, `ref`, `producer_step_id`, `version`, `replaces`, `aliases`, promotion, or final/approved artifact semantics.
+
+## Baton state boundary
+
+The canonical read path for artifacts is the producer step output:
+
+```js
+baton.state[producerStepId].artifacts[]
+```
+
+`baton.state.artifacts` is a strict aggregate of wrapper entries `{ producerStepId, artifact }`. It never accepts flat artifact metadata. Identity is the pair `{ producerStepId, artifact.id }`; the `producerStepId` lives outside the artifact metadata object so the artifact contract itself stays `{ id, content_type, path?, summary? }`.
+
+The renderer does not choose artifact ids or paths and does not read persisted artifact files. It only renders schema-derived notes from loaded schemas. External schema refs such as the central Baton artifact `$ref` must resolve deterministically; unresolved external refs fail prompt rendering instead of being silently omitted.
 
 ## Artifact usage metadata
 

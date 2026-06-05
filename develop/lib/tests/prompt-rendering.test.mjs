@@ -1074,7 +1074,7 @@ test('CLI render: runtime guard rejects reserved aggregate state selectors', () 
   const workflowDoc = structuredClone(schemaWorkflowDoc);
   workflowDoc.steps.approval_step.input.state = ['artifacts'];
   const workflowPath = writeJson('runtime-reserved-render-workflow.json', workflowDoc);
-  const batonPath = writeJson('runtime-reserved-render-baton.json', baton({ cursor: 'approval_step', status: 'running', state: { artifacts: [{ id: 'packet', content_type: 'text/markdown', path: 'worker_step/artifacts/packet.md', summary: 'leaked' }], results: [] } }));
+  const batonPath = writeJson('runtime-reserved-render-baton.json', baton({ cursor: 'approval_step', status: 'running', state: { artifacts: [{ producerStepId: 'worker_step', artifact: { id: 'packet', content_type: 'text/markdown', path: 'worker_step/artifacts/packet.md', summary: 'leaked' } }], results: [] } }));
 
   const result = runNode(['develop/lib/entrypoints/cli/workflow-interpreter.mjs', 'render', workflowPath, batonPath]);
   const response = expectCliResult('runtime-reserved-render', result, false);

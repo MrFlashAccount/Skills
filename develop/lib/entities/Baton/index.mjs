@@ -14,6 +14,18 @@ function workflowData(workflow) {
 }
 
 
+function validateAggregateArtifacts(state) {
+  if (!Array.isArray(state.artifacts)) throw new WorkflowRuntimeError('baton semantic validation failed: state.artifacts must be array');
+  for (const [index, entry] of state.artifacts.entries()) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry) || typeof entry.producerStepId !== 'string' || !entry.producerStepId || !entry.artifact || typeof entry.artifact !== 'object' || Array.isArray(entry.artifact)) {
+      throw new WorkflowRuntimeError(`baton semantic validation failed: state.artifacts/${index} must be aggregate artifact {producerStepId, artifact}`);
+    }
+    for (const field of ['type', 'kind', 'ref', 'producer_step_id', 'version', 'replaces', 'aliases']) {
+      if (Object.hasOwn(entry.artifact, field)) throw new WorkflowRuntimeError(`baton semantic validation failed: state.artifacts/${index}/artifact/${field} is not allowed`);
+    }
+  }
+}
+
 export class Baton {
   constructor(batonData) {
     this.data = cloneBoundaryData(batonData);
@@ -29,6 +41,7 @@ export class Baton {
     if (typeof this.data.cursor !== 'string' || typeof this.data.status !== 'string' || !this.data.state || typeof this.data.state !== 'object' || Array.isArray(this.data.state)) {
       throw new WorkflowRuntimeError('baton semantic validation failed: baton requires cursor, status, and object state');
     }
+    validateAggregateArtifacts(this.data.state);
     const cursorStep = workflow.steps?.[this.data.cursor];
     if (!cursorStep) throw new WorkflowRuntimeError(`baton cursor not found in workflow: ${this.data.cursor}`);
     const expectedStatus = statusForStep(workflow, this.data.cursor, cursorStep);

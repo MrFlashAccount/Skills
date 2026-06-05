@@ -22,8 +22,14 @@ function assertGenericApprovalOutput(hostOutput) {
       if (!artifact || typeof artifact !== 'object' || Array.isArray(artifact)) {
         throw new WorkflowRuntimeError(`approval output failed schema validation: /artifacts/${index} must be object`);
       }
-      if (typeof artifact.type !== 'string') {
-        throw new WorkflowRuntimeError(`approval output failed schema validation: /artifacts/${index}/type must be string`);
+      if (typeof artifact.id !== 'string' || artifact.id.length === 0) {
+        throw new WorkflowRuntimeError(`approval output failed schema validation: /artifacts/${index}/id must be non-empty string`);
+      }
+      if (typeof artifact.content_type !== 'string' || artifact.content_type.length === 0) {
+        throw new WorkflowRuntimeError(`approval output failed schema validation: /artifacts/${index}/content_type must be non-empty string`);
+      }
+      for (const field of ['type', 'kind', 'ref', 'producer_step_id', 'version', 'replaces', 'aliases']) {
+        if (Object.hasOwn(artifact, field)) throw new WorkflowRuntimeError(`approval output failed schema validation: /artifacts/${index}/${field} is not allowed`);
       }
     }
   }

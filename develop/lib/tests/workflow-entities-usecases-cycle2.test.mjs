@@ -129,10 +129,16 @@ test('Baton.validateAgainst accepts a terminal done cursor with done status', ()
 });
 
 test('Baton.withAppliedOutput replaces existing artifacts by id and preserves unrelated artifacts', () => {
-  const baton = new Baton(batonDoc({ state: { artifacts: [{ id: 'same', content_type: 'text/markdown', path: 'producer/artifacts/same.md', summary: 'old' }, { id: 'keep', content_type: 'text/markdown', path: 'producer/artifacts/keep.md', summary: 'keep' }], results: [] } }));
+  const baton = new Baton(batonDoc({ state: { artifacts: [
+    { producerStepId: 'producer', artifact: { id: 'same', content_type: 'text/markdown', path: 'producer/artifacts/same.md', summary: 'old' } },
+    { producerStepId: 'producer', artifact: { id: 'keep', content_type: 'text/markdown', path: 'producer/artifacts/keep.md', summary: 'keep' } },
+  ], results: [] } }));
   const next = baton.withAppliedOutput('producer', { outcome: 'ready', artifacts: [{ id: 'same', content_type: 'text/markdown', path: 'producer/artifacts/same.md', summary: 'new' }], results: [] });
 
-  assert.deepEqual(next.state.artifacts, [{ id: 'same', content_type: 'text/markdown', path: 'producer/artifacts/same.md', summary: 'new' }, { id: 'keep', content_type: 'text/markdown', path: 'producer/artifacts/keep.md', summary: 'keep' }]);
+  assert.deepEqual(next.state.artifacts, [
+    { producerStepId: 'producer', artifact: { id: 'same', content_type: 'text/markdown', path: 'producer/artifacts/same.md', summary: 'new' } },
+    { producerStepId: 'producer', artifact: { id: 'keep', content_type: 'text/markdown', path: 'producer/artifacts/keep.md', summary: 'keep' } },
+  ]);
 });
 
 test('Baton.withAppliedOutput appends result aggregates without overwriting previous results', () => {
@@ -147,11 +153,11 @@ test('Baton.withAppliedOutput rejects non-array artifact aggregates before mutat
   assertWorkflowError(() => baton.withAppliedOutput('producer', { outcome: 'ready', artifacts: {}, results: [] }), /worker output failed schema validation: \/artifacts must be array/);
 });
 
-test('applyOutputToBatonState can aggregate output without assigning it to a step key', () => {
-  const state = applyOutputToBatonState(batonDoc(), { artifacts: [{ id: 'a', content_type: 'text/markdown', path: 'producer/artifacts/a.md' }], results: [] }, undefined, undefined);
-
-  assert.deepEqual(state.artifacts, [{ id: 'a', content_type: 'text/markdown', path: 'producer/artifacts/a.md' }]);
-  assert.equal(Object.hasOwn(state, 'producer'), false);
+test('applyOutputToBatonState rejects artifact output when producer step id is missing', () => {
+  assertWorkflowError(
+    () => applyOutputToBatonState(batonDoc(), { artifacts: [{ id: 'a', content_type: 'text/markdown', path: 'producer/artifacts/a.md' }], results: [] }, undefined, undefined),
+    /cannot determine producerStepId.*pass stepId/,
+  );
 });
 
 test('Baton.withAppliedOutput mirrors schema-backed step output into state.outputs when requested', () => {

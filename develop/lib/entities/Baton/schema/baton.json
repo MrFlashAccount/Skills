@@ -27,9 +27,10 @@
       ],
       "properties": {
         "artifacts": {
+          "description": "Aggregate artifact metadata entries keyed outside the artifact contract by producer step id. Items must be { producerStepId, artifact }, where artifact follows the central artifact metadata contract.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/artifact"
+            "$ref": "#/$defs/aggregateArtifact"
           }
         },
         "results": {
@@ -104,7 +105,7 @@
           "type": "string",
           "minLength": 1,
           "description": "Artifact id unique within the producer step.",
-          "x-usage": "Use with the projected producer step id to identify the artifact. Emit a stable id unique within the producer step; do not add producer_step_id, type, kind, version, replaces, or aliases."
+          "x-usage": "Use with the projected producer step id to identify the artifact. Emit a stable id unique within the producer step; do not add producer_step_id, type, kind, ref, version, replaces, or aliases."
         },
         "content_type": {
           "type": "string",
@@ -146,6 +147,24 @@
         }
       },
       "additionalProperties": true
+    },
+    "aggregateArtifact": {
+      "type": "object",
+      "required": [
+        "producerStepId",
+        "artifact"
+      ],
+      "properties": {
+        "producerStepId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Producer step id used only for aggregate identity; not part of the artifact metadata contract."
+        },
+        "artifact": {
+          "$ref": "#/$defs/artifact"
+        }
+      },
+      "additionalProperties": false
     }
   }
 }
