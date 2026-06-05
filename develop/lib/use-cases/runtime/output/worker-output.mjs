@@ -1,4 +1,5 @@
 import { WorkflowRuntimeError } from '../../../errors.mjs';
+import { assertCentralArtifactMetadata } from '../../../entities/Baton/artifact-contract.mjs';
 import { assertWorkerOutputSchema } from './worker-output-schema.mjs';
 import { validateAgainstOutputSchema, OUTPUT_SCHEMA_MAX_ATTEMPTS } from '../../../use-cases/runtime/output/output-schema-validation.mjs';
 import { invalidJsonOutputRetry, outputSchemaAttempt, responseForOutputSchemaRetry } from '../loop/guard.mjs';
@@ -22,15 +23,7 @@ function assertGenericApprovalOutput(hostOutput) {
       if (!artifact || typeof artifact !== 'object' || Array.isArray(artifact)) {
         throw new WorkflowRuntimeError(`approval output failed schema validation: /artifacts/${index} must be object`);
       }
-      if (typeof artifact.id !== 'string' || artifact.id.length === 0) {
-        throw new WorkflowRuntimeError(`approval output failed schema validation: /artifacts/${index}/id must be non-empty string`);
-      }
-      if (typeof artifact.content_type !== 'string' || artifact.content_type.length === 0) {
-        throw new WorkflowRuntimeError(`approval output failed schema validation: /artifacts/${index}/content_type must be non-empty string`);
-      }
-      for (const field of ['type', 'kind', 'ref', 'producer_step_id', 'version', 'replaces', 'aliases']) {
-        if (Object.hasOwn(artifact, field)) throw new WorkflowRuntimeError(`approval output failed schema validation: /artifacts/${index}/${field} is not allowed`);
-      }
+      assertCentralArtifactMetadata(artifact, `/artifacts/${index}`, { errorPrefix: 'approval output failed schema validation' });
     }
   }
   if ('results' in hostOutput) {

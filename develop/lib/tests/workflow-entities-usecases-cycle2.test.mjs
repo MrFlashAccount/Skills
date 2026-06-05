@@ -407,4 +407,17 @@ test('applyWorkflowOutput validates generic approval output shape when no approv
   });
 
   assertWorkflowError(() => applyWorkflowOutput({ workflowDoc: doc, batonDoc: batonDoc({ cursor: 'approve' }), resources: { outputSchemas }, outputValue: { approval: 'approved', artifacts: {} } }), /approval output failed schema validation: \/artifacts must be array/);
+  assertWorkflowError(() => applyWorkflowOutput({ workflowDoc: doc, batonDoc: batonDoc({ cursor: 'approve' }), resources: { outputSchemas }, outputValue: { approval: 'approved', artifacts: [{ id: 'packet', content_type: 'text/plain', foo: 'legacy leak' }] } }), /approval output failed schema validation: \/artifacts\/0\/foo is not allowed/);
+});
+
+test('applyWorkflowOutput rejects no-schema worker artifacts with fields outside the central artifact contract', () => {
+  const doc = workflowDoc((workflow) => {
+    workflow.start = 'join';
+    return workflow;
+  });
+
+  assert.throws(
+    () => applyWorkflowOutput({ workflowDoc: doc, batonDoc: batonDoc({ cursor: 'join' }), resources: { outputSchemas }, outputValue: { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/plain', foo: 'legacy leak' }] } }),
+    /worker output failed schema validation|must NOT have additional properties/,
+  );
 });

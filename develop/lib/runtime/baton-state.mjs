@@ -1,38 +1,12 @@
 import { WorkflowRuntimeError } from '../errors.mjs';
-
-const ARTIFACT_FIELDS = ['id', 'content_type', 'path', 'summary'];
-const OPTIONAL_ARTIFACT_FIELDS = ['path', 'summary'];
+import { cloneCentralArtifactMetadata } from '../entities/Baton/artifact-contract.mjs';
 
 function cloneBoundaryData(dto) {
   return typeof dto?.toJSON === 'function' ? dto.toJSON() : structuredClone(dto);
 }
 
-function assertArtifactObject(artifact, path) {
-  if (!artifact || typeof artifact !== 'object' || Array.isArray(artifact)) {
-    throw new WorkflowRuntimeError(`worker output failed schema validation: ${path} must be object`);
-  }
-}
-
-function assertArtifactMetadata(artifact, path) {
-  assertArtifactObject(artifact, path);
-  for (const field of Object.keys(artifact)) {
-    if (!ARTIFACT_FIELDS.includes(field)) throw new WorkflowRuntimeError(`worker output failed schema validation: ${path}/${field} is not allowed`);
-  }
-  for (const field of ['id', 'content_type']) {
-    if (typeof artifact[field] !== 'string' || artifact[field].length === 0) {
-      throw new WorkflowRuntimeError(`worker output failed schema validation: ${path}/${field} must be non-empty string`);
-    }
-  }
-  for (const field of OPTIONAL_ARTIFACT_FIELDS) {
-    if (Object.hasOwn(artifact, field) && typeof artifact[field] !== 'string') {
-      throw new WorkflowRuntimeError(`worker output failed schema validation: ${path}/${field} must be string`);
-    }
-  }
-}
-
 function cloneArtifactMetadata(artifact, path) {
-  assertArtifactMetadata(artifact, path);
-  return structuredClone(artifact);
+  return cloneCentralArtifactMetadata(artifact, path, { errorPrefix: 'worker output failed schema validation' });
 }
 
 function producerStepIdForArtifact({ stepId, artifact, path }) {

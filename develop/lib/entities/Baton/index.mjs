@@ -2,6 +2,7 @@
  * Baton entity owns runtime cursor/status/state consistency and safe state updates.
  */
 import { WorkflowRuntimeError } from '../../errors.mjs';
+import { assertCentralArtifactMetadata } from './artifact-contract.mjs';
 import { applyOutputToBatonState } from '../../runtime/baton-state.mjs';
 import { statusForStep } from '../../runtime/step-status.mjs';
 
@@ -20,9 +21,10 @@ function validateAggregateArtifacts(state) {
     if (!entry || typeof entry !== 'object' || Array.isArray(entry) || typeof entry.producerStepId !== 'string' || !entry.producerStepId || !entry.artifact || typeof entry.artifact !== 'object' || Array.isArray(entry.artifact)) {
       throw new WorkflowRuntimeError(`baton semantic validation failed: state.artifacts/${index} must be aggregate artifact {producerStepId, artifact}`);
     }
-    for (const field of ['type', 'kind', 'ref', 'producer_step_id', 'version', 'replaces', 'aliases']) {
-      if (Object.hasOwn(entry.artifact, field)) throw new WorkflowRuntimeError(`baton semantic validation failed: state.artifacts/${index}/artifact/${field} is not allowed`);
+    for (const field of Object.keys(entry)) {
+      if (!['producerStepId', 'artifact'].includes(field)) throw new WorkflowRuntimeError(`baton semantic validation failed: state.artifacts/${index}/${field} is not allowed`);
     }
+    assertCentralArtifactMetadata(entry.artifact, `state.artifacts/${index}/artifact`, { errorPrefix: 'baton semantic validation failed' });
   }
 }
 

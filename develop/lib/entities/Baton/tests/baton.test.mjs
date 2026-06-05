@@ -155,6 +155,29 @@ test('Baton rejects legacy aggregate artifacts instead of normalizing or strippi
   );
 });
 
+test('Baton semantic validation rejects aggregate artifact payloads outside the central artifact contract', () => {
+  assert.throws(
+    () => new Baton(baton({
+      state: { artifacts: [{ producerStepId: 'worker', artifact: { content_type: 'text/plain' } }], results: [] },
+    })).validateAgainst(workflow),
+    /state\.artifacts\/0\/artifact\/id must be non-empty string/,
+  );
+
+  assert.throws(
+    () => new Baton(baton({
+      state: { artifacts: [{ producerStepId: 'worker', artifact: { id: 'packet' } }], results: [] },
+    })).validateAgainst(workflow),
+    /state\.artifacts\/0\/artifact\/content_type must be non-empty string/,
+  );
+
+  assert.throws(
+    () => new Baton(baton({
+      state: { artifacts: [{ producerStepId: 'worker', artifact: { id: 'packet', content_type: 'text/plain', foo: 'legacy leak' } }], results: [] },
+    })).validateAgainst(workflow),
+    /state\.artifacts\/0\/artifact\/foo is not allowed/,
+  );
+});
+
 test('Baton refuses to fabricate aggregate producer identity for pathless artifacts without step id', () => {
   assert.throws(
     () => applyOutputToBatonState(baton(), { outcome: 'ok', artifacts: [{ id: 'packet', content_type: 'text/plain' }] }),

@@ -672,9 +672,9 @@ test('apply: output state replaces same-id artifacts while appending new artifac
   ]);
 });
 
-test('apply: output merge appends unkeyed artifacts even when artifact type matches', () => {
+test('apply: output merge appends artifacts with distinct central ids under the producer step', () => {
   const response = runApply(
-    'state-merge-appends-unkeyed-artifacts',
+    'state-merge-appends-distinct-artifact-ids',
     baton({
       state: {
         artifacts: [aggregateArtifact('note-old', 'existing note')],
