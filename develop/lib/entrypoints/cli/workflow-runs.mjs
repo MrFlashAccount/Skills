@@ -10,7 +10,7 @@ function fail(message) {
 }
 
 function usage() {
-  return 'usage: node develop/lib/entrypoints/cli/workflow-runs.mjs list [--human] | create [--claim] [--run-id <id>] [--workflow <workflow.json>] [--workflow-identity <identity>] [--title <title>] [--summary <summary>] [--task-key <key>] [--task-fingerprint <fingerprint>] [--lease-token <token> + diagnostics metadata] | claim --run-id <id> [--workflow <workflow.json>] [--lease-token <token> + diagnostics metadata] | heartbeat --run-id <id> [--workflow <workflow.json>] [--lease-token <token> + diagnostics metadata]';
+  return 'usage: node develop/lib/entrypoints/cli/workflow-runs.mjs list [--human] | create [--claim] [--run-id <id>] [--workflow <workflow.json>] [--workflow-identity <identity>] [--title <title>] [--summary <summary>] [--task-key <key>] [--task-fingerprint <fingerprint>] [--lease-token <token> + diagnostics metadata] | claim --run-id <id> [--workflow <workflow.json>] [--takeover] [--lease-token <token> + diagnostics metadata] | heartbeat --run-id <id> [--workflow <workflow.json>] [--lease-token <token> + diagnostics metadata]';
 }
 
 const options = {
@@ -27,6 +27,7 @@ const options = {
   'worker-id': { type: 'string' },
   'lease-token': { type: 'string' },
   'lease-ms': { type: 'string' },
+  takeover: { type: 'boolean', default: false },
   claim: { type: 'boolean', default: false },
   human: { type: 'boolean', default: false },
 };
@@ -41,6 +42,7 @@ function parseCliArgs(argv) {
       for (const key of Object.keys(parsed.values)) if (!allowed.has(key) && parsed.values[key] !== false) fail(usage());
     }
     if ((mode === 'claim' || mode === 'heartbeat') && !parsed.values['run-id']) fail(usage());
+    if (mode !== 'claim' && parsed.values.takeover) fail(usage());
     if ((mode === 'claim' || mode === 'heartbeat') && (parsed.values.title || parsed.values.summary || parsed.values['task-key'] || parsed.values['task-fingerprint'] || parsed.values['workflow-identity'] || parsed.values.claim)) fail(usage());
     return { mode, values: parsed.values };
   } catch (error) {
@@ -54,6 +56,7 @@ function leaseArgs(values) {
     harness: values.harness,
     sessionId: values['session-id'],
     workerId: values['worker-id'],
+    takeover: values.takeover,
     leaseToken: values['lease-token'],
     leaseMs: values['lease-ms'] === undefined ? undefined : Number(values['lease-ms']),
   };

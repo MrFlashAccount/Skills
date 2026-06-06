@@ -150,11 +150,17 @@ test('workflow runs API rejects occupied fresh lease owned by someone else', asy
   assert.equal('workerLease' in response.run, false);
 });
 
-test('workflow runs API takes over stale lease after expiry', async () => {
+test('workflow runs API requires explicit takeover for stale tokenless claims', async () => {
   const runId = `${runPrefix}stale`;
   await registerWorkflowRunAtRoot({ runsRoot, runId, claim: true, owner: 'alice', harness: 'generic', sessionId: 'session-a', leaseMs: 1_000, now: new Date('2026-06-01T10:00:00.000Z') });
 
-  const response = await claimWorkflowRunAtRoot({ runsRoot, runId, owner: 'bob', harness: 'portable', sessionId: 'session-b', leaseMs: 60_000, now: new Date('2026-06-01T10:00:02.000Z') });
+  const stale = await claimWorkflowRunAtRoot({ runsRoot, runId, owner: 'bob', harness: 'portable', sessionId: 'session-b', leaseMs: 60_000, now: new Date('2026-06-01T10:00:02.000Z') });
+
+  assert.equal(stale.ok, false);
+  assert.equal(stale.reason, 'stale');
+  assert.equal(stale.run.occupancy.state, 'stale');
+
+  const response = await claimWorkflowRunAtRoot({ runsRoot, runId, owner: 'bob', harness: 'portable', sessionId: 'session-b', leaseMs: 60_000, takeover: true, now: new Date('2026-06-01T10:00:02.000Z') });
 
   assert.equal(response.ok, true);
   assert.equal(response.claimed, true);
@@ -240,15 +246,19 @@ test('workflow runs API rejects tokenless renewal without mutating lease', async
   assert.equal(run.occupancy.leaseExpiresAt, '2026-06-01T10:01:00.000Z');
 });
 
-test('workflow runs API issues a new token when claiming a stale lease', async () => {
+test('workflow runs API renews stale matching-token claims without rotating authority', async () => {
   const runId = `${runPrefix}stale-token-claim`;
-  await registerWorkflowRunAtRoot({ runsRoot, runId, claim: true, owner: 'alice', harness: 'portable', sessionId: 'session-a', leaseMs: 1_000, now: new Date('2026-06-01T10:00:00.000Z') });
+  const claim = await registerWorkflowRunAtRoot({ runsRoot, runId, claim: true, owner: 'alice', harness: 'portable', sessionId: 'session-a', leaseMs: 1_000, now: new Date('2026-06-01T10:00:00.000Z') });
+  const before = (await readRunsIndex(runsIndexPathsForRoot(runsRoot))).runs[runId].workerLease;
 
-  const response = await claimWorkflowRunAtRoot({ runsRoot, runId, owner: 'bob', leaseMs: 60_000, now: new Date('2026-06-01T10:00:02.000Z') });
+  const response = await claimWorkflowRunAtRoot({ runsRoot, runId, leaseToken: claim.leaseToken, owner: 'alice', leaseMs: 60_000, now: new Date('2026-06-01T10:00:02.000Z') });
 
   assert.equal(response.ok, true);
-  assert.equal(typeof response.leaseToken, 'string');
+  assert.equal('leaseToken' in response, false);
   assert.equal(response.run.occupancy.state, 'occupied');
+  const after = (await readRunsIndex(runsIndexPathsForRoot(runsRoot))).runs[runId].workerLease;
+  assert.equal(after.tokenHash, before.tokenHash);
+  assert.equal(after.leaseExpiresAt, '2026-06-01T10:01:02.000Z');
 });
 
 test('workflow-runs CLI ignores stale WORKFLOW_RUN_TOKEN env when reclaiming stale lease', async () => {
@@ -258,7 +268,7 @@ test('workflow-runs CLI ignores stale WORKFLOW_RUN_TOKEN env when reclaiming sta
   removeDefaultRunsForTestPrefix();
   await registerWorkflowRunAtRoot({ runsRoot: cliRunsRoot, runId, claim: true, owner: 'alice', leaseMs: 1_000, now: new Date('2026-06-01T10:00:00.000Z') });
 
-  const result = spawnSync(process.execPath, [helperPath, 'claim', '--run-id', runId, '--owner', 'bob', '--lease-ms', '60000'], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUNS_ROOT: cliRunsRoot, WORKFLOW_RUN_TOKEN: 'wrong-stale-env-token' } });
+  const result = spawnSync(process.execPath, [helperPath, 'claim', '--run-id', runId, '--owner', 'bob', '--lease-ms', '60000', '--takeover'], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUNS_ROOT: cliRunsRoot, WORKFLOW_RUN_TOKEN: 'wrong-stale-env-token' } });
 
   assert.equal(result.status, 0, result.stderr);
   const response = JSON.parse(result.stdout);

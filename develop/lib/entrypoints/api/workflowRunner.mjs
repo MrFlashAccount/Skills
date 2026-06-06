@@ -11,7 +11,7 @@ import { read as readInstructionDTO } from '../../persistence/workflow-resources
 import { writePersistedRunStateUpdate } from '../../persistence/run-state/PersistedRunStateWriter.mjs';
 import { assertSafeStepId, instructionPathForStep, responseStatusForInterpreterResponse, toHostResponse } from './runner/host-requests.mjs';
 import { readText } from '../../persistence/run-state/atomic-file.mjs';
-import { assertFreshTokenAuthority, buildTokenLease } from '../../persistence/run-state/lease-authority.mjs';
+import { assertFreshTokenAuthority, assertMatchingTokenAuthority, buildTokenLease, renewTokenLease } from '../../persistence/run-state/lease-authority.mjs';
 import { recoverDurableCommit } from '../../persistence/run-state/durable-commit.mjs';
 import { readPersistedRunState } from '../../persistence/run-state/PersistedRunStateReader.mjs';
 import { projectRuntimeRunState } from '../../persistence/run-state/persisted-state-schema.mjs';
@@ -60,18 +60,27 @@ async function runnerResponseForRendered(paths, rendered, { initialized, resumed
   };
 }
 
-async function assertWorkerLeaseAuthority(paths, { leaseToken, now = new Date() } = {}) {
+async function assertWorkerLeaseAuthority(paths, { leaseToken, now = new Date(), allowStale = false } = {}) {
   const index = await readRunsIndex(runsIndexPathsForRoot(paths.runsRoot));
   const run = index.runs[paths.runId];
-  assertFreshTokenAuthority(run?.workerLease, leaseToken, { runId: paths.runId, now });
+  if (allowStale) assertMatchingTokenAuthority(run?.workerLease, leaseToken, { runId: paths.runId });
+  else assertFreshTokenAuthority(run?.workerLease, leaseToken, { runId: paths.runId, now });
 }
 
-async function assertPreLockWorkerLeaseAuthority(paths, { leaseToken, now = new Date(), allowUnclaimed = false } = {}) {
+async function assertPreLockWorkerLeaseAuthority(paths, { leaseToken, now = new Date(), allowUnclaimed = false, allowStale = false } = {}) {
   if (!leaseToken) throw new Error('workflow run token is required');
   const index = await readRunsIndex(runsIndexPathsForRoot(paths.runsRoot));
   const run = index.runs[paths.runId];
   if (!run && allowUnclaimed) return;
-  assertFreshTokenAuthority(run?.workerLease, leaseToken, { runId: paths.runId, now });
+  if (allowStale) assertMatchingTokenAuthority(run?.workerLease, leaseToken, { runId: paths.runId });
+  else assertFreshTokenAuthority(run?.workerLease, leaseToken, { runId: paths.runId, now });
+}
+
+async function renewedWorkerLeaseAuthority(paths, { leaseToken, now = new Date() } = {}) {
+  const index = await readRunsIndex(runsIndexPathsForRoot(paths.runsRoot));
+  const run = index.runs[paths.runId];
+  assertMatchingTokenAuthority(run?.workerLease, leaseToken, { runId: paths.runId });
+  return renewTokenLease(run.workerLease, { now });
 }
 
 async function initializeMissingRunLease(paths, { leaseToken, now = new Date() } = {}) {
@@ -286,10 +295,10 @@ export async function next(options = {}) {
 
 async function continueRunInternal({ runId, workflowPath, output, includeDiagnostics = false, leaseToken, now = new Date(), runsRoot } = {}) {
   const lockPaths = resolveRunPaths({ runId, runsRoot });
-  await assertPreLockWorkerLeaseAuthority(lockPaths, { leaseToken, now });
+  await assertPreLockWorkerLeaseAuthority(lockPaths, { leaseToken, now, allowStale: true });
   return withRunStateLock(lockPaths, async () => {
     const paths = await resolveContinueRunPaths({ runId, workflowPath, runsRoot });
-    await assertWorkerLeaseAuthority(paths, { leaseToken, now });
+    await assertWorkerLeaseAuthority(paths, { leaseToken, now, allowStale: true });
     await ensureRunFiles(paths);
     await recoverDurableCommit(paths);
     const { outputPath, outputValue, historyOutput, currentBaton } = await outputForCurrentState(paths, normalizeOutputRefs(output));
@@ -299,13 +308,14 @@ async function continueRunInternal({ runId, workflowPath, output, includeDiagnos
     const rendered = renderAppliedResponse({ workflowDoc: runtime.workflow, response: applied, resources: runtime.resources, includeDiagnostics });
 
     const response = await runnerResponseForRendered(paths, rendered, { initialized: false, resumed: true });
+    const workerLease = await renewedWorkerLeaseAuthority(paths, { leaseToken, now });
     await writePersistedRunStateUpdate(paths, {
       response,
       baton: applied.baton,
       instructions: stepInstructionsFor(paths, rendered),
       history: { source: 'workflow-runner-continue', baton: applied.baton, output: historyOutput, requests: response.requests },
     });
-    await upsertRunIndexEntry(paths, { status: response.status, workflowPath: paths.workflowPath });
+    await upsertRunIndexEntry(paths, { status: response.status, workflowPath: paths.workflowPath, workerLease });
     return response;
   });
 }

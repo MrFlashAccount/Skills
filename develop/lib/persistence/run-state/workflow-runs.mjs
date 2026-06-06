@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 import { assertSafeRunId, defaultWorkflowPath, resolveRunPaths, workflowRunsRoot } from './paths.mjs';
 import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot, updateRunIndexEntry } from './run-index.mjs';
-import { assertFreshTokenAuthority, buildTokenLease, generateLeaseToken, occupancyForLease, renewTokenLease } from './lease-authority.mjs';
+import { assertMatchingTokenAuthority, buildTokenLease, generateLeaseToken, occupancyForLease, renewTokenLease } from './lease-authority.mjs';
 import { withRunStateLock } from './lock.mjs';
 
 function publicRun(entry, { now = new Date() } = {}) {
@@ -85,15 +85,9 @@ export async function registerWorkflowRunAtRoot({ runId, title, summary, workflo
   });
 }
 
-export async function claimWorkflowRunAtRoot({ runId, workflowPath, runsRoot = workflowRunsRoot, owner, harness, sessionId, workerId, leaseMs, leaseToken, now = new Date() } = {}) {
+export async function claimWorkflowRunAtRoot({ runId, workflowPath, runsRoot = workflowRunsRoot, owner, harness, sessionId, workerId, leaseMs, leaseToken, takeover = false, now = new Date() } = {}) {
   const safeRunId = assertSafeRunId(runId);
   const paths = resolveRunPaths({ runId: safeRunId, workflowPath: workflowPathForCreate(workflowPath), runsRoot });
-  if (leaseToken) {
-    const index = await readRunsIndex(runsIndexPathsForRoot(paths.runsRoot));
-    const existing = index.runs[safeRunId];
-    assertExistingWorkflowBinding(existing, paths, { requestedWorkflowPath: workflowPath });
-    assertFreshTokenAuthority(existing?.workerLease, leaseToken, { runId: safeRunId, now });
-  }
   const issuedLeaseToken = leaseToken || generateLeaseToken();
   try {
     return await withRunStateLock(paths, async () => {
@@ -101,8 +95,8 @@ export async function claimWorkflowRunAtRoot({ runId, workflowPath, runsRoot = w
       const entry = await updateRunIndexEntry(paths, (existing) => {
         assertExistingWorkflowBinding(existing, paths, { requestedWorkflowPath: workflowPath });
         const occupancy = occupancyForLease(existing.workerLease, now);
-        if (occupancy.state === 'occupied' || leaseToken) {
-          try { assertFreshTokenAuthority(existing.workerLease, leaseToken, { runId: safeRunId, now }); }
+        if (leaseToken) {
+          try { assertMatchingTokenAuthority(existing.workerLease, leaseToken, { runId: safeRunId }); }
           catch (error) {
             const conflict = new Error(error.message);
             conflict.code = 'WORKFLOW_RUN_OCCUPIED';
@@ -114,6 +108,18 @@ export async function claimWorkflowRunAtRoot({ runId, workflowPath, runsRoot = w
             updatedAt: now.toISOString(),
             workerLease: renewTokenLease(existing.workerLease, { leaseMs, now }),
           };
+        }
+        if (occupancy.state === 'occupied') {
+          const conflict = new Error(`workflow run is occupied: ${safeRunId}`);
+          conflict.code = 'WORKFLOW_RUN_OCCUPIED';
+          conflict.run = publicRun(existing, { now });
+          throw conflict;
+        }
+        if (occupancy.state === 'stale' && !takeover) {
+          const stale = new Error(`workflow run lease is stale: ${safeRunId}`);
+          stale.code = 'WORKFLOW_RUN_STALE';
+          stale.run = publicRun(existing, { now });
+          throw stale;
         }
         tokenWasIssued = true;
         return {
@@ -129,6 +135,9 @@ export async function claimWorkflowRunAtRoot({ runId, workflowPath, runsRoot = w
   } catch (error) {
     if (error?.code === 'WORKFLOW_RUN_OCCUPIED') {
       return { ok: false, claimed: false, reason: 'occupied', runId: safeRunId, run: error.run };
+    }
+    if (error?.code === 'WORKFLOW_RUN_STALE') {
+      return { ok: false, claimed: false, reason: 'stale', runId: safeRunId, run: error.run };
     }
     throw error;
   }

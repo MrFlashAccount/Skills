@@ -6,6 +6,7 @@ import path from 'node:path';
 import test, { after } from 'node:test';
 import { continueRun as runnerContinue, loadInstructions as runnerLoadInstructions, next as runnerNext } from '../entrypoints/api/workflowRunner.mjs';
 import { claimWorkflowRunAtRoot, registerWorkflowRunAtRoot } from '../persistence/run-state/workflow-runs.mjs';
+import { hashLeaseToken } from '../persistence/run-state/lease-authority.mjs';
 import { resolveRunPaths } from '../persistence/run-state/paths.mjs';
 
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-runner-fairness-'));
@@ -105,14 +106,15 @@ test('runner fairness: unauthorized API continue does not update status early or
   await runnerNext({ runId, workflowPath, leaseToken: claim.leaseToken, now: new Date('2026-06-01T10:00:01.000Z') });
   const outputPath = path.join(tempDir, 'unauthorized-continue-output.json');
   writeJson(outputPath, workerOutput('unauthorized output'));
-  const before = snapshotRunState(paths);
 
-  await assert.rejects(
-    () => runnerContinue({ runId, workflowPath, output: outputPath, leaseToken: 'wrong-token', now: new Date('2026-06-01T10:00:02.000Z') }),
-    /workflow run is occupied/,
-  );
-
-  assert.deepEqual(snapshotRunState(paths), before);
+  for (const leaseToken of ['wrong-token', '<lease-token>', `${claim.leaseToken.slice(0, 12)}…truncated`, `model-invented-token-${process.pid}`]) {
+    const before = snapshotRunState(paths);
+    await assert.rejects(
+      () => runnerContinue({ runId, workflowPath, output: outputPath, leaseToken, now: new Date('2026-06-01T10:00:02.000Z') }),
+      /workflow run is occupied/,
+    );
+    assert.deepEqual(snapshotRunState(paths), before);
+  }
 });
 
 test('runner fairness: expired worker lease does not alter lifecycle status', async () => {
@@ -131,6 +133,32 @@ test('runner fairness: expired worker lease does not alter lifecycle status', as
   assert.deepEqual(snapshotRunState(paths), before);
 });
 
+test('runner fairness: stale tokenless claim does not rotate saved token before host continue', async () => {
+  const workflowPath = path.join(tempDir, 'stale-tokenless-claim-no-rotation-before-continue.json');
+  writeJson(workflowPath, workflowDoc);
+  const { runId } = runCase('stale-tokenless-claim-no-rotation-before-continue', workflowPath);
+  const paths = resolveRunPaths({ runId, workflowPath });
+  const claim = await registerWorkflowRunAtRoot({ runId, workflowPath, claim: true, owner: 'alice', harness: 'portable', sessionId: 'session-a', leaseMs: 1_000, now: new Date('2026-06-01T10:00:00.000Z') });
+  await runnerNext({ runId, workflowPath, leaseToken: claim.leaseToken, now: new Date('2026-06-01T10:00:00.500Z') });
+  const outputPath = path.join(tempDir, 'stale-tokenless-claim-output.json');
+  writeJson(outputPath, workerOutput('stale token continue output'));
+  const beforeLease = snapshotRunState(paths).indexEntry.workerLease;
+
+  const staleClaim = await claimWorkflowRunAtRoot({ runId, workflowPath, owner: 'alice', harness: 'portable', sessionId: 'session-a', leaseMs: 60_000, now: new Date('2026-06-01T10:00:02.000Z') });
+
+  assert.equal(staleClaim.ok, false);
+  assert.equal(staleClaim.reason, 'stale');
+  assert.equal(snapshotRunState(paths).indexEntry.workerLease.tokenHash, beforeLease.tokenHash);
+
+  const continued = await runnerContinue({ runId, workflowPath, output: outputPath, leaseToken: claim.leaseToken, now: new Date('2026-06-01T10:00:03.000Z') });
+
+  assert.equal(continued.status, 'done');
+  assert.equal(continued.baton.cursor, 'done');
+  const afterLease = snapshotRunState(paths).indexEntry.workerLease;
+  assert.equal(afterLease.tokenHash, beforeLease.tokenHash);
+  assert.equal(afterLease.leaseExpiresAt, '2026-06-01T10:30:03.000Z');
+});
+
 test('runner fairness: old holder continue after stale takeover rejects without mutating baton', async () => {
   const workflowPath = path.join(tempDir, 'old-holder-continue-after-takeover.json');
   writeJson(workflowPath, workflowDoc);
@@ -138,7 +166,7 @@ test('runner fairness: old holder continue after stale takeover rejects without 
   const paths = resolveRunPaths({ runId, workflowPath });
   const oldClaim = await registerWorkflowRunAtRoot({ runId, workflowPath, claim: true, owner: 'alice', harness: 'portable', sessionId: 'session-a', leaseMs: 1_000, now: new Date('2026-06-01T10:00:00.000Z') });
   await runnerNext({ runId, workflowPath, leaseToken: oldClaim.leaseToken, now: new Date('2026-06-01T10:00:00.500Z') });
-  await claimWorkflowRunAtRoot({ runId, workflowPath, owner: 'bob', harness: 'portable', sessionId: 'session-b', leaseMs: 60_000, now: new Date('2026-06-01T10:00:02.000Z') });
+  await claimWorkflowRunAtRoot({ runId, workflowPath, owner: 'bob', harness: 'portable', sessionId: 'session-b', leaseMs: 60_000, takeover: true, now: new Date('2026-06-01T10:00:02.000Z') });
   const outputPath = path.join(tempDir, 'old-holder-output.json');
   writeJson(outputPath, workerOutput('old holder output'));
   const before = snapshotRunState(paths);
@@ -176,6 +204,27 @@ test('runner fairness: private claim authority lets generated run-id-only comman
   assert.equal('workflow' in response, false);
   assert.equal(response.requests[0].loadInstructionsCommand, `node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-id '${runId}' --step-id 'prepare' --lease-token <lease-token>`);
   assert.doesNotMatch(JSON.stringify(response), new RegExp(`alice|session-a|portable|${claim.leaseToken}`));
+  assert.equal(readFileSync(resolveRunPaths({ runId }).lastResponsePath, 'utf8').includes(claim.leaseToken), false);
+});
+
+test('runner fairness: worker output cannot author or rotate lease authority', async () => {
+  const workflowPath = path.join(tempDir, 'worker-output-cannot-rotate-lease-token.json');
+  writeJson(workflowPath, workflowDoc);
+  const { runId } = runCase('worker-output-cannot-rotate-lease-token', workflowPath);
+  const paths = resolveRunPaths({ runId, workflowPath });
+  const claim = await registerWorkflowRunAtRoot({ runId, workflowPath, claim: true, owner: 'alice', harness: 'portable', sessionId: 'session-a', leaseMs: 60_000, now: new Date('2026-06-01T10:00:00.000Z') });
+  await runnerNext({ runId, workflowPath, leaseToken: claim.leaseToken, now: new Date('2026-06-01T10:00:01.000Z') });
+  const beforeLease = snapshotRunState(paths).indexEntry.workerLease;
+  const inventedToken = `model-authored-replacement-token-${process.pid}`;
+  const outputPath = path.join(tempDir, 'worker-output-token-authority.json');
+  writeJson(outputPath, workerOutput(`worker output asks host to replace lease with ${inventedToken}`));
+
+  const continued = await runnerContinue({ runId, workflowPath, output: outputPath, leaseToken: claim.leaseToken, now: new Date('2026-06-01T10:00:02.000Z') });
+
+  assert.equal(continued.status, 'done');
+  const afterLease = snapshotRunState(paths).indexEntry.workerLease;
+  assert.equal(afterLease.tokenHash, beforeLease.tokenHash);
+  assert.notEqual(afterLease.tokenHash, hashLeaseToken(inventedToken));
 });
 
 test('runner fairness: missing host output does not mutate lifecycle status before durable apply', async () => {
