@@ -477,6 +477,8 @@ test('output.schema: structured step output is projected by step id into downstr
   }, true, doc);
 
   assert.equal(applyResponse.baton.cursor, 'consumer_step');
+  mkdirSync(path.join(tempDir, 'worker_step', 'artifacts'), { recursive: true });
+  writeFileSync(path.join(tempDir, 'worker_step', 'artifacts', 'packet.md'), 'Structured projection artifact body.\n');
   const batonPath = writeJson('output-schema-structured-project-baton.json', applyResponse.baton);
   const workflowPath = writeJson('output-schema-structured-project-workflow.json', doc);
   const renderResponse = runWorkflowCommand('output-schema-structured-project-render', [

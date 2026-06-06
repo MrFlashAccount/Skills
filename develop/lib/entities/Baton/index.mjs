@@ -15,8 +15,13 @@ function workflowData(workflow) {
 }
 
 
+function aggregateArtifactIdentity(entry) {
+  return `${entry.producerStepId}::${entry.artifact.id}`;
+}
+
 function validateAggregateArtifacts(state) {
   if (!Array.isArray(state.artifacts)) throw new WorkflowRuntimeError('baton semantic validation failed: state.artifacts must be array');
+  const seen = new Map();
   for (const [index, entry] of state.artifacts.entries()) {
     if (!entry || typeof entry !== 'object' || Array.isArray(entry) || typeof entry.producerStepId !== 'string' || !entry.producerStepId || !entry.artifact || typeof entry.artifact !== 'object' || Array.isArray(entry.artifact)) {
       throw new WorkflowRuntimeError(`baton semantic validation failed: state.artifacts/${index} must be aggregate artifact {producerStepId, artifact}`);
@@ -25,6 +30,13 @@ function validateAggregateArtifacts(state) {
       if (!['producerStepId', 'artifact'].includes(field)) throw new WorkflowRuntimeError(`baton semantic validation failed: state.artifacts/${index}/${field} is not allowed`);
     }
     assertCentralArtifactMetadata(entry.artifact, `state.artifacts/${index}/artifact`, { errorPrefix: 'baton semantic validation failed' });
+    const identity = aggregateArtifactIdentity(entry);
+    if (seen.has(identity)) {
+      throw new WorkflowRuntimeError(
+        `baton semantic validation failed: duplicate state.artifacts identity {producerStepId: '${entry.producerStepId}', artifact.id: '${entry.artifact.id}'} at entries ${seen.get(identity)} and ${index}`,
+      );
+    }
+    seen.set(identity, index);
   }
 }
 

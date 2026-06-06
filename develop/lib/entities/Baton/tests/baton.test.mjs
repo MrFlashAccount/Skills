@@ -97,6 +97,52 @@ test('Baton aggregate artifact merge keys by producer step id and artifact id', 
   ]);
 });
 
+test('Baton rejects duplicate artifact ids in one worker output for the same producer step', () => {
+  const entity = new Baton(baton());
+
+  assert.throws(
+    () => entity.withAppliedOutput('worker', {
+      outcome: 'ok',
+      artifacts: [
+        { id: 'packet', content_type: 'text/plain', summary: 'first' },
+        { id: 'packet', content_type: 'text/plain', summary: 'second' },
+      ],
+    }),
+    /duplicate artifact identity \{producerStepId: 'worker', artifact\.id: 'packet'\}/,
+  );
+});
+
+test('Baton rejects duplicate persisted aggregate artifact identities', () => {
+  assert.throws(
+    () => new Baton(baton({
+      state: {
+        artifacts: [
+          { producerStepId: 'worker', artifact: { id: 'packet', content_type: 'text/plain', summary: 'first' } },
+          { producerStepId: 'worker', artifact: { id: 'packet', content_type: 'text/plain', summary: 'second' } },
+        ],
+        results: [],
+      },
+    })).validateAgainst(workflow),
+    /duplicate state\.artifacts identity \{producerStepId: 'worker', artifact\.id: 'packet'\}/,
+  );
+});
+
+test('Baton preserves allowed same-id replacement across separate apply iterations', () => {
+  const entity = new Baton(baton());
+  const first = entity.withAppliedOutput('worker', {
+    outcome: 'ok',
+    artifacts: [{ id: 'packet', content_type: 'text/plain', summary: 'v1' }],
+  });
+  const second = new Baton(first).withAppliedOutput('worker', {
+    outcome: 'ok',
+    artifacts: [{ id: 'packet', content_type: 'text/plain', summary: 'v2' }],
+  });
+
+  assert.deepEqual(second.state.artifacts, [
+    { producerStepId: 'worker', artifact: { id: 'packet', content_type: 'text/plain', summary: 'v2' } },
+  ]);
+});
+
 test('Baton rejects non-array aggregate output fields before mutating state', () => {
   const entity = new Baton(baton());
 
@@ -153,6 +199,17 @@ test('Baton rejects legacy aggregate artifacts instead of normalizing or strippi
     }),
     /state\/artifacts\/0 must be aggregate artifact/,
   );
+});
+
+test('Baton rejects legacy artifact contract fields', () => {
+  for (const field of ['type', 'kind', 'ref', 'producer_step_id', 'version', 'replaces', 'aliases']) {
+    assert.throws(
+      () => new Baton(baton({
+        state: { artifacts: [{ producerStepId: 'worker', artifact: { id: 'packet', content_type: 'text/plain', [field]: 'legacy' } }], results: [] },
+      })).validateAgainst(workflow),
+      new RegExp(`state\.artifacts/0/artifact/${field} is not allowed`),
+    );
+  }
 });
 
 test('Baton semantic validation rejects aggregate artifact payloads outside the central artifact contract', () => {

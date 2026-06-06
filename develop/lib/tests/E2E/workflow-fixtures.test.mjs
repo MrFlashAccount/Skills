@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
@@ -106,6 +106,12 @@ function readHistory(run) {
   return readFileSync(path.join(runPath(run), 'history.md'), 'utf8');
 }
 
+function writeRunArtifact(run, artifactPath, content) {
+  const fullPath = path.join(runPath(run), artifactPath);
+  mkdirSync(path.dirname(fullPath), { recursive: true });
+  writeFileSync(fullPath, content);
+}
+
 after(() => rmSync(tempDir, { recursive: true, force: true }));
 
 test('E2E fixture: long happy path loops through review revision and preserves latest state', () => {
@@ -117,6 +123,7 @@ test('E2E fixture: long happy path loops through review revision and preserves l
   assert.deepEqual(first.requests.map((request) => request.id), ['plan']);
   assert.match(instructions(run, 'plan'), /# Plan/);
 
+  writeRunArtifact(run, 'plan/artifacts/plan.md', 'Plan artifact content for approval.\n');
   const planned = continueWith(run, workflow, output('plan-ready.json'), 'continue plan');
   assert.equal(planned.baton.cursor, 'approval_gate');
   assert.equal(planned.requests[0].action, 'wait_for_approval');
@@ -139,6 +146,30 @@ test('E2E fixture: long happy path loops through review revision and preserves l
   assert.equal(done.baton.state.implement.results[0].summary, 'implementation v2');
   assert.equal(done.baton.state.results.at(-1).summary, 'accepted');
   assert.match(readHistory(run), /id=review action=run_worker/);
+});
+
+test('E2E fixture: DevHarness-style artifact path exposes actual content to downstream review instructions', () => {
+  const workflow = fixture('long-revision.workflow.json');
+  const run = runDir('artifact-content');
+
+  next(run, workflow);
+  writeRunArtifact(run, 'plan/artifacts/plan.md', 'Plan artifact content for approval.\n');
+  continueWith(run, workflow, output('plan-ready.json'), 'continue plan for artifact content');
+  continueWith(run, workflow, output('approval-approved.json'), 'continue approval for artifact content');
+
+  writeRunArtifact(run, 'implement/artifacts/packet.md', 'Concrete implementation artifact content for reviewer.\n');
+  const implementOutputPath = path.join(tempDir, 'implement-with-readable-artifact.json');
+  writeFileSync(implementOutputPath, `${JSON.stringify({
+    outcome: 'ready',
+    results: [{ type: 'implementation', summary: 'implementation with readable artifact' }],
+    artifacts: [{ id: 'packet', content_type: 'text/markdown', path: 'implement/artifacts/packet.md', summary: 'readable packet' }],
+  }, null, 2)}\n`);
+
+  const reviewRequest = continueWith(run, workflow, implementOutputPath, 'continue implementation readable artifact');
+  assert.equal(reviewRequest.baton.cursor, 'review');
+  const reviewInstructions = instructions(run, 'review');
+  assert.match(reviewInstructions, /### Projected artifact content/);
+  assert.match(reviewInstructions, /Concrete implementation artifact content for reviewer\./);
 });
 
 test('E2E fixture: match route covers retry loop and blocked terminal variant', () => {

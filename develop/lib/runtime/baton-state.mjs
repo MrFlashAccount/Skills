@@ -35,13 +35,32 @@ function normalizeAggregateArtifactEntry(entry, index) {
   };
 }
 
+function artifactIdentity({ producerStepId, artifact }) {
+  return `${producerStepId}::${artifact.id}`;
+}
+
+function assertUniqueAggregateArtifacts(entries, { errorPrefix }) {
+  const seen = new Map();
+  for (const [index, entry] of entries.entries()) {
+    const identity = artifactIdentity(entry);
+    if (seen.has(identity)) {
+      throw new WorkflowRuntimeError(
+        `${errorPrefix}: duplicate artifact identity {producerStepId: '${entry.producerStepId}', artifact.id: '${entry.artifact.id}'} at entries ${seen.get(identity)} and ${index}`,
+      );
+    }
+    seen.set(identity, index);
+  }
+}
+
 function mergeArtifacts(existingArtifacts, newArtifacts = [], stepId) {
   const merged = existingArtifacts.map((entry, index) => normalizeAggregateArtifactEntry(entry, index));
-  for (const [index, artifact] of newArtifacts.entries()) {
-    const incoming = aggregateArtifactEntry(stepId, artifact, { path: `/artifacts/${index}` });
-    const existingIndex = incoming.artifact?.id
-      ? merged.findIndex((existing) => existing.producerStepId === incoming.producerStepId && existing.artifact?.id === incoming.artifact.id)
-      : -1;
+  assertUniqueAggregateArtifacts(merged, { errorPrefix: 'worker output failed schema validation: /state/artifacts' });
+
+  const incomingBatch = newArtifacts.map((artifact, index) => aggregateArtifactEntry(stepId, artifact, { path: `/artifacts/${index}` }));
+  assertUniqueAggregateArtifacts(incomingBatch, { errorPrefix: 'worker output failed schema validation: /artifacts' });
+
+  for (const incoming of incomingBatch) {
+    const existingIndex = merged.findIndex((existing) => existing.producerStepId === incoming.producerStepId && existing.artifact.id === incoming.artifact.id);
     if (existingIndex >= 0) merged[existingIndex] = incoming;
     else merged.push(incoming);
   }
