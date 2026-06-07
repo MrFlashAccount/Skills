@@ -303,8 +303,8 @@ test('dev harness revision loops project the feedback that caused revision', () 
 test('revision loop continuity separates projected state from clarification-session continuation', () => {
   const loopIterationContinuityPrompt = /Loop continuity across workflow loop iterations is prompt\/state based/;
   const noPersistentDraftCriticReuse = /do not assume persistent draft\/critic worker reuse across iterations/;
-  const clarificationContinuation = /If concise clarification is needed, ask, pause, and continue in the same clarification session after the user reply without restart or context widening/;
-  const contradictorySameSessionWording = /not same-session memory|hidden same-session memory/;
+  const clarificationContinuation = /If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening/;
+  const contradictorySameSessionWording = /not same-session memory|hidden same-session memory|ask, pause/;
 
   for (const stepId of ['research_draft', 'architecture_draft', 'planning_draft', 'backend_implementation', 'frontend_implementation', 'architecture_artifact_update']) {
     const prompt = workflowDoc.steps[stepId].input.prompt;
