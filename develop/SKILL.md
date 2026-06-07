@@ -112,7 +112,7 @@ If the instructions cannot be loaded, stop with an error.
 
 The orchestrator waits until the worker finishes its work. Workers never call `continue`.
 
-If a worker announces that it needs clarification instead of final validated output, treat it as an orchestrator-mediated clarification request: ask the user the worker's focused question, then forward the user's answer back into the same worker/subagent session with `sessions_send` so the worker continues there. This same clarification-session continuation is allowed; do not use it as persistent worker reuse across workflow loop iterations, and do not let workers pretend they can ask the user directly.
+If a worker announces that it needs user input instead of final validated output, treat it as an orchestrator-mediated worker user request, not only a narrow clarification: ask the user the worker's focused user-facing request, then forward the user's answer back into the same worker/subagent session with `sessions_send` so the worker continues there. This same worker-request session continuation is allowed; do not create a new subagent/session for that continuation, do not use it as persistent worker reuse across workflow loop iterations, and do not let workers pretend they can ask the user directly.
 
 ### 6.2 Handle `wait_for_approval` / user input
 

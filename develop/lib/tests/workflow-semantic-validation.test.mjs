@@ -305,6 +305,17 @@ test('revision loop continuity separates projected state from clarification-sess
   const noPersistentDraftCriticReuse = /do not assume persistent draft\/critic worker reuse across iterations/;
   const clarificationContinuation = /If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening/;
   const contradictorySameSessionWording = /not same-session memory|hidden same-session memory|ask, pause/;
+  const devHarnessResearchPrompt = workflowDoc.steps.research_draft.input.prompt;
+
+  assert.match(
+    devHarnessResearchPrompt,
+    /When missing implementation-critical input is answerable by the user, do not return blocked; return a focused user-facing request for the orchestrator to relay\./,
+  );
+  assert.match(
+    devHarnessResearchPrompt,
+    /Return blocked with blocker\.source_step_id = research_draft only when progress is unsafe or impossible, or when the missing input is external\/non-user-answerable\./,
+  );
+  assert.doesNotMatch(devHarnessResearchPrompt, /blocked .* when implementation-critical input is missing/);
 
   for (const stepId of ['research_draft', 'architecture_draft', 'planning_draft', 'backend_implementation', 'frontend_implementation', 'architecture_artifact_update']) {
     const prompt = workflowDoc.steps[stepId].input.prompt;
