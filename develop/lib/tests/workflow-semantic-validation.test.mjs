@@ -300,6 +300,35 @@ test('dev harness revision loops project the feedback that caused revision', () 
   ]);
 });
 
+test('revision loop continuity separates projected state from clarification-session continuation', () => {
+  const loopIterationContinuityPrompt = /Loop continuity across workflow loop iterations is prompt\/state based/;
+  const noPersistentDraftCriticReuse = /do not assume persistent draft\/critic worker reuse across iterations/;
+  const clarificationContinuation = /If concise clarification is needed, ask, pause, and continue in the same clarification session after the user reply without restart or context widening/;
+  const contradictorySameSessionWording = /not same-session memory|hidden same-session memory/;
+
+  for (const stepId of ['research_draft', 'architecture_draft', 'planning_draft', 'backend_implementation', 'frontend_implementation', 'architecture_artifact_update']) {
+    const prompt = workflowDoc.steps[stepId].input.prompt;
+    assert.match(prompt, loopIterationContinuityPrompt);
+    assert.match(prompt, noPersistentDraftCriticReuse);
+    assert.match(prompt, clarificationContinuation);
+    assert.doesNotMatch(prompt, contradictorySameSessionWording);
+  }
+
+  for (const stepId of ['research_draft', 'research_answered_draft', 'research_attack', 'research_revision', 'save_research_packet']) {
+    const prompt = researchCriticWorkflowDoc.steps[stepId].input.prompt;
+    assert.match(prompt, loopIterationContinuityPrompt);
+    assert.match(prompt, noPersistentDraftCriticReuse);
+    assert.match(prompt, clarificationContinuation);
+    assert.doesNotMatch(prompt, contradictorySameSessionWording);
+  }
+
+  assert.match(
+    researchCriticWorkflowDoc.steps.research_draft.input.prompt,
+    /Return ready_for_attack when the packet is ready for critic review, needs_input when user answers are required, or blocked when progress is unsafe without external input\./,
+  );
+  assert.equal(researchCriticWorkflowDoc.steps.research_draft.next.cases.needs_input, 'ask_research_questions');
+});
+
 
 
 test('dev harness architect review projects approved architecture contract sources', () => {

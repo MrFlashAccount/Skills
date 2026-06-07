@@ -123,6 +123,7 @@ For parallel branch requests, call `write-output` once per requested `stepId`; `
 OpenClaw is one possible host adapter:
 
 - `run_worker` maps to spawning a fresh/disposable subagent or ACP session with a neutral bootstrap that runs `loadInstructionsCommand`.
+- Level 1 loop continuity across workflow iterations is prompt/state-only: draft/critic/revision workers must rely on workflow-projected input and prior accepted step outputs, not persistent worker lifecycle machinery. A concise clarification is an allowed same-session continuation: the subagent asks, pauses, receives the routed user reply in that same clarification session, and continues from existing context without restart or context widening. Persistent draft/critic agent reuse across workflow loop iterations is a future adapter concern and is not part of this slice.
 - The bootstrap must use this shape and substitute `<command>` with the request's `loadInstructionsCommand`:
 
   ```text

@@ -10,7 +10,7 @@
       "kind": "worker",
       "input": {
         "role": "researcher",
-        "prompt": "Normalize the task input, inspect available evidence, and produce a research packet. Return ready_for_attack when the packet is ready for critic review, needs_input when user answers are required, or blocked when progress is unsafe without external input. If revising after critic feedback or user answers, preserve answered decisions and close only evidence-backed questions."
+        "prompt": "Normalize the task input, inspect available evidence, and produce a research packet. Return ready_for_attack when the packet is ready for critic review, needs_input when user answers are required, or blocked when progress is unsafe without external input. If revising after critic feedback or user answers, preserve answered decisions and close only evidence-backed questions. Loop continuity across workflow loop iterations is prompt/state based: rely only on workflow-projected input and prior step outputs; do not assume persistent draft/critic worker reuse across iterations. If concise clarification is needed, ask, pause, and continue in the same clarification session after the user reply without restart or context widening."
       },
       "output": {
         "template": "../../shared/templates/research-packet-template.md",
@@ -55,7 +55,7 @@
           "ask_research_questions",
           "research_attack"
         ],
-        "prompt": "Revise the research packet using the approved user answers from ask_research_questions and any critic feedback if present. Preserve answered decisions and close only evidence-backed questions. Return ready_for_attack when the packet is ready for critic review, needs_input when more user answers are required, or blocked when progress is unsafe without external input."
+        "prompt": "Revise the research packet using the approved user answers from ask_research_questions and any critic feedback if present. Preserve answered decisions and close only evidence-backed questions. Return ready_for_attack when the packet is ready for critic review, needs_input when more user answers are required, or blocked when progress is unsafe without external input. Loop continuity across workflow loop iterations is prompt/state based: rely only on workflow-projected input and prior step outputs; do not assume persistent draft/critic worker reuse across iterations. If concise clarification is needed, ask, pause, and continue in the same clarification session after the user reply without restart or context widening."
       },
       "output": {
         "template": "../../shared/templates/research-packet-template.md",
@@ -80,7 +80,7 @@
           "research_answered_draft",
           "research_revision"
         ],
-        "prompt": "Attack the latest available research packet for weak evidence, unsafe assumptions, missing user input, misclassified blockers, and over-broad candidate approaches. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Return approved only when the packet is ready for downstream handoff, needs_revision when a bounded revision should loop through a fresh draft-producing output, needs_input when user answers are required, or blocked for an unsafe stop."
+        "prompt": "Attack the latest available research packet for weak evidence, unsafe assumptions, missing user input, misclassified blockers, and over-broad candidate approaches. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Return approved only when the packet is ready for downstream handoff, needs_revision when a bounded revision should loop through a fresh draft-producing output, needs_input when user answers are required, or blocked for an unsafe stop. Loop continuity across workflow loop iterations is prompt/state based: rely only on workflow-projected input and prior step outputs; do not assume persistent draft/critic worker reuse across iterations. If concise clarification is needed, ask, pause, and continue in the same clarification session after the user reply without restart or context widening."
       },
       "output": {
         "template": "../../shared/templates/review-verdict-template.md",
@@ -108,7 +108,7 @@
           "research_attack",
           "ask_research_questions"
         ],
-        "prompt": "Revise the latest available research packet using the latest research_attack verdict and any approved user answers. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Preserve answered decisions, address each bounded critic finding, and return ready_for_attack when the packet is ready for another critic review, needs_input when user answers are required, or blocked when progress is unsafe without external input."
+        "prompt": "Revise the latest available research packet using the latest research_attack verdict and any approved user answers. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Preserve answered decisions, address each bounded critic finding, and return ready_for_attack when the packet is ready for another critic review, needs_input when user answers are required, or blocked when progress is unsafe without external input. Loop continuity across workflow loop iterations is prompt/state based: rely only on workflow-projected input and prior step outputs; do not assume persistent draft/critic worker reuse across iterations. If concise clarification is needed, ask, pause, and continue in the same clarification session after the user reply without restart or context widening."
       },
       "output": {
         "template": "../../shared/templates/research-packet-template.md",
@@ -134,7 +134,7 @@
           "research_revision",
           "research_attack"
         ],
-        "prompt": "Finalize persistence metadata for the approved research packet using the latest approved research packet and latest research_attack verdict. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Return saved after emitting artifact/result references to the saved packet, or blocked if the packet cannot be safely saved."
+        "prompt": "Finalize persistence metadata for the approved research packet using the latest approved research packet and latest research_attack verdict. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Return saved after emitting artifact/result references to the saved packet, or blocked if the packet cannot be safely saved. Loop continuity across workflow loop iterations is prompt/state based: rely only on workflow-projected input and prior step outputs; do not assume persistent draft/critic worker reuse across iterations. If concise clarification is needed, ask, pause, and continue in the same clarification session after the user reply without restart or context widening."
       },
       "output": {
         "template": "../../shared/templates/research-save-metadata-template.md",
