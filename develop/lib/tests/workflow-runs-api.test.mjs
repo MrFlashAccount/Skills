@@ -277,6 +277,34 @@ test('workflow-runs CLI ignores stale WORKFLOW_RUN_TOKEN env when reclaiming sta
   assert.notEqual(response.leaseToken, 'wrong-stale-env-token');
 });
 
+test('workflow-runs CLI claim keeps JSON default and supports token-only stdout', async () => {
+  const { spawnSync } = await import('node:child_process');
+  const helperPath = path.join(root, 'develop/lib/entrypoints/cli/workflow-runs.mjs');
+  const jsonRunId = `${runPrefix}cli-claim-json-default`;
+  const tokenRunId = `${runPrefix}cli-claim-token-only`;
+  removeDefaultRunsForTestPrefix();
+  await registerWorkflowRunAtRoot({ runsRoot: cliRunsRoot, runId: jsonRunId, title: 'JSON default claim' });
+  await registerWorkflowRunAtRoot({ runsRoot: cliRunsRoot, runId: tokenRunId, title: 'Token-only claim' });
+
+  const jsonResult = spawnSync(process.execPath, [helperPath, 'claim', '--run-id', jsonRunId, '--owner', 'alice', '--lease-ms', '60000'], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUNS_ROOT: cliRunsRoot } });
+  assert.equal(jsonResult.status, 0, jsonResult.stderr);
+  assert.equal(jsonResult.stderr, '');
+  const jsonResponse = JSON.parse(jsonResult.stdout);
+  assert.equal(jsonResponse.ok, true);
+  assert.equal(typeof jsonResponse.leaseToken, 'string');
+
+  const tokenResult = spawnSync(process.execPath, [helperPath, 'claim', '--run-id', tokenRunId, '--owner', 'alice', '--lease-ms', '60000', '--print-lease-token'], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUNS_ROOT: cliRunsRoot } });
+  assert.equal(tokenResult.status, 0, tokenResult.stderr);
+  assert.equal(tokenResult.stderr, '');
+  assert.match(tokenResult.stdout, /^[A-Za-z0-9_-]+\n$/);
+  assert.doesNotMatch(tokenResult.stdout, /[{}":]/);
+
+  const missingTokenResult = spawnSync(process.execPath, [helperPath, 'claim', '--run-id', tokenRunId, '--lease-token', tokenResult.stdout.trim(), '--print-lease-token'], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUNS_ROOT: cliRunsRoot } });
+  assert.equal(missingTokenResult.status, 1);
+  assert.equal(missingTokenResult.stdout, '');
+  assert.match(missingTokenResult.stderr, /workflow-runs: claim did not return a lease token/);
+});
+
 test('workflow runs API rejects symlinked runs root for list without reading escaped index', async () => {
   const { escapedTarget, symlinkedRunsRoot } = makeSymlinkedRunsRoot();
   writeFileSync(path.join(escapedTarget, 'runs.json'), JSON.stringify({

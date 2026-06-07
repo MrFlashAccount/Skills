@@ -10,7 +10,7 @@ function fail(message) {
 }
 
 function usage() {
-  return 'usage: node develop/lib/entrypoints/cli/workflow-runs.mjs list [--human] | create [--claim] [--run-id <id>] [--workflow <workflow.json>] [--workflow-identity <identity>] [--title <title>] [--summary <summary>] [--task-key <key>] [--task-fingerprint <fingerprint>] [--lease-token <token> + diagnostics metadata] | claim --run-id <id> [--workflow <workflow.json>] [--takeover] [--lease-token <token> + diagnostics metadata] | heartbeat --run-id <id> [--workflow <workflow.json>] [--lease-token <token> + diagnostics metadata]';
+  return 'usage: node develop/lib/entrypoints/cli/workflow-runs.mjs list [--human] | create [--claim] [--run-id <id>] [--workflow <workflow.json>] [--workflow-identity <identity>] [--title <title>] [--summary <summary>] [--task-key <key>] [--task-fingerprint <fingerprint>] [--lease-token <token> + diagnostics metadata] | claim --run-id <id> [--workflow <workflow.json>] [--takeover] [--print-lease-token] [--lease-token <token> + diagnostics metadata] | heartbeat --run-id <id> [--workflow <workflow.json>] [--lease-token <token> + diagnostics metadata]';
 }
 
 const options = {
@@ -27,6 +27,7 @@ const options = {
   'worker-id': { type: 'string' },
   'lease-token': { type: 'string' },
   'lease-ms': { type: 'string' },
+  'print-lease-token': { type: 'boolean', default: false },
   takeover: { type: 'boolean', default: false },
   claim: { type: 'boolean', default: false },
   human: { type: 'boolean', default: false },
@@ -43,6 +44,7 @@ function parseCliArgs(argv) {
     }
     if ((mode === 'claim' || mode === 'heartbeat') && !parsed.values['run-id']) fail(usage());
     if (mode !== 'claim' && parsed.values.takeover) fail(usage());
+    if (mode !== 'claim' && parsed.values['print-lease-token']) fail(usage());
     if ((mode === 'claim' || mode === 'heartbeat') && (parsed.values.title || parsed.values.summary || parsed.values['task-key'] || parsed.values['task-fingerprint'] || parsed.values['workflow-identity'] || parsed.values.claim)) fail(usage());
     return { mode, values: parsed.values };
   } catch (error) {
@@ -87,8 +89,14 @@ try {
       workflowPath: values.workflow,
       ...leaseArgs(values),
     });
-    console.log(JSON.stringify(response, null, 2));
-    if (!response.ok) process.exit(2);
+    if (mode === 'claim' && values['print-lease-token']) {
+      if (!response.ok) fail(`claim failed: ${response.reason ?? 'unknown reason'}`);
+      if (!response.leaseToken) fail('claim did not return a lease token');
+      process.stdout.write(`${response.leaseToken}\n`);
+    } else {
+      console.log(JSON.stringify(response, null, 2));
+      if (!response.ok) process.exit(2);
+    }
   }
 } catch (error) {
   fail(error.message);
