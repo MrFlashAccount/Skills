@@ -168,7 +168,7 @@ test('output.schema: workflow-package schema ref resolves consistently for valid
     step: doc.steps.worker_step,
     repositoryRoot: repoDir,
   });
-  assert.match(rendered.prompt, /Return valid JSON matching this schema/);
+  assert.match(rendered.prompt, /Generate strict JSON matching this schema/);
   assert.match(rendered.prompt, /"outcome"/);
   assert.match(rendered.prompt, /"const": "ready"/);
 });
@@ -440,7 +440,14 @@ test('output.schema: schema-declared outputs still must be object envelopes', ()
     additionalProperties: false,
   });
   doc.steps.worker_step.next = ['consumer_step'];
-  doc.steps.consumer_step.next = 'done';
+  doc.steps.consumer_step.next = 'join_step';
+  doc.steps.join_step = {
+    name: 'Join step',
+    kind: 'worker',
+    input: { state: ['consumer_step'], prompt: 'Join consumer output.' },
+    output: { template: 'output.md' },
+    next: 'done',
+  };
 
   const retry = runApply('output-schema-root-envelope-object', baton(), 'ready', true, doc);
 

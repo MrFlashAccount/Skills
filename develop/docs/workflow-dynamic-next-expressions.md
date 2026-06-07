@@ -22,3 +22,5 @@ Examples:
 ```
 
 The resolved value is handled like static `next`: a string routes to one step, and an array routes to parallel steps. Target ids must already exist in the workflow. V1 does not support operators, functions, brackets, array indexes, partial template strings, or access to full baton state.
+
+Semantic validation is stricter for parallel fanout: all branches must converge directly into one explicit non-terminal join step. Branch-local `next` before that join must be a static step id; dynamic expressions and conditional match/cases are rejected before the join, even if the JSON schema shape allows them. Transitive branch chains are also rejected.

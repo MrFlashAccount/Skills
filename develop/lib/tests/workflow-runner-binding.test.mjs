@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
-import { continueRun, next as runnerNext } from '../entrypoints/api/workflowRunner.mjs';
+import { continueRun, next as runnerNext, writeOutput } from '../entrypoints/api/workflowRunner.mjs';
 import { claimWorkflowRun, registerWorkflowRun } from '../entrypoints/api/workflowRuns.mjs';
 
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-runner-binding-'));
@@ -35,11 +35,6 @@ function workflowDoc(name, prompt = 'Prepare branch.') {
   };
 }
 
-function hostOutputPath(label) {
-  const filePath = path.join(tempDir, `${label}-host-output.md`);
-  writeFileSync(filePath, 'Worker output.\n');
-  return filePath;
-}
 
 function workflowPath(label, prompt) {
   const filePath = path.join(tempDir, `${label}.json`);
@@ -62,8 +57,9 @@ test('runner binding: existing runId cannot be rebound by next or continue workf
     runnerNext({ runId, workflowPath: secondWorkflow, leaseToken }),
     /already bound to a different workflow/,
   );
+  await writeOutput({ runId, workflowPath: firstWorkflow, stepId: 'prepare', json: JSON.stringify('Worker output.'), leaseToken });
   await assert.rejects(
-    continueRun({ runId, workflowPath: secondWorkflow, output: hostOutputPath('runner-api-host'), leaseToken }),
+    continueRun({ runId, workflowPath: secondWorkflow, leaseToken }),
     /already bound to a different workflow/,
   );
 });

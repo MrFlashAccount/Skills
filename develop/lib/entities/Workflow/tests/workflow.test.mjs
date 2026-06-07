@@ -49,6 +49,92 @@ test('Workflow validates static transitions and reports missing targets', () => 
   assert.throws(() => new Workflow(invalid).validateStaticTransitions(), /transition 'next' target not found: missing/);
 });
 
+test('Workflow validates parallel branches converge directly into one join step', () => {
+  const valid = workflowDoc({
+    steps: {
+      start: { name: 'Start', kind: 'worker', next: ['branch_a', 'branch_b'] },
+      branch_a: { name: 'Branch A', kind: 'worker', next: 'join' },
+      branch_b: { name: 'Branch B', kind: 'worker', next: 'join' },
+      join: { name: 'Join', kind: 'worker', next: 'done' },
+      done: { name: 'Done', kind: 'done' },
+      blocked: { name: 'Blocked', kind: 'blocked' },
+    },
+  });
+
+  assert.deepEqual(new Workflow(valid).validateStaticTransitions(), { ok: true });
+
+  const missingProjection = structuredClone(valid);
+  missingProjection.steps.join.input = { state: ['branch_a'] };
+
+  assert.deepEqual(new Workflow(missingProjection).validateStaticTransitions(), { ok: true });
+
+  const transitive = structuredClone(valid);
+  transitive.steps.branch_a.next = 'branch_a2';
+  transitive.steps.branch_a2 = { name: 'Branch A2', kind: 'worker', next: 'join' };
+
+  assert.throws(
+    () => new Workflow(transitive).validateStaticTransitions(),
+    /parallel branch targets must share one explicit join step/,
+  );
+
+  const conditional = structuredClone(valid);
+  conditional.steps.branch_a.next = { match: '${{ output.outcome }}', cases: { ok: 'join' } };
+
+  assert.throws(
+    () => new Workflow(conditional).validateStaticTransitions(),
+    /parallel branch target 'branch_a' must use a string next to an explicit join step/,
+  );
+
+  const dynamicString = structuredClone(valid);
+  dynamicString.steps.branch_a.next = '${{ output.next }}';
+  dynamicString.steps['${{ output.next }}'] = { name: 'Literal Dynamic Step Id', kind: 'worker', next: 'join' };
+
+  assert.throws(
+    () => new Workflow(dynamicString).validateStaticTransitions(),
+    /parallel branch target 'branch_a' cannot use a dynamic next before the explicit join step/,
+  );
+
+  const selfJoin = structuredClone(valid);
+  selfJoin.steps.branch_a.next = 'branch_b';
+  selfJoin.steps.branch_b.next = 'branch_b';
+
+  assert.throws(
+    () => new Workflow(selfJoin).validateStaticTransitions(),
+    /parallel branch targets must converge on a separate explicit join step 'branch_b'/,
+  );
+});
+
+test('Workflow rejects terminal steps as shared parallel branch joins', () => {
+  const valid = workflowDoc({
+    steps: {
+      start: { name: 'Start', kind: 'worker', next: ['branch_a', 'branch_b'] },
+      branch_a: { name: 'Branch A', kind: 'worker', next: 'join' },
+      branch_b: { name: 'Branch B', kind: 'worker', next: 'join' },
+      join: { name: 'Join', kind: 'worker', next: 'done' },
+      done: { name: 'Done', kind: 'done' },
+      blocked: { name: 'Blocked', kind: 'blocked' },
+    },
+  });
+
+  const doneJoin = structuredClone(valid);
+  doneJoin.steps.branch_a.next = 'done';
+  doneJoin.steps.branch_b.next = 'done';
+
+  assert.throws(
+    () => new Workflow(doneJoin).validateStaticTransitions(),
+    /parallel branch targets must converge on a non-terminal join step 'done'/,
+  );
+
+  const blockedJoin = structuredClone(valid);
+  blockedJoin.steps.branch_a.next = 'blocked';
+  blockedJoin.steps.branch_b.next = 'blocked';
+
+  assert.throws(
+    () => new Workflow(blockedJoin).validateStaticTransitions(),
+    /parallel branch targets must converge on a non-terminal join step 'blocked'/,
+  );
+});
+
 test('Workflow output schema validation returns compiled schemas and worker contract errors', () => {
   const valid = new Workflow(workflowDoc()).validateOutputSchemas(new Map([['start.schema.json', outputSchema]]));
 

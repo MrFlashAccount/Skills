@@ -63,11 +63,12 @@ function withLeaseToken(args, token) {
   return [...args, '--lease-token', token];
 }
 
-function runRunner(args) {
+function runRunner(args, options = {}) {
   const token = claimRunForRunnerArgs(args);
   return spawnSync(process.execPath, ['develop/lib/entrypoints/cli/workflow-runner.mjs', ...withLeaseToken(args, token)], {
     cwd: root,
     encoding: 'utf8',
+    input: options.input,
   });
 }
 
@@ -87,9 +88,39 @@ function next(run, workflow, extra = []) {
   return expectRunner(['next', '--run-id', runId(run), '--workflow', workflow, ...extra], `next ${path.basename(workflow)}`);
 }
 
+function currentRequestIds(run) {
+  const lastResponse = JSON.parse(readFileSync(path.join(runPath(run), '.workflow-runner', 'last-response.json'), 'utf8'));
+  return (lastResponse.requests ?? []).map((request) => request.stepId ?? request.id);
+}
+
+function parseOutputRef(ref) {
+  const separator = ref.indexOf('=');
+  if (separator < 0) return { stepId: undefined, filePath: ref };
+  return { stepId: ref.slice(0, separator), filePath: ref.slice(separator + 1) };
+}
+
+function writeOutput(run, workflow, stepId, filePath, label = 'write output') {
+  const result = runRunner(['write-output', '--run-id', runId(run), '--workflow', workflow, '--step-id', stepId], {
+    input: readFileSync(filePath, 'utf8'),
+  });
+  assert.equal(result.status, 0, `${label} failed
+stdout:
+${result.stdout}
+stderr:
+${result.stderr}`);
+  return JSON.parse(result.stdout);
+}
+
 function continueWith(run, workflow, refs, label = 'continue') {
   const normalized = Array.isArray(refs) ? refs : [refs];
-  return expectRunner(['continue', '--run-id', runId(run), '--workflow', workflow, ...normalized.flatMap((ref) => ['--output', ref])], label);
+  const pendingIds = currentRequestIds(run);
+  for (const ref of normalized) {
+    const { stepId, filePath } = parseOutputRef(ref);
+    const targetStepId = stepId ?? (pendingIds.length === 1 ? pendingIds[0] : undefined);
+    assert.ok(targetStepId, `output for ${label} must name a step when multiple requests are pending`);
+    writeOutput(run, workflow, targetStepId, filePath, `${label} write ${targetStepId}`);
+  }
+  return expectRunner(['continue', '--run-id', runId(run), '--workflow', workflow], label);
 }
 
 function instructions(run, stepId) {
@@ -222,39 +253,24 @@ test('E2E fixture: mixed static and match fanout requires named branch outputs a
 
   const done = continueWith(run, workflow, output('join-ready.json'), 'continue join');
   assert.equal(done.status, 'done');
-  assert.match(readHistory(run), /output: lint=.*lint-ready\.json, build=.*build-ready\.json/);
-
-  const unnamedRun = runDir('parallel-unnamed-output');
-  next(unnamedRun, workflow);
-  continueWith(unnamedRun, workflow, output('parallel-prepare-ready.json'), 'continue unnamed setup');
-  const unnamed = expectRunnerFailure(['continue', '--run-id', runId(unnamedRun), '--workflow', workflow, '--output', output('lint-ready.json')], 'unnamed parallel output');
-  assert.match(unnamed.stderr, /parallel host outputs must use --output <step-id>=<path>/);
+  assert.match(readHistory(run), /output: accepted:lint, accepted:build/);
 });
 
-test('E2E fixture: output schema retries preserve baton attempts, then valid output advances', () => {
+test('E2E fixture: output schema rejects invalid write-output and valid output advances', () => {
   const workflow = fixture('schema-retry.workflow.json');
   const run = runDir('schema-retry');
 
   next(run, workflow);
-  const retry = continueWith(run, workflow, output('schema-invalid.json'), 'continue invalid schema once');
-  assert.equal(retry.status, 'needs_host_actions');
-  assert.equal(retry.baton.cursor, 'schema_worker');
-  assert.equal(retry.baton.state.attempts['schema_worker:output.schema'], 1);
-  assert.match(instructions(run, 'schema_worker'), /Previous output failed output\.schema validation/);
-  assert.match(instructions(run, 'schema_worker'), /must be equal to constant/);
+  const invalid = runRunner(['write-output', '--run-id', runId(run), '--workflow', workflow, '--step-id', 'schema_worker'], {
+    input: readFileSync(output('schema-invalid.json'), 'utf8'),
+  });
+  assert.notEqual(invalid.status, 0);
+  assert.match(invalid.stderr, /output schema validation failed for step 'schema_worker'/);
+  assert.equal(readBaton(run).state.outputs, undefined);
 
   const valid = continueWith(run, workflow, output('schema-valid.json'), 'continue valid schema');
   assert.equal(valid.status, 'done');
   assert.equal(valid.baton.state.schema_worker.ticket, 'TCK-123');
-  assert.equal(valid.baton.state.attempts['schema_worker:output.schema'], 1);
-
-  const failureRun = runDir('schema-failure');
-  next(failureRun, workflow);
-  continueWith(failureRun, workflow, output('schema-invalid.json'), 'schema failure attempt one');
-  continueWith(failureRun, workflow, output('schema-invalid.json'), 'schema failure attempt two');
-  const failed = expectRunnerFailure(['continue', '--run-id', runId(failureRun), '--workflow', workflow, '--output', output('schema-invalid.json')], 'schema failure attempt three');
-  assert.match(failed.stderr, /output schema validation failed for step 'schema_worker' after 3 attempts/);
-  assert.equal(readBaton(failureRun).state.attempts['schema_worker:output.schema'], 2);
 });
 
 test('E2E fixture: approval-first workflow preserves startup prompt for first worker only through fanout and final approval', () => {

@@ -164,7 +164,7 @@
       "additionalProperties": false
     },
     "next": {
-      "description": "Next step target, top-level parallel transition items, a path-only dynamic next expression, or match/cases routing from a path-only expression to static targets. Top-level next arrays may contain static step ids, path-only expressions, or match/cases objects and are flattened one level after resolution.",
+      "description": "Next step target, top-level parallel transition items, a path-only dynamic next expression, or match/cases routing from a path-only expression to static targets. Top-level next arrays may contain static step ids, path-only expressions, or match/cases objects and are flattened one level after resolution. JSON schema may allow shapes that semantic validation rejects; parallel fanout branches must converge directly into one explicit non-terminal join step and cannot use dynamic or conditional branch next before that join.",
       "oneOf": [
         {
           "type": "string",

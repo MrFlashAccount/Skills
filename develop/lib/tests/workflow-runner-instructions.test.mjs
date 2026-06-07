@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { continueRun as runnerContinueRun, loadInstructions as runnerLoadInstructions, next as runnerNext } from '../entrypoints/api/workflowRunner.mjs';
+import { continueRun as runnerContinueRun, loadInstructions as runnerLoadInstructions, next as runnerNext, writeOutput as runnerWriteOutput } from '../entrypoints/api/workflowRunner.mjs';
 import { resolveRunPaths } from '../persistence/run-state/paths.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -332,10 +332,8 @@ test('runner: continue rejects explicit workflow mismatch with last-response con
   writeJson(otherWorkflowPath, singleWorkflow);
 
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next workflow mismatch setup');
-  const outputPath = path.join(runDir, 'prepared.json');
-  writeJson(outputPath, workerOutput('prepared'));
 
-  const mismatched = runRunner(['continue', '--run-id', runId, '--workflow', otherWorkflowPath, '--output', outputPath]);
+  const mismatched = runRunner(['continue', '--run-id', runId, '--workflow', otherWorkflowPath]);
 
   assert.notEqual(mismatched.status, 0);
   assert.match(mismatched.stderr, /already bound to a different workflow/);
@@ -369,10 +367,8 @@ test('runner: continue rejects stale last-response after baton advances', () => 
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next stale continue setup');
   const lastResponseBefore = readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8');
   writeJson(path.join(runDir, 'baton.json'), { cursor: 'done', status: 'done', state: { artifacts: [], results: [], prepare: workerOutput('prepared elsewhere') } });
-  const outputPath = path.join(runDir, 'prepared.json');
-  writeJson(outputPath, workerOutput('old prepared output'));
 
-  const stale = runRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', outputPath]);
+  const stale = runRunner(['continue', '--run-id', runId, '--workflow', workflowPath]);
 
   assert.notEqual(stale.status, 0);
   assert.match(stale.stderr, /stale last runner response/);
@@ -438,7 +434,8 @@ test('runner API propagates custom runsRoot through next, instructions, and cont
   const instructions = await runnerLoadInstructions({ runId, stepId: 'prepare', runsRoot, leaseToken });
   assert.match(instructions, /Prepare branch\./);
 
-  const continued = await runnerContinueRun({ runId, runsRoot, output: outputPath, leaseToken });
+  await runnerWriteOutput({ runId, workflowPath, runsRoot, stepId: 'prepare', json: readFileSync(outputPath, 'utf8'), leaseToken });
+  const continued = await runnerContinueRun({ runId, runsRoot, leaseToken });
 
   assert.equal(continued.status, 'needs_host_actions');
   assert.deepEqual(continued.requests.map((request) => request.stepId).sort(), ['branch_a', 'branch_b']);

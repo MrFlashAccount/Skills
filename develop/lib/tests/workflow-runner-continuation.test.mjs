@@ -135,7 +135,7 @@ function withLeaseTokenArg(args, token) {
 
 function runRunner(args, options = {}) {
   const token = claimRunForRunnerArgs(args);
-  return spawnSync(process.execPath, ['develop/lib/entrypoints/cli/workflow-runner.mjs', ...withLeaseTokenArg(args, token)], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUN_TOKEN: token ?? testLeaseToken, ...(options.env ?? {}) } });
+  return spawnSync(process.execPath, ['develop/lib/entrypoints/cli/workflow-runner.mjs', ...withLeaseTokenArg(args, token)], { cwd: root, encoding: 'utf8', input: options.input, env: { ...process.env, WORKFLOW_RUN_TOKEN: token ?? testLeaseToken, ...(options.env ?? {}) } });
 }
 
 async function runRunnerAsync(args) {
@@ -178,106 +178,41 @@ function expectRunner(args, label) {
   return JSON.parse(result.stdout);
 }
 
+function currentRequestIds(runDir) {
+  const lastResponse = JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8'));
+  return (lastResponse.requests ?? []).map((request) => request.stepId ?? request.id);
+}
+
+function parseOutputRef(ref) {
+  const separator = ref.indexOf('=');
+  if (separator < 0) return { stepId: undefined, filePath: ref };
+  return { stepId: ref.slice(0, separator), filePath: ref.slice(separator + 1) };
+}
+
+function writeOutputFile({ runId, runDir, workflowPath, stepId, filePath, label = 'write output', options = {} }) {
+  const targetStepId = stepId ?? currentRequestIds(runDir)[0];
+  const result = runRunner(['write-output', '--run-id', runId, '--workflow', workflowPath, '--step-id', targetStepId], { input: readFileSync(filePath, 'utf8'), ...options });
+  assert.equal(result.status, 0, `${label} failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+  return JSON.parse(result.stdout);
+}
+
+function continueWithOutputs({ runId, runDir, workflowPath, refs, label = 'continue', options = {} }) {
+  const normalized = Array.isArray(refs) ? refs : [refs];
+  const pendingIds = currentRequestIds(runDir);
+  for (const ref of normalized) {
+    const { stepId, filePath } = parseOutputRef(ref);
+    const targetStepId = stepId ?? (pendingIds.length === 1 ? pendingIds[0] : undefined);
+    assert.ok(targetStepId, `output for ${label} must name a step when multiple requests are pending`);
+    writeOutputFile({ runId, runDir, workflowPath, stepId: targetStepId, filePath, label: `${label} write ${targetStepId}` });
+  }
+  return expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath], label, options);
+}
+
 function workerOutput(summary) {
   return { outcome: 'ready', results: [{ type: 'check', summary }] };
 }
 
 after(() => rmSync(tempDir, { recursive: true, force: true }));
-
-test('runner: continue rejects one unnamed output for multiple parallel branches', () => {
-  const { runId, runDir } = runCase('parallel-unnamed-output-rejected');
-  const workflowPath = path.join(tempDir, 'parallel-unnamed-output-rejected-workflow.json');
-  writeJson(workflowPath, workflowDoc);
-
-  expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next parallel unnamed setup');
-  const prepareOutput = path.join(runDir, 'prepare-output.json');
-  writeJson(prepareOutput, workerOutput('prepared'));
-  const branches = expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', prepareOutput], 'continue prepare unnamed setup');
-  assert.deepEqual(branches.requests.map((request) => request.id), ['branch_a', 'branch_b']);
-
-  const sharedOutput = path.join(runDir, 'shared-output.json');
-  writeJson(sharedOutput, workerOutput('same output must not fan out'));
-  const result = runRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', sharedOutput]);
-
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /parallel host outputs must use --output <step-id>=<path> for each requested step/);
-  const baton = JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8'));
-  assert.equal(baton.cursor, 'prepare');
-  assert.equal(Object.hasOwn(baton.state, 'branch_a'), false);
-  assert.equal(Object.hasOwn(baton.state, 'branch_b'), false);
-});
-
-test('runner: continue rejects unknown named output for parallel branches without advancing', () => {
-  const { runId, runDir } = runCase('parallel-unknown-named-output-rejected');
-  const workflowPath = path.join(tempDir, 'parallel-unknown-named-output-rejected-workflow.json');
-  writeJson(workflowPath, workflowDoc);
-
-  expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next parallel unknown output setup');
-  const prepareOutput = path.join(runDir, 'prepare-output.json');
-  writeJson(prepareOutput, workerOutput('prepared'));
-  expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', prepareOutput], 'continue prepare unknown output setup');
-  const batonBefore = readFileSync(path.join(runDir, 'baton.json'), 'utf8');
-
-  const branchA = path.join(runDir, 'branch-a-output.json');
-  const branchB = path.join(runDir, 'branch-b-output.json');
-  const ghost = path.join(runDir, 'ghost-output.json');
-  writeJson(branchA, workerOutput('branch a complete'));
-  writeJson(branchB, workerOutput('branch b complete'));
-  writeJson(ghost, workerOutput('ghost should be rejected'));
-  const result = runRunner([
-    'continue',
-    '--run-id',
-    runId,
-    '--workflow',
-    workflowPath,
-    '--output',
-    `branch_a=${branchA}`,
-    '--output',
-    `branch_b=${branchB}`,
-    '--output',
-    `ghost=${ghost}`,
-  ]);
-
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /unknown host output for workflow step ghost/);
-  assert.equal(readFileSync(path.join(runDir, 'baton.json'), 'utf8'), batonBefore);
-});
-
-test('runner: continue rejects duplicate named output for parallel branches without advancing', () => {
-  const { runId, runDir } = runCase('parallel-duplicate-named-output-rejected');
-  const workflowPath = path.join(tempDir, 'parallel-duplicate-named-output-rejected-workflow.json');
-  writeJson(workflowPath, workflowDoc);
-
-  expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next parallel duplicate output setup');
-  const prepareOutput = path.join(runDir, 'prepare-output.json');
-  writeJson(prepareOutput, workerOutput('prepared'));
-  expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', prepareOutput], 'continue prepare duplicate output setup');
-  const batonBefore = readFileSync(path.join(runDir, 'baton.json'), 'utf8');
-
-  const branchA = path.join(runDir, 'branch-a-output.json');
-  const branchADuplicate = path.join(runDir, 'branch-a-duplicate-output.json');
-  const branchB = path.join(runDir, 'branch-b-output.json');
-  writeJson(branchA, workerOutput('branch a complete'));
-  writeJson(branchADuplicate, workerOutput('duplicate branch a should be rejected'));
-  writeJson(branchB, workerOutput('branch b complete'));
-  const result = runRunner([
-    'continue',
-    '--run-id',
-    runId,
-    '--workflow',
-    workflowPath,
-    '--output',
-    `branch_a=${branchA}`,
-    '--output',
-    `branch_a=${branchADuplicate}`,
-    '--output',
-    `branch_b=${branchB}`,
-  ]);
-
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /duplicate host output for workflow step branch_a/);
-  assert.equal(readFileSync(path.join(runDir, 'baton.json'), 'utf8'), batonBefore);
-});
 
 test('runner: dynamic parallel with one branch still applies branch output as parallel envelope', () => {
   const { runId, runDir } = runCase('dynamic-single-branch-parallel');
@@ -305,13 +240,13 @@ test('runner: dynamic parallel with one branch still applies branch output as pa
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next dynamic single branch setup');
   const prepareOutput = path.join(runDir, 'prepare-output.json');
   writeJson(prepareOutput, { outcome: 'ready', selected_steps: ['branch_a'] });
-  const branch = expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', prepareOutput], 'continue dynamic prepare to one branch');
+  const branch = continueWithOutputs({ runId, runDir, workflowPath, refs: prepareOutput, label: 'continue dynamic prepare to one branch' });
   assert.deepEqual(branch.requests.map((request) => request.id), ['branch_a']);
   assert.equal(branch.baton.cursor, 'prepare');
 
   const branchOutput = path.join(runDir, 'branch-a-output.json');
   writeJson(branchOutput, workerOutput('single branch complete'));
-  const response = expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', `branch_a=${branchOutput}`], 'continue dynamic single branch to join');
+  const response = continueWithOutputs({ runId, runDir, workflowPath, refs: `branch_a=${branchOutput}`, label: 'continue dynamic single branch to join' });
 
   assert.equal(response.status, 'needs_host_actions');
   assert.deepEqual(response.requests.map((request) => request.id), ['join']);
@@ -332,71 +267,19 @@ test('runner: static parallel with one branch still applies branch output as par
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next static single branch setup');
   const prepareOutput = path.join(runDir, 'prepare-output.json');
   writeJson(prepareOutput, workerOutput('prepared'));
-  const branch = expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', prepareOutput], 'continue static prepare to one branch');
+  const branch = continueWithOutputs({ runId, runDir, workflowPath, refs: prepareOutput, label: 'continue static prepare to one branch' });
   assert.deepEqual(branch.requests.map((request) => request.id), ['branch_a']);
   assert.equal(branch.baton.cursor, 'prepare');
 
   const branchOutput = path.join(runDir, 'branch-a-output.json');
   writeJson(branchOutput, workerOutput('static single branch complete'));
-  const response = expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', `branch_a=${branchOutput}`], 'continue static single branch to join');
+  const response = continueWithOutputs({ runId, runDir, workflowPath, refs: `branch_a=${branchOutput}`, label: 'continue static single branch to join' });
 
   assert.equal(response.status, 'needs_host_actions');
   assert.deepEqual(response.requests.map((request) => request.id), ['join']);
   assert.equal(response.baton.cursor, 'join');
   assert.equal(response.baton.state.branch_a.results[0].summary, 'static single branch complete');
   assert.equal(Object.hasOwn(response.baton.state, 'attempts'), false);
-});
-
-test('runner: continue rejects concurrent attempts for the same run dir', async () => {
-  const { runId, runDir } = runCase('concurrent-continue-same-run-dir');
-  const workflowPath = path.join(tempDir, 'concurrent-continue-same-run-dir.json');
-  const singleWorkflow = structuredClone(workflowDoc);
-  singleWorkflow.steps.prepare.next = 'done';
-  writeJson(workflowPath, singleWorkflow);
-
-  expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next concurrent continue');
-  const outputPath = path.join(runDir, 'prepare-result.json');
-  makeFifo(outputPath);
-
-  const first = runRunnerAsync(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', outputPath]);
-  await waitForPath(path.join(runDir, '.workflow-runner', 'continue.lock'));
-  const second = await runRunnerAsync(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', outputPath]);
-  writeFileSync(outputPath, `${JSON.stringify(workerOutput('prepared once'))}\n`);
-  const firstResult = await first;
-
-  assert.equal(firstResult.status, 0, firstResult.stderr);
-  assert.notEqual(second.status, 0);
-  assert.match(second.stderr, /continue is already in progress/);
-  assert.equal(existsSync(path.join(runDir, '.workflow-runner', 'continue.lock')), false);
-
-  const response = JSON.parse(firstResult.stdout);
-  assert.equal(response.status, 'done');
-  assert.equal(response.baton.state.prepare.results[0].summary, 'prepared once');
-});
-
-test('runner: continue locks only one run dir', async () => {
-  const { slowRunId, slowRunDir } = runCaseNamed('slow', 'concurrent-continue-slow-run-dir');
-  const { otherRunId, otherRunDir } = runCaseNamed('other', 'concurrent-continue-other-run-dir');
-  const workflowPath = path.join(tempDir, 'concurrent-continue-different-run-dirs.json');
-  const singleWorkflow = structuredClone(workflowDoc);
-  singleWorkflow.steps.prepare.next = 'done';
-  writeJson(workflowPath, singleWorkflow);
-
-  expectRunner(['next', '--run-id', slowRunId, '--workflow', workflowPath], 'next slow run dir');
-  expectRunner(['next', '--run-id', otherRunId, '--workflow', workflowPath], 'next other run dir');
-  const slowOutputPath = path.join(slowRunDir, 'prepare-result.json');
-  makeFifo(slowOutputPath);
-  writeJson(path.join(otherRunDir, 'prepare-result.json'), workerOutput('other'));
-
-  const first = runRunnerAsync(['continue', '--run-id', slowRunId, '--workflow', workflowPath, '--output', slowOutputPath]);
-  await waitForPath(path.join(slowRunDir, '.workflow-runner', 'continue.lock'));
-  const other = await runRunnerAsync(['continue', '--run-id', otherRunId, '--workflow', workflowPath, '--output', path.join(otherRunDir, 'prepare-result.json')]);
-  writeFileSync(slowOutputPath, `${JSON.stringify(workerOutput('slow'))}\n`);
-  const firstResult = await first;
-
-  assert.equal(firstResult.status, 0, firstResult.stderr);
-  assert.equal(other.status, 0, other.stderr);
-  assert.equal(JSON.parse(other.stdout).baton.state.prepare.results[0].summary, 'other');
 });
 
 test('runner: continue reports missing requested output as an error', () => {
@@ -410,7 +293,7 @@ test('runner: continue reports missing requested output as an error', () => {
   const result = runRunner(['continue', '--run-id', runId, '--workflow', workflowPath]);
 
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /missing host output/);
+  assert.match(result.stderr, /missing accepted host output/);
 });
 
 test('runner: continue does not persist applied output when next render fails', () => {
@@ -432,13 +315,14 @@ test('runner: continue does not persist applied output when next render fails', 
   writeJson(workflowPath, renderFailureWorkflow);
 
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next render failure setup');
+  const outputPath = path.join(runDir, 'prepare-result.json');
+  writeJson(outputPath, workerOutput('prepared but should not persist'));
+  writeOutputFile({ runId, runDir, workflowPath, stepId: 'prepare', filePath: outputPath, label: 'write render failure output' });
   const batonBefore = readFileSync(path.join(runDir, 'baton.json'), 'utf8');
   const historyBefore = readFileSync(path.join(runDir, 'history.md'), 'utf8');
   const lastResponseBefore = readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8');
 
-  const outputPath = path.join(runDir, 'prepare-result.json');
-  writeJson(outputPath, workerOutput('prepared but should not persist'));
-  const result = runRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', outputPath]);
+  const result = runRunner(['continue', '--run-id', runId, '--workflow', workflowPath]);
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /workflow prompt render failed/);
@@ -449,6 +333,7 @@ test('runner: continue does not persist applied output when next render fails', 
   const baton = JSON.parse(batonBefore);
   assert.equal(baton.cursor, 'prepare');
   assert.equal(Object.hasOwn(baton.state, 'prepare'), false);
+  assert.equal(baton.state.outputs.prepare.results[0].summary, 'prepared but should not persist');
 });
 
 test('runner: parallel continue does not create durable envelope when next render fails', () => {
@@ -461,26 +346,18 @@ test('runner: parallel continue does not create durable envelope when next rende
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next parallel render failure setup');
   const prepareOutput = path.join(runDir, 'prepare-output.json');
   writeJson(prepareOutput, workerOutput('prepared'));
-  expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', prepareOutput], 'continue prepare to branches');
-  const batonBefore = readFileSync(path.join(runDir, 'baton.json'), 'utf8');
-  const historyBefore = readFileSync(path.join(runDir, 'history.md'), 'utf8');
-  const lastResponseBefore = readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8');
-
+  continueWithOutputs({ runId, runDir, workflowPath, refs: prepareOutput, label: 'continue prepare to branches' });
   const branchA = path.join(runDir, 'branch-a-output.json');
   const branchB = path.join(runDir, 'branch-b-output.json');
   writeJson(branchA, workerOutput('branch a complete'));
   writeJson(branchB, workerOutput('branch b complete'));
-  const result = runRunner([
-    'continue',
-    '--run-id',
-    runId,
-    '--workflow',
-    workflowPath,
-    '--output',
-    `branch_a=${branchA}`,
-    '--output',
-    `branch_b=${branchB}`,
-  ]);
+  writeOutputFile({ runId, runDir, workflowPath, stepId: 'branch_a', filePath: branchA, label: 'write branch a render failure output' });
+  writeOutputFile({ runId, runDir, workflowPath, stepId: 'branch_b', filePath: branchB, label: 'write branch b render failure output' });
+  const batonBefore = readFileSync(path.join(runDir, 'baton.json'), 'utf8');
+  const historyBefore = readFileSync(path.join(runDir, 'history.md'), 'utf8');
+  const lastResponseBefore = readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8');
+
+  const result = runRunner(['continue', '--run-id', runId, '--workflow', workflowPath]);
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /workflow prompt render failed/);
@@ -500,6 +377,9 @@ test('runner: continue recovers from post-render durable commit failure without 
     writeJson(workflowPath, singleWorkflow);
 
     expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], `next durable commit ${failurePoint} failure setup`);
+    const outputPath = path.join(runDir, 'prepare-result.json');
+    writeJson(outputPath, workerOutput(`prepared after durable ${failurePoint} retry`));
+    writeOutputFile({ runId, runDir, workflowPath, stepId: 'prepare', filePath: outputPath, label: `write durable ${failurePoint} output` });
     const batonBefore = readFileSync(path.join(runDir, 'baton.json'), 'utf8');
     const historyBefore = readFileSync(path.join(runDir, 'history.md'), 'utf8');
     const lastResponseBefore = readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8');
@@ -507,10 +387,7 @@ test('runner: continue recovers from post-render durable commit failure without 
     const staleJoinInstructions = 'stale join instructions must survive failed commit\n';
     assert.equal(existsSync(joinInstructionPath), false);
     writeFileSync(joinInstructionPath, staleJoinInstructions);
-
-    const outputPath = path.join(runDir, 'prepare-result.json');
-    writeJson(outputPath, workerOutput(`prepared after durable ${failurePoint} retry`));
-    const failed = runRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', outputPath], {
+    const failed = runRunner(['continue', '--run-id', runId, '--workflow', workflowPath], {
       env: { WORKFLOW_RUNNER_FAIL_DURABLE_COMMIT_AFTER: failurePoint },
     });
 
@@ -533,7 +410,7 @@ test('runner: continue recovers from post-render durable commit failure without 
     assert.equal(lastResponse.status, 'needs_host_actions');
     assert.deepEqual(lastResponse.requests.map((request) => request.id), ['join']);
     assert.equal(baton.state.prepare.results[0].summary, `prepared after durable ${failurePoint} retry`);
-    assert.match(readFileSync(path.join(runDir, 'history.md'), 'utf8'), /prepare-result\.json/);
+    assert.match(readFileSync(path.join(runDir, 'history.md'), 'utf8'), /output: accepted:prepare/);
   }
 });
 
@@ -552,7 +429,7 @@ test('runner: durable commit recovery rejects symlinked history without reading 
   const outputPath = path.join(runDir, 'prepare-result.json');
   writeJson(outputPath, workerOutput('prepared'));
 
-  const result = runRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', outputPath]);
+  const result = runRunner(['write-output', '--run-id', runId, '--workflow', workflowPath, '--step-id', 'prepare'], { input: readFileSync(outputPath, 'utf8') });
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /workflow history.*symlink|symlink.*history/);

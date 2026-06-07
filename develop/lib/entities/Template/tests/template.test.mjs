@@ -121,6 +121,9 @@ test('renderWorkflowPrompt assembles templates, role material, output contract, 
   assert.match(rendered.prompt, /## Workflow instruction\n\nKeep workflow-level context visible\./);
   assert.match(rendered.prompt, /<!-- role material: \/roles\/backend\/ROLE\.md -->/);
   assert.match(rendered.prompt, /## Output contract/);
+  assert.match(rendered.prompt, /No validating writer command is provided in these instructions, so do not invent one/);
+  assert.match(rendered.prompt, /do not create or hand off an output path/);
+  assert.doesNotMatch(rendered.prompt, /host passes the output file to workflow-runner continue/);
   assert.match(rendered.prompt, /<!-- output template: consumer-output\.md -->/);
   assert.match(rendered.prompt, /<!-- output schema: consumer\.schema\.json -->/);
   assert.match(rendered.prompt, /Schema-derived artifact field notes/);
@@ -142,6 +145,25 @@ test('renderWorkflowPrompt assembles templates, role material, output contract, 
     roleMaterial: ['/roles/backend/ROLE.md', '/roles/backend/RUBRIC.md'],
     projectedStateKeys: ['producer'],
   });
+});
+
+test('renderWorkflowPrompt injects provided validating writer command into output schema instructions', () => {
+  const rendered = renderWorkflowPrompt({
+    workflow,
+    baton,
+    stepId: 'consumer',
+    step: workflow.steps.consumer,
+    resources: {
+      ...resources,
+      validatingWriterCommand: "node develop/lib/entrypoints/cli/workflow-runner.mjs write-output --run-id example --step-id consumer --lease-token example-token <<'JSON'\n<paste strict JSON here>\nJSON",
+    },
+  });
+
+  assert.match(rendered.prompt, /Write the request output by calling this validating writer command/);
+  assert.match(rendered.prompt, /workflow-runner\.mjs write-output --run-id example --step-id consumer/);
+  assert.match(rendered.prompt, /If it fails with validation errors, fix the JSON and run the same command again/);
+  assert.match(rendered.prompt, /Do not create an output file and do not pass an output path to the orchestrator/);
+  assert.doesNotMatch(rendered.prompt, /No validating writer command is provided/);
 });
 
 test('renderWorkflowPrompt reports unsupported prompt placeholders from explicit input templates', () => {

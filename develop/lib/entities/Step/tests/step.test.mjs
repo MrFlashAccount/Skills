@@ -23,7 +23,7 @@ const workflow = {
     approval: { name: 'Approval', kind: 'approval', next: 'done' },
     branch_a: { name: 'Branch A', kind: 'worker', next: 'join' },
     branch_b: { name: 'Branch B', kind: 'worker', next: 'join' },
-    join: { name: 'Join', kind: 'worker', next: 'done' },
+    join: { name: 'Join', kind: 'worker', input: { state: ['branch_a', 'branch_b'] }, next: 'done' },
     done: { name: 'Done', kind: 'done' },
     blocked: { name: 'Blocked', kind: 'blocked' },
   },

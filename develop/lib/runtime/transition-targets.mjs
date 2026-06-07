@@ -1,4 +1,5 @@
 import { invariant } from '../errors.mjs';
+import { isExpressionString } from './expression.mjs';
 
 export function assertTransitionTarget(workflow, stepId, fieldPath, targetStepId) {
   invariant(
@@ -33,11 +34,27 @@ export function assertParallelTargets(workflow, stepId, targets, fieldPath = 'ne
       typeof targetStep.next === 'string',
       `workflow step '${stepId}' parallel branch target '${targetStepId}' must use a string next to an explicit join step`,
     );
+    invariant(
+      !isExpressionString(targetStep.next),
+      `workflow step '${stepId}' parallel branch target '${targetStepId}' cannot use a dynamic next before the explicit join step`,
+    );
     assertTransitionTarget(workflow, targetStepId, 'next', targetStep.next);
     joinTargets.add(targetStep.next);
   }
 
   invariant(joinTargets.size === 1, `workflow step '${stepId}' parallel branch targets must share one explicit join step`);
+
+  const [joinStepId] = joinTargets;
+  invariant(
+    !seenTargets.has(joinStepId),
+    `workflow step '${stepId}' parallel branch targets must converge on a separate explicit join step '${joinStepId}'`,
+  );
+  const joinStep = workflow.steps[joinStepId];
+  invariant(
+    joinStep.kind !== 'done' && joinStep.kind !== 'blocked',
+    `workflow step '${stepId}' parallel branch targets must converge on a non-terminal join step '${joinStepId}'`,
+  );
+
 }
 
 export function joinForParallelTargets(workflow, targets) {

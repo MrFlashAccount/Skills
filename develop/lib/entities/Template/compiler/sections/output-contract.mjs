@@ -23,6 +23,14 @@ export function finalOutputReminder(outputContract) {
   return outputContract ? section('Final reminder', 'Return exactly according to the output contract above.') : '';
 }
 
+function validatingWriterProtocol(command) {
+  const trimmedCommand = typeof command === 'string' ? command.trim() : '';
+  if (!trimmedCommand) {
+    return 'Generate strict JSON matching this schema. No validating writer command is provided in these instructions, so do not invent one and do not create or hand off an output path. Stop and report that the validating writer command is missing.';
+  }
+  return `Generate strict JSON matching this schema. Write the request output by calling this validating writer command. The command already contains the run id, step id, and lease token; only replace the JSON body/stdin content:\n\n\`\`\`bash\n${trimmedCommand}\n\`\`\`\n\nThe command validates against this request output schema and accepts the output directly into the run baton/state. If it fails with validation errors, fix the JSON and run the same command again. Repeat for a bounded number of attempts until it returns OK. Do not create an output file and do not pass an output path to the orchestrator.`;
+}
+
 export function outputContractSection(outputTemplate, templatePath, outputSchema, schemaPath, outputSchemaValue, options = {}) {
   if (!outputTemplate && !outputSchema) return '';
   const parts = [];
@@ -35,7 +43,7 @@ export function outputContractSection(outputTemplate, templatePath, outputSchema
     const artifactNotes = outputSchemaValue ? artifactOutputFieldNotes(outputSchemaValue, { schemaDefinitions: options.schemaDefinitions }) : '';
     const schemaParts = [];
     if (artifactNotes) schemaParts.push(artifactNotes);
-    schemaParts.push(`Return valid JSON matching this schema. If a validation command or tool is available in this agent/subagent context, validate the generated JSON against this schema before the final answer; fix validation errors and repeat for a bounded number of attempts. The harness/orchestrator will validate the final returned JSON again after the answer, so this agent-side validation is a preflight, not the final authority. If no validation command or tool is available in this context, still return strict schema-matching JSON and expect harness-level validation.${schemaComment}\n\n\`\`\`json\n${trimStable(outputSchema)}\n\`\`\``);
+    schemaParts.push(`${validatingWriterProtocol(options.validatingWriterCommand)}${schemaComment}\n\n\`\`\`json\n${trimStable(outputSchema)}\n\`\`\``);
     parts.push(schemaParts.join('\n\n'));
   }
   return section('Output contract', parts.join('\n\n'));
