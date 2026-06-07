@@ -24,7 +24,7 @@ function baton(overrides = {}) {
   return {
     cursor: 'approve_research',
     status: 'running',
-    state: { artifacts: [{ producerStepId: 'research_draft', artifact: { id: 'research', content_type: 'text/markdown', path: 'research_draft/artifacts/research.md', summary: 'done' } }], results: [] },
+    state: { artifacts: [{ producerStepId: 'research_draft', artifact: { id: 'research', content_type: 'text/markdown', path: '/runs/research_draft/artifacts/research.md', summary: 'done' } }], results: [] },
     ...overrides,
   };
 }

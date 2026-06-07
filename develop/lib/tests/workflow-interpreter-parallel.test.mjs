@@ -89,7 +89,7 @@ function baton(overrides = {}) {
 }
 
 function output(overrides = {}) {
-  return { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: 'worker_step/artifacts/packet.md', summary: 'minimal packet' }], ...overrides };
+  return { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: path.join(tempDir, 'worker_step', 'artifacts', 'packet.md'), summary: 'minimal packet' }], ...overrides };
 }
 
 function writeReadableArtifact(artifactPath = 'worker_step/artifacts/packet.md', content = 'Readable artifact content.\n') {

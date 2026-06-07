@@ -1,3 +1,4 @@
+import fsPath from 'node:path';
 import { WorkflowRuntimeError } from '../../errors.mjs';
 import { batonSchema } from './schema/baton-schema.mjs';
 
@@ -35,6 +36,10 @@ export function assertCentralArtifactMetadata(artifact, path, { errorPrefix }) {
         throw new WorkflowRuntimeError(message({ errorPrefix, path: `${path}/${field}`, detail: `must be non-empty string` }));
       }
     }
+  }
+
+  if (!fsPath.isAbsolute(artifact.path)) {
+    throw new WorkflowRuntimeError(message({ errorPrefix, path: `${path}/path`, detail: 'must be full absolute filesystem path' }));
   }
 }
 

@@ -42,28 +42,22 @@ function roleNames(workflow) {
 }
 
 
-function assertSafeRunRelativeArtifactPath(artifactPath) {
+function resolveSafeRunArtifactPath({ runDir, artifactPath }) {
   if (typeof artifactPath !== 'string' || artifactPath.length === 0) {
     throw new WorkflowRuntimeError('workflow prompt render failed: artifact path must be non-empty string');
   }
-  if (path.isAbsolute(artifactPath)) {
-    throw new WorkflowRuntimeError(`workflow prompt render failed: artifact path must be run-relative: ${artifactPath}`);
-  }
-  const normalized = path.normalize(artifactPath);
-  if (normalized === '..' || normalized.startsWith(`..${path.sep}`)) {
+  const root = path.resolve(runDir);
+  const candidate = path.isAbsolute(artifactPath) ? path.resolve(artifactPath) : path.resolve(root, path.normalize(artifactPath));
+  if (!isInside(candidate, root)) {
     throw new WorkflowRuntimeError(`workflow prompt render failed: artifact path cannot escape run directory: ${artifactPath}`);
   }
-  return normalized;
+  return candidate;
 }
 
 export function readRunArtifactContent({ runDir, artifactPath }) {
   if (!runDir) throw new WorkflowRuntimeError('workflow prompt render failed: run directory is required to read artifact content');
-  const normalized = assertSafeRunRelativeArtifactPath(artifactPath);
   const root = path.resolve(runDir);
-  const candidate = path.resolve(root, normalized);
-  if (!isInside(candidate, root)) {
-    throw new WorkflowRuntimeError(`workflow prompt render failed: artifact path cannot escape run directory: ${artifactPath}`);
-  }
+  const candidate = resolveSafeRunArtifactPath({ runDir, artifactPath });
   if (!existsSync(candidate)) {
     throw new WorkflowRuntimeError(`workflow prompt render failed: missing artifact file '${artifactPath}'`);
   }

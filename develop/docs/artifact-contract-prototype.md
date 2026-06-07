@@ -12,7 +12,7 @@ The shared baton schema owns artifact metadata under `develop/lib/entities/Baton
 {
   "id": "research-packet",
   "content_type": "text/markdown",
-  "path": "research_draft/artifacts/research-packet.md",
+  "path": "/path/to/run/research_draft/artifacts/research-packet.md",
   "summary": "Research packet for approval."
 }
 ```
@@ -21,10 +21,10 @@ Required fields:
 
 - `id`: artifact id unique within the producer step.
 - `content_type`: MIME/content type, for example `text/markdown` or `application/json`.
+- `path`: full absolute filesystem path to the generated artifact file. For new worker output validation, the path must be inside the current step artifact output directory: `<run>/<stepId>/artifacts/`.
 
 Optional fields:
 
-- `path`: run-relative path. Current local artifacts conventionally use `<stepId>/artifacts/<artifactId>...` under the run directory.
 - `summary`: compact handoff text.
 
 Not included: `type`, `kind`, `ref`, `producer_step_id`, `version`, `replaces`, `aliases`, promotion, or final/approved artifact semantics.
@@ -37,7 +37,7 @@ The canonical read path for artifacts is the producer step output:
 baton.state[producerStepId].artifacts[]
 ```
 
-`baton.state.artifacts` is a strict aggregate of wrapper entries `{ producerStepId, artifact }`. It never accepts flat artifact metadata or extra wrapper fields. Each wrapped `artifact` must still satisfy the same central `{ id, content_type, path?, summary? }` schema with no extra fields. Identity is the pair `{ producerStepId, artifact.id }`; the `producerStepId` lives outside the artifact metadata object so producer ownership never leaks into the artifact metadata contract.
+`baton.state.artifacts` is a strict aggregate of wrapper entries `{ producerStepId, artifact }`. It never accepts flat artifact metadata or extra wrapper fields. Each wrapped `artifact` must still satisfy the same central `{ id, content_type, path, summary? }` schema with no extra fields. Identity is the pair `{ producerStepId, artifact.id }`; the `producerStepId` lives outside the artifact metadata object so producer ownership never leaks into the artifact metadata contract.
 
 The renderer does not choose artifact ids or paths and does not read persisted artifact files. It only renders schema-derived notes from loaded schemas. External schema refs such as the central Baton artifact `$ref` must resolve deterministically; unresolved external refs fail prompt rendering instead of being silently omitted.
 
@@ -76,7 +76,7 @@ Those mechanics belong in schema definitions and renderer-generated field notes.
    {
      "id": "research-packet",
      "content_type": "text/markdown",
-     "path": "research_draft/artifacts/research-packet.md",
+     "path": "/path/to/run/research_draft/artifacts/research-packet.md",
      "summary": "Research packet for approval."
    }
    ```
@@ -86,9 +86,10 @@ Those mechanics belong in schema definitions and renderer-generated field notes.
 4. `approve_research` presents artifact `research-packet` from `research_draft` plus `research_attack.verdict` and waits for explicit human approval.
 5. On approval, `architecture_draft` uses the approved/current `research-packet` artifact from `research_draft` as the research source of truth and produces the minimal architecture decision/structural contract required by that approved research. If architecture work is unnecessary, it records the explicit no-artifact decision in `architecture_contract`.
 
-The JSON output remains authoritative for workflow branching, state projection, and gates. The markdown artifact is the human-facing packet for review/approval.
+The JSON output remains authoritative for workflow branching, state projection, and gates. The markdown artifact is the human-facing packet for review/approval. If the user asks the orchestrator for the packet/proposal as a file, the orchestrator must retrieve or export the existing run artifact referenced by projected baton/output artifacts; it must not ask a worker to recreate the packet in an arbitrary temp path.
 
 ## Open questions
 
-- Should `path` remain emitted by prototype workers, or should a later runtime derive local artifact paths from step id and artifact id?
+- Should a later runtime derive local artifact paths from step id and artifact id instead of requiring workers to emit the current absolute `path`?
+- Should the runner provide a first-class artifact export helper for host/orchestrator file requests? Current fix keeps this prompt-level: workers and approval prompts must use existing baton/output artifact refs, and no runtime export helper is added here.
 - Should the schema eventually enforce the current step artifact directory convention, or should that remain renderer/runtime guidance outside JSON Schema?

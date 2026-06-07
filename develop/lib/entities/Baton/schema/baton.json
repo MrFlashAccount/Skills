@@ -98,7 +98,8 @@
       "type": "object",
       "required": [
         "id",
-        "content_type"
+        "content_type",
+        "path"
       ],
       "properties": {
         "id": {
@@ -116,8 +117,9 @@
         "path": {
           "type": "string",
           "minLength": 1,
-          "description": "Optional run-relative artifact file path. Current local artifacts conventionally use <stepId>/artifacts/<artifactId>... under the run directory.",
-          "x-usage": "When the artifact is persisted as a run file, emit the run-relative path and treat it as the artifact file location. Do not rewrite it unless producing a new artifact."
+          "pattern": "^/",
+          "description": "Full absolute filesystem path to the generated artifact file.",
+          "x-usage": "When producing an artifact file, write it inside the step's artifact output directory and emit the full absolute filesystem path here. Treat this path as the baton/output artifact pointer for later review, approval, or export. Do not rewrite it or use temp dirs, ad-hoc export paths, or paths outside the step artifact output directory."
         },
         "summary": {
           "type": "string",

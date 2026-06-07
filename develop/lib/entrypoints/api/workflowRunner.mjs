@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { applyWorkflowOutput } from '../../use-cases/ApplyWorkflowOutput.mjs';
 import { validateAgainstOutputSchema } from '../../use-cases/runtime/output/output-schema-validation.mjs';
@@ -142,6 +142,10 @@ function resourcesWithValidatingWriter(resources, paths, { leaseToken } = {}) {
       runsRoot: paths.runsRoot === workflowRunsRoot ? undefined : paths.runsRoot,
       leaseToken,
     }),
+    artifactOutputDirForStep: (stepId) => {
+      assertSafeStepId(stepId);
+      return join(paths.runDir, stepId, 'artifacts');
+    },
   };
 }
 
@@ -341,7 +345,8 @@ function validateAcceptedOutputForRequest({ workflow, resources, request, output
   const loaded = resources?.outputSchemas instanceof Map ? resources.outputSchemas.get(schemaRef) : resources?.outputSchemas?.[schemaRef];
   const schema = loaded?.schema ?? loaded;
   if (!schema) throw new Error(`output schema validation failed: missing output.schema '${schemaRef}'`);
-  const validation = validateAgainstOutputSchema({ schemaRef, schema, output });
+  const artifactOutputDir = typeof resources?.artifactOutputDirForStep === 'function' ? resources.artifactOutputDirForStep(requestStepId) : undefined;
+  const validation = validateAgainstOutputSchema({ schemaRef, schema, output, artifactOutputDir });
   if (!validation.ok) throw new Error(`output schema validation failed for step '${requestStepId}': ${validation.errors}`);
   return validation.output;
 }
@@ -375,7 +380,8 @@ async function writeOutputInternal({ runId, workflowPath, stepId, json, leaseTok
     const request = currentRequestForStep(lastResponse, stepId);
     if (!request) throw new Error(`unknown current workflow step id: ${stepId}`);
     const runtime = loadWorkflowRuntime({ workflowPath: paths.workflowPath, batonPath: paths.batonPath, baton: current.baton });
-    const accepted = validateAcceptedOutputForRequest({ workflow: runtime.workflow, resources: runtime.resources, request, output });
+    const validationResources = resourcesWithValidatingWriter(runtime.resources, paths, { leaseToken });
+    const accepted = validateAcceptedOutputForRequest({ workflow: runtime.workflow, resources: validationResources, request, output });
     const acceptedStepId = stepIdForRequest(request);
     const baton = batonWithAcceptedOutput(current.baton, acceptedStepId, accepted);
     await writePersistedRunStateUpdate(paths, {

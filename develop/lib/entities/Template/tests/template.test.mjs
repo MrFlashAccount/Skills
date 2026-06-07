@@ -47,7 +47,11 @@ const resources = {
               description: 'MIME/content type, for example text/markdown or application/json.',
               'x-usage': 'Use to render or parse the artifact content. Do not duplicate artifact meaning with type or kind fields.',
             },
-            path: { type: 'string', description: 'Optional run-relative artifact file path.' },
+            path: {
+              type: 'string',
+              description: 'Optional full absolute filesystem path to the generated artifact file.',
+              'x-usage': 'When producing an artifact file, write it inside the step\'s artifact output directory and emit the full absolute filesystem path here. Treat this path as the baton/output artifact pointer for later review, approval, or export. Do not rewrite it or use temp dirs, ad-hoc export paths, or paths outside the step artifact output directory.',
+            },
             summary: { type: 'string', description: 'Optional compact handoff summary for the artifact.' },
           },
         },
@@ -115,20 +119,31 @@ test('Template compiles workflow expressions through the entity API', () => {
 });
 
 test('renderWorkflowPrompt assembles templates, role material, output contract, projected state, and metadata', () => {
-  const rendered = renderWorkflowPrompt({ workflow, baton, stepId: 'consumer', step: workflow.steps.consumer, resources, userPrompt: 'extra operator context' });
+  const rendered = renderWorkflowPrompt({
+    workflow,
+    baton,
+    stepId: 'consumer',
+    step: workflow.steps.consumer,
+    resources: { ...resources, artifactOutputDir: '/tmp/workflow-runner-test/consumer/artifacts' },
+    userPrompt: 'extra operator context',
+  });
 
   assert.match(rendered.prompt, /^# Custom Consumer/m);
   assert.match(rendered.prompt, /## Workflow instruction\n\nKeep workflow-level context visible\./);
   assert.match(rendered.prompt, /<!-- role material: \/roles\/backend\/ROLE\.md -->/);
   assert.match(rendered.prompt, /## Output contract/);
   assert.match(rendered.prompt, /No validating writer command is provided in these instructions, so do not invent one/);
-  assert.match(rendered.prompt, /do not create or hand off an output path/);
+  assert.match(rendered.prompt, /do not create or hand off a separate JSON output path/);
   assert.doesNotMatch(rendered.prompt, /host passes the output file to workflow-runner continue/);
   assert.match(rendered.prompt, /<!-- output template: consumer-output\.md -->/);
   assert.match(rendered.prompt, /<!-- output schema: consumer\.schema\.json -->/);
+  assert.match(rendered.prompt, /Artifact output directory for this step: \/tmp\/workflow-runner-test\/consumer\/artifacts/);
+  assert.match(rendered.prompt, /Use the artifact id as the artifact file name\/stem/);
+  assert.match(rendered.prompt, /artifacts\[\]\.path to the full absolute filesystem path/);
   assert.match(rendered.prompt, /Schema-derived artifact field notes/);
   assert.match(rendered.prompt, /artifacts\[\]\.content_type/);
   assert.match(rendered.prompt, /Fill: Use to render or parse the artifact content/);
+  assert.match(rendered.prompt, /Fill: When producing an artifact file, write it inside the step's artifact output directory and emit the full absolute filesystem path here/);
   assert.match(rendered.prompt, /Field notes for projected step outputs/);
   assert.match(rendered.prompt, /Description: Producer outcome\./);
   assert.match(rendered.prompt, /Usage: Selects the next route\./);
@@ -162,7 +177,10 @@ test('renderWorkflowPrompt injects provided validating writer command into outpu
   assert.match(rendered.prompt, /Write the request output by calling this validating writer command/);
   assert.match(rendered.prompt, /workflow-runner\.mjs write-output --run-id example --step-id consumer/);
   assert.match(rendered.prompt, /If it fails with validation errors, fix the JSON and run the same command again/);
-  assert.match(rendered.prompt, /Do not create an output file and do not pass an output path to the orchestrator/);
+  assert.match(rendered.prompt, /Do not create a separate JSON output file and do not pass an output path to the orchestrator/);
+  assert.match(rendered.prompt, /Artifact content files are allowed and required when producing artifacts/);
+  assert.match(rendered.prompt, /handed off through the workflow artifacts metadata accepted into baton\/state/);
+  assert.match(rendered.prompt, /do not create arbitrary temp\/export files as substitutes for baton artifacts/);
   assert.doesNotMatch(rendered.prompt, /No validating writer command is provided/);
 });
 

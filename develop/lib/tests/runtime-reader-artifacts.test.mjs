@@ -32,12 +32,23 @@ test('readRunArtifactContent fails clearly for missing files', () => {
   );
 });
 
-test('readRunArtifactContent rejects absolute artifact paths', () => {
+test('readRunArtifactContent reads absolute artifact paths inside the run directory', () => {
   const dir = runDir('absolute');
+  mkdirSync(path.join(dir, 'worker', 'artifacts'), { recursive: true });
+  const artifactPath = path.join(dir, 'worker', 'artifacts', 'packet.md');
+  writeFileSync(artifactPath, 'absolute artifact body\n');
+
+  assert.equal(readRunArtifactContent({ runDir: dir, artifactPath }), 'absolute artifact body\n');
+});
+
+test('readRunArtifactContent rejects absolute artifact paths outside the run directory', () => {
+  const dir = runDir('absolute-outside');
+  const artifactPath = path.join(tempDir, 'outside-absolute.md');
+  writeFileSync(artifactPath, 'outside absolute content\n');
 
   assert.throws(
-    () => readRunArtifactContent({ runDir: dir, artifactPath: path.join(dir, 'packet.md') }),
-    /workflow prompt render failed: artifact path must be run-relative:/,
+    () => readRunArtifactContent({ runDir: dir, artifactPath }),
+    /workflow prompt render failed: artifact path cannot escape run directory:/,
   );
 });
 

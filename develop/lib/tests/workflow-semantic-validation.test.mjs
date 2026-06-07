@@ -167,6 +167,15 @@ test('workflow semantic validation accepts the checked-in flat DevHarness workfl
   assert.deepEqual(validate(workflowDoc), { ok: true, workflow: 'dev-harness', steps: Object.keys(workflowDoc.steps).length });
 });
 
+test('DevHarness proposal handoff prompts use baton artifacts instead of temp files', () => {
+  assert.match(workflowDoc.steps.architecture_draft.input.prompt, /emit it as workflow artifact `architecture-proposal`/);
+  assert.match(workflowDoc.steps.architecture_draft.input.prompt, /artifact metadata\/path accepted into baton is the source of truth/);
+  assert.match(workflowDoc.steps.approve_architecture.input.prompt, /projected `architecture-proposal` artifact from architecture_draft/);
+  assert.match(workflowDoc.steps.approve_architecture.input.prompt, /retrieve\/export the existing artifact referenced by projected baton\/output artifacts/);
+  assert.match(workflowDoc.steps.approve_architecture.input.prompt, /do not ask a worker to recreate it in a temp path/);
+  assert.match(workflowDoc.steps.approve_plan.input.prompt, /retrieve\/export the existing artifact referenced by projected baton\/output artifacts/);
+});
+
 test('workflow semantic validation rejects wrapped workflow documents', () => {
   const flat = syntheticWorkflow();
   const wrapped = { workflow: structuredClone(flat) };
@@ -229,7 +238,7 @@ test('research critic saved packet output requires projected artifacts and resul
     output: {
       outcome: 'saved',
       saved: { summary: 'Saved.' },
-      artifacts: [{ id: 'research-packet', content_type: 'text/markdown', summary: 'Saved packet.', path: 'save_research_packet/artifacts/research-packet.md' }],
+      artifacts: [{ id: 'research-packet', content_type: 'text/markdown', summary: 'Saved packet.', path: '/runs/save_research_packet/artifacts/research-packet.md' }],
       results: [{ summary: 'Saved packet.' }],
     },
   });
@@ -252,7 +261,7 @@ test('research critic save packet output keeps saved and blocked branches exclus
       outcome: 'blocked',
       blocker: { summary: 'Cannot save.', source_step_id: 'save_research_packet', needed: 'Writable target.' },
       saved: { summary: 'Should not coexist.' },
-      artifacts: [{ id: 'research-packet', content_type: 'text/markdown', summary: 'Should not aggregate.', path: 'save_research_packet/artifacts/research-packet.md' }],
+      artifacts: [{ id: 'research-packet', content_type: 'text/markdown', summary: 'Should not aggregate.', path: '/runs/save_research_packet/artifacts/research-packet.md' }],
       results: [{ summary: 'Should not aggregate.' }],
     },
   });
@@ -263,7 +272,7 @@ test('research critic save packet output keeps saved and blocked branches exclus
     output: {
       outcome: 'saved',
       saved: { summary: 'Saved.' },
-      artifacts: [{ id: 'research-packet', content_type: 'text/markdown', summary: 'Saved packet.', path: 'save_research_packet/artifacts/research-packet.md' }],
+      artifacts: [{ id: 'research-packet', content_type: 'text/markdown', summary: 'Saved packet.', path: '/runs/save_research_packet/artifacts/research-packet.md' }],
       results: [{ summary: 'Saved packet.' }],
       blocker: { summary: 'Should not coexist.', source_step_id: 'save_research_packet', needed: 'Nothing.' },
     },

@@ -189,7 +189,7 @@ function finalOutputSchemaAttempt(stepId = 'worker_step', overrides = {}) {
 }
 
 function artifact(id, summary = 'minimal packet', stepId = 'worker_step') {
-  return { id, content_type: 'text/markdown', path: `${stepId}/artifacts/${id}.md`, summary };
+  return { id, content_type: 'text/markdown', path: `/runs/${stepId}/artifacts/${id}.md`, summary };
 }
 
 function aggregateArtifact(id, summary = 'minimal packet', stepId = 'worker_step') { return { producerStepId: stepId, artifact: artifact(id, summary, stepId) }; }
@@ -399,7 +399,7 @@ test('schema validation: step-level extension fields are rejected rather than ig
 
 test('e2e: scripted wrapper runs worker to approval to worker/review to done', () => {
   const final = scriptedApplyLoop('e2e-happy-path', e2eWorkflowDoc, baton(), {
-    worker_step: [output({ outcome: 'ready', artifacts: [{ id: 'worker-packet', content_type: 'text/markdown', path: 'worker_step/artifacts/worker-packet.md', summary: 'ready for approval' }] })],
+    worker_step: [output({ outcome: 'ready', artifacts: [{ id: 'worker-packet', content_type: 'text/markdown', path: '/runs/worker_step/artifacts/worker-packet.md', summary: 'ready for approval' }] })],
     approval_step: [{ approval: 'approved', results: [{ type: 'approval', summary: 'approved' }] }],
     implementation_worker: [output({ outcome: 'ready', results: [{ type: 'implementation', summary: 'implemented' }] })],
     review_worker: [output({ outcome: 'ready', results: [{ type: 'review', summary: 'reviewed' }] })],
@@ -428,8 +428,8 @@ test('e2e: scripted wrapper runs worker to approval to worker/review to done', (
 test('e2e: approval rejection loops back to worker before successful done', () => {
   const final = scriptedApplyLoop('e2e-rejection-rework', e2eWorkflowDoc, baton(), {
     worker_step: [
-      output({ outcome: 'ready', artifacts: [{ id: 'draft', content_type: 'text/markdown', path: 'worker_step/artifacts/draft.md', summary: 'draft' }] }),
-      output({ outcome: 'ready', artifacts: [{ id: 'draft', content_type: 'text/markdown', path: 'worker_step/artifacts/draft.md', summary: 'reworked' }] }),
+      output({ outcome: 'ready', artifacts: [{ id: 'draft', content_type: 'text/markdown', path: '/runs/worker_step/artifacts/draft.md', summary: 'draft' }] }),
+      output({ outcome: 'ready', artifacts: [{ id: 'draft', content_type: 'text/markdown', path: '/runs/worker_step/artifacts/draft.md', summary: 'reworked' }] }),
     ],
     approval_step: [
       { approval: 'rejected', results: [{ type: 'approval', summary: 'needs rework' }] },
@@ -606,7 +606,7 @@ test('schema validation: worker output cannot replace baton state directly', () 
   const result = runApply(
     'worker-output-direct-state-replacement',
     finalOutputSchemaAttempt(),
-    { outcome: 'ready', state: { artifacts: [{ id: 'packet', content_type: 'text/markdown', path: 'worker_step/artifacts/packet.md', summary: 'bypassed merge' }], results: [] } },
+    { outcome: 'ready', state: { artifacts: [{ id: 'packet', content_type: 'text/markdown', path: '/runs/worker_step/artifacts/packet.md', summary: 'bypassed merge' }], results: [] } },
     false,
   );
 
@@ -657,15 +657,15 @@ test('apply: output state replaces same-id artifacts while appending new artifac
     {
       outcome: 'ready',
       artifacts: [
-        { id: 'draft', content_type: 'text/markdown', path: 'worker_step/artifacts/draft.md', summary: 'revised draft' },
-        { id: 'new', content_type: 'text/markdown', path: 'worker_step/artifacts/new.md', summary: 'new packet' },
+        { id: 'draft', content_type: 'text/markdown', path: '/runs/worker_step/artifacts/draft.md', summary: 'revised draft' },
+        { id: 'new', content_type: 'text/markdown', path: '/runs/worker_step/artifacts/new.md', summary: 'new packet' },
       ],
       results: [{ type: 'worker', summary: 'new result' }],
     },
   );
 
   assert.equal(response.baton.cursor, 'approval_step');
-  assert.deepEqual(response.baton.state.artifacts, [aggregateArtifactFrom({ id: 'draft', content_type: 'text/markdown', path: 'worker_step/artifacts/draft.md', summary: 'revised draft' }), aggregateArtifact('note-old', 'note'), aggregateArtifactFrom({ id: 'new', content_type: 'text/markdown', path: 'worker_step/artifacts/new.md', summary: 'new packet' })]);
+  assert.deepEqual(response.baton.state.artifacts, [aggregateArtifactFrom({ id: 'draft', content_type: 'text/markdown', path: '/runs/worker_step/artifacts/draft.md', summary: 'revised draft' }), aggregateArtifact('note-old', 'note'), aggregateArtifactFrom({ id: 'new', content_type: 'text/markdown', path: '/runs/worker_step/artifacts/new.md', summary: 'new packet' })]);
   assert.deepEqual(response.baton.state.results, [
     { type: 'research', summary: 'existing result' },
     { type: 'worker', summary: 'new result' },
@@ -831,7 +831,7 @@ test('apply: direct string next still merges output state before resolving termi
     }),
     {
       outcome: 'ready',
-      artifacts: [{ id: 'draft', content_type: 'text/markdown', path: 'worker_step/artifacts/draft.md', summary: 'merged before done' }],
+      artifacts: [{ id: 'draft', content_type: 'text/markdown', path: '/runs/worker_step/artifacts/draft.md', summary: 'merged before done' }],
       results: [{ type: 'review', summary: 'terminal evidence' }],
     },
   );
@@ -839,7 +839,7 @@ test('apply: direct string next still merges output state before resolving termi
   assert.equal(response.baton.cursor, 'done');
   assert.equal(response.baton.status, 'done');
   assert.equal(response.steps[0].action, 'stop_done');
-  assert.deepEqual(response.baton.state.artifacts, [aggregateArtifact('draft', 'before direct next'), aggregateArtifactFrom({ id: 'draft', content_type: 'text/markdown', path: 'worker_step/artifacts/draft.md', summary: 'merged before done' }, 'direct_next_worker')]);
+  assert.deepEqual(response.baton.state.artifacts, [aggregateArtifact('draft', 'before direct next'), aggregateArtifactFrom({ id: 'draft', content_type: 'text/markdown', path: '/runs/worker_step/artifacts/draft.md', summary: 'merged before done' }, 'direct_next_worker')]);
   assert.deepEqual(response.baton.state.results, [
     { type: 'implementation', summary: 'existing result' },
     { type: 'review', summary: 'terminal evidence' },

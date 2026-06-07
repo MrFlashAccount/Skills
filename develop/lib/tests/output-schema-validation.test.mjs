@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
@@ -319,7 +319,7 @@ test('output.schema: valid structured output passes and is stored by step id', (
 
   const response = runApply('output-schema-valid-stored', baton(), {
     outcome: 'ready',
-    artifacts: [{ id: 'packet', content_type: 'text/markdown', path: 'worker_step/artifacts/packet.md', summary: 'structured' }],
+    artifacts: [{ id: 'packet', content_type: 'text/markdown', path: '/runs/worker_step/artifacts/packet.md', summary: 'structured' }],
     payload: { ok: true },
   }, true, doc);
 
@@ -479,7 +479,7 @@ test('output.schema: structured step output is projected by step id into downstr
 
   const applyResponse = runApply('output-schema-structured-project-apply', baton(), {
     outcome: 'ready',
-    artifacts: [{ id: 'packet', content_type: 'text/markdown', path: 'worker_step/artifacts/packet.md', summary: 'structured projection artifact' }],
+    artifacts: [{ id: 'packet', content_type: 'text/markdown', path: path.join(tempDir, 'worker_step', 'artifacts', 'packet.md'), summary: 'structured projection artifact' }],
     payload: { ok: true },
   }, true, doc);
 
@@ -528,7 +528,7 @@ test('output.schema: projected structured output renders schema field notes befo
 
   const applyResponse = runApply('output-schema-field-notes-apply', baton(), {
     outcome: 'ready',
-    artifacts: [{ id: 'packet', content_type: 'text/markdown', path: 'worker_step/artifacts/packet.md', summary: 'structured projection artifact' }],
+    artifacts: [{ id: 'packet', content_type: 'text/markdown', path: path.join(tempDir, 'worker_step', 'artifacts', 'packet.md'), summary: 'structured projection artifact' }],
     payload: { ok: true },
   }, true, doc);
   const workflowPath = writeJson('output-schema-field-notes-workflow.json', doc);
@@ -643,16 +643,120 @@ test('output.schema: central artifact contract accepts simplified shape and reje
     additionalProperties: false,
   };
 
-  assert.equal(validateAgainstOutputSchema({ schema, output: { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown' }] } }).ok, true);
+  assert.equal(validateAgainstOutputSchema({ schema, output: { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: '/runs/worker_step/artifacts/packet.md' }] } }).ok, true);
 
   for (const staleField of ['type', 'kind', 'ref', 'producer_step_id', 'version', 'replaces', 'aliases']) {
     const validation = validateAgainstOutputSchema({
       schema,
-      output: { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', [staleField]: staleField === 'aliases' ? [] : 'legacy' }] },
+      output: { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: '/runs/worker_step/artifacts/packet.md', [staleField]: staleField === 'aliases' ? [] : 'legacy' }] },
     });
     assert.equal(validation.ok, false, `expected stale artifact field '${staleField}' to be rejected`);
     assert.match(validation.errors, /must NOT have additional properties/);
   }
+
+  const missingPath = validateAgainstOutputSchema({ schema, output: { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown' }] } });
+  assert.equal(missingPath.ok, false);
+  assert.match(missingPath.errors, /path/);
+
+  const relativePath = validateAgainstOutputSchema({ schema, output: { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: 'plan/artifacts/plan.md' }] } });
+  assert.equal(relativePath.ok, false);
+  assert.match(relativePath.errors, /path/);
+});
+
+test('output.schema: contextual artifact validation requires paths under the expected artifact output directory', () => {
+  const schema = {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome', 'artifacts'],
+    properties: {
+      outcome: { const: 'ready' },
+      artifacts: {
+        type: 'array',
+        items: { $ref: 'https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact' },
+      },
+    },
+    additionalProperties: false,
+  };
+  const artifactOutputDir = path.join(tempDir, 'contextual-artifacts', 'prepare', 'artifacts');
+  mkdirSync(artifactOutputDir, { recursive: true });
+
+  assert.equal(validateAgainstOutputSchema({
+    schema,
+    artifactOutputDir,
+    output: { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: path.join(artifactOutputDir, 'packet.md') }] },
+  }).ok, true);
+
+  for (const artifactPath of ['/tmp/outside-step.md', path.join(tempDir, 'contextual-artifacts', 'branch_a', 'artifacts', 'packet.md'), path.join(artifactOutputDir, '..', '..', 'branch_b', 'artifacts', 'packet.md'), artifactOutputDir]) {
+    const validation = validateAgainstOutputSchema({
+      schema,
+      artifactOutputDir,
+      output: { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: artifactPath }] },
+    });
+    assert.equal(validation.ok, false, `expected artifact path to be rejected: ${artifactPath}`);
+    assert.match(validation.errors, /artifact output directory/);
+  }
+});
+
+test('output.schema: contextual artifact validation rejects symlink escapes', () => {
+  const schema = {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome', 'artifacts'],
+    properties: {
+      outcome: { const: 'ready' },
+      artifacts: {
+        type: 'array',
+        items: { $ref: 'https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact' },
+      },
+    },
+    additionalProperties: false,
+  };
+  const artifactOutputDir = path.join(tempDir, 'symlink-artifacts', 'prepare', 'artifacts');
+  const outsideDir = path.join(tempDir, 'symlink-artifacts-outside');
+  mkdirSync(artifactOutputDir, { recursive: true });
+  mkdirSync(outsideDir, { recursive: true });
+  symlinkSync(outsideDir, path.join(artifactOutputDir, 'escape'), 'dir');
+
+  const validation = validateAgainstOutputSchema({
+    schema,
+    artifactOutputDir,
+    output: { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: path.join(artifactOutputDir, 'escape', 'packet.md') }] },
+  });
+
+  assert.equal(validation.ok, false);
+  assert.match(validation.errors, /symlinks/);
+});
+
+
+test('output.schema: contextual artifact validation rejects symlinked expected artifact directory', () => {
+  const schema = {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome', 'artifacts'],
+    properties: {
+      outcome: { const: 'ready' },
+      artifacts: {
+        type: 'array',
+        items: { $ref: 'https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact' },
+      },
+    },
+    additionalProperties: false,
+  };
+  const stepDir = path.join(tempDir, 'symlink-expected-artifacts', 'prepare');
+  const artifactOutputDir = path.join(stepDir, 'artifacts');
+  const outsideDir = path.join(tempDir, 'symlink-expected-artifacts-outside');
+  mkdirSync(stepDir, { recursive: true });
+  mkdirSync(outsideDir, { recursive: true });
+  symlinkSync(outsideDir, artifactOutputDir, 'dir');
+
+  const validation = validateAgainstOutputSchema({
+    schema,
+    artifactOutputDir,
+    output: { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: path.join(artifactOutputDir, 'packet.md') }] },
+  });
+
+  assert.equal(validation.ok, false);
+  assert.match(validation.errors, /not a symlink/);
 });
 
 test('output.schema: loose step schemas still reject legacy artifact fields', () => {
@@ -669,7 +773,7 @@ test('output.schema: loose step schemas still reject legacy artifact fields', ()
 
   const validation = validateAgainstOutputSchema({
     schema,
-    output: { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', producer_step_id: 'worker_step' }] },
+    output: { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: '/runs/worker_step/artifacts/packet.md', producer_step_id: 'worker_step' }] },
   });
 
   assert.equal(validation.ok, false);

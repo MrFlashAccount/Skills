@@ -100,8 +100,9 @@ function parseOutputRef(ref) {
 }
 
 function writeOutput(run, workflow, stepId, filePath, label = 'write output') {
+  const outputJson = readFileSync(filePath, 'utf8').replaceAll('__RUN_DIR__', runPath(run));
   const result = runRunner(['write-output', '--run-id', runId(run), '--workflow', workflow, '--step-id', stepId], {
-    input: readFileSync(filePath, 'utf8'),
+    input: outputJson,
   });
   assert.equal(result.status, 0, `${label} failed
 stdout:
@@ -193,7 +194,7 @@ test('E2E fixture: DevHarness-style artifact path exposes actual content to down
   writeFileSync(implementOutputPath, `${JSON.stringify({
     outcome: 'ready',
     results: [{ type: 'implementation', summary: 'implementation with readable artifact' }],
-    artifacts: [{ id: 'packet', content_type: 'text/markdown', path: 'implement/artifacts/packet.md', summary: 'readable packet' }],
+    artifacts: [{ id: 'packet', content_type: 'text/markdown', path: path.join(runPath(run), 'implement/artifacts/packet.md'), summary: 'readable packet' }],
   }, null, 2)}\n`);
 
   const reviewRequest = continueWith(run, workflow, implementOutputPath, 'continue implementation readable artifact');

@@ -41,6 +41,7 @@ export function renderWorkflowPrompt({ workflow, baton, stepId, step, resources,
   const outputContract = outputContractSection(outputTemplate.content, outputTemplate.metadataPath, outputSchema.content, outputSchema.metadataPath, outputSchema.schema, {
     schemaDefinitions: resources?.schemaDefinitions,
     validatingWriterCommand: resources?.validatingWriterCommand,
+    artifactOutputDir: resources?.artifactOutputDir,
   });
   const workflowInstructionBlock = workflowInstruction({ workflow });
   const finalReminder = finalOutputReminder(outputContract);

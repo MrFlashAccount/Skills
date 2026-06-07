@@ -103,7 +103,7 @@ function assertWorkflowError(fn, pattern) {
 test('Baton constructor clones boundary data before freezing internal state', () => {
   const source = batonDoc();
   const baton = new Baton(source);
-  source.state.artifacts.push({ id: 'late', content_type: 'text/plain', path: 'producer/artifacts/late.txt' });
+  source.state.artifacts.push({ id: 'late', content_type: 'text/plain', path: '/runs/producer/artifacts/late.txt' });
 
   assert.deepEqual(baton.toJSON().state.artifacts, []);
 });
@@ -130,14 +130,14 @@ test('Baton.validateAgainst accepts a terminal done cursor with done status', ()
 
 test('Baton.withAppliedOutput replaces existing artifacts by id and preserves unrelated artifacts', () => {
   const baton = new Baton(batonDoc({ state: { artifacts: [
-    { producerStepId: 'producer', artifact: { id: 'same', content_type: 'text/markdown', path: 'producer/artifacts/same.md', summary: 'old' } },
-    { producerStepId: 'producer', artifact: { id: 'keep', content_type: 'text/markdown', path: 'producer/artifacts/keep.md', summary: 'keep' } },
+    { producerStepId: 'producer', artifact: { id: 'same', content_type: 'text/markdown', path: '/runs/producer/artifacts/same.md', summary: 'old' } },
+    { producerStepId: 'producer', artifact: { id: 'keep', content_type: 'text/markdown', path: '/runs/producer/artifacts/keep.md', summary: 'keep' } },
   ], results: [] } }));
-  const next = baton.withAppliedOutput('producer', { outcome: 'ready', artifacts: [{ id: 'same', content_type: 'text/markdown', path: 'producer/artifacts/same.md', summary: 'new' }], results: [] });
+  const next = baton.withAppliedOutput('producer', { outcome: 'ready', artifacts: [{ id: 'same', content_type: 'text/markdown', path: '/runs/producer/artifacts/same.md', summary: 'new' }], results: [] });
 
   assert.deepEqual(next.state.artifacts, [
-    { producerStepId: 'producer', artifact: { id: 'same', content_type: 'text/markdown', path: 'producer/artifacts/same.md', summary: 'new' } },
-    { producerStepId: 'producer', artifact: { id: 'keep', content_type: 'text/markdown', path: 'producer/artifacts/keep.md', summary: 'keep' } },
+    { producerStepId: 'producer', artifact: { id: 'same', content_type: 'text/markdown', path: '/runs/producer/artifacts/same.md', summary: 'new' } },
+    { producerStepId: 'producer', artifact: { id: 'keep', content_type: 'text/markdown', path: '/runs/producer/artifacts/keep.md', summary: 'keep' } },
   ]);
 });
 
@@ -155,7 +155,7 @@ test('Baton.withAppliedOutput rejects non-array artifact aggregates before mutat
 
 test('applyOutputToBatonState rejects artifact output when producer step id is missing', () => {
   assertWorkflowError(
-    () => applyOutputToBatonState(batonDoc(), { artifacts: [{ id: 'a', content_type: 'text/markdown', path: 'producer/artifacts/a.md' }], results: [] }, undefined, undefined),
+    () => applyOutputToBatonState(batonDoc(), { artifacts: [{ id: 'a', content_type: 'text/markdown', path: '/runs/producer/artifacts/a.md' }], results: [] }, undefined, undefined),
     /cannot determine producerStepId.*pass stepId/,
   );
 });

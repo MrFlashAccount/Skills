@@ -415,6 +415,147 @@ test('runner: instructions rejects unknown, unsafe, and missing instructions', (
   assert.match(missing.stderr, /cannot read instructions for workflow step prepare/);
 });
 
+test('runner: rendered artifact instructions include the absolute step artifact directory', () => {
+  const { runId, runDir } = runCase('artifact-output-dir');
+  const workflowPath = path.join(tempDir, 'artifact-output-dir-workflow.json');
+  const schemaPath = path.join(tempDir, 'artifact-output-dir-output.schema.json');
+  const singleWorkflow = structuredClone(workflowDoc);
+  singleWorkflow.steps.prepare.output = { template: 'output.md', schema: path.basename(schemaPath) };
+  singleWorkflow.steps.prepare.next = 'done';
+  writeJson(schemaPath, {
+    type: 'object',
+    required: ['outcome'],
+    properties: {
+      outcome: { type: 'string' },
+      artifacts: {
+        type: 'array',
+        items: { $ref: 'https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact' },
+      },
+    },
+  });
+  writeJson(workflowPath, singleWorkflow);
+
+  expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next artifact output dir');
+  const instructions = readFileSync(path.join(runDir, '.workflow-runner', 'instructions', 'prepare.md'), 'utf8');
+
+  assert.match(instructions, new RegExp(`Artifact output directory for this step: ${path.join(runDir, 'prepare', 'artifacts').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
+  assert.match(instructions, /Use the artifact id as the artifact file name\/stem/);
+  assert.match(instructions, /artifacts\[\]\.path to the full absolute filesystem path/);
+  assert.match(instructions, /Do not create a separate JSON output file and do not pass an output path to the orchestrator/);
+});
+
+function artifactOutputWorkflow(label) {
+  const workflowPath = path.join(tempDir, `${label}-workflow.json`);
+  const schemaPath = path.join(tempDir, `${label}-output.schema.json`);
+  const singleWorkflow = structuredClone(workflowDoc);
+  singleWorkflow.steps.prepare.output = { template: 'output.md', schema: path.basename(schemaPath) };
+  singleWorkflow.steps.prepare.next = 'done';
+  writeJson(schemaPath, {
+    type: 'object',
+    required: ['outcome'],
+    properties: {
+      outcome: { type: 'string' },
+      artifacts: {
+        type: 'array',
+        items: { $ref: 'https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact' },
+      },
+    },
+  });
+  writeJson(workflowPath, singleWorkflow);
+  return workflowPath;
+}
+
+async function startArtifactOutputRun(label) {
+  const { runId, runDir } = runCase(label);
+  const workflowPath = artifactOutputWorkflow(label);
+  const leaseToken = `${label}-token-${process.pid}`;
+  await runnerNext({ runId, workflowPath, leaseToken });
+  return { runId, runDir, workflowPath, leaseToken, artifactDir: path.join(runDir, 'prepare', 'artifacts') };
+}
+
+test('runner write-output rejects relative artifact paths', async () => {
+  const { runId, workflowPath, leaseToken } = await startArtifactOutputRun('relative-artifact-path-reject');
+
+  await assert.rejects(
+    () => runnerWriteOutput({
+      runId,
+      workflowPath,
+      stepId: 'prepare',
+      json: JSON.stringify({ outcome: 'ready', artifacts: [{ id: 'plan', content_type: 'text/markdown', path: 'plan/artifacts/plan.md' }] }),
+      leaseToken,
+    }),
+    /output schema validation failed for step 'prepare'.*artifacts\/0\/path/s,
+  );
+});
+
+test('runner write-output rejects absolute artifact paths outside the current step artifact directory', async () => {
+  const { runId, workflowPath, leaseToken } = await startArtifactOutputRun('outside-artifact-path-reject');
+
+  await assert.rejects(
+    () => runnerWriteOutput({
+      runId,
+      workflowPath,
+      stepId: 'prepare',
+      json: JSON.stringify({ outcome: 'ready', artifacts: [{ id: 'outside', content_type: 'text/markdown', path: '/tmp/outside-step.md' }] }),
+      leaseToken,
+    }),
+    /output schema validation failed for step 'prepare'.*artifact output directory/s,
+  );
+});
+
+test('runner write-output rejects another step artifact directory and traversal escapes', async () => {
+  const { runId, runDir, workflowPath, leaseToken } = await startArtifactOutputRun('wrong-step-artifact-path-reject');
+  const otherStepPath = path.join(runDir, 'branch_a', 'artifacts', 'packet.md');
+  const traversalPath = path.join(runDir, 'prepare', 'artifacts', '..', '..', 'branch_b', 'artifacts', 'packet.md');
+
+  for (const artifactPath of [otherStepPath, traversalPath]) {
+    await assert.rejects(
+      () => runnerWriteOutput({
+        runId,
+        workflowPath,
+        stepId: 'prepare',
+        json: JSON.stringify({ outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: artifactPath }] }),
+        leaseToken,
+      }),
+      /output schema validation failed for step 'prepare'.*artifact output directory/s,
+    );
+  }
+});
+
+test('runner write-output accepts artifact paths inside the current step artifact directory', async () => {
+  const { runId, workflowPath, leaseToken, artifactDir } = await startArtifactOutputRun('valid-artifact-path-accept');
+  const accepted = await runnerWriteOutput({
+    runId,
+    workflowPath,
+    stepId: 'prepare',
+    json: JSON.stringify({ outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: path.join(artifactDir, 'packet.md') }] }),
+    leaseToken,
+  });
+
+  assert.equal(accepted.ok, true);
+});
+
+
+test('runner write-output rejects symlinked current step artifact directory', async () => {
+  const { runId, workflowPath, leaseToken, artifactDir } = await startArtifactOutputRun('symlinked-artifact-dir-reject');
+  const outsideDir = path.join(tempDir, 'runner-symlinked-artifact-dir-outside');
+  rmSync(artifactDir, { recursive: true, force: true });
+  mkdirSync(path.dirname(artifactDir), { recursive: true });
+  mkdirSync(outsideDir, { recursive: true });
+  symlinkSync(outsideDir, artifactDir, 'dir');
+
+  await assert.rejects(
+    () => runnerWriteOutput({
+      runId,
+      workflowPath,
+      stepId: 'prepare',
+      json: JSON.stringify({ outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: path.join(artifactDir, 'packet.md') }] }),
+      leaseToken,
+    }),
+    /output schema validation failed for step 'prepare'.*not a symlink/s,
+  );
+});
+
 test('runner API propagates custom runsRoot through next, instructions, and continue', async () => {
   const runId = `workflow-runner-test-${process.pid}-custom-runs-root`;
   const runsRoot = path.join(tempDir, 'custom-runs-root');
