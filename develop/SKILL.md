@@ -7,7 +7,7 @@ description: Use for running a workflow from the repo root through workflow-runn
 
 ## Core rule
 
-Drive the workflow only through `workflow-runner`. The runner owns transitions, validates request results, and persists accepted state. The orchestrator executes host actions, then continues exactly once per response batch.
+Drive the workflow only through `workflow-runner`. The runner owns transitions, validates request results, and persists accepted state. The orchestrator executes host actions, then continues exactly once per response batch. A run is complete only when `workflow-runner continue` returns `status: done` or `status: blocked`.
 
 Never inspect or mutate private runtime files to decide the next step. Use public run and runner commands from the repo root.
 
@@ -67,9 +67,9 @@ Read `response.status`.
 
 - `done`: stop and report the completed result.
 - `blocked`: stop and report the blocker.
-- `needs_host_actions`: read every item in `response.requests[]`, then go to step 6. Do not continue here.
+- `needs_host_actions`: internal instruction only; execute every request in `response.requests[]`, then call `workflow-runner continue` exactly once.
 
-Do not call `next` as a substitute for applying accepted request results.
+Do not call `next` as a substitute for applying accepted request results. Do not report an intermediate cursor, next step, pending request, or `needs_host_actions` as completion; that is a protocol violation. If unsure whether to continue, continue.
 
 ## 6. Execute every request in `response.requests[]`
 
@@ -90,6 +90,7 @@ Rules:
 
 - If a request action is unknown, stop as blocked/fail explicitly.
 - If any request cannot be completed, stop as blocked.
+- Stop only on `done`, `blocked`, a required host action that cannot be completed, or explicit user input/approval required by a host action that cannot be inferred.
 - Parallel branches are a simple batch: complete all requests in the current response, then continue once. Workflows that branch in parallel must have a direct join before continuing past the batch.
 
 ### 6.1 Handle `run_worker`
@@ -105,14 +106,14 @@ Then follow the loaded instructions exactly.
 
 The loaded instructions include the validating write-output command. Use that exact command; supply only the required JSON body/stdin. If validation fails, fix the JSON and retry boundedly until accepted.
 
-Do not call workflow-runner continue. Do not create output files. Do not add behavior, role, output format, or constraints beyond the loaded instructions.
-
-If the instructions cannot be loaded, stop with an error.
+Do not add behavior, role, output format, or constraints beyond the loaded instructions. If the instructions cannot be loaded, stop with an error.
 ```
 
 The orchestrator waits until the worker finishes its work. Workers never call `continue`.
 
 If a worker announces that it needs user input instead of final validated output, treat it as an orchestrator-mediated worker user request, not only a narrow clarification: ask the user the worker's focused user-facing request, then forward the user's answer back into the same worker/subagent session with `sessions_send` so the worker continues there. This same worker-request session continuation is allowed; do not create a new subagent/session for that continuation, do not use it as persistent worker reuse across workflow loop iterations, and do not let workers pretend they can ask the user directly.
+
+If the user asks for a workflow proposal/artifact file, hand off only an existing workflow artifact reference from the current runner response, persisted `last-response`, baton state/output, or the worker's validated last output. Use the artifact metadata exactly as emitted by the workflow, especially `{producerStepId, artifact.id, artifact.path}` or the producing step's `artifacts[]` entry. Do not ask a worker to create a new temp file, side-channel proposal, or arbitrary artifact outside the workflow output contract. If no workflow artifact ref/path exists, report a blocker and the missing artifact ref instead of creating a replacement file.
 
 ### 6.2 Handle `wait_for_approval` / user input
 
@@ -137,7 +138,7 @@ node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-id <run-id> 
 
 ## 8. Repeat
 
-Return to step 5 with the response from `continue`. Continue until `done` or `blocked`.
+Return to step 5 with the response from `continue`. Continue until `done` or `blocked`. Final answer only after `done`/`blocked`; otherwise keep driving the runner.
 
 ## 9. Reference commands
 
