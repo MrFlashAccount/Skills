@@ -488,6 +488,27 @@ test('runner write-output rejects relative artifact paths', async () => {
   );
 });
 
+test('runner write-output validates artifact boundaries without declared output schema', async () => {
+  const { runId } = runCase('schemaless-artifact-path-reject');
+  const workflowPath = path.join(tempDir, 'schemaless-artifact-path-reject-workflow.json');
+  const singleWorkflow = structuredClone(workflowDoc);
+  singleWorkflow.steps.prepare.next = 'done';
+  writeJson(workflowPath, singleWorkflow);
+  const leaseToken = `schemaless-artifact-path-reject-token-${process.pid}`;
+  await runnerNext({ runId, workflowPath, leaseToken });
+
+  await assert.rejects(
+    () => runnerWriteOutput({
+      runId,
+      workflowPath,
+      stepId: 'prepare',
+      json: JSON.stringify({ outcome: 'ready', artifacts: [{ id: 'outside', content_type: 'text/plain', path: '/tmp/a' }] }),
+      leaseToken,
+    }),
+    /output schema validation failed for step 'prepare'.*artifact output directory/s,
+  );
+});
+
 test('runner write-output rejects absolute artifact paths outside the current step artifact directory', async () => {
   const { runId, workflowPath, leaseToken } = await startArtifactOutputRun('outside-artifact-path-reject');
 

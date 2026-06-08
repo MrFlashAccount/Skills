@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { applyWorkflowOutput } from '../../use-cases/ApplyWorkflowOutput.mjs';
 import { validateAgainstOutputSchema } from '../../use-cases/runtime/output/output-schema-validation.mjs';
+import { workerOutputSchema } from '../../use-cases/runtime/output/worker-output-schema.mjs';
 import { renderAppliedResponse } from '../../use-cases/ContinueRun.mjs';
 import { runNext } from '../../use-cases/RunNext.mjs';
 import { loadInstructions as loadInstructionsUseCase } from '../../use-cases/LoadInstructions.mjs';
@@ -362,12 +363,13 @@ function validateAcceptedOutputForRequest({ workflow, resources, request, output
   const step = workflow.steps?.[requestStepId];
   if (!step) throw new Error(`unknown current workflow step id: ${requestStepId}`);
   const schemaRef = step.output?.schema;
-  if (!schemaRef) return structuredClone(output);
-  const loaded = resources?.outputSchemas instanceof Map ? resources.outputSchemas.get(schemaRef) : resources?.outputSchemas?.[schemaRef];
-  const schema = loaded?.schema ?? loaded;
-  if (!schema) throw new Error(`output schema validation failed: missing output.schema '${schemaRef}'`);
   const artifactOutputDir = typeof resources?.artifactOutputDirForStep === 'function' ? resources.artifactOutputDirForStep(requestStepId) : undefined;
-  const validation = validateAgainstOutputSchema({ schemaRef, schema, output, artifactOutputDir });
+  const loaded = schemaRef
+    ? (resources?.outputSchemas instanceof Map ? resources.outputSchemas.get(schemaRef) : resources?.outputSchemas?.[schemaRef])
+    : undefined;
+  const schema = schemaRef ? (loaded?.schema ?? loaded) : workerOutputSchema;
+  if (schemaRef && !schema) throw new Error(`output schema validation failed: missing output.schema '${schemaRef}'`);
+  const validation = validateAgainstOutputSchema({ schemaRef: schemaRef ?? 'worker-output', schema, output, artifactOutputDir });
   if (!validation.ok) throw new Error(`output schema validation failed for step '${requestStepId}': ${validation.errors}`);
   return validation.output;
 }
