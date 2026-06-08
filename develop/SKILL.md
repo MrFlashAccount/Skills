@@ -140,48 +140,6 @@ node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-id <run-id> 
 
 Return to step 5 with the response from `continue`. Continue until `done` or `blocked`. Final answer only after `done`/`blocked`; otherwise keep driving the runner.
 
-## 9. Reference commands
+## 9. Final reminder
 
-List public runs:
-
-```bash
-node develop/lib/entrypoints/cli/workflow-runs.mjs list
-```
-
-Create/register a run identity:
-
-```bash
-node develop/lib/entrypoints/cli/workflow-runs.mjs create --workflow <workflow> --title '<title>' --summary '<summary>' --owner <owner> --harness <harness> --session-id <session-id>
-```
-
-Claim a run:
-
-```bash
-lease_token=$(node develop/lib/entrypoints/cli/workflow-runs.mjs claim --run-id <run-id> --owner <owner> --harness <harness> --session-id <session-id> --print-lease-token)
-```
-
-Next:
-
-```bash
-node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-id <run-id> --user-prompt '<clear dense user task prompt>' --lease-token "$lease_token"
-```
-
-Load request instructions:
-
-```bash
-node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-id <run-id> --step-id <step-id> --lease-token "$lease_token"
-```
-
-Write accepted request result:
-
-```bash
-node develop/lib/entrypoints/cli/workflow-runner.mjs write-output --run-id <run-id> --step-id <step-id> --lease-token "$lease_token" <<'JSON'
-{ "outcome": "ready" }
-JSON
-```
-
-Continue:
-
-```bash
-node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-id <run-id> --lease-token "$lease_token"
-```
+You MUST keep driving the loop until `workflow-runner continue` returns `status: done` or `status: blocked`. `needs_host_actions` is never final; execute its requests and continue. If unsure whether to continue, continue. MUST NOT report an intermediate cursor, next step, pending request, or `needs_host_actions` as final completion. Only final-answer after terminal `done`/`blocked` or an explicit allowed stop condition already described above.
