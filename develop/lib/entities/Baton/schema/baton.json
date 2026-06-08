@@ -27,9 +27,10 @@
       ],
       "properties": {
         "artifacts": {
+          "description": "Aggregate artifact metadata entries keyed outside the artifact contract by producer step id. Items must be { producerStepId, artifact }, where artifact follows the central artifact metadata contract.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/artifact"
+            "$ref": "#/$defs/aggregateArtifact"
           }
         },
         "results": {
@@ -96,23 +97,37 @@
     "artifact": {
       "type": "object",
       "required": [
-        "type"
+        "id",
+        "content_type",
+        "path"
       ],
       "properties": {
-        "type": {
-          "type": "string"
-        },
         "id": {
-          "type": "string"
+          "type": "string",
+          "minLength": 1,
+          "description": "Artifact id unique within the producer step.",
+          "x-usage": "Use with the projected producer step id to identify the artifact. Emit a stable id unique within the producer step; do not add producer_step_id, type, kind, ref, version, replaces, or aliases."
         },
-        "ref": {
-          "type": "string"
+        "content_type": {
+          "type": "string",
+          "minLength": 1,
+          "description": "MIME/content type, for example text/markdown or application/json.",
+          "x-usage": "Use to render or parse the artifact content. Do not duplicate artifact meaning with type or kind fields."
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^/",
+          "description": "Full absolute filesystem path to the generated artifact file.",
+          "x-usage": "When producing an artifact file, write it inside the step's artifact output directory and emit the full absolute filesystem path here. Treat this path as the baton/output artifact pointer for later review, approval, or export. Do not rewrite it or use temp dirs, ad-hoc export paths, or paths outside the step artifact output directory."
         },
         "summary": {
-          "type": "string"
+          "type": "string",
+          "description": "Optional compact handoff summary for the artifact.",
+          "x-usage": "Use as orientation metadata only; the artifact content remains the source of truth for review or approval."
         }
       },
-      "additionalProperties": true
+      "additionalProperties": false
     },
     "result": {
       "type": "object",
@@ -134,6 +149,24 @@
         }
       },
       "additionalProperties": true
+    },
+    "aggregateArtifact": {
+      "type": "object",
+      "required": [
+        "producerStepId",
+        "artifact"
+      ],
+      "properties": {
+        "producerStepId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Producer step id used only for aggregate identity; not part of the artifact metadata contract."
+        },
+        "artifact": {
+          "$ref": "#/$defs/artifact"
+        }
+      },
+      "additionalProperties": false
     }
   }
 }

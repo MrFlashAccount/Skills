@@ -11,21 +11,22 @@ Deterministic code owns the workflow loop:
 - start or resume a run;
 - render the current step prompt;
 - return host action requests;
-- apply host outputs provided by the host wrapper;
+- apply host outputs already accepted by the validating writer;
 - persist baton state and history;
 - repeat until another host action is needed or the workflow reaches `done` / `blocked`.
 
-The host adapter is thin. It executes requests with whatever capabilities the environment provides, captures each host action result into artifact files it owns, and calls the runner again with those artifacts. It does not choose transitions.
+The host adapter is thin. It executes requests with whatever capabilities the environment provides, writes each host action result through the runner's validating writer, and calls the runner again after outputs are accepted. It does not choose transitions.
 
 ## Runner commands
 
 ```bash
 node develop/lib/entrypoints/cli/workflow-runner.mjs next --lease-token <token> --run-id <run-id> [--workflow <workflow.json>] [--user-prompt <text> | --user-prompt-file <path>]
-node develop/lib/entrypoints/cli/workflow-runner.mjs continue --lease-token <token> --run-id <run-id> --output <worker-output.json> [--output <step-id=worker-output.json> ...] [--workflow <workflow.json>]
+node develop/lib/entrypoints/cli/workflow-runner.mjs write-output --lease-token <token> --run-id <run-id> --step-id <id> [--json <json>] [--workflow <workflow.json>]
+node develop/lib/entrypoints/cli/workflow-runner.mjs continue --lease-token <token> --run-id <run-id> [--workflow <workflow.json>]
 node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --lease-token <token> --run-id <run-id> --step-id <id>
 ```
 
-`next` creates the run files if needed and returns the current host work. `continue` applies host-provided artifact paths from the previous host requests, persists the new baton, and returns the next host work. `instructions` prints only the compiled instructions for one current requested step and fails for unknown, unsafe, or missing step instructions. Every write-capable or instruction-loading command validates a fresh explicit `--lease-token` before creating run directories, locks, index entries, baton/history, last-response, or instruction artifacts; `runId` is identity only, and durable lease state keeps only token hash, token epoch, and lease expiry.
+`next` creates the run files if needed and returns the current host work. `write-output` validates and accepts one current request output directly into baton/state. `continue` applies already-accepted outputs from baton/state, persists the new baton, and returns the next host work. `instructions` prints only the compiled instructions for one current requested step and fails for unknown, unsafe, or missing step instructions. Every write-capable or instruction-loading command validates a fresh explicit `--lease-token` before creating run directories, locks, index entries, baton/history, last-response, or instruction artifacts; `runId` is identity only, and durable lease state keeps only token hash, token epoch, and lease expiry.
 
 ### Startup user prompt
 
@@ -56,7 +57,7 @@ When host work is needed, the runner returns:
 
 Hosts must substitute the `<lease-token>` placeholder with the fresh explicit lease token before executing `loadInstructionsCommand`; the runner does not read a token from environment variables.
 
-The public host request contract is intentionally narrow: requested action identity, step identity, and the instruction-loader command are always public. Approval requests may additionally include output-schema metadata when the workflow step declares `output.schema`. `outputSchema` is the legacy raw workflow reference. `resolvedOutputSchema` is the preferred host-adapter contract when present: it contains `{ ref, schema }`, where `ref` is the same raw workflow reference and `schema` is the JSON payload describing the normalized answer expected back from the host. Neither field exposes runner filesystem paths. Instruction storage paths are private runner state. Output path and filename are wrapper-owned transport details, not runner/interpreter request contract.
+The public host request contract is intentionally narrow: requested action identity, step identity, and the instruction-loader command are always public. Approval requests may additionally include output-schema metadata when the workflow step declares `output.schema`. `outputSchema` is the raw workflow reference. `resolvedOutputSchema` is the preferred host-adapter contract when present: it contains `{ ref, schema }`, where `ref` is the same raw workflow reference and `schema` is the JSON payload describing the normalized answer expected back from the host. Neither field exposes runner filesystem paths. Instruction storage paths are private runner state. Output paths are not part of the request contract.
 
 Terminal statuses are:
 
@@ -67,9 +68,9 @@ A CLI failure is an execution error and should be reported by the host adapter i
 
 ## Output capture
 
-The host wrapper captures each request result into an artifact file it owns. The filename may derive from `stepId`; the runner does not dictate public artifact names, paths, or `outputPath`.
+The host wrapper writes each request result through `workflow-runner write-output`. The command validates strict JSON against the current request/step output schema and accepts the normalized value directly into baton/state. There is no output-path handoff from worker to orchestrator, and `workflow-runner continue` does not accept output paths.
 
-The artifact content passed back to the runner must still be workflow-compatible output JSON/envelope that the runner/interpreter can read. Typical worker output envelope:
+Typical worker output envelope:
 
 ```json
 {
@@ -87,7 +88,7 @@ Approval output without a declared schema is any host/user JSON object compatibl
 }
 ```
 
-When an approval step declares `output.schema`, the host should capture the user's answer as strict JSON matching that schema. The schema normalizes the answer shape for validation/routing.
+When an approval step declares `output.schema`, the host should normalize the user's answer as strict JSON matching that schema before calling `write-output`. The schema normalizes the answer shape for validation/routing.
 
 Missing host capability is represented as blocked output, not as a transition decision in skill text:
 
@@ -101,26 +102,28 @@ Missing host capability is represented as blocked output, not as a transition de
 }
 ```
 
-For one requested step, pass the wrapper-owned artifact back on continue:
+For each requested step, accept output first:
 
 ```bash
-node develop/lib/entrypoints/cli/workflow-runner.mjs continue --lease-token "$WORKFLOW_RUN_TOKEN" --run-id "$RUN_ID" --output "/host/artifacts/step_id.json" --workflow "$WORKFLOW"
+node develop/lib/entrypoints/cli/workflow-runner.mjs write-output --lease-token "$WORKFLOW_RUN_TOKEN" --run-id "$RUN_ID" --step-id "step_id" --workflow "$WORKFLOW" <<'JSON'
+{ "outcome": "ready", "artifacts": [], "results": [] }
+JSON
 ```
 
-For parallel branch requests, pass one named output per requested step. `continue` collects those files into the existing portable `{ "steps": { ... } }` envelope internally before applying workflow state.
+After every current request has accepted output, continue without `--output`:
 
 ```bash
-node develop/lib/entrypoints/cli/workflow-runner.mjs continue --lease-token "$WORKFLOW_RUN_TOKEN" --run-id "$RUN_ID" \
-  --output "branch_a=/host/artifacts/branch_a.structured.json" \
-  --output "branch_b=/host/artifacts/branch_b.output.json" \
-  --workflow "$WORKFLOW"
+node develop/lib/entrypoints/cli/workflow-runner.mjs continue --lease-token "$WORKFLOW_RUN_TOKEN" --run-id "$RUN_ID" --workflow "$WORKFLOW"
 ```
+
+For parallel branch requests, call `write-output` once per requested `stepId`; `continue` collects the accepted values from baton/state into the existing portable `{ "steps": { ... } }` envelope internally before applying workflow state.
 
 ## OpenClaw mapping example
 
 OpenClaw is one possible host adapter:
 
 - `run_worker` maps to spawning a fresh/disposable subagent or ACP session with a neutral bootstrap that runs `loadInstructionsCommand`.
+- Level 1 loop continuity across workflow iterations is prompt/state-only: draft/critic/revision workers must rely on workflow-projected input and prior accepted step outputs, not persistent worker lifecycle machinery. A concise clarification is an allowed same-session continuation: the subagent asks, pauses, receives the routed user reply in that same clarification session, and continues from existing context without restart or context widening. Persistent draft/critic agent reuse across workflow loop iterations is a future adapter concern and is not part of this slice.
 - The bootstrap must use this shape and substitute `<command>` with the request's `loadInstructionsCommand`:
 
   ```text
@@ -135,12 +138,13 @@ OpenClaw is one possible host adapter:
   If the instructions cannot be loaded, stop with an error and do not continue.
   ```
 
-- The wrapper captures the subagent final answer/result into an artifact file it owns.
-- The wrapper calls `workflow-runner.mjs continue` with the artifact path or paths; those paths are wrapper-owned transport, but the file content must be runner-compatible output JSON/envelope.
-- If OpenClaw cannot provide the requested capability, the wrapper captures a blocked output artifact.
+- The loaded instructions must provide an exact validating writer command/tool. The subagent should use that single command/tool to write its generated JSON. If the command/tool returns validation errors, the subagent fixes the JSON and reruns the same command/tool for a bounded number of attempts. On success, the subagent reports acceptance, not an output path.
+- If no exact worker-side validating writer protocol is provided, the wrapper treats that as a blocked host capability instead of capturing a fallback output file.
+- The wrapper calls `workflow-runner.mjs continue` without `--output` after every current request has been accepted by `write-output`.
+- If OpenClaw cannot provide the requested capability, the wrapper writes a blocked JSON output through `write-output` when possible.
 - The adapter repeats until the runner returns a terminal status.
 
-This mapping is not part of the portable workflow contract. Other hosts can execute the same requests differently as long as they pass compatible output artifacts back to `continue`. If a host action produces markdown or a report, the wrapper should wrap it in the step's expected JSON output or store it as a referenced artifact; it should not pass arbitrary markdown as runner output unless the step schema/runtime explicitly expects that.
+This mapping is not part of the portable workflow contract. Other hosts can execute the same requests differently as long as they accept compatible JSON through `write-output` before `continue`. If a host action produces markdown or a report, the wrapper should wrap it in the step's expected JSON output or store it as a referenced artifact; it should not pass arbitrary markdown as runner output unless the step schema/runtime explicitly expects that.
 
 ## Not final in this draft
 

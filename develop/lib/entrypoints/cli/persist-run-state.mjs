@@ -24,7 +24,6 @@ function parseCliArgs(argv) {
         'workflow': { type: 'string' },
         response: { type: 'string' },
         baton: { type: 'string' },
-        output: { type: 'string' },
         decision: { type: 'string' },
         'lease-token': { type: 'string' },
       },
@@ -32,7 +31,7 @@ function parseCliArgs(argv) {
       allowPositionals: false,
     }).values;
   } catch (error) {
-    fail(`${error.message}\nusage: node develop/lib/entrypoints/cli/persist-run-state.mjs --run-id <id> [--workflow <workflow.json>] (--response <workflow-interpreter-response.json> | --baton <new-baton.json>) [--output <worker-output-path>] [--decision <text>] [--lease-token <token>]`);
+    fail(`${error.message}\nusage: node develop/lib/entrypoints/cli/persist-run-state.mjs --run-id <id> [--workflow <workflow.json>] (--response <workflow-interpreter-response.json> | --baton <new-baton.json>) [--decision <text>] [--lease-token <token>]`);
   }
 }
 
@@ -89,11 +88,10 @@ async function assertTokenAuthority(paths, token) {
   catch (error) { fail(error.message); }
 }
 
-function historyPatch({ baton, steps, source, output, decision }) {
+function historyPatch({ baton, steps, source, decision }) {
   return {
     baton,
     source,
-    output: compact(output),
     decision: compact(decision),
     steps,
   };
@@ -135,7 +133,6 @@ try {
       baton,
       steps,
       source: responsePath ? responsePath : batonPath,
-      output: values.output,
       decision: values.decision,
     }),
   });

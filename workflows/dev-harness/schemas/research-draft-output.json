@@ -83,8 +83,9 @@
       "items": {
         "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact"
       },
-      "description": "Producer may emit named structured artifacts created by this stage when they are part of the handoff.",
-      "x-usage": "Use these only as supporting named artifacts to preserve or pass along. Do not treat them as routing decisions unless another field explicitly references them."
+      "description": "Producer must emit the research packet artifact metadata when outcome is ready_for_attack.",
+      "x-usage": "Emit the human-facing research packet artifact. Exact artifact field semantics come from the shared baton artifact schema.",
+      "minItems": 1
     },
     "results": {
       "type": "array",
@@ -157,7 +158,8 @@
       },
       "then": {
         "required": [
-          "research_packet"
+          "research_packet",
+          "artifacts"
         ]
       }
     },

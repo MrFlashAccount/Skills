@@ -103,7 +103,7 @@ function assertWorkflowError(fn, pattern) {
 test('Baton constructor clones boundary data before freezing internal state', () => {
   const source = batonDoc();
   const baton = new Baton(source);
-  source.state.artifacts.push({ id: 'late', type: 'late' });
+  source.state.artifacts.push({ id: 'late', content_type: 'text/plain', path: '/runs/producer/artifacts/late.txt' });
 
   assert.deepEqual(baton.toJSON().state.artifacts, []);
 });
@@ -129,10 +129,16 @@ test('Baton.validateAgainst accepts a terminal done cursor with done status', ()
 });
 
 test('Baton.withAppliedOutput replaces existing artifacts by id and preserves unrelated artifacts', () => {
-  const baton = new Baton(batonDoc({ state: { artifacts: [{ id: 'same', type: 'old' }, { id: 'keep', type: 'keep' }], results: [] } }));
-  const next = baton.withAppliedOutput('producer', { outcome: 'ready', artifacts: [{ id: 'same', type: 'new' }], results: [] });
+  const baton = new Baton(batonDoc({ state: { artifacts: [
+    { producerStepId: 'producer', artifact: { id: 'same', content_type: 'text/markdown', path: '/runs/producer/artifacts/same.md', summary: 'old' } },
+    { producerStepId: 'producer', artifact: { id: 'keep', content_type: 'text/markdown', path: '/runs/producer/artifacts/keep.md', summary: 'keep' } },
+  ], results: [] } }));
+  const next = baton.withAppliedOutput('producer', { outcome: 'ready', artifacts: [{ id: 'same', content_type: 'text/markdown', path: '/runs/producer/artifacts/same.md', summary: 'new' }], results: [] });
 
-  assert.deepEqual(next.state.artifacts, [{ id: 'same', type: 'new' }, { id: 'keep', type: 'keep' }]);
+  assert.deepEqual(next.state.artifacts, [
+    { producerStepId: 'producer', artifact: { id: 'same', content_type: 'text/markdown', path: '/runs/producer/artifacts/same.md', summary: 'new' } },
+    { producerStepId: 'producer', artifact: { id: 'keep', content_type: 'text/markdown', path: '/runs/producer/artifacts/keep.md', summary: 'keep' } },
+  ]);
 });
 
 test('Baton.withAppliedOutput appends result aggregates without overwriting previous results', () => {
@@ -147,11 +153,11 @@ test('Baton.withAppliedOutput rejects non-array artifact aggregates before mutat
   assertWorkflowError(() => baton.withAppliedOutput('producer', { outcome: 'ready', artifacts: {}, results: [] }), /worker output failed schema validation: \/artifacts must be array/);
 });
 
-test('applyOutputToBatonState can aggregate output without assigning it to a step key', () => {
-  const state = applyOutputToBatonState(batonDoc(), { artifacts: [{ id: 'a', type: 'artifact' }], results: [] }, undefined, undefined);
-
-  assert.deepEqual(state.artifacts, [{ id: 'a', type: 'artifact' }]);
-  assert.equal(Object.hasOwn(state, 'producer'), false);
+test('applyOutputToBatonState rejects artifact output when producer step id is missing', () => {
+  assertWorkflowError(
+    () => applyOutputToBatonState(batonDoc(), { artifacts: [{ id: 'a', content_type: 'text/markdown', path: '/runs/producer/artifacts/a.md' }], results: [] }, undefined, undefined),
+    /cannot determine producerStepId.*pass stepId/,
+  );
 });
 
 test('Baton.withAppliedOutput mirrors schema-backed step output into state.outputs when requested', () => {
@@ -401,4 +407,17 @@ test('applyWorkflowOutput validates generic approval output shape when no approv
   });
 
   assertWorkflowError(() => applyWorkflowOutput({ workflowDoc: doc, batonDoc: batonDoc({ cursor: 'approve' }), resources: { outputSchemas }, outputValue: { approval: 'approved', artifacts: {} } }), /approval output failed schema validation: \/artifacts must be array/);
+  assertWorkflowError(() => applyWorkflowOutput({ workflowDoc: doc, batonDoc: batonDoc({ cursor: 'approve' }), resources: { outputSchemas }, outputValue: { approval: 'approved', artifacts: [{ id: 'packet', content_type: 'text/plain', foo: 'legacy leak' }] } }), /approval output failed schema validation: \/artifacts\/0\/foo is not allowed/);
+});
+
+test('applyWorkflowOutput rejects no-schema worker artifacts with fields outside the central artifact contract', () => {
+  const doc = workflowDoc((workflow) => {
+    workflow.start = 'join';
+    return workflow;
+  });
+
+  assert.throws(
+    () => applyWorkflowOutput({ workflowDoc: doc, batonDoc: batonDoc({ cursor: 'join' }), resources: { outputSchemas }, outputValue: { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/plain', foo: 'legacy leak' }] } }),
+    /worker output failed schema validation|must NOT have additional properties/,
+  );
 });

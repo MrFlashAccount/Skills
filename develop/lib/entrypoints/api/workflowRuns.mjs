@@ -49,8 +49,8 @@ export async function registerWorkflowRun({ runId, title, summary, workflowPath,
   }), { runsRoot });
 }
 
-export async function claimWorkflowRun({ runId, workflowPath, runsRoot, owner, harness, sessionId, workerId, leaseMs, leaseToken, now = new Date() } = {}) {
-  return publicApiCall(() => claimWorkflowRunAtRoot({ runId, workflowPath, runsRoot, owner, harness, sessionId, workerId, leaseMs, leaseToken, now }), { runsRoot });
+export async function claimWorkflowRun({ runId, workflowPath, runsRoot, owner, harness, sessionId, workerId, leaseMs, leaseToken, takeover = false, now = new Date() } = {}) {
+  return publicApiCall(() => claimWorkflowRunAtRoot({ runId, workflowPath, runsRoot, owner, harness, sessionId, workerId, leaseMs, leaseToken, takeover, now }), { runsRoot });
 }
 
 export async function heartbeatWorkflowRun(options = {}) {

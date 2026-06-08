@@ -24,7 +24,7 @@ function baton(overrides = {}) {
   return {
     cursor: 'approve_research',
     status: 'running',
-    state: { artifacts: [{ type: 'research', summary: 'done' }], results: [] },
+    state: { artifacts: [{ producerStepId: 'research_draft', artifact: { id: 'research', content_type: 'text/markdown', path: '/runs/research_draft/artifacts/research.md', summary: 'done' } }], results: [] },
     ...overrides,
   };
 }
@@ -68,12 +68,10 @@ test('persist helper atomically replaces baton and appends readable history', ()
   const runDir = runPath(id);
   const token = createClaimedRun(id);
   const responsePath = writeJson(path.join(tempDir, 'response.json'), response({ baton: { cursor: 'architecture' } }));
-  const outputPath = path.join(runDir, 'outputs/research.json');
 
   const result = runPersist([
     '--run-id', id,
     '--response', responsePath,
-    '--output', outputPath,
     '--decision', 'research ready for approval',
   ], { token });
 
@@ -83,7 +81,7 @@ test('persist helper atomically replaces baton and appends readable history', ()
   const history = readFileSync(path.join(runDir, 'history.md'), 'utf8');
   assert.match(history, /baton: cursor=architecture status=running/);
   assert.match(history, /steps: id=approve_research action=wait_for_approval/);
-  assert.match(history, /output: .*research\.json/);
+  assert.doesNotMatch(history, /output:/);
   assert.match(history, /decision: research ready for approval/);
 
   const status = JSON.parse(result.stdout);

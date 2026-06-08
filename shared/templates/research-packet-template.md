@@ -78,3 +78,4 @@
 - Stay at analytical research level: business goal, problem, scope, non-goals, options, risks, and open questions.
 - Do not include file-level implementation details, class/method plans, imports, diffs, or command sequences.
 - Do not write an architecture or implementation proposal here.
+- For artifact-capable workflows, treat the markdown file as the human-facing source of truth and the JSON output as branching/context metadata.

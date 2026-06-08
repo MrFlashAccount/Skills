@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
@@ -89,7 +89,13 @@ function baton(overrides = {}) {
 }
 
 function output(overrides = {}) {
-  return { outcome: 'ready', artifacts: [{ type: 'packet', summary: 'minimal packet' }], ...overrides };
+  return { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: path.join(tempDir, 'worker_step', 'artifacts', 'packet.md'), summary: 'minimal packet' }], ...overrides };
+}
+
+function writeReadableArtifact(artifactPath = 'worker_step/artifacts/packet.md', content = 'Readable artifact content.\n') {
+  const fullPath = path.join(tempDir, artifactPath);
+  mkdirSync(path.dirname(fullPath), { recursive: true });
+  writeFileSync(fullPath, content);
 }
 
 function runNode(args, cwd = root) {
@@ -206,6 +212,7 @@ test('e2e: wrapper can render parallel branch prompts, collect branch outputs, a
     results: [{ type: 'prepare', summary: 'ready to branch' }],
   }), true, workflowDoc).baton;
 
+  writeReadableArtifact('worker_step/artifacts/packet.md', 'Prepare artifact content for branch prompts.\n');
   const branchRender = runRender('parallel-e2e-render-branches', pending, true, workflowDoc);
   assert.deepEqual(branchRender.steps.map((step) => step.id), ['branch_a', 'branch_b']);
   assert.match(branchRender.steps[0].compiledPrompt.prompt, /# Branch A/);

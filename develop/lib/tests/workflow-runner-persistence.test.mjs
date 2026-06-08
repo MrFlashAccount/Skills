@@ -135,7 +135,7 @@ function withLeaseTokenArg(args, token) {
 
 function runRunner(args, options = {}) {
   const token = claimRunForRunnerArgs(args);
-  return spawnSync(process.execPath, ['develop/lib/entrypoints/cli/workflow-runner.mjs', ...withLeaseTokenArg(args, token)], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUN_TOKEN: token ?? testLeaseToken, ...(options.env ?? {}) } });
+  return spawnSync(process.execPath, ['develop/lib/entrypoints/cli/workflow-runner.mjs', ...withLeaseTokenArg(args, token)], { cwd: root, encoding: 'utf8', input: options.input, env: { ...process.env, WORKFLOW_RUN_TOKEN: token ?? testLeaseToken, ...(options.env ?? {}) } });
 }
 
 async function runRunnerAsync(args) {
@@ -178,6 +178,34 @@ function expectRunner(args, label) {
   return JSON.parse(result.stdout);
 }
 
+function currentRequestIds(runDir) {
+  const lastResponse = JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8'));
+  return (lastResponse.requests ?? []).map((request) => request.stepId ?? request.id);
+}
+
+function parseOutputRef(ref) {
+  const separator = ref.indexOf('=');
+  return separator < 0 ? { stepId: undefined, filePath: ref } : { stepId: ref.slice(0, separator), filePath: ref.slice(separator + 1) };
+}
+
+function writeOutputFile({ runId, runDir, workflowPath, stepId, filePath, label = 'write output' }) {
+  const targetStepId = stepId ?? currentRequestIds(runDir)[0];
+  const result = runRunner(['write-output', '--run-id', runId, '--workflow', workflowPath, '--step-id', targetStepId], { input: readFileSync(filePath, 'utf8') });
+  assert.equal(result.status, 0, `${label} failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+  return JSON.parse(result.stdout);
+}
+
+function continueWithOutputs({ runId, runDir, workflowPath, refs, label = 'continue' }) {
+  const pendingIds = currentRequestIds(runDir);
+  for (const ref of Array.isArray(refs) ? refs : [refs]) {
+    const { stepId, filePath } = parseOutputRef(ref);
+    const targetStepId = stepId ?? (pendingIds.length === 1 ? pendingIds[0] : undefined);
+    assert.ok(targetStepId, `output for ${label} must name a step when multiple requests are pending`);
+    writeOutputFile({ runId, runDir, workflowPath, stepId: targetStepId, filePath, label: `${label} write ${targetStepId}` });
+  }
+  return expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath], label);
+}
+
 function workerOutput(summary) {
   return { outcome: 'ready', results: [{ type: 'check', summary }] };
 }
@@ -196,7 +224,7 @@ test('runner: persisted user prompt injection marker survives workflow drift on 
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath, '--user-prompt', rawPrompt], 'next before workflow drift');
   const prepareOutput = path.join(runDir, 'prepare-drift-output.json');
   writeJson(prepareOutput, workerOutput('prepared before drift'));
-  expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', prepareOutput], 'continue before workflow drift');
+  continueWithOutputs({ runId, runDir, workflowPath, refs: prepareOutput, label: 'continue before workflow drift' });
 
   delete driftWorkflow.steps.prepare;
   driftWorkflow.start = 'branch_a';
@@ -222,7 +250,7 @@ test('runner: continue applies single output and returns terminal done', () => {
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next single continue');
   const outputPath = path.join(runDir, 'prepare-result.json');
   writeJson(outputPath, workerOutput('prepared'));
-  const response = expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', outputPath], 'continue single');
+  const response = continueWithOutputs({ runId, runDir, workflowPath, refs: outputPath, label: 'continue single' });
 
   assert.equal(response.status, 'done');
   assert.equal(response.baton.cursor, 'done');
@@ -241,7 +269,7 @@ test('runner: continue reuses saved custom workflow when --workflow is omitted',
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next custom workflow continue');
   const outputPath = path.join(runDir, 'prepare-result.json');
   writeJson(outputPath, workerOutput('prepared with saved workflow'));
-  const response = expectRunner(['continue', '--run-id', runId, '--output', outputPath], 'continue custom workflow without workflow arg');
+  const response = continueWithOutputs({ runId, runDir, workflowPath, refs: outputPath, label: 'continue custom workflow without workflow arg' });
 
   assert.equal(response.status, 'done');
   assert.equal('workflow' in response, false);
@@ -275,7 +303,7 @@ test('runner: wait_for_approval request accepts request-specific host output JSO
 
   const outputPath = path.join(runDir, 'choose-path-answer.json');
   writeJson(outputPath, { choice: 'option_a', answer: 'Ship the smaller fix first.' });
-  const response = expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', `choose_path=${outputPath}`], 'continue approval generic');
+  const response = continueWithOutputs({ runId, runDir, workflowPath, refs: `choose_path=${outputPath}`, label: 'continue approval generic' });
 
   assert.equal(response.status, 'done');
   assert.equal(response.baton.cursor, 'done');
@@ -312,7 +340,7 @@ test('runner: single approval request with opaque id still applies output by ste
 
   const outputPath = path.join(runDir, 'choose-path-answer.json');
   writeJson(outputPath, { choice: 'option_a', answer: 'Opaque id should not imply parallel.' });
-  const response = expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', `user-input-1=${outputPath}`], 'continue opaque approval');
+  const response = continueWithOutputs({ runId, runDir, workflowPath, refs: `user-input-1=${outputPath}`, label: 'continue opaque approval' });
 
   assert.equal(response.status, 'done');
   assert.equal(response.baton.cursor, 'done');
@@ -385,21 +413,22 @@ test('runner: typed approval retry preserves validation feedback in instructions
   const outputPath = path.join(runDir, 'invalid-approval.json');
   writeJson(outputPath, { choice: 'maybe' });
 
-  const response = expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', `choose_path=${outputPath}`], 'continue approval output schema retry');
+  const rejected = runRunner(['write-output', '--run-id', runId, '--workflow', workflowPath, '--step-id', 'choose_path'], { input: readFileSync(outputPath, 'utf8') });
 
+  assert.notEqual(rejected.status, 0);
+  assert.match(rejected.stderr, /output schema validation failed for step 'choose_path'/);
+  const response = JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8'));
   assert.equal(response.status, 'needs_host_actions');
   assert.equal(response.requests[0].action, 'wait_for_approval');
   assert.equal(response.requests[0].outputSchema, path.basename(schemaPath));
   assert.equal(response.requests[0].resolvedOutputSchema.ref, path.basename(schemaPath));
   assert.equal(Object.hasOwn(response.requests[0].resolvedOutputSchema, 'path'), false);
   assert.deepEqual(response.requests[0].resolvedOutputSchema.schema.required, ['choice']);
-  assert.equal(response.baton.state.attempts['choose_path:output.schema'], 1);
+  assert.equal(Object.hasOwn(JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8')).state, 'outputs'), false);
 
   const loaded = runRunner(['instructions', '--run-id', runId, '--step-id', 'choose_path']);
   assert.equal(loaded.status, 0, loaded.stderr);
-  assert.match(loaded.stdout, /Previous output failed output\.schema validation \(attempt 1\/3\)\./);
-  assert.match(loaded.stdout, /Validation errors:/);
-  assert.match(loaded.stdout, /approved/);
+  assert.doesNotMatch(loaded.stdout, /Previous output failed output\.schema validation/);
 });
 
 test('runner: typed approval static parallel next preserves approval output in state', () => {
@@ -441,7 +470,7 @@ test('runner: typed approval static parallel next preserves approval output in s
   const outputPath = path.join(runDir, 'choose-path-output.json');
   const approvalOutput = { choice: 'approved', notes: 'Fan out now.' };
   writeJson(outputPath, approvalOutput);
-  const response = expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', `choose_path=${outputPath}`], 'continue approval static parallel');
+  const response = continueWithOutputs({ runId, runDir, workflowPath, refs: `choose_path=${outputPath}`, label: 'continue approval static parallel' });
 
   assert.equal(response.status, 'needs_host_actions');
   assert.deepEqual(response.requests.map((request) => request.id), ['branch_a', 'branch_b']);
@@ -480,7 +509,7 @@ test('runner: generic approval static parallel next preserves approval output in
   const outputPath = path.join(runDir, 'choose-path-output.json');
   const approvalOutput = { approval: 'approved', answer: 'Use both branches.' };
   writeJson(outputPath, approvalOutput);
-  const response = expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', `choose_path=${outputPath}`], 'continue generic approval static parallel');
+  const response = continueWithOutputs({ runId, runDir, workflowPath, refs: `choose_path=${outputPath}`, label: 'continue generic approval static parallel' });
 
   assert.equal(response.status, 'needs_host_actions');
   assert.deepEqual(response.requests.map((request) => request.id), ['branch_a', 'branch_b']);
@@ -522,7 +551,7 @@ test('runner: selected startup prompt target survives static parallel workflow o
   writeJson(workflowPath, approvalWorkflow);
   const approvalOutput = path.join(runDir, 'choose-path-output.json');
   writeJson(approvalOutput, { approval: 'approved' });
-  const fanout = expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', `choose_path=${approvalOutput}`], 'continue approval static fanout after drift');
+  const fanout = continueWithOutputs({ runId, runDir, workflowPath, refs: `choose_path=${approvalOutput}`, label: 'continue approval static fanout after drift' });
   assert.equal(fanout.baton.user_prompt_target, 'branch_a');
 
   const rerendered = expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next after static fanout drift');
@@ -576,7 +605,7 @@ test('runner: startup prompt static fanout selects renderable worker instead of 
 
   const chooseOutput = path.join(runDir, 'choose-path-output.json');
   writeJson(chooseOutput, { approval: 'approved' });
-  const fanout = expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', `choose_path=${chooseOutput}`], 'continue control branch fanout');
+  const fanout = continueWithOutputs({ runId, runDir, workflowPath, refs: `choose_path=${chooseOutput}`, label: 'continue control branch fanout' });
   assert.deepEqual(fanout.requests.map((request) => [request.id, request.action]), [
     ['approval_before_worker', 'wait_for_approval'],
     ['work_b', 'run_worker'],
@@ -616,12 +645,12 @@ test('runner: startup prompt target removal before first output fails loudly ins
 
   delete approvalWorkflow.steps.branch_a;
   approvalWorkflow.steps.choose_path.next = ['branch_b'];
-  approvalWorkflow.steps.branch_b.next = 'done';
   approvalWorkflow.steps.join.input.state = ['branch_b'];
   writeJson(workflowPath, approvalWorkflow);
   const approvalOutput = path.join(runDir, 'choose-path-output-removed.json');
   writeJson(approvalOutput, { approval: 'approved' });
-  const result = runRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', `choose_path=${approvalOutput}`]);
+  writeOutputFile({ runId, runDir, workflowPath, stepId: 'choose_path', filePath: approvalOutput, label: 'write approval before target removal' });
+  const result = runRunner(['continue', '--run-id', runId, '--workflow', workflowPath]);
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /startup user prompt target 'branch_a' is no longer defined|startup user prompt target 'branch_a' is not renderable/);
@@ -654,7 +683,7 @@ test('runner: untyped approval static parallel applies branch outputs and persis
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath, '--user-prompt', rawPrompt], 'next approval untyped static parallel');
   const approvalOutput = path.join(runDir, 'choose-path-output.json');
   writeJson(approvalOutput, { approval: 'approved', note: 'Fan out.' });
-  const fanout = expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', `choose_path=${approvalOutput}`], 'continue approval untyped static parallel');
+  const fanout = continueWithOutputs({ runId, runDir, workflowPath, refs: `choose_path=${approvalOutput}`, label: 'continue approval untyped static parallel' });
   assert.deepEqual(fanout.requests.map((request) => request.id), ['branch_a', 'branch_b']);
   assert.deepEqual(fanout.baton.state.choose_path, { approval: 'approved', note: 'Fan out.' });
   assert.equal(fanout.baton.user_prompt_injected, undefined);
@@ -663,17 +692,7 @@ test('runner: untyped approval static parallel applies branch outputs and persis
   const branchBOutput = path.join(runDir, 'branch-b-output.json');
   writeJson(branchAOutput, workerOutput('branch a complete'));
   writeJson(branchBOutput, workerOutput('branch b complete'));
-  const joined = expectRunner([
-    'continue',
-    '--run-id',
-    runId,
-    '--workflow',
-    workflowPath,
-    '--output',
-    `branch_a=${branchAOutput}`,
-    '--output',
-    `branch_b=${branchBOutput}`,
-  ], 'continue untyped approval branch outputs');
+  const joined = continueWithOutputs({ runId, runDir, workflowPath, refs: [`branch_a=${branchAOutput}`, `branch_b=${branchBOutput}`], label: 'continue untyped approval branch outputs' });
 
   assert.equal(joined.status, 'needs_host_actions');
   assert.deepEqual(joined.requests.map((request) => request.id), ['join']);
@@ -691,7 +710,7 @@ test('runner: continue fans out parallel branch requests with separate step ids 
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next prepare');
   const prepareOutput = path.join(runDir, 'prepare-output.json');
   writeJson(prepareOutput, workerOutput('prepared'));
-  const response = expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', prepareOutput], 'continue prepare');
+  const response = continueWithOutputs({ runId, runDir, workflowPath, refs: prepareOutput, label: 'continue prepare' });
 
   assert.equal(response.status, 'needs_host_actions');
   assert.deepEqual(response.requests.map((request) => request.id), ['branch_a', 'branch_b']);
@@ -724,7 +743,7 @@ test('runner: continue accepts mixed run_worker and user-input outputs in one ba
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next mixed prepare');
   const prepareOutput = path.join(runDir, 'prepare-output.json');
   writeJson(prepareOutput, workerOutput('prepared'));
-  const requests = expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', prepareOutput], 'continue mixed prepare');
+  const requests = continueWithOutputs({ runId, runDir, workflowPath, refs: prepareOutput, label: 'continue mixed prepare' });
 
   assert.deepEqual(requests.requests.map((request) => [request.id, request.action]), [
     ['branch_a', 'run_worker'],
@@ -736,17 +755,7 @@ test('runner: continue accepts mixed run_worker and user-input outputs in one ba
   writeJson(branchOutput, workerOutput('branch complete'));
   writeJson(userInputOutput, { choice: 'continue', answer: 'Looks good.' });
 
-  const response = expectRunner([
-    'continue',
-    '--run-id',
-    runId,
-    '--workflow',
-    workflowPath,
-    '--output',
-    `branch_a=${branchOutput}`,
-    '--output',
-    `choose_path=${userInputOutput}`,
-  ], 'continue mixed batch');
+  const response = continueWithOutputs({ runId, runDir, workflowPath, refs: [`branch_a=${branchOutput}`, `choose_path=${userInputOutput}`], label: 'continue mixed batch' });
 
   assert.equal(response.status, 'needs_host_actions');
   assert.deepEqual(response.requests.map((request) => request.id), ['join']);
@@ -762,13 +771,13 @@ test('runner: continue collects parallel outputs and advances to join request', 
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next prepare join');
   const prepareOutput = path.join(runDir, 'prepare-output.json');
   writeJson(prepareOutput, workerOutput('prepared'));
-  const branches = expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', prepareOutput], 'continue prepare join');
+  const branches = continueWithOutputs({ runId, runDir, workflowPath, refs: prepareOutput, label: 'continue prepare join' });
   const branchOutputs = branches.requests.map((request) => {
     const outputPath = path.join(runDir, `${request.id}-artifact.json`);
     writeJson(outputPath, workerOutput(`${request.id} complete`));
     return `${request.id}=${outputPath}`;
   });
-  const response = expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath, ...branchOutputs.flatMap((output) => ['--output', output])], 'continue branches');
+  const response = continueWithOutputs({ runId, runDir, workflowPath, refs: branchOutputs, label: 'continue branches' });
 
   assert.equal(response.status, 'needs_host_actions');
   assert.deepEqual(response.requests.map((request) => request.id), ['join']);

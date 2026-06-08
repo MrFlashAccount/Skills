@@ -7,18 +7,25 @@ import { assertStartupUserPromptTargetRenderable, markUserPromptInjectedForStep,
 export function renderStepPrompts({ workflow, baton, steps, resources, includeDiagnostics = false } = {}) {
   assertStartupUserPromptTargetRenderable({ workflow, baton, steps });
   const userPromptStepId = selectedUserPromptStepId({ workflow, baton });
-  const rendered = steps.map((entry) => ({
-    ...entry,
-    compiledPrompt: renderWorkflowPrompt({
-      workflow,
-      baton,
-      stepId: entry.id,
-      step: entry.step,
-      resources,
-      includeDiagnostics,
-      userPrompt: userPromptStepId === entry.id ? baton.user_prompt : undefined,
-    }),
-  }));
+  const rendered = steps.map((entry) => {
+    const stepResources = {
+      ...resources,
+      validatingWriterCommand: resources?.validatingWriterCommandForStep?.(entry.id) ?? resources?.validatingWriterCommand,
+      artifactOutputDir: resources?.artifactOutputDirForStep?.(entry.id) ?? resources?.artifactOutputDir,
+    };
+    return {
+      ...entry,
+      compiledPrompt: renderWorkflowPrompt({
+        workflow,
+        baton,
+        stepId: entry.id,
+        step: entry.step,
+        resources: stepResources,
+        includeDiagnostics,
+        userPrompt: userPromptStepId === entry.id ? baton.user_prompt : undefined,
+      }),
+    };
+  });
   return rendered;
 }
 

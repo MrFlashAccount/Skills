@@ -25,6 +25,17 @@ export function loadInstructionsCommandForStep(runId, stepId, { runsRoot } = {})
   return `node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-id ${shellQuote(runId)} --step-id ${shellQuote(stepId)}${runsRootArg} --lease-token <lease-token>`;
 }
 
+export function writeOutputCommandForStep(runId, stepId, { runsRoot, leaseToken } = {}) {
+  assertSafeStepId(stepId);
+  const runsRootArg = runsRoot ? ` --runs-root ${shellQuote(runsRoot)}` : '';
+  const token = typeof leaseToken === 'string' && leaseToken.length > 0 ? shellQuote(leaseToken) : '<lease-token>';
+  return [
+    `node develop/lib/entrypoints/cli/workflow-runner.mjs write-output --run-id ${shellQuote(runId)} --step-id ${shellQuote(stepId)}${runsRootArg} --lease-token ${token} <<'JSON'`,
+    '<paste strict JSON here>',
+    'JSON',
+  ].join('\n');
+}
+
 export function responseStatusForInterpreterResponse(interpreterResponse) {
   const steps = interpreterResponse.steps ?? [];
   if (steps.length === 1 && steps[0].action === 'stop_done') return 'done';

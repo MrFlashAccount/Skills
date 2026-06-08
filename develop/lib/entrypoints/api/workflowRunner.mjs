@@ -1,17 +1,19 @@
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { applyWorkflowOutput } from '../../use-cases/ApplyWorkflowOutput.mjs';
+import { validateAgainstOutputSchema } from '../../use-cases/runtime/output/output-schema-validation.mjs';
+import { workerOutputSchema } from '../../use-cases/runtime/output/worker-output-schema.mjs';
 import { renderAppliedResponse } from '../../use-cases/ContinueRun.mjs';
 import { runNext } from '../../use-cases/RunNext.mjs';
 import { loadInstructions as loadInstructionsUseCase } from '../../use-cases/LoadInstructions.mjs';
 import { resolveStartupUserPrompt, startupUserPromptTarget } from '../../use-cases/user-prompt.mjs';
-import { loadWorkflowRuntime, readWorkerOutputText } from '../../persistence/workflow-resources/runtime-reader.mjs';
+import { loadWorkflowRuntime } from '../../persistence/workflow-resources/runtime-reader.mjs';
 import { read as readInstructionDTO } from '../../persistence/workflow-resources/instruction-file-reader.mjs';
 import { writePersistedRunStateUpdate } from '../../persistence/run-state/PersistedRunStateWriter.mjs';
-import { assertSafeStepId, instructionPathForStep, responseStatusForInterpreterResponse, toHostResponse } from './runner/host-requests.mjs';
+import { assertSafeStepId, instructionPathForStep, responseStatusForInterpreterResponse, toHostResponse, writeOutputCommandForStep } from './runner/host-requests.mjs';
 import { readText } from '../../persistence/run-state/atomic-file.mjs';
-import { assertFreshTokenAuthority, buildTokenLease } from '../../persistence/run-state/lease-authority.mjs';
+import { assertFreshTokenAuthority, assertMatchingTokenAuthority, buildTokenLease, renewTokenLease } from '../../persistence/run-state/lease-authority.mjs';
 import { recoverDurableCommit } from '../../persistence/run-state/durable-commit.mjs';
 import { readPersistedRunState } from '../../persistence/run-state/PersistedRunStateReader.mjs';
 import { projectRuntimeRunState } from '../../persistence/run-state/persisted-state-schema.mjs';
@@ -60,18 +62,27 @@ async function runnerResponseForRendered(paths, rendered, { initialized, resumed
   };
 }
 
-async function assertWorkerLeaseAuthority(paths, { leaseToken, now = new Date() } = {}) {
+async function assertWorkerLeaseAuthority(paths, { leaseToken, now = new Date(), allowStale = false } = {}) {
   const index = await readRunsIndex(runsIndexPathsForRoot(paths.runsRoot));
   const run = index.runs[paths.runId];
-  assertFreshTokenAuthority(run?.workerLease, leaseToken, { runId: paths.runId, now });
+  if (allowStale) assertMatchingTokenAuthority(run?.workerLease, leaseToken, { runId: paths.runId });
+  else assertFreshTokenAuthority(run?.workerLease, leaseToken, { runId: paths.runId, now });
 }
 
-async function assertPreLockWorkerLeaseAuthority(paths, { leaseToken, now = new Date(), allowUnclaimed = false } = {}) {
+async function assertPreLockWorkerLeaseAuthority(paths, { leaseToken, now = new Date(), allowUnclaimed = false, allowStale = false } = {}) {
   if (!leaseToken) throw new Error('workflow run token is required');
   const index = await readRunsIndex(runsIndexPathsForRoot(paths.runsRoot));
   const run = index.runs[paths.runId];
   if (!run && allowUnclaimed) return;
-  assertFreshTokenAuthority(run?.workerLease, leaseToken, { runId: paths.runId, now });
+  if (allowStale) assertMatchingTokenAuthority(run?.workerLease, leaseToken, { runId: paths.runId });
+  else assertFreshTokenAuthority(run?.workerLease, leaseToken, { runId: paths.runId, now });
+}
+
+async function renewedWorkerLeaseAuthority(paths, { leaseToken, now = new Date() } = {}) {
+  const index = await readRunsIndex(runsIndexPathsForRoot(paths.runsRoot));
+  const run = index.runs[paths.runId];
+  assertMatchingTokenAuthority(run?.workerLease, leaseToken, { runId: paths.runId });
+  return renewTokenLease(run.workerLease, { now });
 }
 
 async function initializeMissingRunLease(paths, { leaseToken, now = new Date() } = {}) {
@@ -125,6 +136,20 @@ async function publicApiCall(callback, options = {}) {
   catch (error) { throw publicApiError(error, options); }
 }
 
+function resourcesWithValidatingWriter(resources, paths, { leaseToken } = {}) {
+  return {
+    ...resources,
+    validatingWriterCommandForStep: (stepId) => writeOutputCommandForStep(paths.runId, stepId, {
+      runsRoot: paths.runsRoot === workflowRunsRoot ? undefined : paths.runsRoot,
+      leaseToken,
+    }),
+    artifactOutputDirForStep: (stepId) => {
+      assertSafeStepId(stepId);
+      return join(paths.runDir, stepId, 'artifacts');
+    },
+  };
+}
+
 async function nextInternal({ runId, workflowPath, includeDiagnostics = false, userPrompt, userPromptFile, taskKey, taskFingerprint, leaseToken, now = new Date(), runsRoot } = {}) {
   const lockPaths = resolveRunPaths({ runId, runsRoot });
   await assertPreLockWorkerLeaseAuthority(lockPaths, { leaseToken, now, allowUnclaimed: true });
@@ -148,7 +173,8 @@ async function nextInternal({ runId, workflowPath, includeDiagnostics = false, u
       const persisted = await readPersistedRunState(paths);
       const runtimeState = projectRuntimeRunState(persisted);
       const runtime = loadWorkflowRuntime({ workflowPath: paths.workflowPath, batonPath: paths.batonPath, baton: runtimeState.baton });
-      const rendered = runNext({ workflowDoc: runtime.workflow, batonDoc: runtimeState.baton, resources: runtime.resources, includeDiagnostics });
+      const renderResources = resourcesWithValidatingWriter(runtime.resources, paths, { leaseToken });
+      const rendered = runNext({ workflowDoc: runtime.workflow, batonDoc: runtimeState.baton, resources: renderResources, includeDiagnostics });
       const response = await persistNextHostResponse(paths, rendered, {
         initialized: runState.initialized,
         resumed: runState.resumed,
@@ -162,106 +188,107 @@ async function nextInternal({ runId, workflowPath, includeDiagnostics = false, u
   });
 }
 
-function normalizeOutputRefs(outputRefs) {
-  if (outputRefs === undefined) return [];
-  return Array.isArray(outputRefs) ? outputRefs : [outputRefs];
-}
-
-function parseOutputRef(ref) {
-  const text = String(ref ?? '');
-  const separator = text.indexOf('=');
-  if (separator <= 0) return { path: text };
-  const stepId = text.slice(0, separator);
-  assertSafeStepId(stepId);
-  return { stepId, path: text.slice(separator + 1) };
-}
-
 function requestAliases(request) {
   return [request.id, request.stepId].filter((value, index, values) => typeof value === 'string' && value.length > 0 && values.indexOf(value) === index);
 }
 
-function requestIdForOutputStepId(requests, stepId) {
-  for (const request of requests) {
-    if (requestAliases(request).includes(stepId)) return request.id;
+function batonWithoutCurrentRequestAcceptedOutputs(baton, requests) {
+  const next = structuredClone(baton);
+  const outputs = next.state?.outputs;
+  if (!outputs || typeof outputs !== 'object' || Array.isArray(outputs)) return next;
+  for (const request of requests ?? []) {
+    for (const alias of requestAliases(request)) delete outputs[alias];
+  }
+  if (Object.keys(outputs).length === 0) delete next.state.outputs;
+  return next;
+}
+
+function assertLastResponseMatchesCurrentBaton(lastResponse, currentBaton) {
+  if (isDeepStrictEqual(lastResponse.baton, currentBaton)) return;
+  const requests = lastResponse.requests ?? [];
+  if (isDeepStrictEqual(
+    batonWithoutCurrentRequestAcceptedOutputs(lastResponse.baton, requests),
+    batonWithoutCurrentRequestAcceptedOutputs(currentBaton, requests),
+  )) return;
+  throw new Error('stale last runner response: persisted baton no longer matches last-response context; run workflow-runner next before continue');
+}
+
+function stepIdForRequest(request) {
+  return request.stepId ?? request.id;
+}
+
+function acceptedOutputForRequest(baton, request) {
+  const outputs = baton?.state?.outputs;
+  if (!outputs || typeof outputs !== 'object' || Array.isArray(outputs)) return undefined;
+  for (const alias of requestAliases(request)) {
+    if (Object.hasOwn(outputs, alias)) return structuredClone(outputs[alias]);
   }
   return undefined;
 }
 
-function assertNamedOutputRefsMatchRequests(parsed, requests) {
-  const named = parsed.filter((candidate) => candidate.stepId);
-  if (named.length === 0) return;
-  if (named.length !== parsed.length) throw new Error('host outputs must not mix named and unnamed --output refs');
+function acceptedOutputsForRequests(baton, requests) {
+  const valuesByRequestId = new Map();
+  const missing = [];
+  for (const request of requests) {
+    const value = acceptedOutputForRequest(baton, request);
+    if (value === undefined) missing.push(request.id);
+    else valuesByRequestId.set(request.id, value);
+  }
+  return { valuesByRequestId, missing };
+}
 
-  const seenStepIds = new Set();
-  const seenRequestIds = new Set();
-  for (const candidate of named) {
-    if (seenStepIds.has(candidate.stepId)) throw new Error(`duplicate host output for workflow step ${candidate.stepId}`);
-    seenStepIds.add(candidate.stepId);
+function parsedOutputRefsForAcceptedState(baton, requests) {
+  const outputs = baton?.state?.outputs;
+  if (!outputs || typeof outputs !== 'object' || Array.isArray(outputs)) return [];
+  const currentAliases = new Set(requests.flatMap(requestAliases));
+  return Object.keys(outputs)
+    .filter((stepId) => currentAliases.has(stepId))
+    .map((stepId) => ({ stepId }));
+}
 
-    const requestId = requestIdForOutputStepId(requests, candidate.stepId);
-    if (!requestId) throw new Error(`unknown host output for workflow step ${candidate.stepId}`);
-    if (seenRequestIds.has(requestId)) throw new Error(`duplicate host output for workflow step ${requestId}`);
-    seenRequestIds.add(requestId);
+function assertNamedOutputRefsMatchRequests(parsedOutputRefs, requests) {
+  const allowedAliases = new Set(requests.flatMap(requestAliases));
+  const mismatched = parsedOutputRefs
+    .map((ref) => ref.stepId)
+    .filter((stepId) => typeof stepId !== 'string' || !allowedAliases.has(stepId));
+  if (mismatched.length > 0) {
+    throw new Error(`host output step id does not match current workflow request: ${mismatched.join(', ')}`);
   }
 }
 
-function outputPathForRequest(request, parsedOutputRefs, { requireNamed = false } = {}) {
-  if (parsedOutputRefs.length === 0) throw new Error(`missing host output for workflow step ${request.id}`);
-  const named = parsedOutputRefs.filter((candidate) => candidate.stepId);
-  if (requireNamed && named.length === 0) throw new Error('parallel host outputs must use --output <step-id>=<path> for each requested step');
-  if (named.length > 0) {
-    const aliases = requestAliases(request);
-    const match = named.find((candidate) => aliases.includes(candidate.stepId));
-    if (!match?.path) throw new Error(`missing host output for workflow step ${request.id}`);
-    return match.path;
+function outputForAcceptedState(currentBaton, requests, { isPreparedParallelContinuation }) {
+  const parsedOutputRefs = parsedOutputRefsForAcceptedState(currentBaton, requests);
+  assertNamedOutputRefsMatchRequests(parsedOutputRefs, requests);
+  const { valuesByRequestId, missing } = acceptedOutputsForRequests(currentBaton, requests);
+  if (missing.length > 0) {
+    throw new Error(`missing accepted host output for workflow step ${missing.join(', ')}; run workflow-runner write-output first`);
   }
-  if (parsedOutputRefs.length === 1) return parsedOutputRefs[0].path;
-  throw new Error('parallel host outputs must use --output <step-id>=<path> for each requested step');
+  if (requests.length === 1 && !isPreparedParallelContinuation) {
+    const request = requests[0];
+    return { outputValue: valuesByRequestId.get(request.id), historyOutput: `accepted:${stepIdForRequest(request)}`, currentBaton };
+  }
+
+  const steps = {};
+  const historyOutput = [];
+  for (const request of requests) {
+    const stepId = stepIdForRequest(request);
+    steps[stepId] = valuesByRequestId.get(request.id);
+    historyOutput.push(`accepted:${stepId}`);
+  }
+  return { outputValue: { steps }, historyOutput: historyOutput.join(', '), currentBaton };
 }
 
-function assertLastResponseMatchesCurrentBaton(lastResponse, currentBaton) {
-  if (!isDeepStrictEqual(lastResponse.baton, currentBaton)) {
-    throw new Error('stale last runner response: persisted baton no longer matches last-response context; run workflow-runner next before continue');
-  }
-}
 
-
-async function outputForCurrentState(paths, outputRefs = []) {
+async function outputForCurrentState(paths) {
   await recoverDurableCommit(paths);
   const current = await readPersistedRunState(paths);
   const lastResponse = current.lastResponse;
   if (lastResponse?.status !== 'needs_host_actions') throw new Error(`last runner response is '${lastResponse?.status}', not needs_host_actions`);
   assertLastResponseMatchesCurrentBaton(lastResponse, current.baton);
 
-  const missing = [];
   const requests = lastResponse.requests ?? [];
-  const stepIdForRequest = (request) => request.stepId ?? request.id;
   const isPreparedParallelContinuation = requests.some((request) => stepIdForRequest(request) !== lastResponse.baton?.cursor);
-  const requireNamedParallelOutputs = requests.length > 1 && isPreparedParallelContinuation;
-  const parsedOutputRefs = outputRefs.map(parseOutputRef);
-  assertNamedOutputRefsMatchRequests(parsedOutputRefs, requests);
-
-  const pathsByRequestId = new Map();
-  for (const request of requests) {
-    const outputPath = outputPathForRequest(request, parsedOutputRefs, { requireNamed: requireNamedParallelOutputs });
-    pathsByRequestId.set(request.id, outputPath);
-    if (!(await pathExists(outputPath))) missing.push(outputPath);
-  }
-  if (missing.length > 0) throw new Error(`missing host output: ${missing.join(', ')}`);
-
-  if (requests.length === 1 && !isPreparedParallelContinuation) {
-    return { outputPath: pathsByRequestId.get(requests[0].id), outputValue: undefined, historyOutput: pathsByRequestId.get(requests[0].id), currentBaton: current.baton };
-  }
-
-  const steps = {};
-  const historyOutput = [];
-  for (const request of requests) {
-    const outputPath = pathsByRequestId.get(request.id);
-    const stepId = stepIdForRequest(request);
-    steps[stepId] = await readJson(outputPath, `host output ${stepId}`);
-    historyOutput.push(`${stepId}=${outputPath}`);
-  }
-  return { outputPath: '<parallel host outputs>', outputValue: { steps }, historyOutput: historyOutput.join(', '), currentBaton: current.baton };
+  return outputForAcceptedState(current.baton, requests, { isPreparedParallelContinuation });
 }
 
 async function resolveIndexedRunPaths({ runId, workflowPath, runsRoot }) {
@@ -285,33 +312,112 @@ export async function next(options = {}) {
 }
 
 async function continueRunInternal({ runId, workflowPath, output, includeDiagnostics = false, leaseToken, now = new Date(), runsRoot } = {}) {
+  if (output !== undefined && (!Array.isArray(output) || output.length > 0)) {
+    throw new Error('workflow-runner continue no longer accepts --output; run workflow-runner write-output for each current request, then continue without --output');
+  }
   const lockPaths = resolveRunPaths({ runId, runsRoot });
-  await assertPreLockWorkerLeaseAuthority(lockPaths, { leaseToken, now });
+  await assertPreLockWorkerLeaseAuthority(lockPaths, { leaseToken, now, allowStale: true });
   return withRunStateLock(lockPaths, async () => {
     const paths = await resolveContinueRunPaths({ runId, workflowPath, runsRoot });
-    await assertWorkerLeaseAuthority(paths, { leaseToken, now });
+    await assertWorkerLeaseAuthority(paths, { leaseToken, now, allowStale: true });
     await ensureRunFiles(paths);
     await recoverDurableCommit(paths);
-    const { outputPath, outputValue, historyOutput, currentBaton } = await outputForCurrentState(paths, normalizeOutputRefs(output));
+    const { outputValue, historyOutput, currentBaton } = await outputForCurrentState(paths);
     const runtime = loadWorkflowRuntime({ workflowPath: paths.workflowPath, batonPath: paths.batonPath, baton: currentBaton });
-    const outputContent = outputValue === undefined ? readWorkerOutputText({ outputPath }) : undefined;
-    const applied = applyWorkflowOutput({ workflowDoc: runtime.workflow, batonDoc: runtime.baton, outputContent, outputValue, resources: runtime.resources });
-    const rendered = renderAppliedResponse({ workflowDoc: runtime.workflow, response: applied, resources: runtime.resources, includeDiagnostics });
+    const applied = applyWorkflowOutput({ workflowDoc: runtime.workflow, batonDoc: runtime.baton, outputValue, resources: runtime.resources });
+    const renderResources = resourcesWithValidatingWriter(runtime.resources, paths, { leaseToken });
+    const rendered = renderAppliedResponse({ workflowDoc: runtime.workflow, response: applied, resources: renderResources, includeDiagnostics });
 
     const response = await runnerResponseForRendered(paths, rendered, { initialized: false, resumed: true });
+    const workerLease = await renewedWorkerLeaseAuthority(paths, { leaseToken, now });
     await writePersistedRunStateUpdate(paths, {
       response,
       baton: applied.baton,
       instructions: stepInstructionsFor(paths, rendered),
       history: { source: 'workflow-runner-continue', baton: applied.baton, output: historyOutput, requests: response.requests },
     });
-    await upsertRunIndexEntry(paths, { status: response.status, workflowPath: paths.workflowPath });
+    await upsertRunIndexEntry(paths, { status: response.status, workflowPath: paths.workflowPath, workerLease });
     return response;
   });
 }
 
 export async function continueRun(options = {}) {
   return publicApiCall(() => continueRunInternal(options), { runsRoot: options.runsRoot });
+}
+
+function parseOutputJson(json) {
+  try {
+    return JSON.parse(json);
+  } catch (error) {
+    throw new Error(`invalid JSON for workflow output: ${error.message}`);
+  }
+}
+
+function currentRequestForStep(lastResponse, requestedStepId) {
+  const requests = lastResponse.requests ?? [];
+  return requests.find((request) => requestAliases(request).includes(requestedStepId));
+}
+
+function validateAcceptedOutputForRequest({ workflow, resources, request, output }) {
+  const requestStepId = stepIdForRequest(request);
+  const step = workflow.steps?.[requestStepId];
+  if (!step) throw new Error(`unknown current workflow step id: ${requestStepId}`);
+  const schemaRef = step.output?.schema;
+  const artifactOutputDir = typeof resources?.artifactOutputDirForStep === 'function' ? resources.artifactOutputDirForStep(requestStepId) : undefined;
+  const loaded = schemaRef
+    ? (resources?.outputSchemas instanceof Map ? resources.outputSchemas.get(schemaRef) : resources?.outputSchemas?.[schemaRef])
+    : undefined;
+  const schema = schemaRef ? (loaded?.schema ?? loaded) : (request.action === 'run_worker' ? workerOutputSchema : undefined);
+  if (schemaRef && !schema) throw new Error(`output schema validation failed: missing output.schema '${schemaRef}'`);
+  if (!schema) return output;
+  const validation = validateAgainstOutputSchema({ schemaRef: schemaRef ?? 'worker-output', schema, output, artifactOutputDir });
+  if (!validation.ok) throw new Error(`output schema validation failed for step '${requestStepId}': ${validation.errors}`);
+  return validation.output;
+}
+
+function batonWithAcceptedOutput(baton, stepId, output) {
+  const nextBaton = structuredClone(baton);
+  nextBaton.state = {
+    ...nextBaton.state,
+    outputs: {
+      ...(nextBaton.state?.outputs ?? {}),
+      [stepId]: structuredClone(output),
+    },
+  };
+  return nextBaton;
+}
+
+async function writeOutputInternal({ runId, workflowPath, stepId, json, leaseToken, now = new Date(), runsRoot } = {}) {
+  assertSafeStepId(stepId);
+  const output = parseOutputJson(json);
+  const lockPaths = resolveRunPaths({ runId, runsRoot });
+  await assertPreLockWorkerLeaseAuthority(lockPaths, { leaseToken, now, allowStale: true });
+  return withRunStateLock(lockPaths, async () => {
+    const paths = await resolveContinueRunPaths({ runId, workflowPath, runsRoot });
+    await assertWorkerLeaseAuthority(paths, { leaseToken, now, allowStale: true });
+    await ensureRunFiles(paths);
+    await recoverDurableCommit(paths);
+    const current = await readPersistedRunState(paths);
+    const lastResponse = current.lastResponse;
+    if (lastResponse?.status !== 'needs_host_actions') throw new Error(`last runner response is '${lastResponse?.status}', not needs_host_actions`);
+    assertLastResponseMatchesCurrentBaton(lastResponse, current.baton);
+    const request = currentRequestForStep(lastResponse, stepId);
+    if (!request) throw new Error(`unknown current workflow step id: ${stepId}`);
+    const runtime = loadWorkflowRuntime({ workflowPath: paths.workflowPath, batonPath: paths.batonPath, baton: current.baton });
+    const validationResources = resourcesWithValidatingWriter(runtime.resources, paths, { leaseToken });
+    const accepted = validateAcceptedOutputForRequest({ workflow: runtime.workflow, resources: validationResources, request, output });
+    const acceptedStepId = stepIdForRequest(request);
+    const baton = batonWithAcceptedOutput(current.baton, acceptedStepId, accepted);
+    await writePersistedRunStateUpdate(paths, {
+      baton,
+      history: { source: 'workflow-runner-write-output', baton, output: `accepted:${acceptedStepId}`, requests: lastResponse.requests ?? [] },
+    });
+    return { ok: true, runId: paths.runId, stepId: acceptedStepId, accepted: true };
+  });
+}
+
+export async function writeOutput(options = {}) {
+  return publicApiCall(() => writeOutputInternal(options), { runsRoot: options.runsRoot });
 }
 
 async function loadInstructionsInternal({ runId, workflowPath, stepId, leaseToken, now = new Date(), runsRoot } = {}) {

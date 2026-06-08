@@ -1,8 +1,5 @@
 import { WorkflowRuntimeError } from '../../../../errors.mjs';
-
-function stringNote(value) {
-  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : '';
-}
+import { projectedValueFieldNotes } from './schema-field-notes.mjs';
 
 export function projectedFieldNotes({ workflow, projectedState, projectedKeys, resources, readOutputSchema }) {
   const lines = [];
@@ -17,20 +14,10 @@ export function projectedFieldNotes({ workflow, projectedState, projectedKeys, r
       if (!(error instanceof WorkflowRuntimeError) || !error.message.includes('output.schema not found')) throw error;
       continue;
     }
-    const properties = schema?.properties;
-    if (!properties || typeof properties !== 'object') continue;
     const projectedValue = projectedState?.[key];
     if (!projectedValue || typeof projectedValue !== 'object' || Array.isArray(projectedValue)) continue;
 
-    for (const [fieldName, fieldSchema] of Object.entries(properties)) {
-      if (!Object.hasOwn(projectedValue, fieldName) || !fieldSchema || typeof fieldSchema !== 'object') continue;
-      const description = stringNote(fieldSchema.description);
-      const usage = stringNote(fieldSchema['x-usage']);
-      if (!description && !usage) continue;
-      lines.push(`- ${key}.${fieldName}`);
-      if (description) lines.push(`  - Description: ${description}`);
-      if (usage) lines.push(`  - Usage: ${usage}`);
-    }
+    lines.push(...projectedValueFieldNotes({ stepId: key, schema, value: projectedValue, schemaDefinitions: resources?.schemaDefinitions }));
   }
 
   if (lines.length === 0) return '';

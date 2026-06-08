@@ -65,3 +65,9 @@ export function assertFreshTokenAuthority(workerLease, token, { runId, now = new
   if (!Number.isFinite(expiresAt) || expiresAt <= now.getTime()) throw new Error(`workflow run lease is stale: ${runId}`);
   if (!safeTokenHashMatches(workerLease.tokenHash, token)) throw new Error(`workflow run is occupied: ${runId}`);
 }
+
+export function assertMatchingTokenAuthority(workerLease, token, { runId } = {}) {
+  if (!token) throw new Error('workflow run token is required');
+  if (!workerLease) throw new Error(`workflow run lease is not claimed: ${runId}`);
+  if (!safeTokenHashMatches(workerLease.tokenHash, token)) throw new Error(`workflow run is occupied: ${runId}`);
+}

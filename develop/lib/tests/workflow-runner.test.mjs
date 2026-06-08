@@ -135,7 +135,7 @@ function withLeaseTokenArg(args, token) {
 
 function runRunner(args, options = {}) {
   const token = claimRunForRunnerArgs(args);
-  return spawnSync(process.execPath, ['develop/lib/entrypoints/cli/workflow-runner.mjs', ...withLeaseTokenArg(args, token)], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUN_TOKEN: token ?? testLeaseToken, ...(options.env ?? {}) } });
+  return spawnSync(process.execPath, ['develop/lib/entrypoints/cli/workflow-runner.mjs', ...withLeaseTokenArg(args, token)], { cwd: root, encoding: 'utf8', input: options.input, env: { ...process.env, WORKFLOW_RUN_TOKEN: token ?? testLeaseToken, ...(options.env ?? {}) } });
 }
 
 async function runRunnerAsync(args) {
@@ -182,6 +182,40 @@ function workerOutput(summary) {
   return { outcome: 'ready', results: [{ type: 'check', summary }] };
 }
 
+function currentRequestIds(runDir) {
+  const lastResponse = JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8'));
+  return (lastResponse.requests ?? []).map((request) => request.stepId ?? request.id);
+}
+
+function parseOutputRef(ref) {
+  const separator = ref.indexOf('=');
+  if (separator < 0) return { stepId: undefined, filePath: ref };
+  return { stepId: ref.slice(0, separator), filePath: ref.slice(separator + 1) };
+}
+
+function writeOutputFile({ runId, runDir, workflowPath, stepId, filePath, label = 'write output' }) {
+  const targetStepId = stepId ?? currentRequestIds(runDir)[0];
+  const result = runRunner(['write-output', '--run-id', runId, '--workflow', workflowPath, '--step-id', targetStepId], { input: readFileSync(filePath, 'utf8') });
+  assert.equal(result.status, 0, `${label} failed
+stdout:
+${result.stdout}
+stderr:
+${result.stderr}`);
+  return JSON.parse(result.stdout);
+}
+
+function continueWithOutputs({ runId, runDir, workflowPath, refs, label = 'continue' }) {
+  const normalized = Array.isArray(refs) ? refs : [refs];
+  const pendingIds = currentRequestIds(runDir);
+  for (const ref of normalized) {
+    const { stepId, filePath } = parseOutputRef(ref);
+    const targetStepId = stepId ?? (pendingIds.length === 1 ? pendingIds[0] : undefined);
+    assert.ok(targetStepId, `output for ${label} must name a step when multiple requests are pending`);
+    writeOutputFile({ runId, runDir, workflowPath, stepId: targetStepId, filePath, label: `${label} write ${targetStepId}` });
+  }
+  return expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath], label);
+}
+
 after(() => rmSync(tempDir, { recursive: true, force: true }));
 
 test('runner: next returns a single host action request with load command only', () => {
@@ -212,6 +246,13 @@ test('runner: next returns a single host action request with load command only',
   assert.match(loaded.stdout, /# Prepare/);
 
   assert.equal(existsSync(path.join(runDir, 'baton.json')), true);
+});
+
+test('runner: continue rejects legacy --output path handoff', () => {
+  const result = runRunner(['continue', '--run-id', `workflow-runner-test-${process.pid}-legacy-output`, '--output', 'worker-output.json']);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Unknown option '--output'|continue no longer accepts --output/);
 });
 
 test('runner: next rejects existing unindexed legacy run state instead of minting authority', () => {
@@ -320,7 +361,7 @@ test('runner: user prompt is stored, included only in initial worker instruction
 
   const prepareOutput = path.join(runDir, 'prepare-output.json');
   writeJson(prepareOutput, workerOutput('prepared'));
-  const nextResponse = expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', prepareOutput], 'continue with user prompt');
+  const nextResponse = continueWithOutputs({ runId, runDir, workflowPath, refs: prepareOutput, label: 'continue with user prompt' });
   assert.equal(nextResponse.baton.user_prompt, rawPrompt);
   assert.equal(nextResponse.baton.user_prompt_injected, true);
   assert.equal(JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8')).user_prompt, rawPrompt);
@@ -343,7 +384,7 @@ test('runner: resumed next is read-only for baton after user prompt marker is pe
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath, '--user-prompt', 'marker must not be rolled back'], 'next before marker');
   const prepareOutput = path.join(runDir, 'prepare-output.json');
   writeJson(prepareOutput, workerOutput('prepared'));
-  expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', prepareOutput], 'continue marker');
+  continueWithOutputs({ runId, runDir, workflowPath, refs: prepareOutput, label: 'continue marker' });
 
   const batonPath = path.join(runDir, 'baton.json');
   const before = statSync(batonPath, { bigint: true }).mtimeNs;
@@ -446,7 +487,7 @@ test('runner: user prompt is included in first worker when workflow starts with 
 
   const approvalOutput = path.join(runDir, 'gate-output.json');
   writeJson(approvalOutput, { approval: 'approved' });
-  expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', approvalOutput], 'continue approval-first gate');
+  continueWithOutputs({ runId, runDir, workflowPath, refs: approvalOutput, label: 'continue approval-first gate' });
   const firstWorkerInstructions = runRunner(['instructions', '--run-id', runId, '--step-id', 'prepare']);
   assert.equal(firstWorkerInstructions.status, 0, firstWorkerInstructions.stderr);
   assert.match(firstWorkerInstructions.stdout, /## User prompt/);
@@ -454,7 +495,7 @@ test('runner: user prompt is included in first worker when workflow starts with 
 
   const prepareOutput = path.join(runDir, 'prepare-output.json');
   writeJson(prepareOutput, workerOutput('prepared'));
-  expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', prepareOutput], 'continue approval-first prepare');
+  continueWithOutputs({ runId, runDir, workflowPath, refs: prepareOutput, label: 'continue approval-first prepare' });
   const laterInstructions = runRunner(['instructions', '--run-id', runId, '--step-id', 'branch_a']);
   assert.equal(laterInstructions.status, 0, laterInstructions.stderr);
   assert.doesNotMatch(laterInstructions.stdout, /## User prompt/);
@@ -502,11 +543,12 @@ test('runner: startup prompt target rejects a selected match-cases branch that n
   const initial = expectRunner(['next', '--run-id', runId, '--workflow', workflowPath, '--user-prompt', 'Prompt must reach prepare.'], 'next stable match-cases');
   assert.equal(initial.baton.user_prompt_target, 'prepare');
 
-  approvalFirstWorkflow.steps.gate.next = { match: '${{ output.choice }}', cases: { approved: 'done', retry: 'prepare' } };
-  writeJson(workflowPath, approvalFirstWorkflow);
   const approvalOutput = path.join(runDir, 'gate-output.json');
   writeJson(approvalOutput, { choice: 'approved' });
-  const result = runRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--output', `gate=${approvalOutput}`]);
+  writeOutputFile({ runId, runDir, workflowPath, stepId: 'gate', filePath: approvalOutput, label: 'write selected target missing output' });
+  approvalFirstWorkflow.steps.gate.next = { match: '${{ output.choice }}', cases: { approved: 'done', retry: 'prepare' } };
+  writeJson(workflowPath, approvalFirstWorkflow);
+  const result = runRunner(['continue', '--run-id', runId, '--workflow', workflowPath]);
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /startup user prompt target 'prepare' is not renderable in the current workflow response/);
@@ -552,4 +594,112 @@ test('runner: next resumes existing baton without overwriting user prompt', () =
   assert.equal(response.resumed, true);
   assert.equal(response.baton.user_prompt, 'original raw prompt');
   assert.equal(JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8')).user_prompt, 'original raw prompt');
+
+  const instructions = runRunner(['instructions', '--run-id', runId, '--step-id', 'prepare']);
+  assert.equal(instructions.status, 0, instructions.stderr);
+  assert.match(instructions.stdout, /## User prompt/);
+  assert.equal(instructions.stdout.includes('original raw prompt'), true);
+  assert.equal(instructions.stdout.includes('replacement raw prompt'), false);
+});
+
+function schemaCoveredWorkflow(overrides = {}) {
+  const schemaPath = path.join(tempDir, `worker-output-${process.pid}-${Math.random().toString(16).slice(2)}.schema.json`);
+  writeJson(schemaPath, {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome'],
+    properties: {
+      outcome: { type: 'string' },
+      results: { type: 'array' },
+      artifacts: { type: 'array' },
+    },
+    additionalProperties: true,
+  });
+  const workflow = structuredClone(workflowDoc);
+  for (const step of Object.values(workflow.steps)) {
+    if (step.kind === 'worker') step.output = { template: 'output.md', schema: path.basename(schemaPath) };
+  }
+  Object.assign(workflow.steps.prepare, overrides.prepare ?? {});
+  Object.assign(workflow.steps.branch_a, overrides.branchA ?? {});
+  Object.assign(workflow.steps.branch_b, overrides.branchB ?? {});
+  Object.assign(workflow.steps.join, overrides.join ?? {});
+  return workflow;
+}
+
+test('runner: write-output accepts valid stdin JSON into baton state and continue advances without --output', () => {
+  const { runId, runDir } = runCase('write-output-stdin-valid');
+  const workflowPath = path.join(tempDir, 'write-output-stdin-valid-workflow.json');
+  const workflow = schemaCoveredWorkflow({ prepare: { next: 'done' } });
+  writeJson(workflowPath, workflow);
+
+  expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next before write-output');
+  const written = runRunner(['write-output', '--run-id', runId, '--step-id', 'prepare'], { input: JSON.stringify(workerOutput('prepared')) });
+  assert.equal(written.status, 0, written.stderr);
+  assert.deepEqual(JSON.parse(written.stdout), { ok: true, runId, stepId: 'prepare', accepted: true });
+  const batonAfterWrite = JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8'));
+  assert.equal(batonAfterWrite.cursor, 'prepare');
+  assert.equal(batonAfterWrite.state.outputs.prepare.outcome, 'ready');
+  assert.equal(Object.hasOwn(batonAfterWrite.state, 'prepare'), false);
+
+  const continued = expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath], 'continue from accepted output');
+  assert.equal(continued.status, 'done');
+  assert.equal(continued.baton.state.prepare.outcome, 'ready');
+});
+
+test('runner: write-output rejects invalid JSON/schema without accepting output', () => {
+  const { runId, runDir } = runCase('write-output-invalid');
+  const workflowPath = path.join(tempDir, 'write-output-invalid-workflow.json');
+  const workflow = schemaCoveredWorkflow({ prepare: { next: 'done' } });
+  writeJson(workflowPath, workflow);
+
+  expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next before invalid write-output');
+  const invalid = runRunner(['write-output', '--run-id', runId, '--step-id', 'prepare'], { input: JSON.stringify({ results: [] }) });
+  assert.notEqual(invalid.status, 0);
+  assert.match(invalid.stderr, /output schema validation failed for step 'prepare'/);
+  const batonAfterInvalid = JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8'));
+  assert.equal(batonAfterInvalid.state.outputs, undefined);
+
+  const continued = runRunner(['continue', '--run-id', runId, '--workflow', workflowPath]);
+  assert.notEqual(continued.status, 0);
+  assert.match(continued.stderr, /missing accepted host output for workflow step prepare/);
+});
+
+test('runner: worker instructions include prefilled validating write-output command', () => {
+  const { runId } = runCase('write-output-instructions');
+  const workflowPath = path.join(tempDir, 'write-output-instructions-workflow.json');
+  const workflow = schemaCoveredWorkflow({ prepare: { next: 'done' } });
+  writeJson(workflowPath, workflow);
+
+  expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next before loading writer instructions');
+  const instructions = runRunner(['instructions', '--run-id', runId, '--step-id', 'prepare']);
+  assert.equal(instructions.status, 0, instructions.stderr);
+  assert.match(instructions.stdout, /workflow-runner\.mjs write-output --run-id/);
+  assert.match(instructions.stdout, /--step-id 'prepare'/);
+  assert.match(instructions.stdout, /--lease-token '[^']+'/);
+  assert.doesNotMatch(instructions.stdout, /--lease-token <lease-token>/);
+  assert.match(instructions.stdout, /Do not create a separate JSON output file and do not pass an output path to the orchestrator/);
+});
+
+test('runner: write-output separates parallel request outputs by step id before continue without --output', () => {
+  const { runId, runDir } = runCase('write-output-parallel-step-ids');
+  const workflowPath = path.join(tempDir, 'write-output-parallel-step-ids-workflow.json');
+  const workflow = schemaCoveredWorkflow({ join: { next: 'done' } });
+  writeJson(workflowPath, workflow);
+
+  expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next before prepare writer');
+  assert.equal(runRunner(['write-output', '--run-id', runId, '--step-id', 'prepare'], { input: JSON.stringify(workerOutput('prepared')) }).status, 0);
+  const fanout = expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath], 'continue to parallel branches');
+  assert.deepEqual(fanout.requests.map((request) => request.stepId).sort(), ['branch_a', 'branch_b']);
+
+  assert.equal(runRunner(['write-output', '--run-id', runId, '--step-id', 'branch_a'], { input: JSON.stringify(workerOutput('A')) }).status, 0);
+  assert.equal(runRunner(['write-output', '--run-id', runId, '--step-id', 'branch_b'], { input: JSON.stringify(workerOutput('B')) }).status, 0);
+  const batonAfterWrites = JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8'));
+  assert.equal(batonAfterWrites.state.outputs.branch_a.results[0].summary, 'A');
+  assert.equal(batonAfterWrites.state.outputs.branch_b.results[0].summary, 'B');
+
+  const joined = expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath], 'continue from accepted parallel outputs');
+  assert.equal(joined.status, 'needs_host_actions');
+  assert.equal(joined.baton.cursor, 'join');
+  assert.equal(joined.baton.state.branch_a.results[0].summary, 'A');
+  assert.equal(joined.baton.state.branch_b.results[0].summary, 'B');
 });

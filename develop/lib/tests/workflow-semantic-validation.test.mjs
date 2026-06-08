@@ -167,6 +167,15 @@ test('workflow semantic validation accepts the checked-in flat DevHarness workfl
   assert.deepEqual(validate(workflowDoc), { ok: true, workflow: 'dev-harness', steps: Object.keys(workflowDoc.steps).length });
 });
 
+test('DevHarness proposal handoff prompts use baton artifacts instead of temp files', () => {
+  assert.match(workflowDoc.steps.architecture_draft.input.prompt, /emit it as workflow artifact `architecture-proposal`/);
+  assert.match(workflowDoc.steps.architecture_draft.input.prompt, /artifact metadata\/path accepted into baton is the source of truth/);
+  assert.match(workflowDoc.steps.approve_architecture.input.prompt, /projected `architecture-proposal` artifact from architecture_draft/);
+  assert.match(workflowDoc.steps.approve_architecture.input.prompt, /retrieve\/export the existing artifact referenced by projected baton\/output artifacts/);
+  assert.match(workflowDoc.steps.approve_architecture.input.prompt, /do not ask a worker to recreate it in a temp path/);
+  assert.match(workflowDoc.steps.approve_plan.input.prompt, /retrieve\/export the existing artifact referenced by projected baton\/output artifacts/);
+});
+
 test('workflow semantic validation rejects wrapped workflow documents', () => {
   const flat = syntheticWorkflow();
   const wrapped = { workflow: structuredClone(flat) };
@@ -204,7 +213,7 @@ test('research critic saved packet output requires projected artifacts and resul
     workflowPath,
     schemaRef: step.output.schema,
     repositoryRoot: REPO_ROOT,
-    output: { outcome: 'saved', saved: { summary: 'Saved.', artifact_path: 'research/packet.md' } },
+    output: { outcome: 'saved', saved: { summary: 'Saved.' } },
   });
   assert.equal(missingProjection.ok, false);
   assert.match(missingProjection.errors, /artifacts/);
@@ -215,7 +224,7 @@ test('research critic saved packet output requires projected artifacts and resul
     workflowPath,
     schemaRef: step.output.schema,
     repositoryRoot: REPO_ROOT,
-    output: { outcome: 'saved', saved: { summary: 'Saved.', artifact_path: 'research/packet.md' }, artifacts: [], results: [] },
+    output: { outcome: 'saved', saved: { summary: 'Saved.' }, artifacts: [], results: [] },
   });
   assert.equal(emptyProjection.ok, false);
   assert.match(emptyProjection.errors, /artifacts/);
@@ -228,8 +237,8 @@ test('research critic saved packet output requires projected artifacts and resul
     repositoryRoot: REPO_ROOT,
     output: {
       outcome: 'saved',
-      saved: { summary: 'Saved.', artifact_path: 'research/packet.md' },
-      artifacts: [{ type: 'research', summary: 'Saved packet.', path: 'research/packet.md' }],
+      saved: { summary: 'Saved.' },
+      artifacts: [{ id: 'research-packet', content_type: 'text/markdown', summary: 'Saved packet.', path: '/runs/save_research_packet/artifacts/research-packet.md' }],
       results: [{ summary: 'Saved packet.' }],
     },
   });
@@ -251,8 +260,8 @@ test('research critic save packet output keeps saved and blocked branches exclus
     output: {
       outcome: 'blocked',
       blocker: { summary: 'Cannot save.', source_step_id: 'save_research_packet', needed: 'Writable target.' },
-      saved: { summary: 'Should not coexist.', artifact_path: 'research/packet.md' },
-      artifacts: [{ type: 'research', summary: 'Should not aggregate.', path: 'research/packet.md' }],
+      saved: { summary: 'Should not coexist.' },
+      artifacts: [{ id: 'research-packet', content_type: 'text/markdown', summary: 'Should not aggregate.', path: '/runs/save_research_packet/artifacts/research-packet.md' }],
       results: [{ summary: 'Should not aggregate.' }],
     },
   });
@@ -262,8 +271,8 @@ test('research critic save packet output keeps saved and blocked branches exclus
     ...schemaContext,
     output: {
       outcome: 'saved',
-      saved: { summary: 'Saved.', artifact_path: 'research/packet.md' },
-      artifacts: [{ type: 'research', summary: 'Saved packet.', path: 'research/packet.md' }],
+      saved: { summary: 'Saved.' },
+      artifacts: [{ id: 'research-packet', content_type: 'text/markdown', summary: 'Saved packet.', path: '/runs/save_research_packet/artifacts/research-packet.md' }],
       results: [{ summary: 'Saved packet.' }],
       blocker: { summary: 'Should not coexist.', source_step_id: 'save_research_packet', needed: 'Nothing.' },
     },
@@ -298,6 +307,46 @@ test('dev harness revision loops project the feedback that caused revision', () 
     'planning_attack',
     'approve_plan',
   ]);
+});
+
+test('revision loop continuity separates projected state from clarification-session continuation', () => {
+  const loopIterationContinuityPrompt = /Loop continuity across workflow loop iterations is prompt\/state based/;
+  const noPersistentDraftCriticReuse = /do not assume persistent draft\/critic worker reuse across iterations/;
+  const clarificationContinuation = /If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening/;
+  const contradictorySameSessionWording = /not same-session memory|hidden same-session memory|ask, pause/;
+  const devHarnessResearchPrompt = workflowDoc.steps.research_draft.input.prompt;
+
+  assert.match(
+    devHarnessResearchPrompt,
+    /When missing implementation-critical input is answerable by the user, do not return blocked; return a focused user-facing request for the orchestrator to relay\./,
+  );
+  assert.match(
+    devHarnessResearchPrompt,
+    /Return blocked with blocker\.source_step_id = research_draft only when progress is unsafe or impossible, or when the missing input is external\/non-user-answerable\./,
+  );
+  assert.doesNotMatch(devHarnessResearchPrompt, /blocked .* when implementation-critical input is missing/);
+
+  for (const stepId of ['research_draft', 'architecture_draft', 'planning_draft', 'backend_implementation', 'frontend_implementation', 'architecture_artifact_update']) {
+    const prompt = workflowDoc.steps[stepId].input.prompt;
+    assert.match(prompt, loopIterationContinuityPrompt);
+    assert.match(prompt, noPersistentDraftCriticReuse);
+    assert.match(prompt, clarificationContinuation);
+    assert.doesNotMatch(prompt, contradictorySameSessionWording);
+  }
+
+  for (const stepId of ['research_draft', 'research_answered_draft', 'research_attack', 'research_revision', 'save_research_packet']) {
+    const prompt = researchCriticWorkflowDoc.steps[stepId].input.prompt;
+    assert.match(prompt, loopIterationContinuityPrompt);
+    assert.match(prompt, noPersistentDraftCriticReuse);
+    assert.match(prompt, clarificationContinuation);
+    assert.doesNotMatch(prompt, contradictorySameSessionWording);
+  }
+
+  assert.match(
+    researchCriticWorkflowDoc.steps.research_draft.input.prompt,
+    /Return ready_for_attack when the packet is ready for critic review, needs_input when user answers are required, or blocked when progress is unsafe without external input\./,
+  );
+  assert.equal(researchCriticWorkflowDoc.steps.research_draft.next.cases.needs_input, 'ask_research_questions');
 });
 
 

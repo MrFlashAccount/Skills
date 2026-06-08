@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
@@ -168,7 +168,7 @@ test('output.schema: workflow-package schema ref resolves consistently for valid
     step: doc.steps.worker_step,
     repositoryRoot: repoDir,
   });
-  assert.match(rendered.prompt, /Return valid JSON matching this schema/);
+  assert.match(rendered.prompt, /Generate strict JSON matching this schema/);
   assert.match(rendered.prompt, /"outcome"/);
   assert.match(rendered.prompt, /"const": "ready"/);
 });
@@ -319,14 +319,14 @@ test('output.schema: valid structured output passes and is stored by step id', (
 
   const response = runApply('output-schema-valid-stored', baton(), {
     outcome: 'ready',
-    artifacts: [{ type: 'packet', summary: 'structured' }],
+    artifacts: [{ id: 'packet', content_type: 'text/markdown', path: '/runs/worker_step/artifacts/packet.md', summary: 'structured' }],
     payload: { ok: true },
   }, true, doc);
 
   assert.equal(response.baton.cursor, 'done');
   assert.deepEqual(response.baton.state.worker_step.payload, { ok: true });
   assert.deepEqual(response.baton.state.outputs.worker_step.payload, { ok: true });
-  assert.equal(response.baton.state.artifacts.at(-1).summary, 'structured');
+  assert.equal(response.baton.state.artifacts.at(-1).artifact.summary, 'structured');
 });
 
 
@@ -381,6 +381,32 @@ test('output.schema: invalid approval output retries the approval step with sche
   assert.match(retry.steps[0].step.input.prompt, /must be equal to constant/);
 });
 
+
+
+test('output.schema: loose artifacts item schema still enforces central artifact metadata contract', () => {
+  const doc = workflowWithSchema('loose-artifacts-central-contract', {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome', 'artifacts'],
+    properties: {
+      outcome: { const: 'ready' },
+      artifacts: { type: 'array', items: { type: 'object' } },
+    },
+    additionalProperties: false,
+  });
+
+  for (const forbiddenField of ['type', 'kind', 'ref', 'producer_step_id', 'version', 'replaces', 'aliases']) {
+    const retry = runApply(`output-schema-loose-artifact-rejects-${forbiddenField}`, baton(), {
+      outcome: 'ready',
+      artifacts: [{ id: 'packet', content_type: 'text/plain', [forbiddenField]: forbiddenField === 'version' ? 1 : 'legacy' }],
+    }, true, doc);
+
+    assert.equal(retry.baton.cursor, 'worker_step');
+    assert.equal(retry.steps[0].action, 'run_worker');
+    assert.match(retry.steps[0].step.input.prompt, new RegExp(`/artifacts/0.*${forbiddenField}`));
+  }
+});
+
 test('output.schema: reserved aggregate fields must keep array envelope shape', () => {
   const doc = workflowWithSchema('reserved-artifacts-object', {
     $schema: 'https://json-schema.org/draft/2020-12/schema',
@@ -414,7 +440,14 @@ test('output.schema: schema-declared outputs still must be object envelopes', ()
     additionalProperties: false,
   });
   doc.steps.worker_step.next = ['consumer_step'];
-  doc.steps.consumer_step.next = 'done';
+  doc.steps.consumer_step.next = 'join_step';
+  doc.steps.join_step = {
+    name: 'Join step',
+    kind: 'worker',
+    input: { state: ['consumer_step'], prompt: 'Join consumer output.' },
+    output: { template: 'output.md' },
+    next: 'done',
+  };
 
   const retry = runApply('output-schema-root-envelope-object', baton(), 'ready', true, doc);
 
@@ -446,11 +479,13 @@ test('output.schema: structured step output is projected by step id into downstr
 
   const applyResponse = runApply('output-schema-structured-project-apply', baton(), {
     outcome: 'ready',
-    artifacts: [{ type: 'packet', summary: 'structured projection artifact' }],
+    artifacts: [{ id: 'packet', content_type: 'text/markdown', path: path.join(tempDir, 'worker_step', 'artifacts', 'packet.md'), summary: 'structured projection artifact' }],
     payload: { ok: true },
   }, true, doc);
 
   assert.equal(applyResponse.baton.cursor, 'consumer_step');
+  mkdirSync(path.join(tempDir, 'worker_step', 'artifacts'), { recursive: true });
+  writeFileSync(path.join(tempDir, 'worker_step', 'artifacts', 'packet.md'), 'Structured projection artifact body.\n');
   const batonPath = writeJson('output-schema-structured-project-baton.json', applyResponse.baton);
   const workflowPath = writeJson('output-schema-structured-project-workflow.json', doc);
   const renderResponse = runWorkflowCommand('output-schema-structured-project-render', [
@@ -493,7 +528,7 @@ test('output.schema: projected structured output renders schema field notes befo
 
   const applyResponse = runApply('output-schema-field-notes-apply', baton(), {
     outcome: 'ready',
-    artifacts: [{ type: 'packet', summary: 'structured projection artifact' }],
+    artifacts: [{ id: 'packet', content_type: 'text/markdown', path: path.join(tempDir, 'worker_step', 'artifacts', 'packet.md'), summary: 'structured projection artifact' }],
     payload: { ok: true },
   }, true, doc);
   const workflowPath = writeJson('output-schema-field-notes-workflow.json', doc);
@@ -591,4 +626,156 @@ test('output.schema: non-structured worker output is projected by step id into d
 
   assert.match(renderResponse.steps[0].compiledPrompt.prompt, /"worker_step"/);
   assert.match(renderResponse.steps[0].compiledPrompt.prompt, /"plain markdown result body"/);
+});
+
+test('output.schema: central artifact contract accepts simplified shape and rejects legacy artifact fields', () => {
+  const schema = {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome', 'artifacts'],
+    properties: {
+      outcome: { const: 'ready' },
+      artifacts: {
+        type: 'array',
+        items: { $ref: 'https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact' },
+      },
+    },
+    additionalProperties: false,
+  };
+
+  assert.equal(validateAgainstOutputSchema({ schema, output: { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: '/runs/worker_step/artifacts/packet.md' }] } }).ok, true);
+
+  for (const staleField of ['type', 'kind', 'ref', 'producer_step_id', 'version', 'replaces', 'aliases']) {
+    const validation = validateAgainstOutputSchema({
+      schema,
+      output: { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: '/runs/worker_step/artifacts/packet.md', [staleField]: staleField === 'aliases' ? [] : 'legacy' }] },
+    });
+    assert.equal(validation.ok, false, `expected stale artifact field '${staleField}' to be rejected`);
+    assert.match(validation.errors, /must NOT have additional properties/);
+  }
+
+  const missingPath = validateAgainstOutputSchema({ schema, output: { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown' }] } });
+  assert.equal(missingPath.ok, false);
+  assert.match(missingPath.errors, /path/);
+
+  const relativePath = validateAgainstOutputSchema({ schema, output: { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: 'plan/artifacts/plan.md' }] } });
+  assert.equal(relativePath.ok, false);
+  assert.match(relativePath.errors, /path/);
+});
+
+test('output.schema: contextual artifact validation requires paths under the expected artifact output directory', () => {
+  const schema = {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome', 'artifacts'],
+    properties: {
+      outcome: { const: 'ready' },
+      artifacts: {
+        type: 'array',
+        items: { $ref: 'https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact' },
+      },
+    },
+    additionalProperties: false,
+  };
+  const artifactOutputDir = path.join(tempDir, 'contextual-artifacts', 'prepare', 'artifacts');
+  mkdirSync(artifactOutputDir, { recursive: true });
+
+  assert.equal(validateAgainstOutputSchema({
+    schema,
+    artifactOutputDir,
+    output: { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: path.join(artifactOutputDir, 'packet.md') }] },
+  }).ok, true);
+
+  for (const artifactPath of ['/tmp/outside-step.md', path.join(tempDir, 'contextual-artifacts', 'branch_a', 'artifacts', 'packet.md'), path.join(artifactOutputDir, '..', '..', 'branch_b', 'artifacts', 'packet.md'), artifactOutputDir]) {
+    const validation = validateAgainstOutputSchema({
+      schema,
+      artifactOutputDir,
+      output: { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: artifactPath }] },
+    });
+    assert.equal(validation.ok, false, `expected artifact path to be rejected: ${artifactPath}`);
+    assert.match(validation.errors, /artifact output directory/);
+  }
+});
+
+test('output.schema: contextual artifact validation rejects symlink escapes', () => {
+  const schema = {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome', 'artifacts'],
+    properties: {
+      outcome: { const: 'ready' },
+      artifacts: {
+        type: 'array',
+        items: { $ref: 'https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact' },
+      },
+    },
+    additionalProperties: false,
+  };
+  const artifactOutputDir = path.join(tempDir, 'symlink-artifacts', 'prepare', 'artifacts');
+  const outsideDir = path.join(tempDir, 'symlink-artifacts-outside');
+  mkdirSync(artifactOutputDir, { recursive: true });
+  mkdirSync(outsideDir, { recursive: true });
+  symlinkSync(outsideDir, path.join(artifactOutputDir, 'escape'), 'dir');
+
+  const validation = validateAgainstOutputSchema({
+    schema,
+    artifactOutputDir,
+    output: { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: path.join(artifactOutputDir, 'escape', 'packet.md') }] },
+  });
+
+  assert.equal(validation.ok, false);
+  assert.match(validation.errors, /symlinks/);
+});
+
+
+test('output.schema: contextual artifact validation rejects symlinked expected artifact directory', () => {
+  const schema = {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome', 'artifacts'],
+    properties: {
+      outcome: { const: 'ready' },
+      artifacts: {
+        type: 'array',
+        items: { $ref: 'https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact' },
+      },
+    },
+    additionalProperties: false,
+  };
+  const stepDir = path.join(tempDir, 'symlink-expected-artifacts', 'prepare');
+  const artifactOutputDir = path.join(stepDir, 'artifacts');
+  const outsideDir = path.join(tempDir, 'symlink-expected-artifacts-outside');
+  mkdirSync(stepDir, { recursive: true });
+  mkdirSync(outsideDir, { recursive: true });
+  symlinkSync(outsideDir, artifactOutputDir, 'dir');
+
+  const validation = validateAgainstOutputSchema({
+    schema,
+    artifactOutputDir,
+    output: { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: path.join(artifactOutputDir, 'packet.md') }] },
+  });
+
+  assert.equal(validation.ok, false);
+  assert.match(validation.errors, /not a symlink/);
+});
+
+test('output.schema: loose step schemas still reject legacy artifact fields', () => {
+  const schema = {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome'],
+    properties: {
+      outcome: { const: 'ready' },
+      artifacts: { type: 'array', items: { type: 'object', additionalProperties: true } },
+    },
+    additionalProperties: true,
+  };
+
+  const validation = validateAgainstOutputSchema({
+    schema,
+    output: { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: '/runs/worker_step/artifacts/packet.md', producer_step_id: 'worker_step' }] },
+  });
+
+  assert.equal(validation.ok, false);
+  assert.match(validation.errors, /\/artifacts\/0\/producer_step_id is not allowed/);
 });

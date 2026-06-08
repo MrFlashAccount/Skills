@@ -1,4 +1,5 @@
 import { WorkflowRuntimeError } from '../../../errors.mjs';
+import { assertCentralArtifactMetadata } from '../../../entities/Baton/artifact-contract.mjs';
 import { assertWorkerOutputSchema } from './worker-output-schema.mjs';
 import { validateAgainstOutputSchema, OUTPUT_SCHEMA_MAX_ATTEMPTS } from '../../../use-cases/runtime/output/output-schema-validation.mjs';
 import { invalidJsonOutputRetry, outputSchemaAttempt, responseForOutputSchemaRetry } from '../loop/guard.mjs';
@@ -22,9 +23,7 @@ function assertGenericApprovalOutput(hostOutput) {
       if (!artifact || typeof artifact !== 'object' || Array.isArray(artifact)) {
         throw new WorkflowRuntimeError(`approval output failed schema validation: /artifacts/${index} must be object`);
       }
-      if (typeof artifact.type !== 'string') {
-        throw new WorkflowRuntimeError(`approval output failed schema validation: /artifacts/${index}/type must be string`);
-      }
+      assertCentralArtifactMetadata(artifact, `/artifacts/${index}`, { errorPrefix: 'approval output failed schema validation' });
     }
   }
   if ('results' in hostOutput) {

@@ -4,52 +4,15 @@ Return JSON metadata for the final saved research packet, not the packet markdow
 
 ## Required saved outcome
 
-When persistence is safe and complete:
-
-```json
-{
-  "outcome": "saved",
-  "saved": {
-    "summary": "Short description of the saved approved research packet.",
-    "artifact_path": "outputs/research-packet.md",
-    "history_note": "Optional compact note for run history."
-  },
-  "artifacts": [
-    {
-      "type": "research_packet",
-      "path": "outputs/research-packet.md",
-      "summary": "Approved research packet."
-    }
-  ],
-  "results": [
-    {
-      "type": "research_packet_saved",
-      "summary": "Approved research packet saved to outputs/research-packet.md."
-    }
-  ]
-}
-```
+When persistence is safe and complete, return `outcome: saved`, a short `saved.summary`, optional `saved.history_note`, artifact metadata for the saved approved research packet, and a compact result summary.
 
 ## Blocked outcome
 
-When the packet cannot be safely saved:
-
-```json
-{
-  "outcome": "blocked",
-  "blocker": {
-    "summary": "Why persistence is unsafe or incomplete.",
-    "source_step_id": "save_research_packet",
-    "needed": "Concrete missing input or action required.",
-    "evidence": ["Relevant state or validation evidence."],
-    "risk": "Optional risk note."
-  }
-}
-```
+When the packet cannot be safely saved, return `outcome: blocked` with a blocker that names why persistence is unsafe or incomplete, the owning source step, the exact missing input/action, and any useful evidence or risk.
 
 ## Template rules
 
 - Do not reproduce the full research packet markdown here.
-- Point `saved.artifact_path` and artifact `path` at the saved packet location relative to the current run output area, normally `outputs/research-packet.md`.
+- Return the saved research packet as an artifact when the schema asks for `artifacts`.
 - Keep summaries short and suitable for baton/history projection.
-- Match `workflows/research-critic/schemas/save-research-packet-output.json` exactly.
+- Use the appended output schema for exact JSON shape and artifact field mechanics.

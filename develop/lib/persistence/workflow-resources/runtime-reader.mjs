@@ -1,4 +1,4 @@
-import { readFileSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { readWorkflowFileRef, defaultRepositoryRootForWorkflow } from './resource-resolver.mjs';
 import { loadOutputSchema } from './output-schema-loader.mjs';
@@ -6,7 +6,7 @@ import { isInside } from '../filesystem/path-safety.mjs';
 import { WorkflowRuntimeError } from '../../errors.mjs';
 import { listAllowedWorkflowRoles, workflowRoleMaterialPath, REQUIRED_WORKFLOW_ROLE_MATERIAL_FILES } from './role-material-catalog.mjs';
 import { assertWorkflowSchema } from '../../file-contracts/workflow-document-schema.mjs';
-import { assertBatonSchema } from '../../entities/Baton/schema/baton-schema.mjs';
+import { assertBatonSchema, batonSchema } from '../../entities/Baton/schema/baton-schema.mjs';
 
 function readJson(pathname, kind) {
   try {
@@ -39,6 +39,39 @@ function roleNames(workflow) {
   const roles = new Set();
   for (const step of Object.values(workflow?.steps ?? {})) if (step?.input?.role) roles.add(step.input.role);
   return roles;
+}
+
+
+function resolveSafeRunArtifactPath({ runDir, artifactPath }) {
+  if (typeof artifactPath !== 'string' || artifactPath.length === 0) {
+    throw new WorkflowRuntimeError('workflow prompt render failed: artifact path must be non-empty string');
+  }
+  const root = path.resolve(runDir);
+  const candidate = path.isAbsolute(artifactPath) ? path.resolve(artifactPath) : path.resolve(root, path.normalize(artifactPath));
+  if (!isInside(candidate, root)) {
+    throw new WorkflowRuntimeError(`workflow prompt render failed: artifact path cannot escape run directory: ${artifactPath}`);
+  }
+  return candidate;
+}
+
+export function readRunArtifactContent({ runDir, artifactPath }) {
+  if (!runDir) throw new WorkflowRuntimeError('workflow prompt render failed: run directory is required to read artifact content');
+  const root = path.resolve(runDir);
+  const candidate = resolveSafeRunArtifactPath({ runDir, artifactPath });
+  if (!existsSync(candidate)) {
+    throw new WorkflowRuntimeError(`workflow prompt render failed: missing artifact file '${artifactPath}'`);
+  }
+  const realRoot = realpathSync(root);
+  const realCandidate = realpathSync(candidate);
+  if (!isInside(realCandidate, realRoot)) {
+    throw new WorkflowRuntimeError(`workflow prompt render failed: artifact path cannot escape run directory via symlink: ${artifactPath}`);
+  }
+  return readFileSync(realCandidate, 'utf8');
+}
+
+function artifactReaderForRunDir(runDir) {
+  if (!runDir) return undefined;
+  return (artifactPath) => readRunArtifactContent({ runDir, artifactPath });
 }
 
 function isDeferredMissingResource(error) {
@@ -96,12 +129,14 @@ function loadRoleMaterials({ workflow, repositoryRoot }) {
   return roleMaterials;
 }
 
-export function loadWorkflowResources({ workflow, workflowPath, repositoryRoot = defaultRepositoryRootForWorkflow(workflowPath) }) {
+export function loadWorkflowResources({ workflow, workflowPath, repositoryRoot = defaultRepositoryRootForWorkflow(workflowPath), runDir } = {}) {
   return {
     templates: loadTemplates({ workflow, workflowPath, repositoryRoot }),
     outputSchemas: loadSchemas({ workflow, workflowPath, repositoryRoot }),
+    schemaDefinitions: [batonSchema],
     roleMaterials: loadRoleMaterials({ workflow, repositoryRoot }),
     allowedRoles: listAllowedWorkflowRoles({ repositoryRoot }),
+    readRunArtifact: artifactReaderForRunDir(runDir),
   };
 }
 
@@ -114,7 +149,7 @@ export function loadWorkflowRuntime({ workflowPath, batonPath, baton }) {
   return {
     workflow,
     baton: batonDoc,
-    resources: loadWorkflowResources({ workflow, workflowPath, repositoryRoot }),
+    resources: loadWorkflowResources({ workflow, workflowPath, repositoryRoot, runDir: batonPath ? path.dirname(batonPath) : undefined }),
     repositoryRoot,
   };
 }

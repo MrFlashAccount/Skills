@@ -95,7 +95,7 @@ function workflow(next = '${{ output.next }}', selectorSchema = schemaForNext(ne
         planning_draft: { name: 'Planning draft', kind: 'worker', input: {}, output: outputContract('planning-draft-output-schema.json'), next: 'selector' },
         review_a: { name: 'Review A', kind: 'worker', input: {}, output: outputContract(), next: 'join' },
         review_b: { name: 'Review B', kind: 'worker', input: {}, output: outputContract(), next: 'join' },
-        join: { name: 'Join', kind: 'worker', input: {}, output: outputContract(), next: 'done' },
+        join: { name: 'Join', kind: 'worker', input: { state: ['review_a', 'review_b'] }, output: outputContract(), next: 'done' },
         done: { name: 'Done', kind: 'done', input: { prompt: 'Done.' } },
         blocked: { name: 'Blocked', kind: 'blocked', input: { prompt: 'Blocked.' } },
       },
@@ -263,6 +263,15 @@ test('dynamic parallel next enforces join-shape validation', () => {
   assert.match(
     runApply('dynamic-split-join-targets', baton(), { outcome: 'ready', selected_steps: ['review_a', 'review_b'] }, false, splitJoinWorkflow).stderr,
     /parallel branch targets must share one explicit join step/,
+  );
+
+  const selfJoinWorkflow = workflow('${{ output.selected_steps }}');
+  selfJoinWorkflow.steps.review_a.next = 'review_b';
+  selfJoinWorkflow.steps.review_b.next = 'review_b';
+  selfJoinWorkflow.steps.review_b.input = { state: ['review_a', 'review_b'] };
+  assert.match(
+    runApply('dynamic-self-join-target', baton(), { outcome: 'ready', selected_steps: ['review_a', 'review_b'] }, false, selfJoinWorkflow).stderr,
+    /parallel branch targets must converge on a separate explicit join step 'review_b'/,
   );
 });
 

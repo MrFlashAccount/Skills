@@ -5,114 +5,141 @@ description: Use for running a workflow from the repo root through workflow-runn
 
 # Workflow Runtime
 
-Run workflows by driving the `workflow-runner` request loop from the repository root. Do not decide workflow transitions yourself.
+## Core rule
 
-## Variables
+Drive the workflow only through `workflow-runner`. The runner owns transitions, validates request results, and persists accepted state. The orchestrator executes host actions, then continues exactly once per response batch. A run is complete only when `workflow-runner continue` returns `status: done` or `status: blocked`.
 
-- `<run-id>`: public workflow run identity; keep using the same value for the whole run. Runtime files and topology are private runner state.
-- `<workflow>`: workflow definition path for the initial `next`; same-run `continue` reuses the workflow stored in the run unless you explicitly override it.
-- `<result.json>`: JSON host-output file produced for one host request.
-- `<step-id>`: id of a request/step from `response.requests[]`.
+Never inspect or mutate private runtime files to decide the next step. Use public run and runner commands from the repo root.
 
-## Run identity selection
+## 1. Understand the user task
 
-Before calling `workflow-runner`, always discover public runs through the index helper instead of inspecting private runner files yourself:
+Prepare a compact title, summary, and user prompt in plain text. Do not create prompt files.
+
+Use the title/summary to identify or create the public run identity. Keep the user prompt ready for runner startup commands that explicitly include `--user-prompt`.
+
+## 2. Select or create run identity
+
+### 2.1 List existing runs
 
 ```bash
 node develop/lib/entrypoints/cli/workflow-runs.mjs list
 ```
 
-Use the JSON output to match resumable/current candidates semantically by human-readable fields such as `runId`, title/summary, workflow identity, status, timestamps, task key/fingerprint, and occupancy state. Do not ask the user to choose by private directories or hidden authority metadata.
+Match candidates by public JSON fields: `runId`, title, summary, workflow identity/path, status, timestamps, task key/fingerprint, and occupancy state. Do not ask the user to choose by private paths or hidden metadata.
 
-- If exactly one candidate clearly matches the current task, reuse its `runId` only after claiming it.
-- If multiple plausible candidates match, ask the user to choose using human-readable summaries from the JSON.
-- If extra info is needed to disambiguate, ask for that specific info with the candidate summaries.
-- If a candidate has `occupancy.state: "occupied"`, it has a fresh worker lease. Do not attach blindly; ask the user whether to wait, choose another task/run, or explicitly resolve the occupation.
-- If a candidate has `occupancy.state: "stale"`, its lease expired and may be taken over by claiming it.
-- If no candidate matches, create/register a new run identity and claim it in the same command:
+### 2.2 Choose or create one run identity
 
-```bash
-node develop/lib/entrypoints/cli/workflow-runs.mjs create --claim --workflow <workflow> --title <title> --summary <summary> --owner <owner> --harness <harness> --session-id <session-id>
-```
+- Exactly one clear candidate: select its exact `runId`.
+- Multiple plausible candidates: ask the user to choose using human-readable summaries.
+- Occupied candidate: do not attach blindly; ask whether to wait, choose another run, or explicitly resolve the lease.
+- Stale candidate: it may be reclaimed in step 3.
+- No candidate: create/register one run identity now.
 
-Before starting or resuming any run, claim the selected `runId` atomically. Unclaimed/stale claims issue a transient `leaseToken`; keep it only long enough to pass explicitly to runner commands:
+Create/register command:
 
 ```bash
-claim_json=$(node develop/lib/entrypoints/cli/workflow-runs.mjs claim --run-id <run-id> --owner <owner> --harness <harness> --session-id <session-id>)
-lease_token=$(node -e 'const fs=require("node:fs"); process.stdout.write(JSON.parse(fs.readFileSync(0,"utf8")).leaseToken)' <<<"$claim_json")
+node develop/lib/entrypoints/cli/workflow-runs.mjs create --workflow <workflow> --title '<title>' --summary '<summary>' --owner <owner> --harness <harness> --session-id <session-id>
 ```
 
-Lease metadata is diagnostics only: `owner`, `harness`, `sessionId`, and `workerId` may describe the caller at command time but never grants authority and is not retained in durable lease state. Durable storage keeps only the token hash, token epoch, and lease expiry. A fresh lease requires the raw token via explicit `--lease-token`; metadata alone must return occupied. Long-running harnesses should renew with `heartbeat --lease-token "$lease_token"` before `leaseExpiresAt`.
+Do not claim in step 2.
 
-Create-with-claim and claim responses may include `leaseToken` for the holder only. Use only the public `--run-id <run-id>` plus the transient explicit token with runtime commands after selection/creation; do not pass or derive private `runDir`/`runsRoot` paths.
+## 3. Claim selected run
 
-## Runner commands
-
-Start or resume a run from the repo root:
+Claim the chosen `runId` after selection:
 
 ```bash
-node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-id <run-id> --lease-token "$lease_token"
+lease_token=$(node develop/lib/entrypoints/cli/workflow-runs.mjs claim --run-id <run-id> --owner <owner> --harness <harness> --session-id <session-id> --print-lease-token)
 ```
 
-Continue after host request outputs are ready:
+Extract and remember the exact `runId` and exact `lease_token`. Never invent, shorten, or retype the token from memory. If the token is missing, claim again or stop with a blocker.
+
+## 4. Enter runner loop
+
+Start the runner loop with the clear, dense user task prompt:
 
 ```bash
-node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-id <run-id> --output <result.json> --lease-token "$lease_token"
+node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-id <run-id> --user-prompt '<clear dense user task prompt>' --lease-token "$lease_token"
 ```
 
-For multiple request outputs, name every output:
+## 5. Handle runner response
 
-```bash
-node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-id <run-id> \
-  --output <step-id>=<result.json> \
-  --output <step-id>=<result.json> \
-  --lease-token "$lease_token"
-```
+Read `response.status`.
 
-Load instructions for one request:
+- `done`: stop and report the completed result.
+- `blocked`: stop and report the blocker.
+- `needs_host_actions`: internal instruction only; execute every request in `response.requests[]`, then call `workflow-runner continue` exactly once.
 
-```bash
-node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-id <run-id> --step-id <step-id> --lease-token "$lease_token"
-```
+Do not call `next` as a substitute for applying accepted request results. Do not report an intermediate cursor, next step, pending request, or `needs_host_actions` as completion; that is a protocol violation. If unsure whether to continue, continue.
 
-## Request loop
+## 6. Execute every request in `response.requests[]`
 
-1. From the repo root, call `workflow-runner next` for a new/resumed run, or `workflow-runner continue` after request outputs are ready.
-2. Read `response.status`.
-3. If `response.status` is `done`, stop and report the completed result.
-4. If `response.status` is `blocked`, stop and report the blocker.
-5. If `response.status` is `needs_host_actions`, execute every request in `response.requests[]`; the runner may return one or many requests.
-6. For each `run_worker` request, launch a fresh worker with the bootstrap below.
-7. For each `wait_for_approval` request, ask Sergey/the user for the input described by the loaded request instructions. Despite the legacy action name, this is a generic user-input request, not only an approve/reject/block gate.
-8. Capture one JSON host-output file per request.
-9. Pass all host outputs back to `workflow-runner continue`.
-10. Repeat from step 2.
+A request is a host action required by the runner. Complete every request from the current response before continuing.
 
-## Host request rules
+Known statuses/outcomes:
 
-- Treat `response.requests[]` as the complete list of required host actions.
-- Execute every request in the list before continuing.
-- Do not run two `workflow-runner continue` commands concurrently for the same `<run-id>`; the runner rejects same-run concurrent continues with a lock error. Collect all current outputs, then continue once.
-- `run_worker` may appear more than once; run those workers in parallel when safe.
-- `wait_for_approval` is also a host request; do not skip it, infer approval, or force it into a fixed approval envelope.
-- User input for `wait_for_approval` may be an approval verdict, an option choice, or free-form text.
-- Normalize the user answer into JSON that matches the request/step output contract. Examples: `{ "approval": "approved" }`, `{ "choice": "option_b" }`, `{ "answer": "free-form text" }`, or another shape required by the request instructions/schema.
-- When request instructions provide options, a schema, field names, or routing rules, use them to normalize the answer.
-- If the user answer is ambiguous for the requested output shape, ask a follow-up before continuing.
-- Use each request `id`/`stepId` when naming outputs for multiple requests.
-- Host-output files and paths are only transport for `workflow-runner continue`; do not treat them as business concepts.
-- If a worker, user answer, or host-output file is missing, stop as blocked instead of guessing.
+- `done`: completed result.
+- `blocked`: blocker.
+- `needs_host_actions`: host requests are present in `response.requests[]`.
 
-## Worker bootstrap template
+Known request actions:
+
+- `run_worker`: Run the requested worker as a subagent.
+- `wait_for_approval`: collect the requested user input; despite the name, it can be approval, option choice, or free-form text.
+
+Rules:
+
+- If a request action is unknown, stop as blocked/fail explicitly.
+- If any request cannot be completed, stop as blocked.
+- Stop only on `done`, `blocked`, a required host action that cannot be completed, or explicit user input/approval required by a host action that cannot be inferred.
+- Parallel branches are a simple batch: complete all requests in the current response, then continue once. Workflows that branch in parallel must have a direct join before continuing past the batch.
+
+### 6.1 Handle `run_worker`
+
+Start the worker with the instruction-loading command embedded directly in the bootstrap. Replace placeholders before sending:
 
 ```text
 Load the step instructions by running:
 
-<command>
+node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-id <run-id> --step-id <step-id> --lease-token "<lease_token>"
 
 Then follow the loaded instructions exactly.
 
-Do not add any behavior, role, output format, or constraints beyond the loaded instructions.
+The loaded instructions include the validating write-output command. Use that exact command; supply only the required JSON body/stdin. If validation fails, fix the JSON and retry boundedly until accepted.
 
-If the instructions cannot be loaded, stop with an error and do not continue.
+Do not add behavior, role, output format, or constraints beyond the loaded instructions. If the instructions cannot be loaded, stop with an error.
 ```
+
+The orchestrator waits until the worker finishes its work. Workers never call `continue`.
+
+If a worker announces that it needs user input instead of final validated output, treat it as an orchestrator-mediated worker user request, not only a narrow clarification: ask the user the worker's focused user-facing request, then forward the user's answer back into the same worker/subagent session with `sessions_send` so the worker continues there. This same worker-request session continuation is allowed; do not create a new subagent/session for that continuation, do not use it as persistent worker reuse across workflow loop iterations, and do not let workers pretend they can ask the user directly.
+
+If the user asks for a workflow proposal/artifact file, hand off only an existing workflow artifact reference from the current runner response, persisted `last-response`, baton state/output, or the worker's validated last output. Use the artifact metadata exactly as emitted by the workflow, especially `{producerStepId, artifact.id, artifact.path}` or the producing step's `artifacts[]` entry. Do not ask a worker to create a new temp file, side-channel proposal, or arbitrary artifact outside the workflow output contract. If no workflow artifact ref/path exists, report a blocker and the missing artifact ref instead of creating a replacement file.
+
+### 6.2 Handle `wait_for_approval` / user input
+
+1. Load the request instructions to read the requested question/prompt and the required answer shape/schema.
+2. Read the requested question, options if present, and required JSON shape before asking anything.
+3. Ask the user only for the requested input.
+4. If user input is missing, or the answer is ambiguous for the required JSON shape, ask one focused follow-up.
+5. Normalize the answer to strict JSON matching the instructions.
+6. Submit it through the validating `write-output` command from the loaded instructions.
+
+Keep deeper approval/user-input back-and-forth as a TODO/follow-up; do not invent extra interaction rules here.
+
+## 7. Continue
+
+After every request from the current response has completed successfully, call `continue` once with only run authority args:
+
+```bash
+node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-id <run-id> --lease-token "$lease_token"
+```
+
+`continue` reads accepted request results from baton/state and returns the next runner response.
+
+## 8. Repeat
+
+Return to step 5 with the response from `continue`. Continue until `done` or `blocked`. Final answer only after `done`/`blocked`; otherwise keep driving the runner.
+
+## 9. Final reminder
+
+You MUST keep driving the loop until `workflow-runner continue` returns `status: done` or `status: blocked`. `needs_host_actions` is never final; execute its requests and continue. If unsure whether to continue, continue. MUST NOT report an intermediate cursor, next step, pending request, or `needs_host_actions` as final completion. Only final-answer after terminal `done`/`blocked` or an explicit allowed stop condition already described above.

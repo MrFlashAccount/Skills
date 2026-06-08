@@ -2,6 +2,7 @@
  * Baton entity owns runtime cursor/status/state consistency and safe state updates.
  */
 import { WorkflowRuntimeError } from '../../errors.mjs';
+import { assertCentralArtifactMetadata } from './artifact-contract.mjs';
 import { applyOutputToBatonState } from '../../runtime/baton-state.mjs';
 import { statusForStep } from '../../runtime/step-status.mjs';
 
@@ -13,6 +14,31 @@ function workflowData(workflow) {
   return typeof workflow?.toJSON === 'function' ? workflow.toJSON() : workflow;
 }
 
+
+function aggregateArtifactIdentity(entry) {
+  return `${entry.producerStepId}::${entry.artifact.id}`;
+}
+
+function validateAggregateArtifacts(state) {
+  if (!Array.isArray(state.artifacts)) throw new WorkflowRuntimeError('baton semantic validation failed: state.artifacts must be array');
+  const seen = new Map();
+  for (const [index, entry] of state.artifacts.entries()) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry) || typeof entry.producerStepId !== 'string' || !entry.producerStepId || !entry.artifact || typeof entry.artifact !== 'object' || Array.isArray(entry.artifact)) {
+      throw new WorkflowRuntimeError(`baton semantic validation failed: state.artifacts/${index} must be aggregate artifact {producerStepId, artifact}`);
+    }
+    for (const field of Object.keys(entry)) {
+      if (!['producerStepId', 'artifact'].includes(field)) throw new WorkflowRuntimeError(`baton semantic validation failed: state.artifacts/${index}/${field} is not allowed`);
+    }
+    assertCentralArtifactMetadata(entry.artifact, `state.artifacts/${index}/artifact`, { errorPrefix: 'baton semantic validation failed' });
+    const identity = aggregateArtifactIdentity(entry);
+    if (seen.has(identity)) {
+      throw new WorkflowRuntimeError(
+        `baton semantic validation failed: duplicate state.artifacts identity {producerStepId: '${entry.producerStepId}', artifact.id: '${entry.artifact.id}'} at entries ${seen.get(identity)} and ${index}`,
+      );
+    }
+    seen.set(identity, index);
+  }
+}
 
 export class Baton {
   constructor(batonData) {
@@ -29,6 +55,7 @@ export class Baton {
     if (typeof this.data.cursor !== 'string' || typeof this.data.status !== 'string' || !this.data.state || typeof this.data.state !== 'object' || Array.isArray(this.data.state)) {
       throw new WorkflowRuntimeError('baton semantic validation failed: baton requires cursor, status, and object state');
     }
+    validateAggregateArtifacts(this.data.state);
     const cursorStep = workflow.steps?.[this.data.cursor];
     if (!cursorStep) throw new WorkflowRuntimeError(`baton cursor not found in workflow: ${this.data.cursor}`);
     const expectedStatus = statusForStep(workflow, this.data.cursor, cursorStep);
