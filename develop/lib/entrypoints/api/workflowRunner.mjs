@@ -367,8 +367,9 @@ function validateAcceptedOutputForRequest({ workflow, resources, request, output
   const loaded = schemaRef
     ? (resources?.outputSchemas instanceof Map ? resources.outputSchemas.get(schemaRef) : resources?.outputSchemas?.[schemaRef])
     : undefined;
-  const schema = schemaRef ? (loaded?.schema ?? loaded) : workerOutputSchema;
+  const schema = schemaRef ? (loaded?.schema ?? loaded) : (request.action === 'run_worker' ? workerOutputSchema : undefined);
   if (schemaRef && !schema) throw new Error(`output schema validation failed: missing output.schema '${schemaRef}'`);
+  if (!schema) return output;
   const validation = validateAgainstOutputSchema({ schemaRef: schemaRef ?? 'worker-output', schema, output, artifactOutputDir });
   if (!validation.ok) throw new Error(`output schema validation failed for step '${requestStepId}': ${validation.errors}`);
   return validation.output;

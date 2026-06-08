@@ -57,7 +57,7 @@ test('runner binding: existing runId cannot be rebound by next or continue workf
     runnerNext({ runId, workflowPath: secondWorkflow, leaseToken }),
     /already bound to a different workflow/,
   );
-  await writeOutput({ runId, workflowPath: firstWorkflow, stepId: 'prepare', json: JSON.stringify('Worker output.'), leaseToken });
+  await writeOutput({ runId, workflowPath: firstWorkflow, stepId: 'prepare', json: JSON.stringify({ outcome: 'Worker output.' }), leaseToken });
   await assert.rejects(
     continueRun({ runId, workflowPath: secondWorkflow, leaseToken }),
     /already bound to a different workflow/,
