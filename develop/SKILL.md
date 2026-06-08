@@ -117,15 +117,12 @@ If the user asks for a workflow proposal/artifact file, hand off only an existin
 
 ### 6.2 Handle `wait_for_approval` / user input
 
-1. Load the request instructions to read the requested question/prompt, approval/input materials, artifact refs, allowed decisions/options, and required answer shape/schema.
-2. The workflow-orchestrator/host adapter owns the user-facing formulation of the approval/input request. Do not ask a worker to recreate or rephrase the approval packet by default; use the existing artifacts/materials and orchestrator wording.
-3. Present the handoff as two explicit blocks:
-   - `User message` / `Message to user`: clean natural text to send to the human. Include what is being approved or answered, the relevant artifact paths/refs/materials, natural choices instead of raw approval enum names as the primary options (`ok`, `LGTM`, `подтверждаю`, or equivalent clear approval means proceed/approved; requested changes, corrections, constraints, or questions mean revise/rejected with notes for the relevant step; explicit stop/cancel/block means blocked), and one clear question in natural language. Do not mention internal session routing, session keys, or same-orchestrator/session continuation in this user-facing block.
-   - `Parent/main routing note` / `Parent-only routing`: internal note for the parent/main agent only. Explicitly say: do not forward this note to the user; after the user answers, send the answer back to the same workflow-orchestrator subagent/session/run so this existing run can normalize the answer and continue; do not start a new workflow-orchestrator/subagent for that answer. Include the current workflow run id and, when available from runtime context, enough session identity/context to route correctly, such as the actual session key; do not invent unavailable IDs.
-4. Stop and wait for the actual parent/user decision in the same workflow-orchestrator subagent/session/run when applicable. Missing approval/input in the current subagent/session is `pending_user_approval`, not `blocked`.
-5. MUST NOT call `workflow-runner write-output` for this step until the parent/user decision exists and can be normalized from natural language to the required JSON shape.
-6. After the user responds, normalize the decision to strict approval JSON matching the instructions, then submit it through the validating `write-output` command from the loaded instructions.
-7. Use `approval=blocked` only when the parent/user explicitly blocks/cancels, or when the approval/input materials cannot be loaded or presented.
+1. Load the request instructions to read the requested question/prompt and the required answer shape/schema.
+2. Read the requested question, options if present, and required JSON shape before asking anything.
+3. Ask the user only for the requested input.
+4. If user input is missing, or the answer is ambiguous for the required JSON shape, ask one focused follow-up.
+5. Normalize the answer to strict JSON matching the instructions.
+6. Submit it through the validating `write-output` command from the loaded instructions.
 
 Keep deeper approval/user-input back-and-forth as a TODO/follow-up; do not invent extra interaction rules here.
 
@@ -145,4 +142,4 @@ Return to step 5 with the response from `continue`. Continue until `done` or `bl
 
 ## 9. Final reminder
 
-You MUST keep driving the loop until `workflow-runner continue` returns `status: done` or `status: blocked`, or until a `wait_for_approval` host action has been presented as a concise human-facing request and is pending parent/user approval/input with no approval output written yet. `needs_host_actions` is never final; execute its requests and continue unless the allowed stop is pending parent/user approval/input. If unsure whether to continue, continue. MUST NOT report an intermediate cursor, next step, pending request, or `needs_host_actions` as final completion. Only final-answer after terminal `done`/`blocked` or an explicit allowed stop condition already described above.
+You MUST keep driving the loop until `workflow-runner continue` returns `status: done` or `status: blocked`. `needs_host_actions` is never final; execute its requests and continue. If unsure whether to continue, continue. MUST NOT report an intermediate cursor, next step, pending request, or `needs_host_actions` as final completion. Only final-answer after terminal `done`/`blocked` or an explicit allowed stop condition already described above.
