@@ -236,7 +236,28 @@ function acceptedOutputsForRequests(baton, requests) {
   return { valuesByRequestId, missing };
 }
 
+function parsedOutputRefsForAcceptedState(baton, requests) {
+  const outputs = baton?.state?.outputs;
+  if (!outputs || typeof outputs !== 'object' || Array.isArray(outputs)) return [];
+  const currentAliases = new Set(requests.flatMap(requestAliases));
+  return Object.keys(outputs)
+    .filter((stepId) => currentAliases.has(stepId))
+    .map((stepId) => ({ stepId }));
+}
+
+function assertNamedOutputRefsMatchRequests(parsedOutputRefs, requests) {
+  const allowedAliases = new Set(requests.flatMap(requestAliases));
+  const mismatched = parsedOutputRefs
+    .map((ref) => ref.stepId)
+    .filter((stepId) => typeof stepId !== 'string' || !allowedAliases.has(stepId));
+  if (mismatched.length > 0) {
+    throw new Error(`host output step id does not match current workflow request: ${mismatched.join(', ')}`);
+  }
+}
+
 function outputForAcceptedState(currentBaton, requests, { isPreparedParallelContinuation }) {
+  const parsedOutputRefs = parsedOutputRefsForAcceptedState(currentBaton, requests);
+  assertNamedOutputRefsMatchRequests(parsedOutputRefs, requests);
   const { valuesByRequestId, missing } = acceptedOutputsForRequests(currentBaton, requests);
   if (missing.length > 0) {
     throw new Error(`missing accepted host output for workflow step ${missing.join(', ')}; run workflow-runner write-output first`);

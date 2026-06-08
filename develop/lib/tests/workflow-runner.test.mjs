@@ -677,7 +677,7 @@ test('runner: worker instructions include prefilled validating write-output comm
   assert.match(instructions.stdout, /--step-id 'prepare'/);
   assert.match(instructions.stdout, /--lease-token '[^']+'/);
   assert.doesNotMatch(instructions.stdout, /--lease-token <lease-token>/);
-  assert.match(instructions.stdout, /Do not create an output file and do not pass an output path/);
+  assert.match(instructions.stdout, /Do not create a separate JSON output file and do not pass an output path to the orchestrator/);
 });
 
 test('runner: write-output separates parallel request outputs by step id before continue without --output', () => {

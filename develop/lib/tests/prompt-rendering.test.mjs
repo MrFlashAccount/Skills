@@ -824,7 +824,7 @@ test('prompt renderer: default repository boundary allows workflow package share
     step: doc.steps.worker_step,
   });
 
-  assert.match(rendered.prompt, /Return valid JSON matching this schema/);
+  assert.match(rendered.prompt, /Generate strict JSON matching this schema/);
   assert.match(rendered.prompt, /"outcome"/);
 });
 
@@ -973,7 +973,7 @@ test('prompt renderer: output schema is validated and injected in the output con
     '## Output contract',
     '<!-- output template: schema-output.md -->',
     '## Required return\nUse this contract.',
-    'Return valid JSON matching this schema. If a validation command or tool is available in this agent/subagent context, validate the generated JSON against this schema before the final answer; fix validation errors and repeat for a bounded number of attempts. The harness/orchestrator will validate the final returned JSON again after the answer, so this agent-side validation is a preflight, not the final authority. If no validation command or tool is available in this context, still return strict schema-matching JSON and expect harness-level validation.',
+    'Generate strict JSON matching this schema. No validating writer command is provided in these instructions, so do not invent one and do not create or hand off a separate JSON output path. Stop and report that the validating writer command is missing.',
     '<!-- output schema: artifact.schema.json -->',
     '```json\n{\n  "type": "object",',
     '"x-usage": "Use this field only for routing the worker outcome."',
@@ -1027,7 +1027,7 @@ test('prompt renderer: absent output schema preserves existing output contract r
   const compiled = renderFixture({ label: 'render-no-output-schema', stepId: 'worker_step', step });
 
   assert.equal(compiled.metadata.outputSchema, undefined);
-  assert.doesNotMatch(compiled.prompt, /output schema|Return valid JSON matching this schema/);
+  assert.doesNotMatch(compiled.prompt, /output schema|Generate strict JSON matching this schema/);
   assertMarkersInOrder(compiled.prompt, [
     '# Static wrapper',
     '## Output contract',
