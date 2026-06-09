@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { constants } from 'node:fs';
-import { access, mkdir, open, readdir, readFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { access, mkdir, open, readdir, readFile, rename, rm } from 'node:fs/promises';
+import { basename, dirname, join } from 'node:path';
 import { assertSafeRunId, resolveRunPaths, workflowRunsRoot } from '../../persistence/run-state/paths.mjs';
 import { createManagedDirectory, writeJsonAtomic, writeTextAtomic } from '../../persistence/run-state/atomic-file.mjs';
 import { withRunStateLock } from '../../persistence/run-state/lock.mjs';
@@ -98,10 +98,6 @@ async function ensureGatekeeperDirs(paths) {
   await createManagedDirectory(paths.artifactsDir, 'workflow gatekeeper artifacts directory');
 }
 
-function publicWorkflow(workflow) {
-  return structuredClone(workflow);
-}
-
 function compactWorkflow(workflow) {
   return {
     workflow_id: workflow.workflow_id,
@@ -114,6 +110,52 @@ function compactWorkflow(workflow) {
     updated_at: workflow.updated_at,
     revision: workflow.revision,
   };
+}
+
+function relativeStatePath() {
+  return '.workflow-gatekeeper/workflow.json';
+}
+
+function relativeGateArtifactPath(gateId) {
+  return `.workflow-gatekeeper/artifacts/gate-${assertSafeGateId(gateId)}.md`;
+}
+
+function relativeResumeArtifactPath(gateId) {
+  return `.workflow-gatekeeper/artifacts/resume-${assertSafeGateId(gateId)}.json`;
+}
+
+function compactGate(gate) {
+  if (!gate) return null;
+  return {
+    workflow_id: gate.workflow_id,
+    gate_id: gate.gate_id,
+    gate_kind: gate.gate_kind,
+    state: gate.state,
+    choices: gate.choices ?? [],
+    expires_at: gate.expires_at,
+    delivery: gate.delivery,
+    artifact_path: relativeGateArtifactPath(gate.gate_id),
+    created_at: gate.created_at,
+    updated_at: gate.updated_at,
+    revision: gate.revision,
+  };
+}
+
+function compactResume(resume) {
+  if (!resume) return null;
+  return {
+    workflow_id: resume.workflow_id,
+    gate_id: resume.gate_id,
+    continuation: resume.continuation,
+    artifact_path: relativeResumeArtifactPath(resume.gate_id),
+    created_at: resume.created_at,
+  };
+}
+
+function normalizeLimit(limit) {
+  const value = limit === undefined ? 50 : Number(limit);
+  if (!Number.isInteger(value) || value <= 0) throw new Error(`invalid limit: ${limit}`);
+  return value;
 }
 
 function canonicalAnswer(answer) {
@@ -148,19 +190,41 @@ async function publicApiCall(callback, options = {}) {
   catch (error) { throw publicApiError(error, options); }
 }
 
-async function createFileExclusive(pathname, content) {
-  const handle = await open(pathname, 'wx', 0o600);
+async function writeJsonNewAtomic(pathname, value) {
+  if (await exists(pathname)) throw new Error(`file already exists: ${pathname}`);
+  await mkdir(dirname(pathname), { recursive: true });
+  const tempPath = join(dirname(pathname), `.${basename(pathname)}.${process.pid}.${Date.now()}.${randomUUID()}.tmp`);
+  const handle = await open(tempPath, 'wx', 0o600);
+  let renamed = false;
   try {
-    await handle.writeFile(content, 'utf8');
+    await handle.writeFile(`${JSON.stringify(value, null, 2)}\n`, 'utf8');
     await handle.sync();
-  } finally {
     await handle.close();
+    if (await exists(pathname)) throw new Error(`file already exists: ${pathname}`);
+    await rename(tempPath, pathname);
+    renamed = true;
+  } finally {
+    try { await handle.close(); } catch {}
+    if (!renamed) await rm(tempPath, { force: true });
   }
 }
 
-async function writeJsonExclusive(pathname, value) {
-  await mkdir(dirname(pathname), { recursive: true });
-  await createFileExclusive(pathname, `${JSON.stringify(value, null, 2)}\n`);
+function normalizeGatePayload(gate) {
+  return {
+    workflow_id: gate.workflow_id,
+    gate_id: gate.gate_id,
+    gate_kind: gate.gate_kind ?? 'approval',
+    state: gate.state,
+    human_text: gate.human_text,
+    resume_instruction: gate.resume_instruction,
+    choices: gate.choices ?? [],
+    approval_tokens: gate.approval_tokens ?? [],
+    expires_at: gate.expires_at,
+  };
+}
+
+function gatePayloadMatches(existingGate, requestedGate) {
+  return JSON.stringify(normalizeGatePayload(existingGate)) === JSON.stringify(normalizeGatePayload(requestedGate));
 }
 
 async function startInternal({ workflowId, kind = 'generic', sessionKey, goal, runsRoot, now = new Date() } = {}) {
@@ -185,9 +249,9 @@ async function startInternal({ workflowId, kind = 'generic', sessionKey, goal, r
       events: [{ type: 'started', at: timestamp }],
     };
     for (const key of Object.keys(workflow)) if (workflow[key] === undefined) delete workflow[key];
-    await writeJsonExclusive(paths.workflowStatePath, workflow);
+    await writeJsonNewAtomic(paths.workflowStatePath, workflow);
     await appendEvent(paths, { type: 'started', at: timestamp, workflow_id: safeWorkflowId, kind, session_key: sessionKey });
-    return { ok: true, workflow: publicWorkflow(workflow), state_path: paths.workflowStatePath };
+    return { ok: true, workflow: compactWorkflow(workflow), state_path: relativeStatePath() };
   });
 }
 
@@ -215,12 +279,12 @@ async function updateWorkflow(paths, workflow, patch, event, now) {
 async function gateInternal({ workflowId, gateId, gateKind = 'approval', humanText, resumeInstruction, choices, approvalTokens, expiresAt, runsRoot, now = new Date() } = {}) {
   if (typeof humanText !== 'string' || humanText.trim().length === 0) throw new Error('human_text is required');
   if (typeof resumeInstruction !== 'string' || resumeInstruction.trim().length === 0) throw new Error('resume_instruction is required');
+  if (expiresAt !== undefined && Number.isNaN(new Date(expiresAt).getTime())) throw new Error(`invalid expires_at: ${expiresAt}`);
   const safeGateId = gateId === undefined ? assertSafeGateId(`gate-${randomUUID()}`) : assertSafeGateId(gateId);
   const { paths } = await loadExistingWorkflow(workflowId, runsRoot);
   return withRunStateLock(paths, async () => {
     const workflow = await readWorkflow(paths);
     if (TERMINAL_STATES.has(workflow.state)) throw new Error(`workflow is terminal: ${workflow.workflow_id}`);
-    if (await exists(gatePath(paths, safeGateId))) throw new Error(`workflow gate already exists: ${safeGateId}`);
     const timestamp = iso(now);
     const gate = {
       schema_version: SCHEMA_VERSION,
@@ -238,32 +302,54 @@ async function gateInternal({ workflowId, gateId, gateKind = 'approval', humanTe
       updated_at: timestamp,
       revision: 1,
     };
-    if (expiresAt !== undefined && Number.isNaN(new Date(expiresAt).getTime())) throw new Error(`invalid expires_at: ${expiresAt}`);
-    await writeJsonExclusive(gatePath(paths, safeGateId), gate);
+    if (await exists(gatePath(paths, safeGateId))) {
+      const existingGate = await readGate(paths, safeGateId);
+      if (!gatePayloadMatches(existingGate, gate)) throw new Error(`workflow gate conflict for existing gate_id: ${safeGateId}`);
+      if (existingGate.state === 'waiting_human' && workflow.state === 'waiting_human' && workflow.current_gate_id === safeGateId) {
+        await writeTextAtomic(gateArtifactPath(paths, safeGateId), gateMarkdown(existingGate));
+        return { ok: true, idempotent: true, workflow: compactWorkflow(workflow), gate: compactGate(existingGate), delivery: existingGate.delivery, gate_artifact_path: relativeGateArtifactPath(safeGateId) };
+      }
+      if (existingGate.state === 'waiting_human' && workflow.state === 'running' && !workflow.current_gate_id) {
+        await writeTextAtomic(gateArtifactPath(paths, safeGateId), gateMarkdown(existingGate));
+        const repaired = await updateWorkflow(paths, workflow, {
+          state: 'waiting_human',
+          current_gate_id: safeGateId,
+          delivery: existingGate.delivery,
+        }, { type: 'gate_created_recovered', gate_id: safeGateId, delivery: existingGate.delivery }, now);
+        return { ok: true, recovered: true, workflow: compactWorkflow(repaired), gate: compactGate(existingGate), delivery: existingGate.delivery, gate_artifact_path: relativeGateArtifactPath(safeGateId) };
+      }
+      throw new Error(`workflow gate already exists: ${safeGateId}`);
+    }
+    if (workflow.state === 'waiting_human' || workflow.state === 'resuming') {
+      throw new Error(`workflow already has an active gate: ${workflow.current_gate_id ?? 'unknown'}`);
+    }
+    await writeJsonNewAtomic(gatePath(paths, safeGateId), gate);
     await writeTextAtomic(gateArtifactPath(paths, safeGateId), gateMarkdown(gate));
     const next = await updateWorkflow(paths, workflow, {
       state: 'waiting_human',
       current_gate_id: safeGateId,
       delivery: gate.delivery,
     }, { type: 'gate_created', gate_id: safeGateId, delivery: gate.delivery }, now);
-    return { ok: true, workflow: compactWorkflow(next), gate, delivery: gate.delivery, gate_artifact_path: gateArtifactPath(paths, safeGateId) };
+    return { ok: true, workflow: compactWorkflow(next), gate: compactGate(gate), delivery: gate.delivery, gate_artifact_path: relativeGateArtifactPath(safeGateId) };
   });
 }
 
 async function statusInternal({ workflowId, runsRoot } = {}) {
   const { paths, workflow } = await loadExistingWorkflow(workflowId, runsRoot);
   const current_gate = workflow.current_gate_id ? await readGate(paths, workflow.current_gate_id) : null;
-  return { ok: true, workflow: publicWorkflow(workflow), current_gate };
+  return { ok: true, workflow: compactWorkflow(workflow), current_gate: compactGate(current_gate) };
 }
 
 async function listInternal({ state, kind, sessionKey, limit = 50, runsRoot = workflowRunsRoot } = {}) {
   const root = runsRoot;
+  const normalizedLimit = normalizeLimit(limit);
   await createManagedDirectory(root, 'workflow runs root');
   const entries = await readdir(root, { withFileTypes: true }).catch((error) => {
     if (error?.code === 'ENOENT') return [];
     throw error;
   });
   const workflows = [];
+  const skipped = [];
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
     try {
@@ -275,10 +361,12 @@ async function listInternal({ state, kind, sessionKey, limit = 50, runsRoot = wo
       if (kind && workflow.kind !== kind) continue;
       if (sessionKey && workflow.session_key !== sessionKey) continue;
       workflows.push(compactWorkflow(workflow));
-    } catch {}
+    } catch (error) {
+      skipped.push({ workflow_id: entry.name, reason: publicErrorMessage(error?.message ?? error, { runsRoot }) });
+    }
   }
   workflows.sort((left, right) => String(right.updated_at ?? '').localeCompare(String(left.updated_at ?? '')) || left.workflow_id.localeCompare(right.workflow_id));
-  return { ok: true, workflows: workflows.slice(0, Number(limit) || 50) };
+  return { ok: true, workflows: workflows.slice(0, normalizedLimit), skipped };
 }
 
 async function resumeInternal({ workflowId, gateId, answer, runsRoot, now = new Date() } = {}) {
@@ -286,16 +374,30 @@ async function resumeInternal({ workflowId, gateId, answer, runsRoot, now = new 
   const { paths } = await loadExistingWorkflow(workflowId, runsRoot);
   return withRunStateLock(paths, async () => {
     const workflow = await readWorkflow(paths);
+    if (TERMINAL_STATES.has(workflow.state)) throw new Error(`workflow is terminal and cannot resume: ${workflow.workflow_id}`);
     const safeGateId = gateId === undefined ? workflow.current_gate_id : assertSafeGateId(gateId);
     if (!safeGateId) throw new Error('gate_id is required');
     const resumePath = resumeArtifactPath(paths, safeGateId);
     if (await exists(resumePath)) {
       const gate = await readGate(paths, safeGateId);
       const existing = await readJson(resumePath, 'workflow gate resume');
-      if (existing.answer_canonical === canonical) {
-        return { ok: true, idempotent: true, workflow: compactWorkflow(workflow), gate, resume: existing, delivery: { ...DELIVERY_GAP, updated_at: existing.created_at } };
+      if (existing.answer_canonical !== canonical) {
+        throw new Error(`workflow gate already resumed with a different answer: ${safeGateId}`);
       }
-      throw new Error(`workflow gate already resumed with a different answer: ${safeGateId}`);
+      if (workflow.current_gate_id !== safeGateId) throw new Error(`stale workflow gate resume: ${safeGateId}`);
+      const continuation = existing.continuation ?? { ...DELIVERY_GAP, updated_at: existing.created_at };
+      const repairedGate = gate.state === 'resumed'
+        ? gate
+        : { ...gate, state: 'resumed', resumed_at: existing.created_at, updated_at: existing.created_at, revision: (gate.revision ?? 0) + 1 };
+      if (repairedGate !== gate) await writeJsonAtomic(gatePath(paths, safeGateId), repairedGate);
+      const repairedWorkflow = workflow.state === 'resuming'
+        ? workflow
+        : await updateWorkflow(paths, workflow, {
+          state: 'resuming',
+          current_gate_id: safeGateId,
+          delivery: continuation,
+        }, { type: 'gate_resumed_recovered', gate_id: safeGateId, delivery: continuation }, now);
+      return { ok: true, idempotent: workflow.state === 'resuming' && gate.state === 'resumed', recovered: workflow.state !== 'resuming' || gate.state !== 'resumed', workflow: compactWorkflow(repairedWorkflow), gate: compactGate(repairedGate), resume: compactResume(existing), delivery: continuation, resume_artifact_path: relativeResumeArtifactPath(safeGateId) };
     }
     if (workflow.current_gate_id !== safeGateId || workflow.state !== 'waiting_human') throw new Error(`stale workflow gate resume: ${safeGateId}`);
     const gate = await readGate(paths, safeGateId);
@@ -313,7 +415,7 @@ async function resumeInternal({ workflowId, gateId, answer, runsRoot, now = new 
       continuation: { ...DELIVERY_GAP, updated_at: timestamp },
       created_at: timestamp,
     };
-    await writeJsonExclusive(resumePath, resume);
+    await writeJsonNewAtomic(resumePath, resume);
     const nextGate = { ...gate, state: 'resumed', resumed_at: timestamp, updated_at: timestamp, revision: (gate.revision ?? 0) + 1 };
     await writeJsonAtomic(gatePath(paths, safeGateId), nextGate);
     const next = await updateWorkflow(paths, workflow, {
@@ -321,7 +423,7 @@ async function resumeInternal({ workflowId, gateId, answer, runsRoot, now = new 
       current_gate_id: safeGateId,
       delivery: resume.continuation,
     }, { type: 'gate_resumed', gate_id: safeGateId, delivery: resume.continuation }, now);
-    return { ok: true, idempotent: false, workflow: compactWorkflow(next), gate: nextGate, resume, delivery: resume.continuation, resume_artifact_path: resumePath };
+    return { ok: true, idempotent: false, workflow: compactWorkflow(next), gate: compactGate(nextGate), resume: compactResume(resume), delivery: resume.continuation, resume_artifact_path: relativeResumeArtifactPath(safeGateId) };
   });
 }
 
