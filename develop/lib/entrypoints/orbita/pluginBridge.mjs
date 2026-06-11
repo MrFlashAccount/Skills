@@ -115,6 +115,26 @@ function compactRunLine(run) {
   return `• ${parts.join(' · ')}`;
 }
 
+function formatConfidencePercent(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return '—';
+  return `${Math.round(Math.max(0, Math.min(1, numeric)) * 100)}%`;
+}
+
+function formatNativeRunText(result) {
+  const intake = result?.run?.intake;
+  if (intake?.match_status === 'multiple_matches') {
+    const matches = Array.isArray(intake.matched_refs) ? intake.matched_refs : [];
+    const lines = matches.map((match, index) => `${index + 1}. ${compactLineValue(match?.ref)} — ${formatConfidencePercent(match?.confidence)}`);
+    return `🪐 Orbita
+Нашла несколько похожих runs:
+${lines.join('\n')}
+
+Выбери run id или скажи: создать новый.`;
+  }
+  return result?.text ?? jsonText(result);
+}
+
 function formatNativeListText(result) {
   const runs = Array.isArray(result?.runs) ? result.runs.filter(Boolean) : [];
   if (runs.length === 0) {
@@ -147,8 +167,8 @@ function controllerFor(runsRoot) {
   return createOrbitaLifecycleController({ store: createFileOrbitaRunStore({ runsRoot }) });
 }
 
-function projectBridgeResult(result) {
-  return { ...projectOrbitaResult(result), openclaw_surface: PLUGIN_ID };
+function projectBridgeResult(result, options = {}) {
+  return { ...projectOrbitaResult(result, options), openclaw_surface: PLUGIN_ID };
 }
 
 function requesterRefFrom(ctx = {}) {
@@ -195,13 +215,14 @@ async function runOrbita(mode, values = {}, { pluginConfig = {}, ctx = {}, api }
       candidateRefs,
       prepareIntake: () => intakeAgent.intake({ rawRequest, kind: values.kind, candidateRefs }),
       opaqueRefs: { surface: PLUGIN_ID },
-    }));
+    }), { candidateRefs });
   }
 
-  if (mode === 'inbox') return projectBridgeResult(await controller.inbox({ limit: values.limit, requesterRef }));
-  if (mode === 'status') return projectBridgeResult(await controller.status({ runId: values.run, requesterRef }));
-  if (mode === 'list') return projectBridgeResult(await controller.list({ state: values.state, limit: values.limit, requesterRef }));
-  if (mode === 'cancel') return projectBridgeResult(await controller.cancel({ runId: values.run || values._positionals?.[0], reason: values.reason, requesterRef }));
+  const projectionOptions = { candidateRefs: pluginConfig.candidateRefs ?? pluginConfig.matchCandidates };
+  if (mode === 'inbox') return projectBridgeResult(await controller.inbox({ limit: values.limit, requesterRef }), projectionOptions);
+  if (mode === 'status') return projectBridgeResult(await controller.status({ runId: values.run, requesterRef }), projectionOptions);
+  if (mode === 'list') return projectBridgeResult(await controller.list({ state: values.state, limit: values.limit, requesterRef }), projectionOptions);
+  if (mode === 'cancel') return projectBridgeResult(await controller.cancel({ runId: values.run || values._positionals?.[0], reason: values.reason, requesterRef }), projectionOptions);
 
   return { ok: true, text: usageText() };
 }
@@ -296,6 +317,7 @@ export default defineLocalPluginEntry({
         const result = await runOrbita(mode, values, { pluginConfig: api.pluginConfig || {}, ctx, api });
         if (mode === 'help') return { text: formatNativeHelpText() };
         if (mode === 'list' || mode === 'inbox') return { text: formatNativeListText(result) };
+        if (mode === 'run') return { text: formatNativeRunText(result) };
         return { text: result.text ?? jsonText(result) };
       },
     });
@@ -345,4 +367,4 @@ export default defineLocalPluginEntry({
   },
 });
 
-export { formatNativeHelpText, formatNativeListText, parseCommandArgs, runOrbita, usageText };
+export { formatNativeHelpText, formatNativeListText, formatNativeRunText, parseCommandArgs, runOrbita, usageText };
