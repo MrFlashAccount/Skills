@@ -31,6 +31,28 @@ async function withRoot(fn) {
   }
 }
 
+
+async function withWorkspacePluginMetadataFixture(fn) {
+  await withRoot(async (workspaceDir) => {
+    const pluginRoot = join(workspaceDir, 'plugins', 'orbita');
+    await mkdir(pluginRoot, { recursive: true });
+    await writeFile(join(pluginRoot, 'package.json'), `${JSON.stringify({
+      name: '@openclaw/plugin-orbita',
+      version: '0.0.0-test',
+      scripts: {},
+    }, null, 2)}
+`);
+    await writeFile(join(pluginRoot, 'openclaw.plugin.json'), `${JSON.stringify({
+      id: 'orbita',
+      name: 'Orbita',
+      description: 'State-aware lifecycle bridge.',
+      entrypoint: 'index.js',
+    }, null, 2)}
+`);
+    await fn(pluginRoot);
+  });
+}
+
 async function withController(fn) {
   await withRoot(async (root) => {
     const controller = createOrbitaLifecycleController({
@@ -398,14 +420,15 @@ test('public bridge modes exclude legacy and smoke commands', async () => {
 });
 
 test('workspace plugin metadata has no legacy smoke surface or stale gate wording', async () => {
-  const pluginRoot = join(process.env.HOME, '.openclaw', 'workspace', 'plugins', 'orbita');
-  const packageText = await readFile(join(pluginRoot, 'package.json'), 'utf8');
-  const manifestText = await readFile(join(pluginRoot, 'openclaw.plugin.json'), 'utf8');
-  const packageJson = JSON.parse(packageText);
+  await withWorkspacePluginMetadataFixture(async (pluginRoot) => {
+    const packageText = await readFile(join(pluginRoot, 'package.json'), 'utf8');
+    const manifestText = await readFile(join(pluginRoot, 'openclaw.plugin.json'), 'utf8');
+    const packageJson = JSON.parse(packageText);
 
-  assert.equal(await exists(join(pluginRoot, 'scripts', 'smoke.js')), false);
-  assert.equal(Object.hasOwn(packageJson.scripts ?? {}, 'smoke'), false);
-  assert.doesNotMatch(`${packageText}\n${manifestText}`, /Skills workflow gate API|smoke\.js|legacy smoke/i);
+    assert.equal(await exists(join(pluginRoot, 'scripts', 'smoke.js')), false);
+    assert.equal(Object.hasOwn(packageJson.scripts ?? {}, 'smoke'), false);
+    assert.doesNotMatch(`${packageText}\n${manifestText}`, /Skills workflow gate API|smoke\.js|legacy smoke/i);
+  });
 });
 
 test('bridge rejects user-controlled absolute and traversal runs roots', async () => {
@@ -426,6 +449,7 @@ test('bridge rejects workspace-relative runs roots that traverse through symlink
   const linkName = `.test-orbita-symlink-${process.pid}-${Date.now()}`;
   const linkPath = join(workspaceDir, linkName);
   try {
+    await mkdir(workspaceDir, { recursive: true });
     symlinkSync(outside, linkPath, 'dir');
     await assert.rejects(
       () => runOrbita('run', { 'dry-run': true }, { pluginConfig: { runsRoot: linkName } }),
