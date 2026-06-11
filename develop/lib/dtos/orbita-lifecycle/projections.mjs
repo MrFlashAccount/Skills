@@ -2,20 +2,15 @@ import { normalizeOrbitaIntakePacket } from '../../entities/orbita-lifecycle/int
 
 export function projectOrbitaIntake(intake) {
   if (!intake) return undefined;
-  const safeIntake = normalizeOrbitaIntakePacket(intake);
+  const candidateRefs = Array.isArray(intake.matched_refs) ? intake.matched_refs.map((match) => match?.ref ?? match).filter(Boolean) : [];
+  const safeIntake = normalizeOrbitaIntakePacket(intake, { candidateRefs });
   const projected = {
     intake_status: safeIntake.intake_status,
-    task_kind: safeIntake.task_kind,
+    match_status: safeIntake.match_status,
+    matched_refs: safeIntake.matched_refs,
     confidence: safeIntake.confidence,
-    selected_workflow: safeIntake.selected_workflow,
-    candidate_options: safeIntake.candidate_options,
-    proposed_path: safeIntake.proposed_path,
-    brief_available: Boolean(safeIntake.clean_subagent_brief && safeIntake.clean_subagent_brief_safe === true),
-    degradation_reason: safeIntake.degradation_reason,
+    brief_available: Boolean(safeIntake.internal_private_clean_brief),
   };
-  if (safeIntake.clean_subagent_brief && safeIntake.clean_subagent_brief_safe === true) {
-    projected.clean_subagent_brief = safeIntake.clean_subagent_brief;
-  }
   return projected;
 }
 

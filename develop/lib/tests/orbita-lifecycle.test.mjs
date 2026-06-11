@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
+import { normalizeOrbitaIntakePacket } from '../entities/orbita-lifecycle/intake.mjs';
 import { ORBITA_RUN_STATES } from '../entities/orbita-lifecycle/run.mjs';
 import { createOrbitaLifecycleController } from '../use-cases/orbita-lifecycle/controller.mjs';
 import { createFileOrbitaRunStore } from '../persistence/orbita-lifecycle/fileRunStore.mjs';
@@ -39,6 +40,20 @@ async function withController(fn) {
     });
     await fn(controller, root);
   });
+}
+
+function collectReasonLikeKeys(value, prefix = '', keys = []) {
+  if (!value || typeof value !== 'object') return keys;
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => collectReasonLikeKeys(item, `${prefix}[${index}]`, keys));
+    return keys;
+  }
+  for (const [key, child] of Object.entries(value)) {
+    const path = prefix ? `${prefix}.${key}` : key;
+    if (/reason/i.test(key)) keys.push(path);
+    collectReasonLikeKeys(child, path, keys);
+  }
+  return keys;
 }
 
 test('run creates a compact runtime-gap lifecycle record and reuses the active run', async () => {
@@ -83,7 +98,7 @@ test('dry-run reports runtime honesty and intake without persisting a run', asyn
     assert.equal(dry.run.state, 'completed');
     assert.equal(dry.runtime_gap, 'requires_parent_delivery');
     assert.equal(dry.run.intake.intake_status, 'needs_intake_agent');
-    assert.equal(dry.run.intake.task_kind, 'unknown');
+    assert.equal(Object.hasOwn(dry.run.intake, 'task_kind'), false);
     assert.equal(dry.run.intake.brief_available, false);
     assert.equal(Object.hasOwn(dry.run.intake, 'clean_subagent_brief'), false);
     assert.equal(await exists(runsRoot), false);
@@ -94,7 +109,7 @@ test('dry-run reports runtime honesty and intake without persisting a run', asyn
   });
 });
 
-test('semantic intake agent packet is persisted with the lifecycle run and raw request is not projected', async () => {
+test('semantic intake agent packet is persisted minimally and private brief is not projected', async () => {
   await withRoot(async (root) => {
     const controller = createOrbitaLifecycleController({
       store: createFileOrbitaRunStore({ runsRoot: root }),
@@ -102,26 +117,132 @@ test('semantic intake agent packet is persisted with the lifecycle run and raw r
       idFactory: () => 'fixed-id',
     });
 
-    const created = projectOrbitaResult(await controller.run({
+    const result = await controller.run({
       requesterRef: 'requester-a',
       intake: {
-        intake_status: 'ambiguous',
+        intake_status: 'ready',
         task_kind: 'backend',
+        selected_workflow: { id: 'dev-harness', label: 'Dev Harness', path: 'skills/dev-harness/SKILL.md' },
         candidate_options: [{ id: 'dev-harness', label: 'Dev Harness workflow' }],
-        clean_subagent_brief: 'Implement backend lifecycle support.',
+        proposed_path: { kind: 'backend', label: 'Backend path', path: 'skills/backend/SKILL.md' },
+        internal_private_clean_brief: 'Implement backend lifecycle support.',
         clean_subagent_brief_safe: true,
         confidence: 0.42,
+        match_status: 'single_match',
+        matched_refs: [{ ref: 'baton-backend-lifecycle', confidence: 0.91, label: 'Dev Harness' }],
       },
-    }));
+      candidateRefs: ['baton-backend-lifecycle'],
+    });
+    const created = projectOrbitaResult(result);
     assert.equal(created.ok, true);
-    assert.equal(created.run.state, 'waiting_human');
-    assert.equal(created.run.intake.intake_status, 'ambiguous');
-    assert.deepEqual(created.run.intake.candidate_options, [{ id: 'dev-harness', label: 'Dev Harness' }]);
-    assert.equal(created.run.intake.clean_subagent_brief, 'Implement backend lifecycle support.');
-    assert.doesNotMatch(JSON.stringify(created), /raw secret-ish messy prompt/);
+    assert.equal(result.run.state, 'created');
+    assert.equal(created.run.intake.intake_status, 'ready');
+    assert.equal(created.run.intake.match_status, 'single_match');
+    assert.deepEqual(created.run.intake.matched_refs, [{ ref: 'baton-backend-lifecycle', confidence: 0.91 }]);
+    assert.equal(created.run.intake.brief_available, true);
+    assert.equal(Object.hasOwn(created.run.intake, 'task_kind'), false);
+    assert.equal(Object.hasOwn(created.run.intake, 'internal_private_clean_brief'), false);
+    assert.equal(Object.hasOwn(created.run.intake, 'clean_subagent_brief'), false);
+    assert.equal(Object.hasOwn(created.run.intake, 'selected_workflow'), false);
+    assert.equal(Object.hasOwn(created.run.intake, 'candidate_options'), false);
+    assert.equal(Object.hasOwn(created.run.intake, 'proposed_path'), false);
+    assert.equal(Object.hasOwn(result.run.intake, 'selected_workflow'), false);
+    assert.equal(Object.hasOwn(result.run.intake, 'candidate_options'), false);
+    assert.equal(Object.hasOwn(result.run.intake, 'proposed_path'), false);
+    assert.doesNotMatch(JSON.stringify(created), /Implement backend lifecycle support|Dev Harness|Backend path|SKILL\.md/);
+
+    const persisted = await readFile(join(root, 'orbita-lifecycle', 'orbita-fixed-id.json'), 'utf8');
+    assert.doesNotMatch(persisted, /selected_workflow|candidate_options|proposed_path|Dev Harness|Backend path|SKILL\.md/);
 
     const listed = projectOrbitaResult(await controller.list({ requesterRef: 'requester-a' }));
-    assert.equal(listed.runs[0].intake.intake_status, 'ambiguous');
+    assert.equal(listed.runs[0].intake.intake_status, 'ready');
+    assert.equal(listed.runs[0].intake.match_status, 'single_match');
+    assert.equal(listed.runs[0].intake.brief_available, true);
+  });
+});
+
+test('semantic intake normalizes multiple known refs by confidence and projects safe refs only', async () => {
+  await withRoot(async (root) => {
+    const controller = createOrbitaLifecycleController({
+      store: createFileOrbitaRunStore({ runsRoot: root }),
+      now: () => new Date('2026-06-10T19:00:00.000Z'),
+      idFactory: () => 'fixed-id',
+    });
+
+    const maliciousLocalPath = ['', 'Users', 'sergeygarin', 'private'].join('/');
+    const result = await controller.run({
+      requesterRef: 'requester-a',
+      candidateRefs: [{ ref: 'run-a', label: 'private label' }, { ref: 'baton-b' }, 'task-c'],
+      intake: {
+        intake_status: 'ready',
+        task_kind: 'backend',
+        internal_private_clean_brief: 'Match existing backend baton.',
+        matched_refs: [
+          { ref: 'task-c', confidence: 0.3, label: 'should not persist' },
+          { ref: 'run-a', confidence: 0.9, path: maliciousLocalPath },
+          { ref: 'baton-b', confidence: 0.7 },
+        ],
+      },
+    });
+
+    const created = projectOrbitaResult(result);
+    assert.equal(created.run.state, 'waiting_human');
+    assert.equal(created.run.intake.match_status, 'multiple_matches');
+    assert.deepEqual(created.run.intake.matched_refs, [
+      { ref: 'run-a', confidence: 0.9 },
+      { ref: 'baton-b', confidence: 0.7 },
+      { ref: 'task-c', confidence: 0.3 },
+    ]);
+    assert.equal(Object.hasOwn(created.run.intake, 'internal_private_clean_brief'), false);
+    assert.doesNotMatch(JSON.stringify(created), /private label|should not persist|\/Users\/sergeygarin|Match existing/);
+
+    const persisted = await readFile(join(root, 'orbita-lifecycle', 'orbita-fixed-id.json'), 'utf8');
+    assert.match(persisted, /"ref": "run-a"/);
+    assert.doesNotMatch(persisted, /private label|should not persist|\/Users\/sergeygarin/);
+  });
+});
+
+test('schema-versioned intake cannot invent matches without server candidate refs', () => {
+  const normalized = normalizeOrbitaIntakePacket({
+    schema_version: 1,
+    intake_status: 'ready',
+    matched_refs: [{ ref: 'invented-ref', confidence: 0.9 }],
+  });
+
+  assert.equal(normalized.match_status, 'no_match');
+  assert.deepEqual(normalized.matched_refs, []);
+});
+
+test('semantic intake drops unknown and malicious refs without leaking labels or paths', async () => {
+  await withRoot(async (root) => {
+    const controller = createOrbitaLifecycleController({
+      store: createFileOrbitaRunStore({ runsRoot: root }),
+      now: () => new Date('2026-06-10T19:00:00.000Z'),
+      idFactory: () => 'fixed-id',
+    });
+
+    const maliciousLocalPath = ['', 'Users', 'sergeygarin', 'private'].join('/');
+    const result = await controller.run({
+      requesterRef: 'requester-a',
+      candidateRefs: ['known-safe-ref'],
+      intake: {
+        intake_status: 'ready',
+        task_kind: 'backend',
+        internal_private_clean_brief: 'Safe rewrite.',
+        matched_refs: [
+          { ref: 'unknown-ref', confidence: 0.99, label: 'TOKEN=secret' },
+          { ref: `${maliciousLocalPath}/run`, confidence: 0.88, path: maliciousLocalPath },
+        ],
+      },
+    });
+
+    const created = projectOrbitaResult(result);
+    assert.equal(created.run.intake.match_status, 'no_match');
+    assert.deepEqual(created.run.intake.matched_refs, []);
+    assert.doesNotMatch(JSON.stringify(created), /unknown-ref|TOKEN=secret|\/Users\/sergeygarin|Safe rewrite/);
+
+    const persisted = await readFile(join(root, 'orbita-lifecycle', 'orbita-fixed-id.json'), 'utf8');
+    assert.doesNotMatch(persisted, /unknown-ref|TOKEN=secret|\/Users\/sergeygarin/);
   });
 });
 
@@ -256,7 +377,7 @@ test('direct bridge dry-run parses raw messy request into intake packet without 
     const dry = await runOrbita('run', { 'dry-run': true, _positionals: ['create', 'new', 'workflow', 'for', 'release triage'] }, { pluginConfig });
     assert.equal(dry.ok, true);
     assert.equal(dry.run.intake.intake_status, 'needs_intake_agent');
-    assert.equal(dry.run.intake.task_kind, 'unknown');
+    assert.equal(Object.hasOwn(dry.run.intake, 'task_kind'), false);
     assert.equal(dry.run.intake.brief_available, false);
     assert.doesNotMatch(JSON.stringify(dry), /release triage/);
     assert.equal(await exists(runsRoot), false);
@@ -265,7 +386,7 @@ test('direct bridge dry-run parses raw messy request into intake packet without 
   }
 });
 
-test('runtime intake sanitizer does not trust safe flags or leak secrets and local paths', async () => {
+test('runtime intake ignores removed workflow fields and unknown matches and does not trust safe flags or leak secrets and local paths', async () => {
   const workspaceDir = process.env.OPENCLAW_WORKSPACE_DIR || join(process.env.HOME, '.openclaw', 'workspace');
   const relativeRunsRoot = `.test-orbita-intake-malicious/${process.pid}-${Date.now()}`;
   const runsRoot = join(workspaceDir, relativeRunsRoot);
@@ -282,6 +403,7 @@ test('runtime intake sanitizer does not trust safe flags or leak secrets and loc
     selected_workflow_safe: true,
     proposed_path_safe: true,
     candidate_options_safe: true,
+    matched_refs: [{ ref: 'unknown-workflow', confidence: 0.99, label: `TOKEN=secret ${maliciousLocalPath}` }],
     confidence: 0.77,
   };
 
@@ -292,12 +414,15 @@ test('runtime intake sanitizer does not trust safe flags or leak secrets and loc
       api: { runtime: { subagent: () => ({ text: JSON.stringify(maliciousPacket) }) } },
     });
     assert.equal(created.ok, true);
-    assert.equal(created.run.intake.intake_status, 'ambiguous');
-    assert.deepEqual(created.run.intake.candidate_options, [{ id: 'dev-harness', label: 'Dev Harness' }]);
+    assert.equal(created.run.intake.intake_status, 'ready');
+    assert.equal(created.run.intake.match_status, 'no_match');
+    assert.deepEqual(created.run.intake.matched_refs, []);
     assert.equal(created.run.intake.brief_available, false);
     assert.equal(Object.hasOwn(created.run.intake, 'clean_subagent_brief'), false);
-    assert.equal(created.run.intake.selected_workflow, undefined);
-    assert.equal(created.run.intake.proposed_path, undefined);
+    assert.equal(Object.hasOwn(created.run.intake, 'internal_private_clean_brief'), false);
+    assert.equal(Object.hasOwn(created.run.intake, 'candidate_options'), false);
+    assert.equal(Object.hasOwn(created.run.intake, 'selected_workflow'), false);
+    assert.equal(Object.hasOwn(created.run.intake, 'proposed_path'), false);
     assert.doesNotMatch(JSON.stringify(created), /TOKEN=secret|\/Users\/sergeygarin|leaky label|selected|proposed/);
 
     const persisted = await readFile(join(runsRoot, 'orbita-lifecycle', `${created.run.run_id}.json`), 'utf8');
@@ -305,6 +430,45 @@ test('runtime intake sanitizer does not trust safe flags or leak secrets and loc
 
     const listed = await runOrbita('list', {}, { pluginConfig, ctx: { sessionKey: 'requester-a' } });
     assert.doesNotMatch(JSON.stringify(listed), /TOKEN=secret|\/Users\/sergeygarin|leaky label|selected|proposed/);
+  } finally {
+    await rm(runsRoot, { recursive: true, force: true });
+  }
+});
+
+test('runtime intake accepts only provided candidate refs and projects sorted safe matches', async () => {
+  const workspaceDir = process.env.OPENCLAW_WORKSPACE_DIR || join(process.env.HOME, '.openclaw', 'workspace');
+  const relativeRunsRoot = `.test-orbita-intake-matches/${process.pid}-${Date.now()}`;
+  const runsRoot = join(workspaceDir, relativeRunsRoot);
+  const pluginConfig = {
+    runsRoot: relativeRunsRoot,
+    candidateRefs: ['task-a', 'run-b', 'baton-c'],
+  };
+  const packet = {
+    intake_status: 'ready',
+    task_kind: 'backend',
+    internal_private_clean_brief: 'Match the release triage baton.',
+    matched_refs: [
+      { ref: 'baton-c', confidence: 0.4, label: 'hidden label' },
+      { ref: 'task-a', confidence: 0.8 },
+      { ref: 'run-b', confidence: 0.6 },
+    ],
+  };
+
+  try {
+    const created = await runOrbita('run', { request: 'safe wrapper request' }, {
+      pluginConfig,
+      ctx: { sessionKey: 'requester-a' },
+      api: { runtime: { subagent: () => ({ text: JSON.stringify(packet) }) } },
+    });
+    assert.equal(created.ok, true);
+    assert.equal(created.run.state, 'waiting_human');
+    assert.equal(created.run.intake.match_status, 'multiple_matches');
+    assert.deepEqual(created.run.intake.matched_refs, [
+      { ref: 'task-a', confidence: 0.8 },
+      { ref: 'run-b', confidence: 0.6 },
+      { ref: 'baton-c', confidence: 0.4 },
+    ]);
+    assert.doesNotMatch(JSON.stringify(created), /Match the release triage baton|hidden label/);
   } finally {
     await rm(runsRoot, { recursive: true, force: true });
   }
@@ -329,13 +493,58 @@ test('direct bridge persistent run stores intake and projects it through list st
 
     const status = await runOrbita('status', { run: created.run.run_id }, { pluginConfig, ctx: { sessionKey: 'requester-a' } });
     assert.equal(status.run.intake.intake_status, 'needs_intake_agent');
+    assert.equal(Object.hasOwn(status.run.intake, 'task_kind'), false);
 
     const listed = await runOrbita('list', {}, { pluginConfig, ctx: { sessionKey: 'requester-a' } });
     assert.equal(listed.runs[0].intake.intake_status, 'needs_intake_agent');
+    assert.equal(Object.hasOwn(listed.runs[0].intake, 'task_kind'), false);
 
     const inbox = await runOrbita('inbox', {}, { pluginConfig, ctx: { sessionKey: 'requester-a' } });
     assert.equal(inbox.runs[0].intake.intake_status, 'needs_intake_agent');
-    assert.doesNotMatch(JSON.stringify(inbox), /requester-a|SECRET_TOKEN/);
+    assert.equal(Object.hasOwn(inbox.runs[0].intake, 'task_kind'), false);
+    assert.doesNotMatch(JSON.stringify(inbox), /requester-a|SECRET_TOKEN|task_kind/);
+  } finally {
+    await rm(runsRoot, { recursive: true, force: true });
+  }
+});
+
+test('public run list status and inbox projections do not expose internal intake reasons', async () => {
+  const workspaceDir = process.env.OPENCLAW_WORKSPACE_DIR || join(process.env.HOME, '.openclaw', 'workspace');
+  const relativeRunsRoot = `.test-orbita-intake-reasons/${process.pid}-${Date.now()}`;
+  const runsRoot = join(workspaceDir, relativeRunsRoot);
+  const pluginConfig = { runsRoot: relativeRunsRoot };
+  const packet = {
+    intake_status: 'degraded',
+    task_kind: 'backend',
+    degraded_reason: 'runtime_subagent_intake_failed',
+    internal_private_clean_brief: 'SECRET_TOKEN private brief',
+    clean_subagent_brief: 'SECRET_TOKEN raw brief',
+    selected_workflow: { id: 'dev-harness', label: 'Dev Harness', path: 'skills/dev-harness/SKILL.md' },
+    candidate_options: [{ id: 'dev-harness', label: 'Dev Harness workflow' }],
+    proposed_path: { kind: 'backend', label: 'Backend path', path: 'skills/backend/SKILL.md' },
+    confidence: 0.05,
+  };
+
+  try {
+    const created = await runOrbita('run', { request: 'safe wrapper request' }, {
+      pluginConfig,
+      ctx: { sessionKey: 'requester-a' },
+      api: { runtime: { subagent: () => ({ text: JSON.stringify(packet) }) } },
+    });
+    const status = await runOrbita('status', { run: created.run.run_id }, { pluginConfig, ctx: { sessionKey: 'requester-a' } });
+    const listed = await runOrbita('list', {}, { pluginConfig, ctx: { sessionKey: 'requester-a' } });
+    const inbox = await runOrbita('inbox', {}, { pluginConfig, ctx: { sessionKey: 'requester-a' } });
+
+    for (const projection of [created, status, listed, inbox]) {
+      assert.deepEqual(collectReasonLikeKeys(projection), []);
+      assert.doesNotMatch(
+        JSON.stringify(projection),
+        /task_kind|runtime_subagent_intake_failed|degraded_reason|degradation_reason|internal_private_clean_brief|clean_subagent_brief|SECRET_TOKEN|selected_workflow|candidate_options|proposed_path|Dev Harness|Backend path|SKILL\.md/,
+      );
+    }
+
+    const persisted = await readFile(join(runsRoot, 'orbita-lifecycle', `${created.run.run_id}.json`), 'utf8');
+    assert.match(persisted, /runtime_subagent_intake_failed/);
   } finally {
     await rm(runsRoot, { recursive: true, force: true });
   }
@@ -372,8 +581,8 @@ test('runtime intake response is size-bounded before JSON parsing', async () => 
     });
     assert.equal(result.ok, true);
     assert.equal(result.run.intake.intake_status, 'degraded');
-    assert.equal(result.run.intake.degradation_reason, 'runtime_subagent_intake_failed');
-    assert.doesNotMatch(JSON.stringify(result), /SECRET_TOKEN/);
+    assert.equal(Object.hasOwn(result.run.intake, 'degraded_reason'), false);
+    assert.doesNotMatch(JSON.stringify(result), /SECRET_TOKEN|runtime_subagent_intake_failed|degraded_reason|degradation_reason/);
   } finally {
     await rm(runsRoot, { recursive: true, force: true });
   }
