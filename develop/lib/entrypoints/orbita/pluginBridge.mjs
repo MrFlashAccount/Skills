@@ -5,6 +5,7 @@ import { parseArgs } from 'node:util';
 import { projectOrbitaResult } from '../../dtos/orbita-lifecycle/projections.mjs';
 import { createFileOrbitaRunStore } from '../../persistence/orbita-lifecycle/fileRunStore.mjs';
 import { createOrbitaLifecycleController } from '../../use-cases/orbita-lifecycle/controller.mjs';
+import { createOrbitaIntakeAgent } from './intakeAgent.mjs';
 
 const PLUGIN_ID = 'orbita';
 const COMMAND_NAME = 'orbita';
@@ -22,7 +23,7 @@ function usageText() {
   return `Orbita lifecycle bridge
 
 Usage:
-  orbita run [--dry-run] [--kind <kind>]
+  orbita run [--dry-run] [--kind <kind>] [messy raw request]
   orbita inbox [--limit <n>]
   orbita status [--run <id>]
   orbita list [--state <state>] [--limit <n>]
@@ -40,8 +41,8 @@ function formatNativeHelpText() {
 State-aware lifecycle bridge.
 
 Команды
-/orbita run — создать или продолжить активный run
-/orbita run --dry-run — диагностическая проверка без записи
+/orbita run <запрос> — разобрать запрос и создать/продолжить активный run
+/orbita run --dry-run <запрос> — semantic intake без записи
 /orbita inbox — runs, требующие доставки/внимания
 /orbita status [--run <id>] — состояние
 /orbita list — список runs
@@ -135,6 +136,7 @@ const cliOptions = {
   state: { type: 'string' },
   limit: { type: 'string' },
   reason: { type: 'string' },
+  request: { type: 'string' },
   'runs-root': { type: 'string' },
   'dry-run': { type: 'boolean' },
   keep: { type: 'boolean' },
@@ -167,7 +169,13 @@ function trustedRequesterError(mode) {
   return { ok: false, mode, openclaw_surface: PLUGIN_ID, message: 'trusted_requester_required' };
 }
 
-async function runOrbita(mode, values = {}, { pluginConfig = {}, ctx = {} } = {}) {
+function rawRequestFromValues(values = {}) {
+  if (typeof values.request === 'string' && values.request.trim()) return values.request.trim();
+  if (Array.isArray(values._positionals) && values._positionals.length > 0) return values._positionals.join(' ').trim();
+  return undefined;
+}
+
+async function runOrbita(mode, values = {}, { pluginConfig = {}, ctx = {}, api } = {}) {
   if (mode === 'help') return { ok: true, text: usageText() };
   if (!PUBLIC_MODES.has(mode)) return { ok: false, mode, openclaw_surface: PLUGIN_ID, message: 'unsupported_orbita_command', text: usageText() };
   if (trustedRequesterRequired(mode, values, ctx)) return trustedRequesterError(mode);
@@ -177,10 +185,13 @@ async function runOrbita(mode, values = {}, { pluginConfig = {}, ctx = {} } = {}
   const requesterRef = requesterRefFrom(ctx);
 
   if (mode === 'run') {
+    const rawRequest = rawRequestFromValues(values);
+    const intakeAgent = createOrbitaIntakeAgent({ api });
     return projectBridgeResult(await controller.run({
       dryRun: values['dry-run'] === true,
       requesterRef,
       kind: values.kind,
+      prepareIntake: () => intakeAgent.intake({ rawRequest, kind: values.kind }),
       opaqueRefs: { surface: PLUGIN_ID },
     }));
   }
@@ -193,14 +204,47 @@ async function runOrbita(mode, values = {}, { pluginConfig = {}, ctx = {} } = {}
   return { ok: true, text: usageText() };
 }
 
+function parseModeValues(mode, args = []) {
+  if (mode === 'help') return { values: {}, positionals: [] };
+
+  const separatorIndex = args.indexOf('--');
+  const optionTokens = separatorIndex >= 0 ? args.slice(0, separatorIndex) : args;
+  const requestTokens = separatorIndex >= 0 ? args.slice(separatorIndex + 1) : [];
+
+  if (optionTokens.includes('--help')) return { help: true, values: {}, positionals: [] };
+
+  if (mode !== 'run') {
+    const { values, positionals } = parseArgs({ args, options: cliOptions, strict: true, allowPositionals: true });
+    values._positionals = positionals;
+    if (mode === 'cancel' && !values.run && positionals[0]) values.run = positionals[0];
+    return { values, positionals };
+  }
+
+  const scanTokens = separatorIndex >= 0 ? optionTokens : args;
+  let firstRequestIndex = scanTokens.length;
+  for (let index = 0; index < scanTokens.length; index += 1) {
+    const token = scanTokens[index];
+    if (!token.startsWith('-')) {
+      firstRequestIndex = index;
+      break;
+    }
+    if (['--kind', '--run', '--state', '--limit', '--reason', '--request', '--runs-root'].includes(token)) index += 1;
+  }
+
+  const parsedOptionTokens = scanTokens.slice(0, firstRequestIndex);
+  const trailingRequestTokens = separatorIndex >= 0 ? requestTokens : scanTokens.slice(firstRequestIndex);
+  const { values } = parseArgs({ args: parsedOptionTokens, options: cliOptions, strict: true, allowPositionals: true });
+  values._positionals = trailingRequestTokens;
+  return { values, positionals: trailingRequestTokens };
+}
+
 function parseCommandArgs(args = '') {
   const tokens = typeof args === 'string' ? args.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g)?.map((token) => token.replace(/^(["'])(.*)\1$/, '$2')) ?? [] : [];
   const [mode = 'help', ...rest] = tokens;
-  if (!PUBLIC_MODES.has(mode) || rest.includes('--help')) return { mode: 'help', values: {} };
-  const { values, positionals } = parseArgs({ args: rest, options: cliOptions, strict: true, allowPositionals: true });
-  values._positionals = positionals;
-  if (mode === 'cancel' && !values.run && positionals[0]) values.run = positionals[0];
-  return { mode, values };
+  if (!PUBLIC_MODES.has(mode)) return { mode: 'help', values: {} };
+  const parsed = parseModeValues(mode, rest);
+  if (parsed.help) return { mode: 'help', values: {} };
+  return { mode, values: parsed.values };
 }
 
 function toolParametersSchema() {
@@ -215,6 +259,7 @@ function toolParametersSchema() {
       state: { type: 'string' },
       limit: { type: 'number' },
       reason: { type: 'string' },
+      request: { type: 'string' },
       runs_root: { type: 'string' },
       dry_run: { type: 'boolean' },
     },
@@ -228,6 +273,7 @@ function toolValues(params = {}) {
     state: params.state,
     limit: params.limit,
     reason: params.reason,
+    request: params.request,
     'runs-root': params.runs_root,
     'dry-run': params.dry_run,
   };
@@ -245,7 +291,7 @@ export default defineLocalPluginEntry({
       acceptsArgs: true,
       handler: async (ctx = {}) => {
         const { mode, values } = parseCommandArgs(ctx.args || 'help');
-        const result = await runOrbita(mode, values, { pluginConfig: api.pluginConfig || {}, ctx });
+        const result = await runOrbita(mode, values, { pluginConfig: api.pluginConfig || {}, ctx, api });
         if (mode === 'help') return { text: formatNativeHelpText() };
         if (mode === 'list' || mode === 'inbox') return { text: formatNativeListText(result) };
         return { text: result.text ?? jsonText(result) };
@@ -257,7 +303,7 @@ export default defineLocalPluginEntry({
       description: 'Orbita lifecycle bridge. Returns compact state; does not echo prompts, transcripts, approval tokens, or worker answers.',
       parameters: toolParametersSchema(),
       async execute(_id, params = {}, ctx = {}) {
-        const result = await runOrbita(params.mode, toolValues(params), { pluginConfig: api.pluginConfig || {}, ctx });
+        const result = await runOrbita(params.mode, toolValues(params), { pluginConfig: api.pluginConfig || {}, ctx, api });
         return { content: [{ type: 'text', text: result.text ?? jsonText(result) }] };
       },
     });
@@ -277,12 +323,13 @@ export default defineLocalPluginEntry({
           .action(async (args = []) => {
             try {
               const parsedMode = mode === 'help' ? 'help' : mode;
-              const { values, positionals } = parsedMode === 'help'
-                ? { values: {}, positionals: [] }
-                : parseArgs({ args, options: cliOptions, strict: true, allowPositionals: true });
-              values._positionals = positionals;
-              if (parsedMode === 'cancel' && !values.run && positionals[0]) values.run = positionals[0];
-              const result = await runOrbita(parsedMode, values, { pluginConfig: api.pluginConfig || {} });
+              const parsed = parseModeValues(parsedMode, args);
+              if (parsed.help) {
+                console.log(formatNativeHelpText());
+                return;
+              }
+              const { values } = parsed;
+              const result = await runOrbita(parsedMode, values, { pluginConfig: api.pluginConfig || {}, api });
               console.log(result.text ?? jsonText(result));
             } catch (error) {
               console.error(`orbita: ${error?.message ?? String(error)}`);
@@ -296,4 +343,4 @@ export default defineLocalPluginEntry({
   },
 });
 
-export { formatNativeHelpText, formatNativeListText, runOrbita, usageText };
+export { formatNativeHelpText, formatNativeListText, parseCommandArgs, runOrbita, usageText };

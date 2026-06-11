@@ -19,20 +19,21 @@ export function isTerminalOrbitaRun(run) {
   return Boolean(run && TERMINAL_STATES.has(run.state));
 }
 
-export function createOrbitaRun({ runId, requesterRef, kind = 'orbita-run', now = new Date(), opaqueRefs = {}, dryRun = false } = {}) {
+export function createOrbitaRun({ runId, requesterRef, kind = 'orbita-run', now = new Date(), opaqueRefs = {}, dryRun = false, intake, state } = {}) {
   if (!runId || typeof runId !== 'string') throw new Error('runId is required');
   const timestamp = new Date(now).toISOString();
   return {
     schema_version: 1,
     run_id: runId,
     kind,
-    state: dryRun ? ORBITA_RUN_STATES.COMPLETED : ORBITA_RUN_STATES.CREATED,
+    state: state ?? (dryRun ? ORBITA_RUN_STATES.COMPLETED : ORBITA_RUN_STATES.CREATED),
     requester_ref: requesterRef,
     runtime_gap: ORBITA_RUNTIME_GAP,
     delivery: {
       status: ORBITA_RUNTIME_GAP,
       requires_parent_delivery: true,
     },
+    intake,
     opaque_refs: opaqueRefs && typeof opaqueRefs === 'object' ? { ...opaqueRefs } : {},
     created_at: timestamp,
     updated_at: timestamp,

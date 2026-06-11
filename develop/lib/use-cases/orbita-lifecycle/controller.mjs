@@ -7,6 +7,12 @@ import {
   ORBITA_RUNTIME_GAP,
   ORBITA_RUN_STATES,
 } from '../../entities/orbita-lifecycle/run.mjs';
+import {
+  createFallbackOrbitaIntakePacket,
+  createDegradedOrbitaIntakePacket,
+  normalizeOrbitaIntakePacket,
+  orbitaStateForIntake,
+} from '../../entities/orbita-lifecycle/intake.mjs';
 
 function compatible(run, { requesterRef, kind } = {}) {
   if (!isActiveOrbitaRun(run)) return false;
@@ -34,11 +40,23 @@ function storeDiagnostics(store) {
   return typeof store.diagnostics === 'function' ? store.diagnostics() : undefined;
 }
 
+async function resolveIntakePacket({ intake, prepareIntake } = {}) {
+  if (intake) return normalizeOrbitaIntakePacket(intake);
+  if (typeof prepareIntake === 'function') {
+    try {
+      return normalizeOrbitaIntakePacket(await prepareIntake());
+    } catch (error) {
+      return createDegradedOrbitaIntakePacket({ reason: error?.message ?? 'intake_agent_failed' });
+    }
+  }
+  return createFallbackOrbitaIntakePacket();
+}
+
 export function createOrbitaLifecycleController({ store, now = () => new Date(), idFactory = () => randomUUID() } = {}) {
   if (!store) throw new Error('store is required');
 
   return {
-    async run({ dryRun = false, requesterRef, kind = 'orbita-run', opaqueRefs = {} } = {}) {
+    async run({ dryRun = false, requesterRef, kind = 'orbita-run', opaqueRefs = {}, intake, prepareIntake } = {}) {
       const runs = await store.list();
       const active = runs.filter((run) => compatible(run, { requesterRef, kind }));
       if (!dryRun && active.length === 1) {
@@ -47,7 +65,9 @@ export function createOrbitaLifecycleController({ store, now = () => new Date(),
       if (!dryRun && active.length > 1) {
         return { ok: false, mode: 'run', runs: active, activeCount: active.length, runtimeGap: ORBITA_RUNTIME_GAP, diagnostics: storeDiagnostics(store), message: 'ambiguous_active_runs' };
       }
-      const run = createOrbitaRun({ runId: `orbita-${idFactory()}`, requesterRef, kind, now: now(), opaqueRefs, dryRun });
+      const resolvedIntake = await resolveIntakePacket({ intake, prepareIntake });
+      const state = orbitaStateForIntake(resolvedIntake, { dryRun, defaultState: ORBITA_RUN_STATES.CREATED });
+      const run = createOrbitaRun({ runId: `orbita-${idFactory()}`, requesterRef, kind, now: now(), opaqueRefs, dryRun, intake: resolvedIntake, state });
       if (!dryRun) await store.save(run);
       return { ok: true, mode: 'run', run, activeCount: active.length, dryRun, runtimeGap: ORBITA_RUNTIME_GAP, diagnostics: storeDiagnostics(store), message: dryRun ? 'dry_run_ok' : 'created_runtime_gap_run' };
     },
