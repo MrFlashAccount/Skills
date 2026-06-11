@@ -1,4 +1,4 @@
-import { createDegradedOrbitaIntakePacket, createFallbackOrbitaIntakePacket, markAgentValidatedIntakePacket } from '../../entities/orbita-lifecycle/intake.mjs';
+import { createDegradedOrbitaIntakePacket, createFallbackOrbitaIntakePacket, markAgentValidatedIntakePacket, safeStableRef } from '../../entities/orbita-lifecycle/intake.mjs';
 
 const MAX_RUNTIME_INTAKE_RESPONSE_CHARS = 12_000;
 
@@ -26,8 +26,8 @@ function parseJsonPacket(value) {
 function candidateListText(candidateRefs = []) {
   if (!Array.isArray(candidateRefs) || candidateRefs.length === 0) return 'No existing candidate refs were provided. Return match_status no_match and matched_refs [].';
   const refs = candidateRefs
-    .map((candidate) => candidate?.ref ?? candidate?.id ?? candidate)
-    .filter((ref) => typeof ref === 'string' && ref.trim())
+    .map((candidate) => safeStableRef(candidate?.ref ?? candidate?.id ?? candidate))
+    .filter(Boolean)
     .slice(0, 50);
   if (refs.length === 0) return 'No existing candidate refs were provided. Return match_status no_match and matched_refs [].';
   return `Existing candidate refs. You may return ONLY these exact refs in matched_refs; never invent refs, labels, paths, or workflow names:\n${refs.map((ref) => `- ${ref}`).join('\n')}`;

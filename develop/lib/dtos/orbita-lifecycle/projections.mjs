@@ -1,8 +1,7 @@
 import { normalizeOrbitaIntakePacket } from '../../entities/orbita-lifecycle/intake.mjs';
 
-export function projectOrbitaIntake(intake) {
+export function projectOrbitaIntake(intake, { candidateRefs } = {}) {
   if (!intake) return undefined;
-  const candidateRefs = Array.isArray(intake.matched_refs) ? intake.matched_refs.map((match) => match?.ref ?? match).filter(Boolean) : [];
   const safeIntake = normalizeOrbitaIntakePacket(intake, { candidateRefs });
   const projected = {
     intake_status: safeIntake.intake_status,
@@ -14,7 +13,7 @@ export function projectOrbitaIntake(intake) {
   return projected;
 }
 
-export function projectOrbitaRun(run) {
+export function projectOrbitaRun(run, options = {}) {
   if (!run) return null;
   return {
     run_id: run.run_id,
@@ -22,21 +21,21 @@ export function projectOrbitaRun(run) {
     state: run.state,
     runtime_gap: run.runtime_gap,
     delivery: run.delivery,
-    intake: projectOrbitaIntake(run.intake),
+    intake: projectOrbitaIntake(run.intake, options),
     created_at: run.created_at,
     updated_at: run.updated_at,
     revision: run.revision,
   };
 }
 
-export function projectOrbitaResult(result = {}) {
+export function projectOrbitaResult(result = {}, options = {}) {
   return {
     ok: result.ok === true,
     mode: result.mode,
     experimental: true,
     surface: 'orbita_lifecycle',
-    run: projectOrbitaRun(result.run),
-    runs: Array.isArray(result.runs) ? result.runs.map(projectOrbitaRun) : undefined,
+    run: projectOrbitaRun(result.run, options),
+    runs: Array.isArray(result.runs) ? result.runs.map((run) => projectOrbitaRun(run, options)) : undefined,
     active_count: result.activeCount,
     dry_run: result.dryRun === true || undefined,
     runtime_gap: result.runtimeGap,

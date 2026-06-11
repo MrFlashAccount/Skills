@@ -21,7 +21,8 @@ function safePrivateBrief(value, { max = 800, fallback } = {}) {
   return cleaned;
 }
 
-function safeStableRef(value, { max = 160 } = {}) {
+export function safeStableRef(value, { max = 160 } = {}) {
+  if (typeof value === 'string' && /[\u0000-\u001f\u007f]/.test(value)) return undefined;
   const cleaned = cleanString(value, { max });
   if (!cleaned) return undefined;
   if (SECRETISH_PATTERN.test(cleaned) || LOCAL_PATH_PATTERN.test(cleaned)) return undefined;
@@ -122,6 +123,8 @@ export function normalizeOrbitaIntakePacket(packet = {}, options = {}) {
     matched_refs: matchedRefs,
     task_kind: normalizeTaskKind(packet.task_kind ?? packet.taskKind),
   };
+
+  if (Array.isArray(options.candidateRefs)) normalized.matched_refs_validated = true;
 
   const confidence = normalizeConfidence(packet.confidence, { fallback: undefined });
   if (confidence !== undefined) {

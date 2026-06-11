@@ -9,8 +9,8 @@ import { normalizeOrbitaIntakePacket } from '../entities/orbita-lifecycle/intake
 import { ORBITA_RUN_STATES } from '../entities/orbita-lifecycle/run.mjs';
 import { createOrbitaLifecycleController } from '../use-cases/orbita-lifecycle/controller.mjs';
 import { createFileOrbitaRunStore } from '../persistence/orbita-lifecycle/fileRunStore.mjs';
-import { projectOrbitaResult } from '../dtos/orbita-lifecycle/projections.mjs';
-import { parseCommandArgs, runOrbita } from '../entrypoints/orbita/pluginBridge.mjs';
+import { projectOrbitaIntake, projectOrbitaResult } from '../dtos/orbita-lifecycle/projections.mjs';
+import { formatNativeRunText, parseCommandArgs, runOrbita } from '../entrypoints/orbita/pluginBridge.mjs';
 
 async function exists(path) {
   try {
@@ -133,7 +133,7 @@ test('semantic intake agent packet is persisted minimally and private brief is n
       },
       candidateRefs: ['baton-backend-lifecycle'],
     });
-    const created = projectOrbitaResult(result);
+    const created = projectOrbitaResult(result, { candidateRefs: ['baton-backend-lifecycle'] });
     assert.equal(created.ok, true);
     assert.equal(result.run.state, 'created');
     assert.equal(created.run.intake.intake_status, 'ready');
@@ -154,7 +154,7 @@ test('semantic intake agent packet is persisted minimally and private brief is n
     const persisted = await readFile(join(root, 'orbita-lifecycle', 'orbita-fixed-id.json'), 'utf8');
     assert.doesNotMatch(persisted, /selected_workflow|candidate_options|proposed_path|Dev Harness|Backend path|SKILL\.md/);
 
-    const listed = projectOrbitaResult(await controller.list({ requesterRef: 'requester-a' }));
+    const listed = projectOrbitaResult(await controller.list({ requesterRef: 'requester-a' }), { candidateRefs: ['baton-backend-lifecycle'] });
     assert.equal(listed.runs[0].intake.intake_status, 'ready');
     assert.equal(listed.runs[0].intake.match_status, 'single_match');
     assert.equal(listed.runs[0].intake.brief_available, true);
@@ -169,7 +169,7 @@ test('semantic intake normalizes multiple known refs by confidence and projects 
       idFactory: () => 'fixed-id',
     });
 
-    const maliciousLocalPath = ['', 'Users', 'sergeygarin', 'private'].join('/');
+    const maliciousLocalPath = '/tmp/orbita-private-fixture';
     const result = await controller.run({
       requesterRef: 'requester-a',
       candidateRefs: [{ ref: 'run-a', label: 'private label' }, { ref: 'baton-b' }, 'task-c'],
@@ -185,7 +185,7 @@ test('semantic intake normalizes multiple known refs by confidence and projects 
       },
     });
 
-    const created = projectOrbitaResult(result);
+    const created = projectOrbitaResult(result, { candidateRefs: [{ ref: 'run-a' }, { ref: 'baton-b' }, 'task-c'] });
     assert.equal(created.run.state, 'waiting_human');
     assert.equal(created.run.intake.match_status, 'multiple_matches');
     assert.deepEqual(created.run.intake.matched_refs, [
@@ -194,11 +194,11 @@ test('semantic intake normalizes multiple known refs by confidence and projects 
       { ref: 'task-c', confidence: 0.3 },
     ]);
     assert.equal(Object.hasOwn(created.run.intake, 'internal_private_clean_brief'), false);
-    assert.doesNotMatch(JSON.stringify(created), /private label|should not persist|\/Users\/sergeygarin|Match existing/);
+    assert.doesNotMatch(JSON.stringify(created), /private label|should not persist|\/tmp\/orbita-private-fixture|Match existing/);
 
     const persisted = await readFile(join(root, 'orbita-lifecycle', 'orbita-fixed-id.json'), 'utf8');
     assert.match(persisted, /"ref": "run-a"/);
-    assert.doesNotMatch(persisted, /private label|should not persist|\/Users\/sergeygarin/);
+    assert.doesNotMatch(persisted, /private label|should not persist|\/tmp\/orbita-private-fixture/);
   });
 });
 
@@ -213,6 +213,75 @@ test('schema-versioned intake cannot invent matches without server candidate ref
   assert.deepEqual(normalized.matched_refs, []);
 });
 
+test('public projection does not self-whitelist persisted refs without trusted candidate context', () => {
+  const projected = projectOrbitaIntake({
+    schema_version: 1,
+    intake_status: 'ready',
+    matched_refs_validated: true,
+    matched_refs: [{ ref: 'invented-ref', confidence: 0.9 }],
+  });
+
+  assert.equal(projected.match_status, 'no_match');
+  assert.deepEqual(projected.matched_refs, []);
+  assert.equal(Object.hasOwn(projected, 'matched_refs_validated'), false);
+});
+
+test('projected result does not expose invented persisted refs without trusted candidate context', () => {
+  const projected = projectOrbitaResult({
+    ok: true,
+    mode: 'status',
+    run: {
+      run_id: 'orbita-unsafe',
+      kind: 'backend',
+      state: 'waiting_human',
+      intake: {
+        schema_version: 1,
+        intake_status: 'ready',
+        matched_refs_validated: true,
+        matched_refs: [{ ref: 'invented-ref', confidence: 0.9 }],
+      },
+    },
+  });
+
+  assert.equal(projected.run.intake.match_status, 'no_match');
+  assert.deepEqual(projected.run.intake.matched_refs, []);
+});
+
+test('public projection preserves refs only from explicit trusted candidate context', () => {
+  const normalized = normalizeOrbitaIntakePacket({
+    schema_version: 1,
+    intake_status: 'ready',
+    matched_refs: [{ ref: 'known-ref', confidence: 0.9 }],
+  }, { candidateRefs: ['known-ref'] });
+
+  const projected = projectOrbitaIntake(normalized, { candidateRefs: ['known-ref'] });
+  assert.equal(projected.match_status, 'single_match');
+  assert.deepEqual(projected.matched_refs, [{ ref: 'known-ref', confidence: 0.9 }]);
+  assert.equal(Object.hasOwn(projected, 'matched_refs_validated'), false);
+});
+
+test('native run multiple-match message is user-facing text only', () => {
+  const text = formatNativeRunText({
+    run: {
+      intake: {
+        match_status: 'multiple_matches',
+        matched_refs: [
+          { ref: 'run-a', confidence: 0.93 },
+          { ref: 'run-b', confidence: 0.72 },
+        ],
+      },
+    },
+  });
+
+  assert.equal(text, `🪐 Orbita
+Нашла несколько похожих runs:
+1. run-a — 93%
+2. run-b — 72%
+
+Выбери run id или скажи: создать новый.`);
+  assert.doesNotMatch(text, /\{|\}|raw|request|label|path|reason|private/i);
+});
+
 test('semantic intake drops unknown and malicious refs without leaking labels or paths', async () => {
   await withRoot(async (root) => {
     const controller = createOrbitaLifecycleController({
@@ -221,7 +290,7 @@ test('semantic intake drops unknown and malicious refs without leaking labels or
       idFactory: () => 'fixed-id',
     });
 
-    const maliciousLocalPath = ['', 'Users', 'sergeygarin', 'private'].join('/');
+    const maliciousLocalPath = '/tmp/orbita-private-fixture';
     const result = await controller.run({
       requesterRef: 'requester-a',
       candidateRefs: ['known-safe-ref'],
@@ -239,10 +308,10 @@ test('semantic intake drops unknown and malicious refs without leaking labels or
     const created = projectOrbitaResult(result);
     assert.equal(created.run.intake.match_status, 'no_match');
     assert.deepEqual(created.run.intake.matched_refs, []);
-    assert.doesNotMatch(JSON.stringify(created), /unknown-ref|TOKEN=secret|\/Users\/sergeygarin|Safe rewrite/);
+    assert.doesNotMatch(JSON.stringify(created), /unknown-ref|TOKEN=secret|\/tmp\/orbita-private-fixture|Safe rewrite/);
 
     const persisted = await readFile(join(root, 'orbita-lifecycle', 'orbita-fixed-id.json'), 'utf8');
-    assert.doesNotMatch(persisted, /unknown-ref|TOKEN=secret|\/Users\/sergeygarin/);
+    assert.doesNotMatch(persisted, /unknown-ref|TOKEN=secret|\/tmp\/orbita-private-fixture/);
   });
 });
 
@@ -391,7 +460,7 @@ test('runtime intake ignores removed workflow fields and unknown matches and doe
   const relativeRunsRoot = `.test-orbita-intake-malicious/${process.pid}-${Date.now()}`;
   const runsRoot = join(workspaceDir, relativeRunsRoot);
   const pluginConfig = { runsRoot: relativeRunsRoot };
-  const maliciousLocalPath = ['', 'Users', 'sergeygarin', 'private'].join('/');
+  const maliciousLocalPath = '/tmp/orbita-private-fixture';
   const maliciousPacket = {
     intake_status: 'ambiguous',
     task_kind: 'backend',
@@ -403,6 +472,7 @@ test('runtime intake ignores removed workflow fields and unknown matches and doe
     selected_workflow_safe: true,
     proposed_path_safe: true,
     candidate_options_safe: true,
+    matched_refs_validated: true,
     matched_refs: [{ ref: 'unknown-workflow', confidence: 0.99, label: `TOKEN=secret ${maliciousLocalPath}` }],
     confidence: 0.77,
   };
@@ -423,13 +493,65 @@ test('runtime intake ignores removed workflow fields and unknown matches and doe
     assert.equal(Object.hasOwn(created.run.intake, 'candidate_options'), false);
     assert.equal(Object.hasOwn(created.run.intake, 'selected_workflow'), false);
     assert.equal(Object.hasOwn(created.run.intake, 'proposed_path'), false);
-    assert.doesNotMatch(JSON.stringify(created), /TOKEN=secret|\/Users\/sergeygarin|leaky label|selected|proposed/);
+    assert.doesNotMatch(JSON.stringify(created), /TOKEN=secret|\/tmp\/orbita-private-fixture|leaky label|selected|proposed/);
 
     const persisted = await readFile(join(runsRoot, 'orbita-lifecycle', `${created.run.run_id}.json`), 'utf8');
-    assert.doesNotMatch(persisted, /TOKEN=secret|\/Users\/sergeygarin|leaky label|selected|proposed/);
+    assert.doesNotMatch(persisted, /TOKEN=secret|\/tmp\/orbita-private-fixture|leaky label|selected|proposed/);
 
     const listed = await runOrbita('list', {}, { pluginConfig, ctx: { sessionKey: 'requester-a' } });
-    assert.doesNotMatch(JSON.stringify(listed), /TOKEN=secret|\/Users\/sergeygarin|leaky label|selected|proposed/);
+    assert.doesNotMatch(JSON.stringify(listed), /TOKEN=secret|\/tmp\/orbita-private-fixture|leaky label|selected|proposed/);
+  } finally {
+    await rm(runsRoot, { recursive: true, force: true });
+  }
+});
+
+test('runtime intake sanitizes configured candidate refs before prompt and match validation', async () => {
+  const workspaceDir = process.env.OPENCLAW_WORKSPACE_DIR || join(process.env.HOME, '.openclaw', 'workspace');
+  const relativeRunsRoot = `.test-orbita-intake-candidate-sanitize/${process.pid}-${Date.now()}`;
+  const runsRoot = join(workspaceDir, relativeRunsRoot);
+  const privateFixturePath = '/tmp/orbita-private-fixture';
+  const pluginConfig = {
+    runsRoot: relativeRunsRoot,
+    candidateRefs: [
+      'safe-ref',
+      { ref: `${privateFixturePath}/run` },
+      { id: 'TOKEN=secret' },
+      'bad\ncontrol-ref',
+      { ref: 'another-safe-ref' },
+    ],
+  };
+  let capturedPrompt = '';
+  const packet = {
+    intake_status: 'ready',
+    task_kind: 'backend',
+    matched_refs: [
+      { ref: 'safe-ref', confidence: 0.8 },
+      { ref: `${privateFixturePath}/run`, confidence: 0.99 },
+      { ref: 'TOKEN=secret', confidence: 0.98 },
+      { ref: 'bad\ncontrol-ref', confidence: 0.97 },
+      { ref: 'another-safe-ref', confidence: 0.7 },
+    ],
+  };
+
+  try {
+    const created = await runOrbita('run', { request: 'safe wrapper request' }, {
+      pluginConfig,
+      ctx: { sessionKey: 'requester-a' },
+      api: { runtime: { subagent: (request) => {
+        capturedPrompt = request.prompt;
+        return { text: JSON.stringify(packet) };
+      } } },
+    });
+
+    assert.equal(created.ok, true);
+    assert.deepEqual(created.run.intake.matched_refs, [
+      { ref: 'safe-ref', confidence: 0.8 },
+      { ref: 'another-safe-ref', confidence: 0.7 },
+    ]);
+    assert.match(capturedPrompt, /- safe-ref/);
+    assert.match(capturedPrompt, /- another-safe-ref/);
+    assert.doesNotMatch(capturedPrompt, /TOKEN=secret|bad\s+control-ref|\/tmp\/orbita-private-fixture/);
+    assert.doesNotMatch(JSON.stringify(created), /TOKEN=secret|bad\s+control-ref|\/tmp\/orbita-private-fixture/);
   } finally {
     await rm(runsRoot, { recursive: true, force: true });
   }
