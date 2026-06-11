@@ -66,10 +66,12 @@ test('Orbita lifecycle core zones expose neutral requester fields instead of Ope
   }
 });
 
-test('Orbita plugin is a thin bridge and does not call Skills runner APIs directly', async () => {
-  const pluginIndex = join(process.env.OPENCLAW_WORKSPACE_DIR || join(process.env.HOME, '.openclaw', 'workspace'), 'plugins', 'orbita', 'index.js');
-  const source = await readFile(pluginIndex, 'utf8');
-  assert.match(source, /entrypoints\/orbita\/pluginBridge\.mjs/);
+test('Orbita plugin bridge is thin and does not call Skills runner APIs directly', async () => {
+  const source = await readFile(join(DEVELOP_ROOT, 'lib', 'entrypoints', 'orbita', 'pluginBridge.mjs'), 'utf8');
+
+  assert.match(source, /registerCommand/);
+  assert.match(source, /registerTool/);
+  assert.match(source, /runOrbita/);
   assert.doesNotMatch(source, /workflowRunner|workflowRuns|runnerNext|runnerWriteOutput|runnerContinueRun|registerWorkflowRun/);
 });
 
