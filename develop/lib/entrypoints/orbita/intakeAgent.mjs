@@ -23,19 +23,36 @@ function parseJsonPacket(value) {
   return JSON.parse(trimmed);
 }
 
-function subagentPrompt({ rawRequest, kind } = {}) {
+function candidateListText(candidateRefs = []) {
+  if (!Array.isArray(candidateRefs) || candidateRefs.length === 0) return 'No existing candidate refs were provided. Return match_status no_match and matched_refs [].';
+  const refs = candidateRefs
+    .map((candidate) => candidate?.ref ?? candidate?.id ?? candidate)
+    .filter((ref) => typeof ref === 'string' && ref.trim())
+    .slice(0, 50);
+  if (refs.length === 0) return 'No existing candidate refs were provided. Return match_status no_match and matched_refs [].';
+  return `Existing candidate refs. You may return ONLY these exact refs in matched_refs; never invent refs, labels, paths, or workflow names:\n${refs.map((ref) => `- ${ref}`).join('\n')}`;
+}
+
+function subagentPrompt({ rawRequest, kind, candidateRefs } = {}) {
   return `You are the Orbita semantic intake adapter. Return only JSON, no markdown.
 
-Classify this raw user request and produce a safe structured intake packet. Do not include the raw request verbatim except as a concise cleaned subagent brief.
+Your responsibility is narrow:
+1. Rewrite the raw user request into a normal concise internal brief suitable for a subagent.
+2. Match that request against the provided existing task/baton/run refs.
+3. Return zero, one, or multiple candidate matches sorted by your confidence.
+
+Do not select workflow catalogs. Do not classify analyst ambiguity. Multiple matches are only a selection outcome. Do not include the raw request verbatim; summarize only the task need when a private brief is useful.
 
 Allowed JSON fields:
-- intake_status: one of selected, ambiguous, create_new, degraded, needs_intake_agent
-- task_kind: short neutral kind
-- selected_workflow: optional object { id, label, path }
-- candidate_options: optional array of { id, label, workflow }
-- proposed_path: optional object { kind, label, path }
-- clean_subagent_brief: concise subagent-readable task brief, safe to show publicly
-- confidence: number from 0 to 1
+- intake_status: one of ready, degraded, needs_intake_agent
+- match_status: one of no_match, single_match, multiple_matches, needs_intake_agent
+- matched_refs: array of { "ref": string, "confidence": number } using only refs from the provided list
+- task_kind: short neutral kind, or unknown when not safe to infer
+- internal_private_clean_brief: concise cleaned task brief for internal runtime use only; do not include secrets, local paths, or the raw request verbatim
+- confidence: optional top-level number from 0 to 1
+- degraded_reason: optional short reason code when degraded or needs_intake_agent
+
+${candidateListText(candidateRefs)}
 
 Requested kind hint: ${kind ?? 'none'}
 Raw request:
@@ -56,8 +73,8 @@ async function callRuntimeSubagent(api, request) {
 
 export function createOrbitaIntakeAgent({ api } = {}) {
   return {
-    async intake({ rawRequest, kind } = {}) {
-      const prompt = subagentPrompt({ rawRequest, kind });
+    async intake({ rawRequest, kind, candidateRefs } = {}) {
+      const prompt = subagentPrompt({ rawRequest, kind, candidateRefs });
       try {
         const result = await callRuntimeSubagent(api, {
           label: 'orbita-semantic-intake',
@@ -65,7 +82,7 @@ export function createOrbitaIntakeAgent({ api } = {}) {
           prompt,
           cleanup: 'delete',
         });
-        if (result !== undefined) return markAgentValidatedIntakePacket(parseJsonPacket(result));
+        if (result !== undefined) return markAgentValidatedIntakePacket(parseJsonPacket(result), { candidateRefs });
       } catch {
         return createDegradedOrbitaIntakePacket({ reason: 'runtime_subagent_intake_failed' });
       }

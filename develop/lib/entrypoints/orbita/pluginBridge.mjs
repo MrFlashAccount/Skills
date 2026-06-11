@@ -186,12 +186,14 @@ async function runOrbita(mode, values = {}, { pluginConfig = {}, ctx = {}, api }
 
   if (mode === 'run') {
     const rawRequest = rawRequestFromValues(values);
+    const candidateRefs = pluginConfig.candidateRefs ?? pluginConfig.matchCandidates;
     const intakeAgent = createOrbitaIntakeAgent({ api });
     return projectBridgeResult(await controller.run({
       dryRun: values['dry-run'] === true,
       requesterRef,
       kind: values.kind,
-      prepareIntake: () => intakeAgent.intake({ rawRequest, kind: values.kind }),
+      candidateRefs,
+      prepareIntake: () => intakeAgent.intake({ rawRequest, kind: values.kind, candidateRefs }),
       opaqueRefs: { surface: PLUGIN_ID },
     }));
   }

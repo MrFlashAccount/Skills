@@ -40,11 +40,11 @@ function storeDiagnostics(store) {
   return typeof store.diagnostics === 'function' ? store.diagnostics() : undefined;
 }
 
-async function resolveIntakePacket({ intake, prepareIntake } = {}) {
-  if (intake) return normalizeOrbitaIntakePacket(intake);
+async function resolveIntakePacket({ intake, prepareIntake, candidateRefs } = {}) {
+  if (intake) return normalizeOrbitaIntakePacket(intake, { candidateRefs });
   if (typeof prepareIntake === 'function') {
     try {
-      return normalizeOrbitaIntakePacket(await prepareIntake());
+      return normalizeOrbitaIntakePacket(await prepareIntake(), { candidateRefs });
     } catch (error) {
       return createDegradedOrbitaIntakePacket({ reason: error?.message ?? 'intake_agent_failed' });
     }
@@ -56,7 +56,7 @@ export function createOrbitaLifecycleController({ store, now = () => new Date(),
   if (!store) throw new Error('store is required');
 
   return {
-    async run({ dryRun = false, requesterRef, kind = 'orbita-run', opaqueRefs = {}, intake, prepareIntake } = {}) {
+    async run({ dryRun = false, requesterRef, kind = 'orbita-run', opaqueRefs = {}, intake, prepareIntake, candidateRefs } = {}) {
       const runs = await store.list();
       const active = runs.filter((run) => compatible(run, { requesterRef, kind }));
       if (!dryRun && active.length === 1) {
@@ -65,7 +65,7 @@ export function createOrbitaLifecycleController({ store, now = () => new Date(),
       if (!dryRun && active.length > 1) {
         return { ok: false, mode: 'run', runs: active, activeCount: active.length, runtimeGap: ORBITA_RUNTIME_GAP, diagnostics: storeDiagnostics(store), message: 'ambiguous_active_runs' };
       }
-      const resolvedIntake = await resolveIntakePacket({ intake, prepareIntake });
+      const resolvedIntake = await resolveIntakePacket({ intake, prepareIntake, candidateRefs });
       const state = orbitaStateForIntake(resolvedIntake, { dryRun, defaultState: ORBITA_RUN_STATES.CREATED });
       const run = createOrbitaRun({ runId: `orbita-${idFactory()}`, requesterRef, kind, now: now(), opaqueRefs, dryRun, intake: resolvedIntake, state });
       if (!dryRun) await store.save(run);
