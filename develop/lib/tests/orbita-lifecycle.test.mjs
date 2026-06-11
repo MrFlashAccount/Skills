@@ -9,7 +9,7 @@ import { ORBITA_RUN_STATES } from '../entities/orbita-lifecycle/run.mjs';
 import { createOrbitaLifecycleController } from '../use-cases/orbita-lifecycle/controller.mjs';
 import { createFileOrbitaRunStore } from '../persistence/orbita-lifecycle/fileRunStore.mjs';
 import { projectOrbitaResult } from '../dtos/orbita-lifecycle/projections.mjs';
-import { runOrbita } from '../entrypoints/orbita/pluginBridge.mjs';
+import { parseCommandArgs, runOrbita } from '../entrypoints/orbita/pluginBridge.mjs';
 
 async function exists(path) {
   try {
@@ -46,7 +46,7 @@ test('run creates a compact runtime-gap lifecycle record and reuses the active r
     const created = projectOrbitaResult(await controller.run({ requesterRef: 'requester-a', kind: 'backend' }));
     assert.equal(created.ok, true);
     assert.equal(created.run.run_id, 'orbita-fixed-id');
-    assert.equal(created.run.state, 'created');
+    assert.equal(created.run.state, 'waiting_human');
     assert.equal(created.run.runtime_gap, 'requires_parent_delivery');
     assert.equal(Object.hasOwn(created.run, 'requester_ref'), false);
     assert.equal(Object.hasOwn(created.run, 'session_key'), false);
@@ -69,7 +69,7 @@ test('runtime gap is delivery metadata, not a lifecycle state', async () => {
   });
 });
 
-test('dry-run reports runtime honesty without persisting a run', async () => {
+test('dry-run reports runtime honesty and intake without persisting a run', async () => {
   await withRoot(async (root) => {
     const runsRoot = join(root, 'missing-runs-root');
     const controller = createOrbitaLifecycleController({
@@ -82,11 +82,46 @@ test('dry-run reports runtime honesty without persisting a run', async () => {
     assert.equal(dry.dry_run, true);
     assert.equal(dry.run.state, 'completed');
     assert.equal(dry.runtime_gap, 'requires_parent_delivery');
+    assert.equal(dry.run.intake.intake_status, 'needs_intake_agent');
+    assert.equal(dry.run.intake.task_kind, 'unknown');
+    assert.equal(dry.run.intake.brief_available, false);
+    assert.equal(Object.hasOwn(dry.run.intake, 'clean_subagent_brief'), false);
     assert.equal(await exists(runsRoot), false);
 
     const listed = projectOrbitaResult(await controller.list());
     assert.deepEqual(listed.runs, []);
     assert.equal(await exists(runsRoot), false);
+  });
+});
+
+test('semantic intake agent packet is persisted with the lifecycle run and raw request is not projected', async () => {
+  await withRoot(async (root) => {
+    const controller = createOrbitaLifecycleController({
+      store: createFileOrbitaRunStore({ runsRoot: root }),
+      now: () => new Date('2026-06-10T19:00:00.000Z'),
+      idFactory: () => 'fixed-id',
+    });
+
+    const created = projectOrbitaResult(await controller.run({
+      requesterRef: 'requester-a',
+      intake: {
+        intake_status: 'ambiguous',
+        task_kind: 'backend',
+        candidate_options: [{ id: 'dev-harness', label: 'Dev Harness workflow' }],
+        clean_subagent_brief: 'Implement backend lifecycle support.',
+        clean_subagent_brief_safe: true,
+        confidence: 0.42,
+      },
+    }));
+    assert.equal(created.ok, true);
+    assert.equal(created.run.state, 'waiting_human');
+    assert.equal(created.run.intake.intake_status, 'ambiguous');
+    assert.deepEqual(created.run.intake.candidate_options, [{ id: 'dev-harness', label: 'Dev Harness' }]);
+    assert.equal(created.run.intake.clean_subagent_brief, 'Implement backend lifecycle support.');
+    assert.doesNotMatch(JSON.stringify(created), /raw secret-ish messy prompt/);
+
+    const listed = projectOrbitaResult(await controller.list({ requesterRef: 'requester-a' }));
+    assert.equal(listed.runs[0].intake.intake_status, 'ambiguous');
   });
 });
 
@@ -212,6 +247,100 @@ test('bridge rejects workspace-relative runs roots that traverse through symlink
   }
 });
 
+test('direct bridge dry-run parses raw messy request into intake packet without persisting', async () => {
+  const workspaceDir = process.env.OPENCLAW_WORKSPACE_DIR || join(process.env.HOME, '.openclaw', 'workspace');
+  const relativeRunsRoot = `.test-orbita-intake-dry/${process.pid}-${Date.now()}`;
+  const runsRoot = join(workspaceDir, relativeRunsRoot);
+  const pluginConfig = { runsRoot: relativeRunsRoot };
+  try {
+    const dry = await runOrbita('run', { 'dry-run': true, _positionals: ['create', 'new', 'workflow', 'for', 'release triage'] }, { pluginConfig });
+    assert.equal(dry.ok, true);
+    assert.equal(dry.run.intake.intake_status, 'needs_intake_agent');
+    assert.equal(dry.run.intake.task_kind, 'unknown');
+    assert.equal(dry.run.intake.brief_available, false);
+    assert.doesNotMatch(JSON.stringify(dry), /release triage/);
+    assert.equal(await exists(runsRoot), false);
+  } finally {
+    await rm(runsRoot, { recursive: true, force: true });
+  }
+});
+
+test('runtime intake sanitizer does not trust safe flags or leak secrets and local paths', async () => {
+  const workspaceDir = process.env.OPENCLAW_WORKSPACE_DIR || join(process.env.HOME, '.openclaw', 'workspace');
+  const relativeRunsRoot = `.test-orbita-intake-malicious/${process.pid}-${Date.now()}`;
+  const runsRoot = join(workspaceDir, relativeRunsRoot);
+  const pluginConfig = { runsRoot: relativeRunsRoot };
+  const maliciousLocalPath = ['', 'Users', 'sergeygarin', 'private'].join('/');
+  const maliciousPacket = {
+    intake_status: 'ambiguous',
+    task_kind: 'backend',
+    candidate_options: [{ id: 'dev-harness', label: `TOKEN=secret ${maliciousLocalPath}/leaky label` }],
+    selected_workflow: { id: 'unknown-workflow', label: 'TOKEN=secret selected', path: `${maliciousLocalPath}/SKILL.md` },
+    proposed_path: { kind: 'backend', label: 'TOKEN=secret proposed', path: `${maliciousLocalPath}/Projects/skills/private` },
+    clean_subagent_brief: `Fix request with TOKEN=secret from ${maliciousLocalPath}/private.txt`,
+    clean_subagent_brief_safe: true,
+    selected_workflow_safe: true,
+    proposed_path_safe: true,
+    candidate_options_safe: true,
+    confidence: 0.77,
+  };
+
+  try {
+    const created = await runOrbita('run', { request: 'safe wrapper request' }, {
+      pluginConfig,
+      ctx: { sessionKey: 'requester-a' },
+      api: { runtime: { subagent: () => ({ text: JSON.stringify(maliciousPacket) }) } },
+    });
+    assert.equal(created.ok, true);
+    assert.equal(created.run.intake.intake_status, 'ambiguous');
+    assert.deepEqual(created.run.intake.candidate_options, [{ id: 'dev-harness', label: 'Dev Harness' }]);
+    assert.equal(created.run.intake.brief_available, false);
+    assert.equal(Object.hasOwn(created.run.intake, 'clean_subagent_brief'), false);
+    assert.equal(created.run.intake.selected_workflow, undefined);
+    assert.equal(created.run.intake.proposed_path, undefined);
+    assert.doesNotMatch(JSON.stringify(created), /TOKEN=secret|\/Users\/sergeygarin|leaky label|selected|proposed/);
+
+    const persisted = await readFile(join(runsRoot, 'orbita-lifecycle', `${created.run.run_id}.json`), 'utf8');
+    assert.doesNotMatch(persisted, /TOKEN=secret|\/Users\/sergeygarin|leaky label|selected|proposed/);
+
+    const listed = await runOrbita('list', {}, { pluginConfig, ctx: { sessionKey: 'requester-a' } });
+    assert.doesNotMatch(JSON.stringify(listed), /TOKEN=secret|\/Users\/sergeygarin|leaky label|selected|proposed/);
+  } finally {
+    await rm(runsRoot, { recursive: true, force: true });
+  }
+});
+
+test('direct bridge persistent run stores intake and projects it through list status and inbox', async () => {
+  const workspaceDir = process.env.OPENCLAW_WORKSPACE_DIR || join(process.env.HOME, '.openclaw', 'workspace');
+  const relativeRunsRoot = `.test-orbita-intake-persist/${process.pid}-${Date.now()}`;
+  const runsRoot = join(workspaceDir, relativeRunsRoot);
+  const pluginConfig = { runsRoot: relativeRunsRoot };
+  try {
+    const rawSecret = 'workflow or skill for messy backend request SECRET_TOKEN=abc123';
+    const created = await runOrbita('run', { request: rawSecret }, { pluginConfig, ctx: { sessionKey: 'requester-a' } });
+    assert.equal(created.ok, true);
+    assert.equal(created.run.state, 'waiting_human');
+    assert.equal(created.run.intake.intake_status, 'needs_intake_agent');
+    assert.equal(created.run.intake.brief_available, false);
+    assert.doesNotMatch(JSON.stringify(created), /SECRET_TOKEN|messy backend request/);
+
+    const persisted = await readFile(join(runsRoot, 'orbita-lifecycle', `${created.run.run_id}.json`), 'utf8');
+    assert.doesNotMatch(persisted, /SECRET_TOKEN|messy backend request/);
+
+    const status = await runOrbita('status', { run: created.run.run_id }, { pluginConfig, ctx: { sessionKey: 'requester-a' } });
+    assert.equal(status.run.intake.intake_status, 'needs_intake_agent');
+
+    const listed = await runOrbita('list', {}, { pluginConfig, ctx: { sessionKey: 'requester-a' } });
+    assert.equal(listed.runs[0].intake.intake_status, 'needs_intake_agent');
+
+    const inbox = await runOrbita('inbox', {}, { pluginConfig, ctx: { sessionKey: 'requester-a' } });
+    assert.equal(inbox.runs[0].intake.intake_status, 'needs_intake_agent');
+    assert.doesNotMatch(JSON.stringify(inbox), /requester-a|SECRET_TOKEN/);
+  } finally {
+    await rm(runsRoot, { recursive: true, force: true });
+  }
+});
+
 test('direct bridge dry-run does not create the configured runs root and respects requester scope', async () => {
   const workspaceDir = process.env.OPENCLAW_WORKSPACE_DIR || join(process.env.HOME, '.openclaw', 'workspace');
   const relativeRunsRoot = `.test-orbita-runs/${process.pid}-${Date.now()}`;
@@ -230,4 +359,38 @@ test('direct bridge dry-run does not create the configured runs root and respect
   } finally {
     await rm(runsRoot, { recursive: true, force: true });
   }
+});
+
+test('runtime intake response is size-bounded before JSON parsing', async () => {
+  const workspaceDir = process.env.OPENCLAW_WORKSPACE_DIR || join(process.env.HOME, '.openclaw', 'workspace');
+  const relativeRunsRoot = `.test-orbita-intake-large/${process.pid}-${Date.now()}`;
+  const runsRoot = join(workspaceDir, relativeRunsRoot);
+  try {
+    const result = await runOrbita('run', { 'dry-run': true, request: 'SECRET_TOKEN=oversized-response' }, {
+      pluginConfig: { runsRoot: relativeRunsRoot },
+      api: { runtime: { subagent: () => ({ text: 'x'.repeat(12_001) }) } },
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.run.intake.intake_status, 'degraded');
+    assert.equal(result.run.intake.degradation_reason, 'runtime_subagent_intake_failed');
+    assert.doesNotMatch(JSON.stringify(result), /SECRET_TOKEN/);
+  } finally {
+    await rm(runsRoot, { recursive: true, force: true });
+  }
+});
+
+test('native command parser treats tokens after separator as request text, not options', () => {
+  const parsed = parseCommandArgs('run --dry-run -- --help not option --kind frontend');
+  assert.equal(parsed.mode, 'run');
+  assert.equal(parsed.values['dry-run'], true);
+  assert.equal(parsed.values.kind, undefined);
+  assert.deepEqual(parsed.values._positionals, ['--help', 'not', 'option', '--kind', 'frontend']);
+});
+
+test('native run parser stops option parsing at first request token', () => {
+  const parsed = parseCommandArgs('run --dry-run create --kind frontend workflow');
+  assert.equal(parsed.mode, 'run');
+  assert.equal(parsed.values['dry-run'], true);
+  assert.equal(parsed.values.kind, undefined);
+  assert.deepEqual(parsed.values._positionals, ['create', '--kind', 'frontend', 'workflow']);
 });
