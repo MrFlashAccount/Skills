@@ -69,8 +69,9 @@ test('Orbita run --workflow drives DevHarness workers through runner until appro
             this.messages.set(sessionKey, [{ role: 'assistant', content: JSON.stringify(output) }]);
             return { runId: `runtime-${stepId}` };
           },
-          async waitForRun({ runId }) {
+          async waitForRun({ runId, timeoutMs }) {
             assert.match(runId, /^runtime-/);
+            assert.equal(timeoutMs, 20 * 60 * 1000);
           },
           async getSessionMessages({ sessionKey }) {
             return { messages: this.messages.get(sessionKey) ?? [] };
@@ -250,7 +251,9 @@ test('Orbita run --workflow reports waitForRun timeout as human safe error', asy
       runtime: {
         subagent: {
           async run() { return { runId: 'runtime-timeout' }; },
-          async waitForRun() {
+          async waitForRun({ runId, timeoutMs }) {
+            assert.equal(runId, 'runtime-timeout');
+            assert.equal(timeoutMs, 20 * 60 * 1000);
             const privatePath = join('/', 'Users', 'sergey', 'private', 'prompt.txt');
             return { status: 'timeout', message: `raw timeout detail ${privatePath}` };
           },

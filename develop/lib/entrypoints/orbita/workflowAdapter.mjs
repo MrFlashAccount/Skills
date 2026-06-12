@@ -15,6 +15,7 @@ const MAX_WORKFLOW_STEPS = 8;
 const MAX_SUBAGENT_RESPONSE_CHARS = 200_000;
 const MAX_PUBLIC_SUMMARY_CHARS = 160;
 const DEFAULT_LEASE_MS = 30 * 60 * 1000;
+const DEV_HARNESS_SUBAGENT_WAIT_TIMEOUT_MS = 20 * 60 * 1000;
 
 const PUBLIC_ERROR_MESSAGES = new Map([
   ['dev_harness_workflow_failed', 'DevHarness workflow failed before a safe result was available.'],
@@ -140,7 +141,7 @@ async function callRuntimeSubagent(api, request) {
   const started = await subagent.run(request);
   const runId = started?.runId || started?.id;
   if (!runId) throw new Error('runtime_subagent_unavailable');
-  const waitResult = await subagent.waitForRun({ runId, requestId: request.requestId, idempotencyKey: request.idempotencyKey });
+  const waitResult = await subagent.waitForRun({ runId, timeoutMs: DEV_HARNESS_SUBAGENT_WAIT_TIMEOUT_MS });
   const waitErrorCode = waitForRunErrorCode(waitResult);
   if (waitErrorCode) throw new Error(waitErrorCode);
   const messagesResult = await subagent.getSessionMessages({ sessionKey: request.sessionKey, requestId: request.requestId });
