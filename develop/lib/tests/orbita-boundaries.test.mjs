@@ -5,6 +5,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import bridge, { formatNativeHelpText, usageText } from '../entrypoints/orbita/pluginBridge.mjs';
+import { validateDevHarnessWorkflowPath } from '../entrypoints/orbita/workflowAdapter.mjs';
 
 const DEVELOP_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 
@@ -75,11 +76,36 @@ test('Orbita plugin bridge is thin and does not call Skills runner APIs directly
   assert.doesNotMatch(source, /workflowRunner|workflowRuns|runnerNext|runnerWriteOutput|runnerContinueRun|registerWorkflowRun/);
 });
 
+test('Orbita workflow adapter owns DevHarness runner orchestration outside thin plugin bridge', async () => {
+  const source = await readFile(join(DEVELOP_ROOT, 'lib', 'entrypoints', 'orbita', 'workflowAdapter.mjs'), 'utf8');
+
+  assert.match(source, /runDevHarnessWorkflow/);
+  assert.match(source, /registerWorkflowRun/);
+  assert.match(source, /writeOutput/);
+  assert.match(source, /continueRun/);
+});
+
+test('Orbita DevHarness workflow path policy allows only the approved relative path forms', () => {
+  assert.equal(validateDevHarnessWorkflowPath('workflows/dev-harness/workflow.json'), 'workflows/dev-harness/workflow.json');
+  assert.equal(validateDevHarnessWorkflowPath('./workflows/dev-harness/workflow.json'), 'workflows/dev-harness/workflow.json');
+
+  for (const value of [
+    join('/', 'tmp', 'workflows', 'dev-harness', 'workflow.json'),
+    `~${join('/', 'workflows', 'dev-harness', 'workflow.json')}`,
+    '../workflows/dev-harness/workflow.json',
+    'workflows/../workflows/dev-harness/workflow.json',
+    'other/dev-harness/workflow.json',
+    'workflows/research-critic/workflow.json',
+  ]) {
+    assert.throws(() => validateDevHarnessWorkflowPath(value), /unsupported_workflow_path/, value);
+  }
+});
+
 test('Orbita public help and tool schema expose only approved lifecycle modes', () => {
   const blocked = /\b(smoke|start|resume|gate|e2e)\b/;
   assert.doesNotMatch(usageText(), blocked);
   assert.doesNotMatch(formatNativeHelpText(), blocked);
-  assert.doesNotMatch(usageText(), /\/Users\//);
+  assert.doesNotMatch(usageText(), new RegExp(`${'/'}Users${'/'}`));
 
   let tool;
   const cliModes = [];

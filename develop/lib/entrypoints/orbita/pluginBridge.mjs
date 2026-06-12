@@ -6,6 +6,7 @@ import { projectOrbitaResult } from '../../dtos/orbita-lifecycle/projections.mjs
 import { createFileOrbitaRunStore } from '../../persistence/orbita-lifecycle/fileRunStore.mjs';
 import { createOrbitaLifecycleController } from '../../use-cases/orbita-lifecycle/controller.mjs';
 import { createOrbitaIntakeAgent } from './intakeAgent.mjs';
+import { isWorkflowRunRequested, runDevHarnessWorkflow } from './workflowAdapter.mjs';
 
 const PLUGIN_ID = 'orbita';
 const COMMAND_NAME = 'orbita';
@@ -24,6 +25,7 @@ function usageText() {
 
 Usage:
   orbita run [--dry-run] [--kind <kind>] [messy raw request]
+  orbita run --workflow workflows/dev-harness/workflow.json -- <task>
   orbita inbox [--limit <n>]
   orbita status [--run <id>]
   orbita list [--state <state>] [--limit <n>]
@@ -43,6 +45,7 @@ State-aware lifecycle bridge.
 Команды
 /orbita run <запрос> — разобрать запрос и создать/продолжить активный run
 /orbita run --dry-run <запрос> — semantic intake без записи
+/orbita run --workflow workflows/dev-harness/workflow.json -- <task> — запустить DevHarness до approval prompt
 /orbita inbox — runs, требующие доставки/внимания
 /orbita status [--run <id>] — состояние
 /orbita list — список runs
@@ -157,6 +160,7 @@ const cliOptions = {
   limit: { type: 'string' },
   reason: { type: 'string' },
   request: { type: 'string' },
+  workflow: { type: 'string' },
   'runs-root': { type: 'string' },
   'dry-run': { type: 'boolean' },
   keep: { type: 'boolean' },
@@ -205,6 +209,7 @@ async function runOrbita(mode, values = {}, { pluginConfig = {}, ctx = {}, api }
   const requesterRef = requesterRefFrom(ctx);
 
   if (mode === 'run') {
+    if (isWorkflowRunRequested(values)) return runDevHarnessWorkflow(values, { pluginConfig, ctx, api });
     const rawRequest = rawRequestFromValues(values);
     const candidateRefs = pluginConfig.candidateRefs ?? pluginConfig.matchCandidates;
     const intakeAgent = createOrbitaIntakeAgent({ api });
@@ -251,7 +256,7 @@ function parseModeValues(mode, args = []) {
       firstRequestIndex = index;
       break;
     }
-    if (['--kind', '--run', '--state', '--limit', '--reason', '--request', '--runs-root'].includes(token)) index += 1;
+    if (['--kind', '--run', '--state', '--limit', '--reason', '--request', '--workflow', '--runs-root'].includes(token)) index += 1;
   }
 
   const parsedOptionTokens = scanTokens.slice(0, firstRequestIndex);
@@ -283,6 +288,7 @@ function toolParametersSchema() {
       limit: { type: 'number' },
       reason: { type: 'string' },
       request: { type: 'string' },
+      workflow: { type: 'string' },
       runs_root: { type: 'string' },
       dry_run: { type: 'boolean' },
     },
@@ -297,6 +303,7 @@ function toolValues(params = {}) {
     limit: params.limit,
     reason: params.reason,
     request: params.request,
+    workflow: params.workflow,
     'runs-root': params.runs_root,
     'dry-run': params.dry_run,
   };
