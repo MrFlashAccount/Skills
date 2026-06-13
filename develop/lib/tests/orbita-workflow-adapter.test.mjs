@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
-import { writeFile, mkdtemp, rm, stat } from 'node:fs/promises';
+import { readFile, writeFile, mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, sep } from 'node:path';
 import test from 'node:test';
 
+import { listWorkflowRuns } from '../entrypoints/api/workflowRuns.mjs';
 import { formatNativeRunText, runOrbita } from '../entrypoints/orbita/pluginBridge.mjs';
 
 async function exists(path) {
@@ -21,8 +22,38 @@ async function withRoot(fn) {
   try {
     await fn(root);
   } finally {
-    await rm(root, { recursive: true, force: true });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await rm(root, { recursive: true, force: true, maxRetries: 3, retryDelay: 20 });
   }
+}
+
+async function waitFor(predicate, { timeoutMs = 3000 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await predicate()) return;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  assert.fail('timed out waiting for condition');
+}
+
+async function readRunsIndex(root) {
+  return JSON.parse(await readFile(join(root, 'runs.json'), 'utf8'));
+}
+
+async function readLastResponse(root, runId) {
+  return JSON.parse(await readFile(join(root, runId, '.workflow-runner', 'last-response.json'), 'utf8'));
+}
+
+function approvalGateReached(lastResponse) {
+  return lastResponse?.status === 'needs_host_actions'
+    && lastResponse.requests?.some((request) => request.action === 'wait_for_approval' && (request.stepId ?? request.id) === 'approve_research');
+}
+
+function assertApprovalGateReached(lastResponse) {
+  assert.equal(lastResponse.status, 'needs_host_actions');
+  const approval = lastResponse.requests?.find((request) => request.action === 'wait_for_approval');
+  assert.ok(approval, 'background continuation must persist a wait_for_approval request');
+  assert.equal(approval.stepId ?? approval.id, 'approve_research');
 }
 
 test('Orbita run --workflow drives DevHarness workers through runner until approve_research', async () => {
@@ -87,15 +118,129 @@ test('Orbita run --workflow drives DevHarness workers through runner until appro
 
     assert.equal(result.ok, true);
     assert.equal(result.workflow, 'dev-harness');
-    assert.equal(result.status, 'needs_host_actions');
-    assert.equal(result.approval_step, 'approve_research');
-    assert.deepEqual(calls, ['research_draft', 'research_attack']);
-    assert.match(result.text, /DevHarness approval required/);
-    assert.match(result.text, /approve_research/);
+    assert.equal(result.status, 'running');
+    assert.equal(result.approval_step, undefined);
+    assert.deepEqual(calls, []);
+    assert.match(result.text, /DevHarness started in background/);
+    assert.match(result.text, /Workflow run: run-/);
     assert.match(result.text, /Request ID: orbita-/);
     assert.match(result.request_id, /^orbita-/);
     const localPathPattern = new RegExp(`lease-token|Research packet fixture|${sep}private|${sep}tmp|artifact`);
     assert.doesNotMatch(result.text, localPathPattern);
+
+    await waitFor(() => calls.length === 2);
+    assert.deepEqual(calls, ['research_draft', 'research_attack']);
+    await waitFor(async () => approvalGateReached(await readLastResponse(root, result.workflow_run_id)));
+    const index = await readRunsIndex(root);
+    const run = index.runs[result.workflow_run_id];
+    assert.equal(run.status, 'needs_host_actions');
+    // Product-approved exception: the task-derived title is allowed in run lists/status so humans can identify the run.
+    assert.equal(run.title, 'DevHarness: Implement approved entrypoint-only slice');
+    assertApprovalGateReached(await readLastResponse(root, result.workflow_run_id));
+  });
+});
+
+test('Orbita run --workflow persists sanitized useful task-derived run title', async () => {
+  await withRoot(async (root) => {
+    const unsafePath = join('/', 'Users', 'sergey', 'private', 'prompt.txt');
+    const unsafeTranscript = join('/', 'tmp', 'orbita', 'transcript.log');
+    const maliciousTask = `Investigate sanitized run metadata ${unsafePath} prompt: ${unsafePath} <<<BEGIN_TRANSCRIPT>>> ${unsafeTranscript} lease-token=abcdefghijklmnopqrstuvwxyz1234567890 ghp_abcdefghijklmnopqrstuvwxyz123456`;
+    const api = {
+      runtime: {
+        subagent: {
+          async run() { return { runId: 'runtime-stub' }; },
+          async waitForRun() {},
+          async getSessionMessages() { return { messages: [] }; },
+        },
+      },
+    };
+
+    const result = await runOrbita('run', {
+      workflow: 'workflows/dev-harness/workflow.json',
+      _positionals: [maliciousTask],
+    }, { pluginConfig: { workflowRunsRoot: root }, ctx: { sessionKey: 'requester-a' }, api });
+
+    assert.equal(result.ok, true);
+    const persisted = (await readRunsIndex(root)).runs[result.workflow_run_id];
+    const [listed] = await listWorkflowRuns({ runsRoot: root });
+    for (const title of [persisted.title, listed.title]) {
+      assert.match(title, /^DevHarness: Investigate sanitized run metadata/);
+      assert.ok(title.length <= 'DevHarness: '.length + 80);
+      assert.match(title, /\[redacted-/);
+      assert.doesNotMatch(title, /Users|sergey|private|tmp|prompt|transcript|BEGIN_TRANSCRIPT|lease-token|ghp_|abcdefghijklmnopqrstuvwxyz123456/i);
+    }
+  });
+});
+
+test('Orbita run --workflow uses runtime workflow driver lane when available', async () => {
+  await withRoot(async (root) => {
+    const calls = [];
+    const laneStarts = [];
+    const api = {
+      runtime: {
+        workflowDrivers: {
+          async start(params) {
+            assert.match(params.label, /^orbita-dev-harness-driver-orbita-/);
+            assert.match(params.idempotencyKey, /^orbita-dev-harness-driver:orbita-/);
+            assert.equal(params.metadata.openclaw_surface, 'orbita');
+            assert.equal(params.metadata.workflow, 'dev-harness');
+            assert.equal(typeof params.run, 'function');
+            laneStarts.push(params);
+            setTimeout(() => { void params.run().catch(() => {}); }, 0);
+          },
+        },
+        subagent: {
+          messages: new Map(),
+          async run({ message, sessionKey }) {
+            const stepId = message.match(/Step: (\S+)/)?.[1];
+            const artifactDir = message.match(/artifact output directory and reference those absolute paths in artifacts\[\]\.path:\n([^\n]+)/)?.[1];
+            calls.push(stepId);
+            let output;
+            if (stepId === 'research_draft') {
+              const artifactPath = join(artifactDir, 'research.md');
+              await writeFile(artifactPath, 'Research packet fixture.');
+              output = {
+                outcome: 'ready_for_attack',
+                research_packet: {
+                  summary: ['Research ready.'],
+                  scope: { in_scope: ['adapter'], out_of_scope: [] },
+                  constraints: [],
+                  risks: [],
+                  open_questions: [],
+                  recommendation: 'Approve research.',
+                },
+                artifacts: [{ id: 'research-packet', content_type: 'text/markdown', path: artifactPath, summary: 'Research packet' }],
+              };
+            } else if (stepId === 'research_attack') {
+              output = { outcome: 'approved', verdict: { summary: ['Approved.'], evidence_checked: [], findings: [] } };
+            } else {
+              throw new Error(`unexpected step ${stepId}`);
+            }
+            this.messages.set(sessionKey, [{ role: 'assistant', content: JSON.stringify(output) }]);
+            return { runId: `runtime-${stepId}` };
+          },
+          async waitForRun() {},
+          async getSessionMessages({ sessionKey }) {
+            return { messages: this.messages.get(sessionKey) ?? [] };
+          },
+        },
+      },
+    };
+
+    const result = await runOrbita('run', {
+      workflow: 'workflows/dev-harness/workflow.json',
+      _positionals: ['Use driver lane'],
+    }, { pluginConfig: { workflowRunsRoot: root }, ctx: { sessionKey: 'requester-a' }, api });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.status, 'running');
+    assert.equal(laneStarts.length, 1);
+    assert.deepEqual(calls, []);
+    await waitFor(() => calls.length === 2);
+    await waitFor(async () => approvalGateReached(await readLastResponse(root, result.workflow_run_id)));
+    const index = await readRunsIndex(root);
+    assert.equal(index.runs[result.workflow_run_id].status, 'needs_host_actions');
+    assertApprovalGateReached(await readLastResponse(root, result.workflow_run_id));
   });
 });
 
@@ -154,12 +299,15 @@ test('Orbita run --workflow shapes malicious worker summaries before approval pr
     }, { pluginConfig: { workflowRunsRoot: root }, ctx: { sessionKey: 'requester-a' }, api });
 
     assert.equal(result.ok, true);
-    assert.match(result.text, /DevHarness approval required/);
+    assert.match(result.text, /DevHarness started in background/);
     assert.match(result.text, /Request ID: orbita-/);
-    assert.match(result.text, /\[redacted-path\]/);
-    assert.match(result.text, /\[redacted-token\]/);
     assert.doesNotMatch(result.text, new RegExp(`Users|sergey|${sep}tmp|abcdefghijklmnopqrstuvwxyz1234567890|ghp_`));
     assert.doesNotMatch(result.text, /prompt|transcript/i);
+
+    await waitFor(async () => {
+      const index = await readRunsIndex(root);
+      return index.runs[result.workflow_run_id]?.status === 'needs_host_actions';
+    });
   });
 });
 
@@ -213,7 +361,7 @@ test('Orbita run --workflow regenerates unsafe caller supplied request_id before
 });
 
 
-test('Orbita run --workflow reports invalid worker output as human safe error', async () => {
+test('Orbita run --workflow returns ack then records invalid worker output failure in background', async () => {
   await withRoot(async (root) => {
     const privatePrompt = join('/', 'Users', 'sergey', 'private', 'prompt.txt');
     const api = {
@@ -236,16 +384,63 @@ test('Orbita run --workflow reports invalid worker output as human safe error', 
       _positionals: ['Do private task text that must not leak'],
     }, { pluginConfig: { workflowRunsRoot: root }, ctx: { sessionKey: 'requester-a' }, api });
 
-    assert.equal(result.ok, false);
-    assert.equal(result.error_code, 'runtime_subagent_output_invalid');
-    assert.match(result.text, /runtime_subagent_output_invalid/);
+    assert.equal(result.ok, true);
+    assert.equal(result.status, 'running');
+    assert.match(result.text, /DevHarness started in background/);
     assert.match(result.text, /Request ID: orbita-/);
     assert.doesNotMatch(result.text, /Do private task text|Users|sergey|prompt|private/);
     assert.doesNotMatch(result.text, /^\s*\{/);
+
+    await waitFor(async () => {
+      const index = await readRunsIndex(root);
+      return index.runs[result.workflow_run_id]?.status === 'failed';
+    });
+    const failure = (await readRunsIndex(root)).runs[result.workflow_run_id].failure;
+    assert.deepEqual(failure, {
+      request_id: result.request_id,
+      error_code: 'runtime_subagent_output_invalid',
+      failure_code: 'runtime_subagent_output_invalid',
+      workflow_run_id: result.workflow_run_id,
+      failed_step_id: 'research_draft',
+      failed_session_key: `orbita:dev-harness:${result.request_id}:${result.workflow_run_id}:research_draft`,
+      runtime_run_id: 'runtime-invalid',
+    });
+    assert.doesNotMatch(JSON.stringify(failure), /Do private task text|Users|sergey|prompt|private/);
   });
 });
 
-test('Orbita run --workflow reports waitForRun timeout as human safe error', async () => {
+test('Orbita run --workflow redacts path-like runtime run id before failure persistence and listing', async () => {
+  await withRoot(async (root) => {
+    const pathLikeRuntimeId = join('/', 'tmp', 'orbita', 'runtime-run-id');
+    const api = {
+      runtime: {
+        subagent: {
+          async run() { return { runId: pathLikeRuntimeId }; },
+          async waitForRun() {},
+          async getSessionMessages() { return { messages: [{ role: 'assistant', content: '{ not-json' }] }; },
+        },
+      },
+    };
+
+    const result = await runOrbita('run', {
+      workflow: 'workflows/dev-harness/workflow.json',
+      _positionals: ['path-like runtime id failure'],
+    }, { pluginConfig: { workflowRunsRoot: root }, ctx: { sessionKey: 'requester-a' }, api });
+
+    assert.equal(result.ok, true);
+    await waitFor(async () => {
+      const index = await readRunsIndex(root);
+      return index.runs[result.workflow_run_id]?.status === 'failed';
+    });
+    const persistedFailure = (await readRunsIndex(root)).runs[result.workflow_run_id].failure;
+    const [listed] = await listWorkflowRuns({ runsRoot: root });
+    assert.equal(persistedFailure.runtime_run_id, '[redacted]');
+    assert.equal(listed.failure.runtime_run_id, '[redacted]');
+    assert.doesNotMatch(JSON.stringify([persistedFailure, listed.failure]), /\/tmp|orbita\/runtime-run-id|runtime-run-id/);
+  });
+});
+
+test('Orbita run --workflow returns ack then records waitForRun timeout failure in background', async () => {
   await withRoot(async (root) => {
     const api = {
       runtime: {
@@ -268,17 +463,29 @@ test('Orbita run --workflow reports waitForRun timeout as human safe error', asy
       _positionals: ['private timeout task'],
     }, { pluginConfig: { workflowRunsRoot: root }, ctx: { sessionKey: 'requester-a' }, api });
 
-    assert.equal(result.ok, false);
-    assert.equal(result.error_code, 'runtime_subagent_run_timeout');
+    assert.equal(result.ok, true);
+    assert.equal(result.status, 'running');
     assert.equal(result.request_id, 'orbita-safe-caller-id');
-    assert.match(result.text, /runtime_subagent_run_timeout/);
+    assert.match(result.text, /DevHarness started in background/);
     assert.match(result.text, /Request ID: orbita-safe-caller-id/);
     assert.doesNotMatch(result.text, /raw timeout detail|Users|sergey|private|prompt|private timeout task/);
     assert.doesNotMatch(result.text, /^\s*\{/);
+
+    await waitFor(async () => {
+      const index = await readRunsIndex(root);
+      return index.runs[result.workflow_run_id]?.status === 'failed';
+    });
+    const failure = (await readRunsIndex(root)).runs[result.workflow_run_id].failure;
+    assert.equal(failure.request_id, 'orbita-safe-caller-id');
+    assert.equal(failure.error_code, 'runtime_subagent_run_timeout');
+    assert.equal(failure.failure_code, 'runtime_subagent_run_timeout');
+    assert.equal(failure.failed_step_id, 'research_draft');
+    assert.equal(failure.runtime_run_id, 'runtime-timeout');
+    assert.doesNotMatch(JSON.stringify(failure), /raw timeout detail|Users|sergey|private|prompt|private timeout task/);
   });
 });
 
-test('Orbita run --workflow reports waitForRun error status as human safe error', async () => {
+test('Orbita run --workflow returns ack then records waitForRun error status failure in background', async () => {
   await withRoot(async (root) => {
     let readMessages = false;
     const api = {
@@ -303,19 +510,30 @@ test('Orbita run --workflow reports waitForRun error status as human safe error'
       _positionals: ['private error task'],
     }, { pluginConfig: { workflowRunsRoot: root }, ctx: { sessionKey: 'requester-a' }, api });
 
-    assert.equal(result.ok, false);
-    assert.equal(result.error_code, 'runtime_subagent_run_error');
+    assert.equal(result.ok, true);
+    assert.equal(result.status, 'running');
     assert.equal(result.request_id, 'orbita-safe-error-id');
-    assert.equal(readMessages, false);
-    assert.match(result.text, /runtime_subagent_run_error/);
-    assert.match(result.text, /DevHarness worker run failed\./);
+    assert.match(result.text, /DevHarness started in background/);
     assert.match(result.text, /Request ID: orbita-safe-error-id/);
     assert.doesNotMatch(JSON.stringify(result), /raw error detail|Users|sergey|private|prompt|private error task|privatePath/);
     assert.doesNotMatch(result.text, /^\s*\{/);
+
+    await waitFor(async () => {
+      const index = await readRunsIndex(root);
+      return index.runs[result.workflow_run_id]?.status === 'failed';
+    });
+    const failure = (await readRunsIndex(root)).runs[result.workflow_run_id].failure;
+    assert.equal(failure.request_id, 'orbita-safe-error-id');
+    assert.equal(failure.error_code, 'runtime_subagent_run_error');
+    assert.equal(failure.failure_code, 'runtime_subagent_run_error');
+    assert.equal(failure.failed_step_id, 'research_draft');
+    assert.equal(failure.runtime_run_id, 'runtime-error');
+    assert.doesNotMatch(JSON.stringify(failure), /raw error detail|Users|sergey|private|prompt|private error task|privatePath/);
+    assert.equal(readMessages, false);
   });
 });
 
-test('Orbita run --workflow reports missing worker output as human safe error', async () => {
+test('Orbita run --workflow returns ack then records missing worker output failure in background', async () => {
   await withRoot(async (root) => {
     const api = {
       runtime: {
@@ -332,11 +550,22 @@ test('Orbita run --workflow reports missing worker output as human safe error', 
       _positionals: ['task'],
     }, { pluginConfig: { workflowRunsRoot: root }, ctx: { sessionKey: 'requester-a' }, api });
 
-    assert.equal(result.ok, false);
-    assert.equal(result.error_code, 'runtime_subagent_output_unavailable');
-    assert.match(result.text, /runtime_subagent_output_unavailable/);
+    assert.equal(result.ok, true);
+    assert.equal(result.status, 'running');
+    assert.match(result.text, /DevHarness started in background/);
     assert.match(result.text, /Request ID: orbita-/);
     assert.doesNotMatch(result.text, /^\s*\{/);
+
+    await waitFor(async () => {
+      const index = await readRunsIndex(root);
+      return index.runs[result.workflow_run_id]?.status === 'failed';
+    });
+    const failure = (await readRunsIndex(root)).runs[result.workflow_run_id].failure;
+    assert.equal(failure.request_id, result.request_id);
+    assert.equal(failure.error_code, 'runtime_subagent_output_unavailable');
+    assert.equal(failure.failure_code, 'runtime_subagent_output_unavailable');
+    assert.equal(failure.failed_step_id, 'research_draft');
+    assert.equal(failure.runtime_run_id, 'runtime-missing');
   });
 });
 
