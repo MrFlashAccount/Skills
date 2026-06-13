@@ -21,6 +21,7 @@ function publicRun(entry, { now = new Date() } = {}) {
     updatedAt: entry.updatedAt,
     taskKey: entry.taskKey,
     taskFingerprint: entry.taskFingerprint,
+    failure: entry.failure === undefined ? undefined : structuredClone(entry.failure),
   };
   for (const key of Object.keys(result)) if (result[key] === undefined) delete result[key];
   return result;

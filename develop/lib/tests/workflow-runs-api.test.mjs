@@ -8,7 +8,7 @@ import { listWorkflowRuns, summarizeWorkflowRuns } from '../entrypoints/api/work
 import { publicErrorMessage } from '../entrypoints/cli/public-error.mjs';
 import { claimWorkflowRunAtRoot, heartbeatWorkflowRunAtRoot, listWorkflowRunsAtRoot, registerWorkflowRunAtRoot } from '../persistence/run-state/workflow-runs.mjs';
 import { buildTokenLease, formatLeaseTokenEntropy } from '../persistence/run-state/lease-authority.mjs';
-import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot } from '../persistence/run-state/run-index.mjs';
+import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot, upsertRunIndexEntry } from '../persistence/run-state/run-index.mjs';
 import { resolveRunPaths, workflowRunsRoot } from '../persistence/run-state/paths.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -108,6 +108,79 @@ test('workflow runs API creates accepted safe run id with public metadata only',
   assert.equal(listed[0].runId, runId);
   assert.equal('runDir' in listed[0], false);
   assert.equal('runsRoot' in listed[0], false);
+});
+
+test('workflow runs API persists and lists sanitized failure metadata', async () => {
+  const runId = `${runPrefix}failure-metadata`;
+  await registerWorkflowRunAtRoot({ runsRoot, runId, workflowPath: defaultWorkflow, workflowIdentity: 'dev-harness' });
+  const paths = resolveRunPaths({ runId, workflowPath: defaultWorkflow, runsRoot });
+
+  await upsertRunIndexEntry(paths, {
+    status: 'failed',
+    workflowPath: defaultWorkflow,
+    workerLease: null,
+    failure: {
+      request_id: 'orbita-safe-request',
+      error_code: 'runtime_subagent_output_invalid',
+      failure_code: 'runtime_subagent_output_invalid',
+      workflow_run_id: runId,
+      failed_step_id: 'research_draft',
+      failed_session_key: `orbita:dev-harness:orbita-safe-request:${runId}:research_draft`,
+      runtime_run_id: 'runtime-research_draft',
+      raw_message: 'must be dropped by persistence API',
+    },
+  });
+
+  const listed = await listWorkflowRunsAtRoot({ runsRoot });
+  assert.equal(listed[0].status, 'failed');
+  assert.deepEqual(listed[0].failure, {
+    request_id: 'orbita-safe-request',
+    error_code: 'runtime_subagent_output_invalid',
+    failure_code: 'runtime_subagent_output_invalid',
+    workflow_run_id: runId,
+    failed_step_id: 'research_draft',
+    failed_session_key: `orbita:dev-harness:orbita-safe-request:${runId}:research_draft`,
+    runtime_run_id: 'runtime-research_draft',
+  });
+  assert.equal(JSON.stringify(listed).includes('raw_message'), false);
+});
+
+test('workflow runs API redacts unsafe failure metadata before persistence and listing', async () => {
+  const runId = `${runPrefix}unsafe-failure-metadata`;
+  await registerWorkflowRunAtRoot({ runsRoot, runId, workflowPath: defaultWorkflow, workflowIdentity: 'dev-harness' });
+  const paths = resolveRunPaths({ runId, workflowPath: defaultWorkflow, runsRoot });
+  const privateRuntimePath = path.join(path.sep, 'tmp', 'orbita', 'runtime-run-id');
+  const opaqueToken = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMN1234567890';
+
+  await upsertRunIndexEntry(paths, {
+    status: 'failed',
+    workflowPath: defaultWorkflow,
+    workerLease: null,
+    failure: {
+      request_id: 'orbita-safe-request',
+      error_code: 'runtime_subagent_output_invalid',
+      failure_code: 'runtime_subagent_output_invalid',
+      workflow_run_id: `ghp_abcdefghijklmnopqrstuvwxyz123456`,
+      failed_step_id: 'BEGIN_TRANSCRIPT_research_draft',
+      failed_session_key: `lease-token=${opaqueToken}`,
+      runtime_run_id: privateRuntimePath,
+    },
+  });
+
+  const persisted = (await readRunsIndex(runsIndexPathsForRoot(runsRoot))).runs[runId].failure;
+  const [listed] = await listWorkflowRunsAtRoot({ runsRoot });
+  const expected = {
+    request_id: 'orbita-safe-request',
+    error_code: 'runtime_subagent_output_invalid',
+    failure_code: 'runtime_subagent_output_invalid',
+    workflow_run_id: '[redacted]',
+    failed_step_id: '[redacted]',
+    failed_session_key: '[redacted]',
+    runtime_run_id: '[redacted]',
+  };
+  assert.deepEqual(persisted, expected);
+  assert.deepEqual(listed.failure, expected);
+  assert.doesNotMatch(JSON.stringify([persisted, listed.failure]), /\/tmp|orbita\/runtime-run-id|BEGIN_TRANSCRIPT|lease-token|ghp_|abcdefghijklmnopqrstuvwxyz/);
 });
 
 test('workflow runs API generates a safe run id when omitted', async () => {

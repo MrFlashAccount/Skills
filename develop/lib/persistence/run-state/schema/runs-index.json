@@ -26,6 +26,15 @@
       "maxLength": 256,
       "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,255}$"
     },
+    "safeFailureMetadata": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "anyOf": [
+        { "const": "[redacted]" },
+        { "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,255}$" }
+      ]
+    },
     "runIndexEntry": {
       "type": "object",
       "required": ["runId", "workflow", "status", "createdAt", "updatedAt", "workerLease"],
@@ -47,6 +56,20 @@
         "updatedAt": { "type": "string", "minLength": 1 },
         "taskKey": { "$ref": "#/$defs/safeTextMetadata" },
         "taskFingerprint": { "$ref": "#/$defs/safeTextMetadata" },
+        "failure": {
+          "type": "object",
+          "required": ["request_id", "error_code", "failure_code"],
+          "properties": {
+            "request_id": { "$ref": "#/$defs/safeFailureMetadata" },
+            "error_code": { "$ref": "#/$defs/safeFailureMetadata" },
+            "failure_code": { "$ref": "#/$defs/safeFailureMetadata" },
+            "workflow_run_id": { "$ref": "#/$defs/safeFailureMetadata" },
+            "failed_step_id": { "$ref": "#/$defs/safeFailureMetadata" },
+            "failed_session_key": { "$ref": "#/$defs/safeFailureMetadata" },
+            "runtime_run_id": { "$ref": "#/$defs/safeFailureMetadata" }
+          },
+          "additionalProperties": false
+        },
         "workerLease": {
           "oneOf": [
             { "type": "null" },
