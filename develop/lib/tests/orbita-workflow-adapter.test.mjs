@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
-import { readFile, writeFile, mkdtemp, rm, stat } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, sep } from 'node:path';
 import test from 'node:test';
 
-import { listWorkflowRuns } from '../entrypoints/api/workflowRuns.mjs';
-import { formatNativeRunText, runOrbita } from '../entrypoints/orbita/pluginBridge.mjs';
+import { listWorkflowRuns, registerWorkflowRun } from '../entrypoints/api/workflowRuns.mjs';
+import { continueRun, next, writeOutput } from '../entrypoints/api/workflowRunner.mjs';
+import { formatNativeListText, formatNativeRunText, runOrbita } from '../entrypoints/orbita/pluginBridge.mjs';
 
 async function exists(path) {
   try {
@@ -55,6 +56,155 @@ function assertApprovalGateReached(lastResponse) {
   assert.ok(approval, 'background continuation must persist a wait_for_approval request');
   assert.equal(approval.stepId ?? approval.id, 'approve_research');
 }
+
+test('Orbita list includes registered DevHarness workflow runs with safe metadata', async () => {
+  await withRoot(async (root) => {
+    const api = {
+      runtime: {
+        subagent: {
+          async run() { return { runId: 'runtime-not-used' }; },
+          async waitForRun() {},
+          async getSessionMessages() { return { messages: [] }; },
+        },
+        workflowDrivers: { async start() {} },
+      },
+    };
+
+    const created = await runOrbita('run', {
+      workflow: 'workflows/dev-harness/workflow.json',
+      requestId: 'orbita-list-safe-id',
+      _positionals: ['implement safe list projection for private fixture'],
+    }, { pluginConfig: { workflowRunsRoot: root }, ctx: { sessionKey: 'requester-a' }, api });
+    const listed = await runOrbita('list', {}, { pluginConfig: { workflowRunsRoot: root }, ctx: { sessionKey: 'requester-a' } });
+
+    assert.equal(listed.ok, true);
+    assert.equal(listed.workflow_runs.length, 1);
+    assert.equal(listed.workflow_runs[0].workflow_run_id, created.workflow_run_id);
+    assert.equal(listed.workflow_runs[0].request_id, 'orbita-list-safe-id');
+    assert.equal(listed.workflow_runs[0].status, 'running');
+    assert.equal(listed.workflow_runs[0].task_flow_id, null);
+    assert.doesNotMatch(JSON.stringify(listed), /workflow\.json|leaseToken|transcript|prompt/);
+
+    const native = formatNativeListText(listed);
+    assert.match(native, /Workflow runs: 1/);
+    assert.match(native, new RegExp(created.workflow_run_id));
+    assert.match(native, /request: orbita-list-safe-id/);
+    assert.doesNotMatch(native, /workflow\.json|leaseToken|transcript|prompt/);
+  });
+});
+
+test('Orbita list sanitizes unsafe stored DevHarness workflow titles at projection boundary', async () => {
+  await withRoot(async (root) => {
+    const unsafePath = join('/', 'Users', 'sergey', 'private', 'prompt.txt');
+    const unsafeTitle = `DevHarness: external stored title ${unsafePath} prompt: ${unsafePath} <<<BEGIN_TRANSCRIPT>>> lease-token=abcdefghijklmnopqrstuvwxyz1234567890 ghp_abcdefghijklmnopqrstuvwxyz123456 and extra text beyond the public title boundary`;
+    const registered = await registerWorkflowRun({
+      runsRoot: root,
+      runId: `run-${process.pid}-unsafe-title`,
+      title: unsafeTitle,
+      workflowPath: join(process.cwd(), 'workflows/dev-harness/workflow.json'),
+      workflowIdentity: 'dev-harness',
+      status: 'needs_host_actions',
+      requestId: 'orbita-unsafe-title-id',
+      currentGate: 'approve_research',
+    });
+
+    const listed = await runOrbita('list', {}, { pluginConfig: { workflowRunsRoot: root }, ctx: { sessionKey: 'requester-a' } });
+
+    assert.equal(listed.workflow_runs.length, 1);
+    assert.equal(listed.workflow_runs[0].workflow_run_id, registered.runId);
+    assert.equal(listed.workflow_runs[0].request_id, 'orbita-unsafe-title-id');
+    assert.equal(listed.workflow_runs[0].current_gate, 'approve_research');
+    assert.match(listed.workflow_runs[0].title, /^DevHarness: external stored title/);
+    assert.ok(listed.workflow_runs[0].title.length <= 96);
+    assert.match(listed.workflow_runs[0].title, /\[redacted-/);
+    assert.doesNotMatch(JSON.stringify(listed), /Users|sergey|private|prompt|transcript|BEGIN_TRANSCRIPT|lease-token|ghp_|abcdefghijklmnopqrstuvwxyz123456/i);
+
+    const native = formatNativeListText(listed);
+    assert.match(native, /request: orbita-unsafe-title-id/);
+    assert.match(native, /gate: approve_research/);
+    assert.match(native, /title: DevHarness: external stored title/);
+    assert.doesNotMatch(native, /Users|sergey|private|prompt|transcript|BEGIN_TRANSCRIPT|lease-token|ghp_|abcdefghijklmnopqrstuvwxyz123456/i);
+  });
+});
+
+test('workflow runner clears stale currentGate after approval continuation leaves gate', async () => {
+  await withRoot(async (root) => {
+    const workflowPath = join(process.cwd(), 'workflows/dev-harness/workflow.json');
+    const runId = `run-${process.pid}-clear-current-gate`;
+    const registered = await registerWorkflowRun({
+      runsRoot: root,
+      runId,
+      workflowPath,
+      workflowIdentity: 'dev-harness',
+      title: 'DevHarness: clear current gate',
+      status: 'running',
+      requestId: 'orbita-clear-gate-id',
+      claim: true,
+      owner: 'test',
+      workerId: 'test-worker',
+      leaseMs: 60_000,
+    });
+
+    let response = await next({ runId, workflowPath, runsRoot: root, leaseToken: registered.leaseToken, userPrompt: 'clear current gate after approval' });
+    assert.equal(response.requests[0].stepId, 'research_draft');
+    const artifactDir = join(root, runId, 'research_draft', 'artifacts');
+    await mkdir(artifactDir, { recursive: true });
+    const artifactPath = join(artifactDir, 'research.md');
+    await writeFile(artifactPath, 'Research packet fixture.');
+    await writeOutput({
+      runId,
+      workflowPath,
+      runsRoot: root,
+      leaseToken: registered.leaseToken,
+      stepId: 'research_draft',
+      json: JSON.stringify({
+        outcome: 'ready_for_attack',
+        research_packet: {
+          summary: ['Research ready.'],
+          scope: { in_scope: ['gate clearing'], out_of_scope: [] },
+          constraints: [],
+          risks: [],
+          open_questions: [],
+          recommendation: 'Approve research.',
+        },
+        artifacts: [{ id: 'research-packet', content_type: 'text/markdown', path: artifactPath, summary: 'Research packet' }],
+      }),
+    });
+
+    response = await continueRun({ runId, workflowPath, runsRoot: root, leaseToken: registered.leaseToken });
+    assert.equal(response.requests[0].stepId, 'research_attack');
+    await writeOutput({
+      runId,
+      workflowPath,
+      runsRoot: root,
+      leaseToken: registered.leaseToken,
+      stepId: 'research_attack',
+      json: JSON.stringify({ outcome: 'approved', verdict: { summary: ['Approved.'], evidence_checked: [], findings: [] } }),
+    });
+
+    response = await continueRun({ runId, workflowPath, runsRoot: root, leaseToken: registered.leaseToken });
+    assert.equal(response.status, 'needs_host_actions');
+    assert.equal(response.requests[0].stepId, 'approve_research');
+    let indexed = (await readRunsIndex(root)).runs[runId];
+    assert.equal(indexed.currentGate, 'approve_research');
+
+    await writeOutput({
+      runId,
+      workflowPath,
+      runsRoot: root,
+      leaseToken: registered.leaseToken,
+      stepId: 'approve_research',
+      json: JSON.stringify({ approval: 'approved' }),
+    });
+    response = await continueRun({ runId, workflowPath, runsRoot: root, leaseToken: registered.leaseToken });
+    assert.equal(response.status, 'needs_host_actions');
+    assert.equal(response.requests[0].action, 'run_worker');
+    assert.equal(response.requests[0].stepId, 'architecture_draft');
+    indexed = (await readRunsIndex(root)).runs[runId];
+    assert.equal(indexed.currentStep, 'architecture_draft');
+    assert.equal(Object.hasOwn(indexed, 'currentGate'), false);
+  });
+});
 
 test('Orbita run --workflow drives DevHarness workers through runner until approve_research', async () => {
   await withRoot(async (root) => {
@@ -131,12 +281,30 @@ test('Orbita run --workflow drives DevHarness workers through runner until appro
     await waitFor(() => calls.length === 2);
     assert.deepEqual(calls, ['research_draft', 'research_attack']);
     await waitFor(async () => approvalGateReached(await readLastResponse(root, result.workflow_run_id)));
-    const index = await readRunsIndex(root);
-    const run = index.runs[result.workflow_run_id];
+    let run;
+    await waitFor(async () => {
+      const index = await readRunsIndex(root);
+      run = index.runs[result.workflow_run_id];
+      return run?.status === 'needs_host_actions' && run?.currentGate === 'approve_research';
+    });
     assert.equal(run.status, 'needs_host_actions');
+    assert.equal(run.currentGate, 'approve_research');
     // Product-approved exception: the task-derived title is allowed in run lists/status so humans can identify the run.
     assert.equal(run.title, 'DevHarness: Implement approved entrypoint-only slice');
     assertApprovalGateReached(await readLastResponse(root, result.workflow_run_id));
+
+    let listed;
+    await waitFor(async () => {
+      listed = await runOrbita('list', {}, { pluginConfig: { workflowRunsRoot: root }, ctx: { sessionKey: 'requester-a' } });
+      return listed.workflow_runs.find((workflowRun) => workflowRun.workflow_run_id === result.workflow_run_id)?.current_gate === 'approve_research';
+    });
+    const listedRun = listed.workflow_runs.find((workflowRun) => workflowRun.workflow_run_id === result.workflow_run_id);
+    assert.equal(listedRun.workflow_run_id, result.workflow_run_id);
+    assert.equal(listedRun.request_id, result.request_id);
+    assert.equal(listedRun.current_gate, 'approve_research');
+    const native = formatNativeListText(listed);
+    assert.match(native, new RegExp(`request: ${result.request_id}`));
+    assert.match(native, /gate: approve_research/);
   });
 });
 
@@ -566,6 +734,17 @@ test('Orbita run --workflow returns ack then records missing worker output failu
     assert.equal(failure.failure_code, 'runtime_subagent_output_unavailable');
     assert.equal(failure.failed_step_id, 'research_draft');
     assert.equal(failure.runtime_run_id, 'runtime-missing');
+
+    const listed = await runOrbita('list', {}, { pluginConfig: { workflowRunsRoot: root }, ctx: { sessionKey: 'requester-a' } });
+    assert.equal(listed.workflow_runs.length, 1);
+    assert.equal(listed.workflow_runs[0].workflow_run_id, result.workflow_run_id);
+    assert.equal(listed.workflow_runs[0].request_id, result.request_id);
+    assert.equal(listed.workflow_runs[0].status, 'failed');
+    assert.equal(listed.workflow_runs[0].failure_code, 'runtime_subagent_output_unavailable');
+    assert.equal(listed.workflow_runs[0].error_code, 'runtime_subagent_output_unavailable');
+    assert.equal(listed.workflow_runs[0].current_step, 'research_draft');
+    assert.equal(listed.workflow_runs[0].task_flow_id, null);
+    assert.doesNotMatch(JSON.stringify(listed), /private|\/Users|workflow\.json|runtime-missing|raw error|transcript|prompt/);
   });
 });
 

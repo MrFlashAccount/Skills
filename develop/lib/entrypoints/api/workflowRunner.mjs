@@ -150,6 +150,16 @@ function resourcesWithValidatingWriter(resources, paths, { leaseToken } = {}) {
   };
 }
 
+function runIndexProgressPatch(response = {}) {
+  const requests = Array.isArray(response.requests) ? response.requests : [];
+  const approval = requests.find((request) => request?.action === 'wait_for_approval');
+  return {
+    status: response.status,
+    currentStep: response.baton?.cursor,
+    currentGate: approval ? (approval.stepId ?? approval.id) : undefined,
+  };
+}
+
 async function nextInternal({ runId, workflowPath, includeDiagnostics = false, userPrompt, userPromptFile, taskKey, taskFingerprint, leaseToken, now = new Date(), runsRoot } = {}) {
   const lockPaths = resolveRunPaths({ runId, runsRoot });
   await assertPreLockWorkerLeaseAuthority(lockPaths, { leaseToken, now, allowUnclaimed: true });
@@ -179,7 +189,7 @@ async function nextInternal({ runId, workflowPath, includeDiagnostics = false, u
         initialized: runState.initialized,
         resumed: runState.resumed,
       });
-      await upsertRunIndexEntry(paths, { status: response.status, workflowPath: paths.workflowPath, taskKey, taskFingerprint });
+      await upsertRunIndexEntry(paths, { ...runIndexProgressPatch(response), workflowPath: paths.workflowPath, taskKey, taskFingerprint });
       return response;
     } catch (error) {
       if (createdIndexEntry) await markNewRunFailed(paths);
@@ -336,7 +346,7 @@ async function continueRunInternal({ runId, workflowPath, output, includeDiagnos
       instructions: stepInstructionsFor(paths, rendered),
       history: { source: 'workflow-runner-continue', baton: applied.baton, output: historyOutput, requests: response.requests },
     });
-    await upsertRunIndexEntry(paths, { status: response.status, workflowPath: paths.workflowPath, workerLease });
+    await upsertRunIndexEntry(paths, { ...runIndexProgressPatch(response), workflowPath: paths.workflowPath, workerLease });
     return response;
   });
 }

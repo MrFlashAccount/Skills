@@ -4,7 +4,7 @@ import { isAbsolute, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { next, writeOutput, continueRun, loadInstructions } from '../api/workflowRunner.mjs';
-import { registerWorkflowRun, heartbeatWorkflowRun } from '../api/workflowRuns.mjs';
+import { listWorkflowRuns, registerWorkflowRun, heartbeatWorkflowRun } from '../api/workflowRuns.mjs';
 import { resolveRunPaths } from '../../persistence/run-state/paths.mjs';
 import { upsertRunIndexEntry } from '../../persistence/run-state/run-index.mjs';
 
@@ -200,6 +200,11 @@ function safeTaskText(values = {}) {
 
 function workflowRunsRoot(pluginConfig = {}) {
   return pluginConfig.workflowRunsRoot || pluginConfig.runsRootWorkflow || pluginConfig.workflow_runs_root;
+}
+
+export async function listDevHarnessRuns({ pluginConfig = {}, runsRoot } = {}) {
+  if (!runsRoot && !pluginConfig.workflowRunsRoot && !pluginConfig.runsRootWorkflow && !pluginConfig.workflow_runs_root && pluginConfig.runsRoot) return [];
+  return listWorkflowRuns({ runsRoot: runsRoot ?? workflowRunsRoot(pluginConfig) });
 }
 
 function artifactOutputDirFor({ runId, stepId, workflowPath, runsRoot }) {
