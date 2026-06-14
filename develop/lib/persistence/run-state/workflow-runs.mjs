@@ -35,9 +35,33 @@ function sortByUpdatedAtDesc(left, right) {
   return String(right.updatedAt ?? '').localeCompare(String(left.updatedAt ?? '')) || left.runId.localeCompare(right.runId);
 }
 
-export async function listWorkflowRunsAtRoot({ runsRoot = workflowRunsRoot, now = new Date() } = {}) {
+function normalizePositiveInteger(value) {
+  if (value === undefined || value === null || value === '') return undefined;
+  const numeric = Number(value);
+  return Number.isInteger(numeric) && numeric >= 1 ? numeric : undefined;
+}
+
+function normalizedWorkflowPath(value) {
+  return typeof value === 'string' && value.length > 0 ? resolve(value) : undefined;
+}
+
+function matchesWorkflowScope(entry, { workflowIdentity, workflowPath } = {}) {
+  if (workflowIdentity && entry.workflow?.identity !== workflowIdentity) return false;
+  const scopedPath = normalizedWorkflowPath(workflowPath);
+  if (scopedPath && normalizedWorkflowPath(entry.workflow?.path) !== scopedPath) return false;
+  return true;
+}
+
+export async function listWorkflowRunsAtRoot({ runsRoot = workflowRunsRoot, now = new Date(), workflowIdentity, workflowPath, limit, maxLimit } = {}) {
   const index = await readRunsIndex(runsIndexPathsForRoot(runsRoot));
-  return Object.values(index.runs).map((entry) => publicRun(entry, { now })).sort(sortByUpdatedAtDesc);
+  const requestedLimit = normalizePositiveInteger(limit);
+  const requestedMaxLimit = normalizePositiveInteger(maxLimit);
+  const effectiveLimit = requestedLimit && requestedMaxLimit ? Math.min(requestedLimit, requestedMaxLimit) : (requestedLimit ?? requestedMaxLimit);
+  const runs = Object.values(index.runs)
+    .filter((entry) => matchesWorkflowScope(entry, { workflowIdentity, workflowPath }))
+    .map((entry) => publicRun(entry, { now }))
+    .sort(sortByUpdatedAtDesc);
+  return effectiveLimit ? runs.slice(0, effectiveLimit) : runs;
 }
 
 export function summarizeWorkflowRuns(runs) {

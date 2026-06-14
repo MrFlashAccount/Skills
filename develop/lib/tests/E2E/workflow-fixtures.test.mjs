@@ -6,11 +6,14 @@ import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { resolveRunPaths } from '../../persistence/run-state/paths.mjs';
+import { assertIsolatedWorkflowRunsRoot } from '../helpers/workflow-runs-root.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
 const fixturesDir = path.join(root, 'develop/lib/tests/E2E/fixtures');
 const outputsDir = path.join(fixturesDir, 'outputs');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-e2e-fixtures-'));
+const runsRoot = assertIsolatedWorkflowRunsRoot(path.join(tempDir, '.workflow-runs'));
+process.env.WORKFLOW_RUNS_ROOT = runsRoot;
 let runCounter = 0;
 const leaseTokensByRunId = new Map();
 
@@ -25,7 +28,7 @@ function output(name) {
 function runDir(label) {
   runCounter += 1;
   const runId = `workflow-e2e-${process.pid}-${runCounter}-${label}`;
-  const runDir = resolveRunPaths({ runId }).runDir;
+  const runDir = resolveRunPaths({ runId, runsRoot }).runDir;
   rmSync(runDir, { recursive: true, force: true });
   return { runId, runDir };
 }
@@ -51,7 +54,7 @@ function claimRunForRunnerArgs(args) {
   const createArgs = ['develop/lib/entrypoints/cli/workflow-runs.mjs', 'create', '--claim', '--run-id', runIdValue];
   const workflow = valueAfter(args, '--workflow');
   if (workflow !== undefined) createArgs.push('--workflow', workflow);
-  const created = spawnSync(process.execPath, createArgs, { cwd: root, encoding: 'utf8' });
+  const created = spawnSync(process.execPath, createArgs, { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUNS_ROOT: runsRoot } });
   assert.equal(created.status, 0, `claim ${runIdValue} failed\nstdout:\n${created.stdout}\nstderr:\n${created.stderr}`);
   const token = JSON.parse(created.stdout).leaseToken;
   leaseTokensByRunId.set(runIdValue, token);
@@ -69,6 +72,7 @@ function runRunner(args, options = {}) {
     cwd: root,
     encoding: 'utf8',
     input: options.input,
+    env: { ...process.env, WORKFLOW_RUNS_ROOT: runsRoot },
   });
 }
 

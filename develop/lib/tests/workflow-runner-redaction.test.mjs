@@ -9,9 +9,13 @@ import { fileURLToPath } from 'node:url';
 import { publicErrorMessage } from '../entrypoints/cli/public-error.mjs';
 import { next } from '../entrypoints/api/workflowRunner.mjs';
 import { resolveRunPaths } from '../persistence/run-state/paths.mjs';
+import { assertIsolatedWorkflowRunsRoot } from './helpers/workflow-runs-root.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempRoots = [];
+const defaultTempRoot = path.join(tmpdir(), `workflow-redaction-default-${process.pid}`);
+tempRoots.push(defaultTempRoot);
+const defaultRunsRoot = assertIsolatedWorkflowRunsRoot(path.join(defaultTempRoot, '.workflow-runs'));
 const runIds = [];
 
 function runId(label) {
@@ -22,7 +26,7 @@ function runId(label) {
 
 after(() => {
   for (const dir of tempRoots) rmSync(dir, { recursive: true, force: true });
-  for (const id of runIds) rmSync(resolveRunPaths({ runId: id }).runDir, { recursive: true, force: true });
+  for (const id of runIds) rmSync(resolveRunPaths({ runId: id, runsRoot: defaultRunsRoot }).runDir, { recursive: true, force: true });
 });
 
 test('public error redaction hides workflow-runner private storage paths', () => {
@@ -96,7 +100,7 @@ test('workflow runner API read errors do not expose raw workflow pathnames', asy
   const id = runId('missing-workflow');
 
   await assert.rejects(
-    () => next({ runId: id, workflowPath, leaseToken: `redaction-token-${process.pid}` }),
+    () => next({ runId: id, workflowPath, runsRoot: defaultRunsRoot, leaseToken: `redaction-token-${process.pid}` }),
     (error) => {
       assert.match(error.message, /cannot read workflow: ENOENT|failed to read workflow JSON: ENOENT/);
       assert.doesNotMatch(error.message, /missing-private-workflow\.json/);
@@ -119,7 +123,7 @@ test('workflow runner CLI errors do not expose raw workflow pathnames', async ()
     '--run-id', id,
     '--workflow', workflowPath,
     '--lease-token', `redaction-cli-token-${process.pid}`,
-  ], { cwd: root, encoding: 'utf8' });
+  ], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUNS_ROOT: defaultRunsRoot } });
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /failed to read workflow JSON: ENOENT|cannot read workflow: ENOENT/);

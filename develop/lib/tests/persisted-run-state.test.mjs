@@ -8,8 +8,10 @@ import { readPersistedRunState } from '../persistence/run-state/PersistedRunStat
 import { writeJsonAtomic } from '../persistence/run-state/atomic-file.mjs';
 import { resolveRunPaths } from '../persistence/run-state/paths.mjs';
 import { writePersistedRunStateUpdate } from '../persistence/run-state/PersistedRunStateWriter.mjs';
+import { assertIsolatedWorkflowRunsRoot } from './helpers/workflow-runs-root.mjs';
 
 const tempDir = mkdtempSync(path.join(tmpdir(), 'persisted-run-state-'));
+const runsRoot = assertIsolatedWorkflowRunsRoot(path.join(tempDir, '.workflow-runs'));
 
 after(() => rmSync(tempDir, { recursive: true, force: true }));
 
@@ -46,7 +48,7 @@ function setupRunDir(name, initialBaton = baton()) {
   const runId = `persisted-state-test-${process.pid}-${name}`;
   const workflowPath = path.join(tempDir, `${name}-workflow.json`);
   writeJson(workflowPath, { name: name.replace(/_/g, '-'), version: 1, start: 'prepare', done: 'done', blocked: 'blocked', steps: { prepare: { name: 'Prepare', kind: 'worker', output: { template: 'output.md' }, next: 'done' }, done: { name: 'Done', kind: 'done' }, blocked: { name: 'Blocked', kind: 'blocked' } } });
-  const paths = resolveRunPaths({ runId, workflowPath });
+  const paths = resolveRunPaths({ runId, workflowPath, runsRoot });
   rmSync(paths.runDir, { recursive: true, force: true });
   mkdirSync(paths.runnerDir, { recursive: true });
   mkdirSync(paths.instructionsDir, { recursive: true });
