@@ -28,7 +28,7 @@ export async function listWorkflowRuns({ runsRoot, now = new Date() } = {}) {
   return publicApiCall(() => listWorkflowRunsAtRoot({ runsRoot, now }), { runsRoot });
 }
 
-export async function registerWorkflowRun({ runId, title, summary, workflowPath, workflowIdentity, status = 'running', taskKey, taskFingerprint, runsRoot, claim = false, owner, harness, sessionId, workerId, leaseMs, now = new Date() } = {}) {
+export async function registerWorkflowRun({ runId, title, summary, workflowPath, workflowIdentity, status = 'running', taskKey, taskFingerprint, requestId, currentStep, currentGate, taskFlowId, runsRoot, claim = false, owner, harness, sessionId, workerId, leaseMs, now = new Date() } = {}) {
   return publicApiCall(() => registerWorkflowRunAtRoot({
     runId,
     title,
@@ -38,6 +38,10 @@ export async function registerWorkflowRun({ runId, title, summary, workflowPath,
     status,
     taskKey,
     taskFingerprint,
+    requestId,
+    currentStep,
+    currentGate,
+    taskFlowId,
     runsRoot,
     claim,
     owner,

@@ -56,6 +56,10 @@
         "updatedAt": { "type": "string", "minLength": 1 },
         "taskKey": { "$ref": "#/$defs/safeTextMetadata" },
         "taskFingerprint": { "$ref": "#/$defs/safeTextMetadata" },
+        "requestId": { "$ref": "#/$defs/safeTextMetadata" },
+        "currentStep": { "$ref": "#/$defs/safeTextMetadata" },
+        "currentGate": { "$ref": "#/$defs/safeTextMetadata" },
+        "taskFlowId": { "$ref": "#/$defs/safeTextMetadata" },
         "failure": {
           "type": "object",
           "required": ["request_id", "error_code", "failure_code"],

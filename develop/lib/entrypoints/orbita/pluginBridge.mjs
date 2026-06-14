@@ -6,7 +6,7 @@ import { projectOrbitaResult } from '../../dtos/orbita-lifecycle/projections.mjs
 import { createFileOrbitaRunStore } from '../../persistence/orbita-lifecycle/fileRunStore.mjs';
 import { createOrbitaLifecycleController } from '../../use-cases/orbita-lifecycle/controller.mjs';
 import { createOrbitaIntakeAgent } from './intakeAgent.mjs';
-import { isWorkflowRunRequested, runDevHarnessWorkflow } from './workflowAdapter.mjs';
+import { isWorkflowRunRequested, listDevHarnessRuns, runDevHarnessWorkflow } from './workflowAdapter.mjs';
 
 const PLUGIN_ID = 'orbita';
 const COMMAND_NAME = 'orbita';
@@ -103,6 +103,33 @@ async function assertRunsRootHasNoSymlinkedExistingSegments(runsRoot) {
   }
 }
 
+const MAX_WORKFLOW_RUN_TITLE_CHARS = 96;
+
+function redactSensitivePublicText(value) {
+  return String(value)
+    .replace(/<{2,}\s*(?:begin|end)?[-_\s]*(?:prompt|transcript)[^>]*>{2,}/gi, '[redacted-runtime]')
+    .replace(/\b(?:begin|end)[-_\s]*(?:prompt|transcript)\b/gi, '[redacted-runtime]')
+    .replace(/(?:[A-Za-z]:)?[\\/](?:[^\s:;|,<>'"`{}()[\]]+[\\/]){1,}[^\s:;|,<>'"`{}()[\]]*/g, '[redacted-path]')
+    .replace(/~[\\/][^\s:;|,<>'"`{}()[\]]*/g, '[redacted-path]')
+    .replace(/\b(lease[-_ ]?token|prompt|transcript)\b\s*[:=]\s*\S+/gi, '$1=[redacted]')
+    .replace(/\b[A-Za-z0-9_-]{24,}\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}\b/g, '[redacted-token]')
+    .replace(/\b(?:sk|ghp|github_pat|xox[baprs]|ya29|glpat|oc_[A-Za-z0-9]*)[_-][A-Za-z0-9_=-]{12,}\b/gi, '[redacted-token]')
+    .replace(/\b[A-Za-z0-9_=-]{40,}\b/g, '[redacted-token]')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b(prompt|transcript)\b/gi, '[redacted-runtime]')
+    .replace(/\b(?:lease[-_ ]?token|token)\b/gi, '[redacted-token-label]')
+    .trim();
+}
+
+function safeWorkflowRunTitle(value) {
+  if (typeof value !== 'string') return undefined;
+  const redacted = redactSensitivePublicText(value);
+  if (!redacted) return undefined;
+  const bounded = redacted.length > MAX_WORKFLOW_RUN_TITLE_CHARS ? redacted.slice(0, MAX_WORKFLOW_RUN_TITLE_CHARS) : redacted;
+  return bounded.trim() || undefined;
+}
+
 function compactLineValue(value) {
   if (value === undefined || value === null || value === '') return '—';
   return String(value);
@@ -115,6 +142,19 @@ function compactRunLine(run) {
     `kind: ${compactLineValue(run.kind)}`,
   ];
   if (run.runtime_gap) parts.push(`runtime_gap: ${run.runtime_gap}`);
+  return `• ${parts.join(' · ')}`;
+}
+
+function compactWorkflowRunLine(run) {
+  const parts = [
+    `id: ${compactLineValue(run.workflow_run_id)}`,
+    `request: ${compactLineValue(run.request_id)}`,
+    `status: ${compactLineValue(run.status)}`,
+  ];
+  if (run.current_step) parts.push(`step: ${run.current_step}`);
+  if (run.current_gate) parts.push(`gate: ${run.current_gate}`);
+  if (run.failure_code) parts.push(`failure: ${run.failure_code}`);
+  if (run.title) parts.push(`title: ${run.title}`);
   return `• ${parts.join(' · ')}`;
 }
 
@@ -140,17 +180,18 @@ ${lines.join('\n')}
 
 function formatNativeListText(result) {
   const runs = Array.isArray(result?.runs) ? result.runs.filter(Boolean) : [];
-  if (runs.length === 0) {
+  const harnessRuns = Array.isArray(result?.workflow_runs) ? result.workflow_runs.filter(Boolean) : [];
+  if (runs.length === 0 && harnessRuns.length === 0) {
     return `🪐 Orbita
 Активных runs нет.
 
 Проверка: /orbita run --dry-run`;
   }
 
-  return `🪐 Orbita
-Runs: ${runs.length}
-
-${runs.map(compactRunLine).join('\n')}`;
+  const sections = [];
+  if (runs.length > 0) sections.push(`Runs: ${runs.length}\n\n${runs.map(compactRunLine).join('\n')}`);
+  if (harnessRuns.length > 0) sections.push(`Workflow runs: ${harnessRuns.length}\n\n${harnessRuns.map(compactWorkflowRunLine).join('\n')}`);
+  return `🪐 Orbita\n${sections.join('\n\n')}`;
 }
 
 const cliOptions = {
@@ -169,6 +210,39 @@ const cliOptions = {
 
 function controllerFor(runsRoot) {
   return createOrbitaLifecycleController({ store: createFileOrbitaRunStore({ runsRoot }) });
+}
+
+function projectWorkflowRun(run) {
+  if (!run) return null;
+  return {
+    workflow_run_id: run.runId,
+    request_id: run.requestId ?? run.failure?.request_id,
+    title: safeWorkflowRunTitle(run.title),
+    status: run.status,
+    current_step: run.currentStep,
+    current_gate: run.currentGate,
+    failure_code: run.failure?.failure_code,
+    error_code: run.failure?.error_code,
+    created_at: run.createdAt,
+    updated_at: run.updatedAt,
+    task_flow_id: run.taskFlowId ?? null,
+  };
+}
+
+function projectDevHarnessRuns(runs = []) {
+  return runs.map(projectWorkflowRun).filter(Boolean);
+}
+
+function filterDevHarnessRuns(runs = [], { state, limit } = {}) {
+  let filtered = state ? runs.filter((run) => run.status === state) : runs;
+  const max = limit === undefined || limit === null || limit === '' ? undefined : Number(limit);
+  if (Number.isInteger(max) && max >= 1) filtered = filtered.slice(0, max);
+  return filtered;
+}
+
+async function listDevHarnessRunsForOrbita(pluginConfig = {}, values = {}) {
+  const runs = await listDevHarnessRuns({ pluginConfig });
+  return projectDevHarnessRuns(filterDevHarnessRuns(runs, { state: values.state, limit: values.limit }));
 }
 
 function projectBridgeResult(result, options = {}) {
@@ -226,7 +300,10 @@ async function runOrbita(mode, values = {}, { pluginConfig = {}, ctx = {}, api }
   const projectionOptions = { candidateRefs: pluginConfig.candidateRefs ?? pluginConfig.matchCandidates };
   if (mode === 'inbox') return projectBridgeResult(await controller.inbox({ limit: values.limit, requesterRef }), projectionOptions);
   if (mode === 'status') return projectBridgeResult(await controller.status({ runId: values.run, requesterRef }), projectionOptions);
-  if (mode === 'list') return projectBridgeResult(await controller.list({ state: values.state, limit: values.limit, requesterRef }), projectionOptions);
+  if (mode === 'list') {
+    const lifecycle = projectBridgeResult(await controller.list({ state: values.state, limit: values.limit, requesterRef }), projectionOptions);
+    return { ...lifecycle, workflow_runs: await listDevHarnessRunsForOrbita(pluginConfig, values) };
+  }
   if (mode === 'cancel') return projectBridgeResult(await controller.cancel({ runId: values.run || values._positionals?.[0], reason: values.reason, requesterRef }), projectionOptions);
 
   return { ok: true, text: usageText() };

@@ -173,6 +173,10 @@ function indexEntryForPaths(paths, patch = {}, existing) {
     updatedAt: now,
     taskKey: patch.taskKey ?? existing?.taskKey,
     taskFingerprint: patch.taskFingerprint ?? existing?.taskFingerprint,
+    requestId: patch.requestId ?? existing?.requestId,
+    currentStep: Object.hasOwn(patch, 'currentStep') ? patch.currentStep : existing?.currentStep,
+    currentGate: Object.hasOwn(patch, 'currentGate') ? patch.currentGate : existing?.currentGate,
+    taskFlowId: patch.taskFlowId ?? existing?.taskFlowId,
     failure: Object.hasOwn(patch, 'failure') ? sanitizedFailureMetadata(patch.failure) : existing?.failure,
     workerLease: Object.hasOwn(patch, 'workerLease') ? patch.workerLease : (existing?.workerLease ?? null),
   };
