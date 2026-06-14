@@ -8,9 +8,12 @@ import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { continueRun as runnerContinueRun, loadInstructions as runnerLoadInstructions, next as runnerNext, writeOutput as runnerWriteOutput } from '../entrypoints/api/workflowRunner.mjs';
 import { resolveRunPaths } from '../persistence/run-state/paths.mjs';
+import { assertIsolatedWorkflowRunsRoot } from './helpers/workflow-runs-root.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-runner-check-'));
+const runsRoot = assertIsolatedWorkflowRunsRoot(path.join(tempDir, '.workflow-runs'));
+process.env.WORKFLOW_RUNS_ROOT = runsRoot;
 writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
 const testLeaseToken = `workflow-runner-test-token-${process.pid}`;
 const leaseTokensByRunId = new Map();
@@ -85,7 +88,7 @@ function claimRunForTest(paths) {
 
 function runCase(label, workflowPath) {
   const runId = `workflow-runner-test-${process.pid}-${label}`;
-  const paths = resolveRunPaths({ runId, workflowPath });
+  const paths = resolveRunPaths({ runId, workflowPath, runsRoot });
   rmSync(paths.runDir, { recursive: true, force: true });
   if (workflowPath !== undefined) claimRunForTest(paths);
   return { runId, runDir: paths.runDir };
@@ -93,7 +96,7 @@ function runCase(label, workflowPath) {
 
 function runCaseNamed(name, label, workflowPath) {
   const runId = `workflow-runner-test-${process.pid}-${label}`;
-  const paths = resolveRunPaths({ runId, workflowPath });
+  const paths = resolveRunPaths({ runId, workflowPath, runsRoot });
   rmSync(paths.runDir, { recursive: true, force: true });
   if (workflowPath !== undefined) claimRunForTest(paths);
   return { [`${name}RunId`]: runId, [`${name}RunDir`]: paths.runDir };
@@ -469,7 +472,7 @@ async function startArtifactOutputRun(label) {
   const { runId, runDir } = runCase(label);
   const workflowPath = artifactOutputWorkflow(label);
   const leaseToken = `${label}-token-${process.pid}`;
-  await runnerNext({ runId, workflowPath, leaseToken });
+  await runnerNext({ runId, workflowPath, runsRoot, leaseToken });
   return { runId, runDir, workflowPath, leaseToken, artifactDir: path.join(runDir, 'prepare', 'artifacts') };
 }
 
@@ -480,6 +483,7 @@ test('runner write-output rejects relative artifact paths', async () => {
     () => runnerWriteOutput({
       runId,
       workflowPath,
+      runsRoot,
       stepId: 'prepare',
       json: JSON.stringify({ outcome: 'ready', artifacts: [{ id: 'plan', content_type: 'text/markdown', path: 'plan/artifacts/plan.md' }] }),
       leaseToken,
@@ -495,12 +499,13 @@ test('runner write-output validates artifact boundaries without declared output 
   singleWorkflow.steps.prepare.next = 'done';
   writeJson(workflowPath, singleWorkflow);
   const leaseToken = `schemaless-artifact-path-reject-token-${process.pid}`;
-  await runnerNext({ runId, workflowPath, leaseToken });
+  await runnerNext({ runId, workflowPath, runsRoot, leaseToken });
 
   await assert.rejects(
     () => runnerWriteOutput({
       runId,
       workflowPath,
+      runsRoot,
       stepId: 'prepare',
       json: JSON.stringify({ outcome: 'ready', artifacts: [{ id: 'outside', content_type: 'text/plain', path: '/tmp/a' }] }),
       leaseToken,
@@ -516,6 +521,7 @@ test('runner write-output rejects absolute artifact paths outside the current st
     () => runnerWriteOutput({
       runId,
       workflowPath,
+      runsRoot,
       stepId: 'prepare',
       json: JSON.stringify({ outcome: 'ready', artifacts: [{ id: 'outside', content_type: 'text/markdown', path: '/tmp/outside-step.md' }] }),
       leaseToken,
@@ -534,6 +540,7 @@ test('runner write-output rejects another step artifact directory and traversal 
       () => runnerWriteOutput({
         runId,
         workflowPath,
+        runsRoot,
         stepId: 'prepare',
         json: JSON.stringify({ outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: artifactPath }] }),
         leaseToken,
@@ -548,6 +555,7 @@ test('runner write-output accepts artifact paths inside the current step artifac
   const accepted = await runnerWriteOutput({
     runId,
     workflowPath,
+    runsRoot,
     stepId: 'prepare',
     json: JSON.stringify({ outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: path.join(artifactDir, 'packet.md') }] }),
     leaseToken,
@@ -569,6 +577,7 @@ test('runner write-output rejects symlinked current step artifact directory', as
     () => runnerWriteOutput({
       runId,
       workflowPath,
+      runsRoot,
       stepId: 'prepare',
       json: JSON.stringify({ outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: path.join(artifactDir, 'packet.md') }] }),
       leaseToken,

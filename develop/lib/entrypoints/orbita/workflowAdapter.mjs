@@ -202,9 +202,14 @@ function workflowRunsRoot(pluginConfig = {}) {
   return pluginConfig.workflowRunsRoot || pluginConfig.runsRootWorkflow || pluginConfig.workflow_runs_root;
 }
 
-export async function listDevHarnessRuns({ pluginConfig = {}, runsRoot } = {}) {
+export async function listDevHarnessRuns({ pluginConfig = {}, runsRoot, limit, maxLimit } = {}) {
   if (!runsRoot && !pluginConfig.workflowRunsRoot && !pluginConfig.runsRootWorkflow && !pluginConfig.workflow_runs_root && pluginConfig.runsRoot) return [];
-  return listWorkflowRuns({ runsRoot: runsRoot ?? workflowRunsRoot(pluginConfig) });
+  return listWorkflowRuns({
+    runsRoot: runsRoot ?? workflowRunsRoot(pluginConfig),
+    workflowIdentity: 'dev-harness',
+    limit,
+    maxLimit,
+  });
 }
 
 function artifactOutputDirFor({ runId, stepId, workflowPath, runsRoot }) {

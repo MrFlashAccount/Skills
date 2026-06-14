@@ -104,6 +104,8 @@ async function assertRunsRootHasNoSymlinkedExistingSegments(runsRoot) {
 }
 
 const MAX_WORKFLOW_RUN_TITLE_CHARS = 96;
+const DEFAULT_WORKFLOW_RUN_LIST_LIMIT = 10;
+const MAX_WORKFLOW_RUN_LIST_LIMIT = 50;
 
 function redactSensitivePublicText(value) {
   return String(value)
@@ -190,7 +192,17 @@ function formatNativeListText(result) {
 
   const sections = [];
   if (runs.length > 0) sections.push(`Runs: ${runs.length}\n\n${runs.map(compactRunLine).join('\n')}`);
-  if (harnessRuns.length > 0) sections.push(`Workflow runs: ${harnessRuns.length}\n\n${harnessRuns.map(compactWorkflowRunLine).join('\n')}`);
+  if (harnessRuns.length > 0) {
+    const meta = result?.workflow_runs_meta;
+    const shown = meta?.shown ?? harnessRuns.length;
+    const total = meta?.total;
+    const limited = meta?.limited === true;
+    const capped = meta?.requested_limit && meta?.requested_limit > meta?.limit;
+    const note = limited
+      ? ` (showing latest ${shown}; use --limit up to ${meta?.max_limit ?? MAX_WORKFLOW_RUN_LIST_LIMIT})`
+      : (capped ? ` (limit capped at ${meta?.limit})` : '');
+    sections.push(`Workflow runs: ${harnessRuns.length}${note}\n\n${harnessRuns.map(compactWorkflowRunLine).join('\n')}`);
+  }
   return `🪐 Orbita\n${sections.join('\n\n')}`;
 }
 
@@ -233,16 +245,32 @@ function projectDevHarnessRuns(runs = []) {
   return runs.map(projectWorkflowRun).filter(Boolean);
 }
 
-function filterDevHarnessRuns(runs = [], { state, limit } = {}) {
-  let filtered = state ? runs.filter((run) => run.status === state) : runs;
-  const max = limit === undefined || limit === null || limit === '' ? undefined : Number(limit);
-  if (Number.isInteger(max) && max >= 1) filtered = filtered.slice(0, max);
-  return filtered;
+function normalizeWorkflowRunLimit(value) {
+  const requested = value === undefined || value === null || value === '' ? DEFAULT_WORKFLOW_RUN_LIST_LIMIT : Number(value);
+  const effectiveRequested = Number.isInteger(requested) && requested >= 1 ? requested : DEFAULT_WORKFLOW_RUN_LIST_LIMIT;
+  return {
+    requested: effectiveRequested,
+    limit: Math.min(effectiveRequested, MAX_WORKFLOW_RUN_LIST_LIMIT),
+  };
 }
 
 async function listDevHarnessRunsForOrbita(pluginConfig = {}, values = {}) {
-  const runs = await listDevHarnessRuns({ pluginConfig });
-  return projectDevHarnessRuns(filterDevHarnessRuns(runs, { state: values.state, limit: values.limit }));
+  const { requested, limit } = normalizeWorkflowRunLimit(values.limit);
+  const allRuns = await listDevHarnessRuns({ pluginConfig, limit: MAX_WORKFLOW_RUN_LIST_LIMIT });
+  const scoped = values.state ? allRuns.filter((run) => run.status === values.state) : allRuns;
+  const shown = scoped.slice(0, limit);
+  return {
+    workflow_runs: projectDevHarnessRuns(shown),
+    workflow_runs_meta: {
+      total: scoped.length,
+      shown: shown.length,
+      limit,
+      requested_limit: requested,
+      default_limit: DEFAULT_WORKFLOW_RUN_LIST_LIMIT,
+      max_limit: MAX_WORKFLOW_RUN_LIST_LIMIT,
+      limited: scoped.length > shown.length,
+    },
+  };
 }
 
 function projectBridgeResult(result, options = {}) {
@@ -302,7 +330,7 @@ async function runOrbita(mode, values = {}, { pluginConfig = {}, ctx = {}, api }
   if (mode === 'status') return projectBridgeResult(await controller.status({ runId: values.run, requesterRef }), projectionOptions);
   if (mode === 'list') {
     const lifecycle = projectBridgeResult(await controller.list({ state: values.state, limit: values.limit, requesterRef }), projectionOptions);
-    return { ...lifecycle, workflow_runs: await listDevHarnessRunsForOrbita(pluginConfig, values) };
+    return { ...lifecycle, ...(await listDevHarnessRunsForOrbita(pluginConfig, values)) };
   }
   if (mode === 'cancel') return projectBridgeResult(await controller.cancel({ runId: values.run || values._positionals?.[0], reason: values.reason, requesterRef }), projectionOptions);
 

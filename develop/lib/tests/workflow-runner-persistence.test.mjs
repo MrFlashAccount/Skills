@@ -8,9 +8,12 @@ import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { next as runnerNext } from '../entrypoints/api/workflowRunner.mjs';
 import { resolveRunPaths } from '../persistence/run-state/paths.mjs';
+import { assertIsolatedWorkflowRunsRoot } from './helpers/workflow-runs-root.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-runner-check-'));
+const runsRoot = assertIsolatedWorkflowRunsRoot(path.join(tempDir, '.workflow-runs'));
+process.env.WORKFLOW_RUNS_ROOT = runsRoot;
 writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
 const testLeaseToken = `workflow-runner-test-token-${process.pid}`;
 const leaseTokensByRunId = new Map();
@@ -85,7 +88,7 @@ function claimRunForTest(paths) {
 
 function runCase(label, workflowPath) {
   const runId = `workflow-runner-test-${process.pid}-${label}`;
-  const paths = resolveRunPaths({ runId, workflowPath });
+  const paths = resolveRunPaths({ runId, workflowPath, runsRoot });
   rmSync(paths.runDir, { recursive: true, force: true });
   if (workflowPath !== undefined) claimRunForTest(paths);
   return { runId, runDir: paths.runDir };
@@ -93,7 +96,7 @@ function runCase(label, workflowPath) {
 
 function runCaseNamed(name, label, workflowPath) {
   const runId = `workflow-runner-test-${process.pid}-${label}`;
-  const paths = resolveRunPaths({ runId, workflowPath });
+  const paths = resolveRunPaths({ runId, workflowPath, runsRoot });
   rmSync(paths.runDir, { recursive: true, force: true });
   if (workflowPath !== undefined) claimRunForTest(paths);
   return { [`${name}RunId`]: runId, [`${name}RunDir`]: paths.runDir };
