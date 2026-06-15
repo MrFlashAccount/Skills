@@ -1,0 +1,32 @@
+{
+  "name": "skills",
+  "version": "0.1.0",
+  "description": "Local Codex plugin that packages the Skills repository skill catalog.",
+  "author": {
+    "name": "MrFlashAccount"
+  },
+  "repository": "https://github.com/MrFlashAccount/Skills",
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "skills",
+    "workflow"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Skills",
+    "shortDescription": "Personal Codex skill catalog.",
+    "longDescription": "Packages the Skills repository as a local Codex plugin so its skill folders can be installed and managed together.",
+    "developerName": "MrFlashAccount",
+    "category": "Productivity",
+    "capabilities": [
+      "Skills"
+    ],
+    "defaultPrompt": [
+      "Use the right skill for this task.",
+      "Review this work with the skill catalog.",
+      "Create or improve a Codex skill."
+    ],
+    "brandColor": "#2563EB"
+  }
+}
