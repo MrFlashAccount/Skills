@@ -2,6 +2,8 @@
 
 Use this file during `review` mode, during critic passes in `implement`, and during the final post-implementation review. In create/edit implementation, the required adversarial pass is a separate `Frontend-Taste` attacker/critic after the proposer drafts or edits `DESIGN.md`.
 
+Start from a hostile prior: assume the change, proposal, draft, or packet is wrong, incomplete, overcomplicated, or under-evidenced until the artifact proves otherwise. Do not give credit for intent, author confidence, green self-reports, or plausible-sounding structure. PASS is allowed only after serious attack finds no evidence-backed blocker or important finding. Do not invent issues. Any FAIL must be evidence-backed with file/section or equivalent precise location, and explain why existing checks did not catch it. Prefer small, evidence-backed blockers over broad commentary.
+
 ## What to check
 
 ### 0. Frontend-Taste attacker checks

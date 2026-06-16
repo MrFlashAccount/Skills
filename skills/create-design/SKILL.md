@@ -93,7 +93,7 @@ For small approved fixes such as contract-only or wording-only edits, compress t
 - Treat refs as support material, not source of truth.
 - Do not use this skill for frontend implementation, Figma production, or styling changes unless the task is specifically about design-memory artifacts.
 - If the design-memory surface is sensitive, keep repo-visible content redacted/local-safe and run privacy/data-safety review before calling it done.
-- After the main edit pass, run critic/fix review loops and then one post-implementation review gate before finalizing.
+- After the main edit pass, run critic/fix review loops and then one post-implementation review gate before finalizing. Attacker/critic prompts must start from a hostile prior: assume the design package is wrong, incomplete, overcomplicated, generic, or under-evidenced until it proves otherwise; PASS only after serious attack finds no evidence-backed blocker or important finding.
 - If wording is still bloated after the main review/fix loop, run a late-stage compression pass through `forthright` for AI-only design-memory material, then sanity-check that no trigger boundary, artifact rule, or workflow branch was weakened.
 
 ## Read next

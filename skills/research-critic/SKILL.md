@@ -41,7 +41,7 @@ Do not own:
 
 1. Normalize the task into the input contract.
 2. Run `Researcher A` using `../../roles/researcher/ROLE.md`, `../../roles/researcher/RUBRIC.md`, and any additional role files discovered from the loaded role contract to build the canonical Researcher packet from provided context/evidence first.
-3. For non-trivial research, run `Researcher B attack` using the same role contract to challenge evidence, assumptions, unknowns, decisions needed, candidate approaches, blockers, and risks.
+3. For non-trivial research, run `Researcher B attack` using the same role contract and a hostile prior: assume the packet is wrong, incomplete, overcomplicated, or under-evidenced until it proves otherwise. Challenge evidence, assumptions, unknowns, decisions needed, candidate approaches, blockers, and risks. PASS only after serious attack finds no evidence-backed blocker or important finding; do not credit confidence, green self-reports, or plausible structure.
 4. Allow one bounded revise/re-review loop when the attack finds fixable gaps, unless the caller explicitly approves another.
 5. Return one structured wrapper verdict matching `references/output-contract.md`.
 6. Stop there. For non-trivial work, another layer may persist or route the result only after the wrapper verdict and explicit user approval.
