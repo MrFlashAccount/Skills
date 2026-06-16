@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 260" role="img" aria-labelledby="title desc">
+  <title id="title">UltraSkill logo</title>
+  <desc id="desc">Red angular UltraSkill wordmark with black shadow and yellow bevels.</desc>
+  <defs>
+    <linearGradient id="letterFill" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#ff2f18"/>
+      <stop offset="0.48" stop-color="#f20d0d"/>
+      <stop offset="0.7" stop-color="#b80009"/>
+      <stop offset="1" stop-color="#6d0006"/>
+    </linearGradient>
+    <linearGradient id="bevel" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#fff06a"/>
+      <stop offset="0.32" stop-color="#ffb11f"/>
+      <stop offset="1" stop-color="#8f1700"/>
+    </linearGradient>
+    <filter id="hardShadow" x="-8%" y="-25%" width="118%" height="155%">
+      <feDropShadow dx="13" dy="13" stdDeviation="0" flood-color="#1b0808" flood-opacity="1"/>
+      <feDropShadow dx="0" dy="9" stdDeviation="5" flood-color="#000000" flood-opacity="0.72"/>
+    </filter>
+  </defs>
+
+  <g transform="translate(42 196) skewX(-7)" filter="url(#hardShadow)">
+    <text x="0" y="0"
+      font-family="Impact, Haettenschweiler, 'Arial Black', sans-serif"
+      font-size="166"
+      font-weight="900"
+      letter-spacing="-8"
+      fill="#0a0a0a"
+      stroke="#0a0a0a"
+      stroke-width="30"
+      stroke-linejoin="miter"
+      paint-order="stroke fill">ULTRASKILL</text>
+
+    <text x="0" y="0"
+      font-family="Impact, Haettenschweiler, 'Arial Black', sans-serif"
+      font-size="166"
+      font-weight="900"
+      letter-spacing="-8"
+      fill="url(#letterFill)"
+      stroke="url(#bevel)"
+      stroke-width="12"
+      stroke-linejoin="miter"
+      paint-order="stroke fill">ULTRASKILL</text>
+
+    <text x="0" y="-8"
+      font-family="Impact, Haettenschweiler, 'Arial Black', sans-serif"
+      font-size="166"
+      font-weight="900"
+      letter-spacing="-8"
+      fill="none"
+      stroke="#ffdb37"
+      stroke-width="3"
+      stroke-linejoin="miter"
+      opacity="0.82"
+      paint-order="stroke">ULTRASKILL</text>
+
+    <g fill="#5a0004" opacity="0.78">
+      <polygon points="40,-108 91,-108 75,-88 24,-88"/>
+      <polygon points="180,-111 233,-111 216,-91 164,-91"/>
+      <polygon points="326,-110 382,-110 365,-90 309,-90"/>
+      <polygon points="457,-108 516,-108 501,-88 441,-88"/>
+      <polygon points="622,-112 679,-112 662,-92 606,-92"/>
+      <polygon points="783,-110 838,-110 822,-90 766,-90"/>
+      <polygon points="919,-108 974,-108 958,-88 902,-88"/>
+      <polygon points="1040,-109 1094,-109 1078,-89 1023,-89"/>
+    </g>
+
+    <g fill="#ffb11f" opacity="0.9">
+      <polygon points="120,-38 178,-38 166,-24 108,-24"/>
+      <polygon points="286,-38 345,-38 333,-24 273,-24"/>
+      <polygon points="561,-38 620,-38 608,-24 549,-24"/>
+      <polygon points="725,-38 784,-38 772,-24 713,-24"/>
+      <polygon points="990,-38 1050,-38 1038,-24 978,-24"/>
+    </g>
+
+    <g fill="#220000" opacity="0.88">
+      <polygon points="242,-132 274,-132 233,5 202,5"/>
+      <polygon points="533,-132 566,-132 524,5 492,5"/>
+      <polygon points="854,-132 886,-132 845,5 813,5"/>
+    </g>
+  </g>
+
+  <g transform="translate(55 224) skewX(-7)" opacity="0.85">
+    <polygon points="0,0 1148,0 1118,20 28,20" fill="#110303"/>
+    <polygon points="37,5 1110,5 1094,13 23,13" fill="#ff2a10"/>
+  </g>
+</svg>

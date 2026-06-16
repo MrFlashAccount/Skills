@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/ultraskill-logo.svg" alt="UltraSkill" width="680">
+</p>
+
 # Skills
 
 Editable source repo for OpenClaw skills, reusable roles, shared reference packages, and conventions.
