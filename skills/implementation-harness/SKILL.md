@@ -46,4 +46,4 @@ Use only after approval. This skill executes against approved research and appro
 - If development forces redesign or scope growth, stop as `blocked`.
 - Return only the packet shape defined in [references/output-contract.md](references/output-contract.md).
 - Treat implementer completion notes as non-authoritative until validation passes and the downstream review gate clears the slice.
-- Do not embed an independent review verdict inside this stage; the separate review stage owns that decision.
+- Do not embed an independent review verdict inside this stage; the separate review stage owns that decision. The handoff must frame downstream review as a hostile-prior gate: assume the implemented slice is wrong, incomplete, overcomplicated, or under-evidenced until evidence proves otherwise; PASS only after serious attack finds no evidence-backed blocker or important finding.

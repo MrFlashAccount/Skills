@@ -32,6 +32,8 @@ Do not paste reviewer rulebooks into parent prompts. Reviewer behavior lives in 
 
 Apply the shared known-debt reviewer contract from [../../../../shared/review/known-debt-reviewer-contract.md](../../../../shared/review/known-debt-reviewer-contract.md) to every reviewer pass.
 
+Inline this hostile-prior reviewer contract in every reviewer prompt: Start from a hostile prior: assume the change, proposal, draft, or packet is wrong, incomplete, overcomplicated, or under-evidenced until the artifact proves otherwise. Do not give credit for intent, author confidence, green self-reports, or plausible-sounding structure. PASS is allowed only after serious attack finds no evidence-backed blocker or important finding. Do not invent bugs. Any FAIL must be evidence-backed with file/function/line or equivalent precise location, and explain why existing tests/checks did not catch it. Prefer small, evidence-backed blockers over broad commentary.
+
 For non-trivial code changes, ask relevant reviewers for a short delta-complexity judgment when it is material to their role: newly scattered symbolic values, mixed-responsibility blobs, larger orchestration surfaces, duplicate literals, or side effects mixed with compute/transform logic.
 
 ## Reviewer role: `architect` v1

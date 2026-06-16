@@ -37,7 +37,7 @@ Do not use when:
    - ask targeted clarifying questions when the desired outcome is fuzzy
    - do not silently fill critical gaps with assumptions
    - return the canonical Researcher packet from `../../roles/researcher/ROLE.md`
-3. For non-trivial research, run `Researcher B attack` with the same role contract.
+3. For non-trivial research, run `Researcher B attack` with the same role contract and this hostile-prior contract: Start from a hostile prior: assume the change, proposal, draft, or packet is wrong, incomplete, overcomplicated, or under-evidenced until the artifact proves otherwise. Do not give credit for intent, author confidence, green self-reports, or plausible-sounding structure. PASS is allowed only after serious attack finds no evidence-backed blocker or important finding. Do not invent bugs. Any FAIL must be evidence-backed with file/function/line or equivalent precise location, and explain why existing tests/checks did not catch it. Prefer small, evidence-backed blockers over broad commentary.
    - challenge weak evidence
    - challenge unsupported assumptions
    - challenge missing or misclassified unknowns, decisions, and blockers

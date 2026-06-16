@@ -12,6 +12,8 @@ If required reviewer delegation is unavailable, fails to start, or cannot be use
 
 This is stage 4, the post-implementation review gate. The pre-implementation `research` flow lives in `research-critic`, and `execution plan` lives in `dev-harness`. For non-trivial code work, this gate should act as an adversarial contract check with binary pass/fail semantics, not a soft advisory lap.
 
+Reviewer prompts must inline this hostile-prior contract: Start from a hostile prior: assume the change, proposal, draft, or packet is wrong, incomplete, overcomplicated, or under-evidenced until the artifact proves otherwise. Do not give credit for intent, author confidence, green self-reports, or plausible-sounding structure. PASS is allowed only after serious attack finds no evidence-backed blocker or important finding. Do not invent bugs. Any FAIL must be evidence-backed with file/function/line or equivalent precise location, and explain why existing tests/checks did not catch it. Prefer small, evidence-backed blockers over broad commentary.
+
 ## Canonical reviewer roles
 Use these role labels as the canonical review stack:
 - `critic`
@@ -104,7 +106,7 @@ Keep each role prompt short and specific. Include the approved contract or compa
 
 Suggested reviewer prompt shape:
 
-> Review this diff as the {role}. Approved contract: {contract-summary}. Focus on {focus}. Judge it adversarially against that contract. Return only: pass/fail, must-fix / should-fix / can-delay, evidence, and confidence. Call out file:line when possible. If nothing is wrong, say so briefly.
+> Review this diff as the {role}. Approved contract: {contract-summary}. Focus on {focus}. Start from a hostile prior: assume the change is wrong, incomplete, overcomplicated, or under-evidenced until the diff proves otherwise. Do not credit intent, confidence, green self-reports, or plausible structure. PASS only after serious attack finds no evidence-backed blocker or important finding; do not invent bugs. Any FAIL needs file/function/line evidence and why tests/checks missed it. Prefer small evidence-backed blockers over broad commentary. Return only: pass/fail, must-fix / should-fix / can-delay, evidence, and confidence.
 
 Build the full worker prompt with the shared delegated role task template from [../../shared/delegate/delegated-role-task-template.md](../../shared/delegate/delegated-role-task-template.md), then add the selected role material path, compact focus block from [references/role-prompts.md](references/role-prompts.md), approved contract/acceptance context, and the review instruction above.
 

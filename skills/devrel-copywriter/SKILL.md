@@ -43,7 +43,7 @@ If unsure, treat it as `full-cycle`.
 - This skill owns the action sequence and process gates for repository `readme` work.
 - Use the DevRel role boundary for final quality judgment without deep-linking to DevRel learnings or role-internal references from this skill.
 - In full-cycle mode, the proposer owns the framing/structure proposal.
-- The independent DevRel critic attacks the proposal and later the draft; the critic does not act as a light polisher.
+- The independent DevRel critic attacks the proposal and later the draft from a hostile prior: assume the copy is wrong, incomplete, overcomplicated, generic, or under-evidenced until it proves otherwise. The critic does not act as a light polisher. PASS only after serious attack finds no evidence-backed blocker or important finding.
 - The synthesizer/editor resolves critique and owns the final draft; do not average proposer and critic output or blindly accept either side.
 - Run the pre-draft contract/structure attack before writing the full draft.
 - Do not invent proof.

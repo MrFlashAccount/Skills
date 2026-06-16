@@ -49,7 +49,7 @@ If unsure, treat it as `full-cycle`.
 1. Write a compact contract, including doc mode and source of truth.
 2. Confirm the patch preserves that mode.
 3. Edit.
-4. Run one independent review.
+4. Run one independent review from a hostile prior: assume the draft is wrong, incomplete, overcomplicated, misleading, or under-evidenced until it proves otherwise. PASS only after serious attack finds no evidence-backed blocker or important finding; any FAIL needs precise section/file evidence and why checks missed it.
 
 ### Full-cycle
 
