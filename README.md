@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/ultraskill-logo.svg" alt="UltraSkill" width="680">
+  <img src="assets/ultraskill-logo.png" alt="UltraSkill" width="680">
 </p>
 
 # Skills
