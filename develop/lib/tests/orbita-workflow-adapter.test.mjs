@@ -1,12 +1,15 @@
 import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile, mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, sep } from 'node:path';
+import { dirname, join, sep } from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import { listWorkflowRuns, registerWorkflowRun } from '../entrypoints/api/workflowRuns.mjs';
 import { continueRun, next, writeOutput } from '../entrypoints/api/workflowRunner.mjs';
 import { formatNativeListText, formatNativeRunText, runOrbita } from '../entrypoints/orbita/pluginBridge.mjs';
+
+const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '../../..');
 
 async function exists(path) {
   try {
@@ -101,7 +104,7 @@ test('Orbita list sanitizes unsafe stored DevHarness workflow titles at projecti
       runsRoot: root,
       runId: `run-${process.pid}-unsafe-title`,
       title: unsafeTitle,
-      workflowPath: join(process.cwd(), 'workflows/dev-harness/workflow.json'),
+      workflowPath: join(REPO_ROOT, 'workflows/dev-harness/workflow.json'),
       workflowIdentity: 'dev-harness',
       status: 'needs_host_actions',
       requestId: 'orbita-unsafe-title-id',
@@ -129,7 +132,7 @@ test('Orbita list sanitizes unsafe stored DevHarness workflow titles at projecti
 
 test('workflow runner clears stale currentGate after approval continuation leaves gate', async () => {
   await withRoot(async (root) => {
-    const workflowPath = join(process.cwd(), 'workflows/dev-harness/workflow.json');
+    const workflowPath = join(REPO_ROOT, 'workflows/dev-harness/workflow.json');
     const runId = `run-${process.pid}-clear-current-gate`;
     const registered = await registerWorkflowRun({
       runsRoot: root,
