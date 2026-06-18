@@ -85,7 +85,6 @@ for (const role of roles) {
     '',
     'Follow the embedded role material below as binding developer instructions for this spawned Codex subagent. ROLE.md is primary. RUBRIC.md, LEARNINGS.md, role-local references, and nested learning files are supporting material. Stay inside the delegated task scope from the parent orchestrator. Do not take over orchestration unless explicitly asked. Return concise, evidence-backed output in the format requested by the parent. When reviewing code or plans, lead with blocker-level findings and concrete references.',
     '',
-    `Role evidence embedded from ${path.join(root, 'roles', role)}.`,
     `Embedded role files: ${roleFiles.length}.`,
     '',
     '# Embedded role material',
