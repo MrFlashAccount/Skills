@@ -23,6 +23,7 @@ Local OpenClaw reads skills directly from this repo's `SKILL.md` files, so packa
 - [Common workflows](#common-workflows)
 - [Skill index](#skill-index)
 - [Shared reference packages](#shared-reference-packages)
+- [Codex custom agents](#codex-custom-agents)
 - [Role index](#role-index)
 - [Process docs](#process-docs)
 - [Conventions](#conventions)
@@ -51,11 +52,16 @@ Think of the repo in four layers:
    - they hold canonical specialist identity, rubric, and learnings
    - skills should load and adapt them instead of re-owning the same role prose
 
-3. `conventions/` — repo-level defaults
+3. `agents/` — generated Codex custom-agent files
+   - these are generated from `roles/`
+   - they let Codex spawn the same specialist roles as subagents
+   - do not edit them by hand; regenerate them after role changes
+
+4. `conventions/` — repo-level defaults
    - shared conventions that multiple roles or skills may reference
    - use these when the rule is broader than one skill but narrower than general repo docs
 
-4. `shared/` — reusable reference packages
+5. `shared/` — reusable reference packages
    - these are not runnable skills
    - use them for cross-skill contracts, snippets, or authoring references that should stay out of the active skill catalog
 
@@ -64,6 +70,7 @@ Think of the repo in four layers:
 ```text
 skills/         runnable skill folders
 roles/          reusable role contracts
+agents/         generated Codex custom-agent TOML files
 shared/         reusable reference packages, not runtime skills
 conventions/    shared repo-level conventions
 SPDD-lite.md    lightweight process doc
@@ -89,6 +96,15 @@ roles/<Role-Name>/
   ROLE.md
   RUBRIC.md
   LEARNINGS.md
+  references/   # optional role-local support material
+  learnings/    # optional expanded role-local learning library
+```
+
+### Generated Codex agent folder
+
+```text
+agents/
+  <role-name>.toml
 ```
 
 ### Shared package folder
@@ -126,6 +142,7 @@ If a skill needs a reusable specialist voice:
 - for sibling skills from a skill, use paths like `../<skill-name>/...`; reserve `skills/<skill-name>/...` for repo-map prose, not runtime load paths
 - adapt it to the current phase
 - keep role identity in `roles/`, not in local copied prose
+- after changing role material, regenerate Codex custom agents with `npm run agents:generate`
 
 ### Reuse a shared reference package
 
@@ -150,6 +167,7 @@ If a skill needs reusable instructions that are not a runnable skill:
 - `npm run schema-validation:bundle-vendor-ajv` rebuilds the committed `shared/scripts/schema-validation/vendor/ajv.mjs` bundle.
 - `npm run schema-validation:check-vendor-ajv` rebuilds that vendor bundle and fails if the committed file is stale.
 - `npm run workflow:validate` runs deterministic semantic validation for the checked-in flat workflow files under `workflows/*/workflow.json`.
+- `npm run agents:generate` rebuilds generated Codex custom-agent TOML files from `roles/`.
 - `npm run validate` runs tests, workflow semantic validation, and the schema-validation vendor bundle freshness check.
 
 Fresh clones can use the committed schema-validation library dist artifact directly; normal users do not need to build it after cloning. Maintainer checks and the pre-commit hook regenerate it when source changes.
@@ -274,6 +292,40 @@ Shared packages are reference material for skill authors and workflow skills. Th
   - Use when: a workflow needs a concise packet/proposal/plan/review answer shape with clear source context, evidence, checklist, verdict, and transition fields.
   - Do not use when: the task is already approved for direct implementation or only needs a short ad hoc note.
 
+## Codex custom agents
+
+`agents/*.toml` files are generated adapters that expose `roles/*` as Codex custom agents for subagent workflows.
+
+Source of truth:
+- role behavior lives in `roles/<role>/ROLE.md`
+- role scoring/checklists live in `roles/<role>/RUBRIC.md`
+- durable role corrections live in `roles/<role>/LEARNINGS.md`
+- role-local support material lives in `roles/<role>/references/`, `roles/<role>/learnings/`, or other `.md`/`.txt` files inside the role folder
+
+Generation:
+
+```bash
+npm run agents:generate
+```
+
+The generator writes one TOML file per role into `agents/<role>.toml`. Each generated file embeds the full role-local material so the spawned Codex agent can follow the role even when it cannot read this repository at runtime.
+
+To use these in Codex, register the generated files from `~/.codex/config.toml`:
+
+```toml
+[agents.security]
+config_file = "/absolute/path/to/Skills/agents/security.toml"
+```
+
+Use quoted table names for role names that contain hyphens:
+
+```toml
+[agents."frontend-taste"]
+config_file = "/absolute/path/to/Skills/agents/frontend-taste.toml"
+```
+
+Do not edit generated TOML files directly. Update the role source under `roles/`, rerun `npm run agents:generate`, then restart Codex or start a new thread so Codex reloads the agent definitions.
+
 ## Role index
 
 Roles are reusable references, not executable skills.
@@ -330,6 +382,7 @@ Use them when a skill needs a stable specialist identity across phases.
 - Keep `skills/` as the source of truth for skill runtime behavior.
 - Keep `shared/` as the source of truth for reusable reference packages that must not be active runtime skills.
 - Keep `roles/` as the source of truth for reusable role references.
+- Keep `agents/` generated from `roles/`; do not hand-edit generated custom-agent TOML files.
 - Keep `conventions/` as the source of truth for repo-level reusable conventions.
 - Prefer loading/adapting roles from `roles/` over copying role prose into skills.
 - Prefer referencing `conventions/` over inventing duplicated repo-wide wording inside one skill.

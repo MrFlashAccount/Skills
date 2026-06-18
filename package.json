@@ -11,6 +11,7 @@
     "schema-validation:bundle-vendor-ajv": "node scripts/bundle-schema-validation-vendor-ajv.mjs",
     "schema-validation:check-vendor-ajv": "npm run schema-validation:bundle-vendor-ajv && git diff --exit-code -- shared/scripts/schema-validation/vendor/ajv.mjs && test -z \"$(git status --porcelain -- shared/scripts/schema-validation/vendor/ajv.mjs)\"",
     "maintain:bundle-schema-validation-vendor-ajv": "npm run schema-validation:bundle-vendor-ajv",
+    "agents:generate": "node scripts/generate-codex-agents.mjs",
     "workflow-layout:check": "node scripts/check-no-old-workflow-layout.mjs",
     "workflow-runtime-boundaries:check": "node scripts/check-workflow-runtime-boundaries.mjs"
   },
