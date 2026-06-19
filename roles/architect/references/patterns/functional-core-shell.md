@@ -99,9 +99,9 @@ For every core/shell split, Architect should record the selective evidence neede
 - test gate: core unit tests need no external mocks; shell checks cover wiring/effects
 - deletion proof: if the core module is deleted, decision complexity reappears in shell callers
 
-## Complete semantic transfer from source material
+## Repo-local synthesis and application notes
 
-These notes preserve the source intent in repo-local wording so reviewers do not need to open the Functional Core / Imperative Shell source material to understand the pattern.
+These notes make the pattern usable locally; source links are attribution and further reading, not prerequisites.
 
 ### The two kinds of code
 

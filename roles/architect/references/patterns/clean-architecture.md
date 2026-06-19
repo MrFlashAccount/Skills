@@ -98,9 +98,9 @@ For every policy/detail boundary, Architect should record the selective evidence
 - schema/durable field owner when records cross persistence or API boundaries
 - negative checks for core tests without details and import-rule enforcement
 
-## Complete semantic transfer from source material
+## Repo-local synthesis and application notes
 
-These notes preserve the source intent in repo-local wording so reviewers do not need to open the Clean Architecture article to understand the pattern.
+These notes make the pattern usable locally; source links are attribution and further reading, not prerequisites.
 
 ### Shared idea across named architectures
 
