@@ -108,9 +108,9 @@ For every tactical structure, Architect should record the selective evidence nee
 - compatibility decision for legacy names/wrappers
 - negative checks proving invariants cannot be bypassed and non-entities are not stored under entity namespaces
 
-## Complete semantic transfer from source material
+## Repo-local synthesis and application notes
 
-These notes preserve the source intent in repo-local wording so reviewers do not need to open the tactical DDD source material to understand the pattern.
+These notes make the pattern usable locally; source links are attribution and further reading, not prerequisites.
 
 ### Tactical patterns depend on strategic context
 

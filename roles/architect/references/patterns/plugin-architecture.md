@@ -97,9 +97,9 @@ For every plugin seam, Architect should record the selective evidence needed for
 - compatibility decision: delete, keep temporarily, or public exception for legacy plugin APIs
 - negative checks for plugin replacement/removal and contract-test coverage
 
-## Complete semantic transfer from source material
+## Repo-local synthesis and application notes
 
-These notes preserve the source intent in repo-local wording so reviewers do not need to open the Plugin source material to understand the pattern.
+These notes make the pattern usable locally; source links are attribution and further reading, not prerequisites.
 
 ### Source pattern intent
 

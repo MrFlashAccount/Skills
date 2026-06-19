@@ -104,9 +104,9 @@ For every affected domain term/context, Architect should record the selective ev
 - compatibility decision for legacy shared models or aliases
 - negative checks proving no internal cross-context imports
 
-## Complete semantic transfer from source material
+## Repo-local synthesis and application notes
 
-These notes preserve the source intent in repo-local wording so reviewers do not need to open the DDD and Bounded Context source material to understand the pattern.
+These notes make the pattern usable locally; source links are attribution and further reading, not prerequisites.
 
 ### Domain model in software, not only diagrams
 

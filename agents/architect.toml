@@ -1580,9 +1580,9 @@ For every policy/detail boundary, Architect should record the selective evidence
 - schema/durable field owner when records cross persistence or API boundaries
 - negative checks for core tests without details and import-rule enforcement
 
-## Complete semantic transfer from source material
+## Repo-local synthesis and application notes
 
-These notes preserve the source intent in repo-local wording so reviewers do not need to open the Clean Architecture article to understand the pattern.
+These notes make the pattern usable locally; source links are attribution and further reading, not prerequisites.
 
 ### Shared idea across named architectures
 
@@ -1779,9 +1779,9 @@ For every core/shell split, Architect should record the selective evidence neede
 - test gate: core unit tests need no external mocks; shell checks cover wiring/effects
 - deletion proof: if the core module is deleted, decision complexity reappears in shell callers
 
-## Complete semantic transfer from source material
+## Repo-local synthesis and application notes
 
-These notes preserve the source intent in repo-local wording so reviewers do not need to open the Functional Core / Imperative Shell source material to understand the pattern.
+These notes make the pattern usable locally; source links are attribution and further reading, not prerequisites.
 
 ### The two kinds of code
 
@@ -1959,9 +1959,9 @@ For every plugin seam, Architect should record the selective evidence needed for
 - compatibility decision: delete, keep temporarily, or public exception for legacy plugin APIs
 - negative checks for plugin replacement/removal and contract-test coverage
 
-## Complete semantic transfer from source material
+## Repo-local synthesis and application notes
 
-These notes preserve the source intent in repo-local wording so reviewers do not need to open the Plugin source material to understand the pattern.
+These notes make the pattern usable locally; source links are attribution and further reading, not prerequisites.
 
 ### Source pattern intent
 
@@ -2156,9 +2156,9 @@ For every affected port/adapter seam, Architect should record the selective evid
 - compatibility decision for old imports or wrappers
 - negative checks proving adapter deletion/replacement boundaries
 
-## Complete semantic transfer from source material
+## Repo-local synthesis and application notes
 
-These notes preserve the source intent in repo-local wording so reviewers do not need to open the original Hexagonal Architecture article to understand the pattern.
+These notes make the pattern usable locally; source links are attribution and further reading, not prerequisites.
 
 ### Original problem pressure
 
@@ -2363,9 +2363,9 @@ For every affected domain term/context, Architect should record the selective ev
 - compatibility decision for legacy shared models or aliases
 - negative checks proving no internal cross-context imports
 
-## Complete semantic transfer from source material
+## Repo-local synthesis and application notes
 
-These notes preserve the source intent in repo-local wording so reviewers do not need to open the DDD and Bounded Context source material to understand the pattern.
+These notes make the pattern usable locally; source links are attribution and further reading, not prerequisites.
 
 ### Domain model in software, not only diagrams
 
@@ -2551,9 +2551,9 @@ For every tactical structure, Architect should record the selective evidence nee
 - compatibility decision for legacy names/wrappers
 - negative checks proving invariants cannot be bypassed and non-entities are not stored under entity namespaces
 
-## Complete semantic transfer from source material
+## Repo-local synthesis and application notes
 
-These notes preserve the source intent in repo-local wording so reviewers do not need to open the tactical DDD source material to understand the pattern.
+These notes make the pattern usable locally; source links are attribution and further reading, not prerequisites.
 
 ### Tactical patterns depend on strategic context
 

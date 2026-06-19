@@ -117,9 +117,9 @@ For every affected port/adapter seam, Architect should record the selective evid
 - compatibility decision for old imports or wrappers
 - negative checks proving adapter deletion/replacement boundaries
 
-## Complete semantic transfer from source material
+## Repo-local synthesis and application notes
 
-These notes preserve the source intent in repo-local wording so reviewers do not need to open the original Hexagonal Architecture article to understand the pattern.
+These notes make the pattern usable locally; source links are attribution and further reading, not prerequisites.
 
 ### Original problem pressure
 
