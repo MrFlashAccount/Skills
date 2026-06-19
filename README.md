@@ -168,7 +168,8 @@ If a skill needs reusable instructions that are not a runnable skill:
 - `npm run schema-validation:check-vendor-ajv` rebuilds that vendor bundle and fails if the committed file is stale.
 - `npm run workflow:validate` runs deterministic semantic validation for the checked-in flat workflow files under `workflows/*/workflow.json`.
 - `npm run agents:generate` rebuilds generated Codex custom-agent TOML files from `roles/`.
-- `npm run validate` runs tests, workflow semantic validation, and the schema-validation vendor bundle freshness check.
+- `npm run agents:check` regenerates Codex custom-agent TOML files and fails if `agents/` is stale.
+- `npm run validate` runs tests, workflow semantic validation, generated Codex-agent freshness, and the schema-validation vendor bundle freshness check.
 
 Fresh clones can use the committed schema-validation library dist artifact directly; normal users do not need to build it after cloning. Maintainer checks and the pre-commit hook regenerate it when source changes.
 
@@ -308,7 +309,7 @@ Generation:
 npm run agents:generate
 ```
 
-The generator writes one TOML file per role into `agents/<role>.toml`. Each generated file embeds the full role-local material so the spawned Codex agent can follow the role even when it cannot read this repository at runtime.
+The generator writes one TOML file per role into `agents/<role>.toml`. Each generated file embeds the full role-local material so the spawned Codex agent can follow the role even when it cannot read this repository at runtime. YAML frontmatter in role material is omitted from embedded instructions.
 
 To use these in Codex, register the generated files from `~/.codex/config.toml`:
 
@@ -324,7 +325,7 @@ Use quoted table names for role names that contain hyphens:
 config_file = "/absolute/path/to/Skills/agents/frontend-taste.toml"
 ```
 
-Do not edit generated TOML files directly. Update the role source under `roles/`, rerun `npm run agents:generate`, then restart Codex or start a new thread so Codex reloads the agent definitions.
+Do not edit generated TOML files directly. Update the role source under `roles/`, rerun `npm run agents:generate`, and use `npm run agents:check` before opening or updating a PR. Then restart Codex or start a new thread so Codex reloads the agent definitions.
 
 ## Role index
 

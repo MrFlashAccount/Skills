@@ -13,6 +13,22 @@ const title = (value) =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 
+const stripFrontmatter = (value) => {
+  const normalized = value.replace(/\r\n/g, '\n');
+
+  if (!normalized.startsWith('---\n')) {
+    return normalized;
+  }
+
+  const end = normalized.indexOf('\n---\n', 4);
+
+  if (end === -1) {
+    return normalized;
+  }
+
+  return normalized.slice(end + '\n---\n'.length).replace(/^\n/, '');
+};
+
 const tomlLiteral = (value) => {
   if (value.includes("'''")) {
     throw new Error('Role content contains TOML literal delimiter');
@@ -77,7 +93,7 @@ for (const role of roles) {
       .split(path.sep)
       .join('/');
 
-    return `## ${roleRelativePath}\n\n${fs.readFileSync(filepath, 'utf8')}`;
+    return `## ${roleRelativePath}\n\n${stripFrontmatter(fs.readFileSync(filepath, 'utf8'))}`;
   });
 
   const instructions = [
