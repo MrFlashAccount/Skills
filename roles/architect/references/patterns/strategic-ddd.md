@@ -11,6 +11,12 @@ Strategic DDD says one large unified model is often unrealistic. Instead, keep m
 - **Bounded context**: the boundary inside which one model and language are coherent.
 - **Polyseme**: one word with different meanings in different contexts, for example `Customer`, `Product`, `Account`, `Meter`.
 - **Context relationship**: how two bounded contexts integrate, translate, depend on, or protect their models.
+- **Shared kernel**: a small shared model owned jointly by contexts, with explicit coordination cost for every change.
+- **Published language**: a stable integration language/API/schema that downstream contexts can rely on without importing upstream internals.
+- **Anti-corruption layer**: translation code that protects a context from another model, legacy system, or vendor vocabulary.
+- **Customer/supplier**: upstream supplier context serves downstream customer needs through negotiated contracts and priorities.
+- **Conformist**: downstream context deliberately conforms to upstream language because translation or influence is not worth the cost.
+- **Separate ways**: contexts avoid integration because coordination cost is higher than duplication or independent workflows.
 - **Context map**: a durable record of contexts and their relationships.
 
 ## Use it when
@@ -32,7 +38,7 @@ Strategic DDD says one large unified model is often unrealistic. Instead, keep m
 
 - A term is only ubiquitous inside its bounded context; do not assume it means the same thing elsewhere.
 - Shared concepts may have different models in different contexts. Integration must map between them explicitly.
-- Human language/culture is usually the strongest boundary signal, but representation boundaries can also matter, such as in-memory model vs relational model.
+- Human language/culture is usually the strongest boundary signal, but representation boundaries can also matter, such as in-memory model vs relational model. Persistence representation alone is not a bounded context unless it carries different language, ownership, lifecycle, invariants, or integration rules.
 - Context boundaries should own source layout, docs, tests, contracts, and allowed dependency paths.
 - A central domain model spanning all contexts is a risk unless the domain is genuinely small and coherent.
 
@@ -50,6 +56,13 @@ Good source shape:
 - local models, tests, adapters, docs, and glossary entries collocated with their context.
 - explicit integration adapters or published contracts between contexts.
 - central docs route/index contexts but do not mirror all local ownership rules.
+
+Application sketch:
+
+- `Sales.Customer` means a buyer with quote eligibility and account-owner rules; `Support.Customer` means a contactable party with entitlement and case history.
+- Keep `sales/CONTEXT.md` and `support/CONTEXT.md` with local glossary and invariants.
+- Integrate through `CustomerSummaryPublishedLanguage` or an anti-corruption mapper such as `support/adapters/sales_customer_acl.py`; do not share one `Customer` class.
+- Context map entry: `Support` is customer of `Sales` published customer summary; `Support` may not import `sales/internal/*`.
 
 Bad source shape:
 
@@ -80,7 +93,7 @@ Bad source shape:
 
 ## Proof-map implications
 
-For every affected domain term/context, Architect should record:
+For every affected domain term/context, Architect should record the selective evidence needed for this pattern, not a mandatory proof-map for unrelated small edits:
 
 - concept and classification: bounded context, ubiquitous term, polyseme, integration contract, read model, DTO, schema, or adapter
 - owner context/module and allowed paths

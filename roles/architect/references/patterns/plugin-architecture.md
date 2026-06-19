@@ -34,7 +34,7 @@ This is not the same as “we have an interface.” The architecture earns its w
 - Plugin implementations depend on the core contract; core policy does not depend on plugin implementation modules.
 - Selection and wiring live in host/composition/configuration code, not scattered factory conditionals.
 - Plugins may call only documented extension APIs. They must not import core internals, mutate core-owned state directly, or rely on private ordering side effects.
-- Versioning, capability negotiation, or compatibility checks are required when plugins can be developed/released independently.
+- Versioning, capability negotiation, or compatibility checks are required when plugins can be developed/released independently. For first-party config-time plugins released with the core, a lighter bar is acceptable: validate the configured plugin name, required capability flags, and contract-test coverage at startup/CI.
 
 Binding checks:
 
@@ -50,6 +50,13 @@ Good source shape:
 - `plugins/<name>/` or package-level implementations: concrete extensions.
 - `plugin-host`, `registry`, `loader`, `composition`, or config layer: implementation selection and validation.
 - `tests/contract/`: shared contract tests each plugin implementation must pass.
+
+Contract/loader lifecycle sketch:
+
+- Contract: `ReportExporter` declares `id`, `capabilities`, `supports(format)`, and `export(report, sink)`; it receives only documented core values.
+- Plugin: `plugins/pdf_exporter` implements the contract and declares manifest metadata such as version, capabilities, and default config.
+- Loader: reads config/manifest, checks compatibility or first-party capability flags, orders plugins if needed, constructs dependencies, then registers implementations.
+- Lifecycle: `discover -> validate -> initialize -> execute -> shutdown`; failures are reported at composition time unless the product explicitly supports degraded operation.
 
 Bad source shape:
 
@@ -80,7 +87,7 @@ Bad source shape:
 
 ## Proof-map implications
 
-For every plugin seam, Architect should record:
+For every plugin seam, Architect should record the selective evidence needed for this pattern, not boilerplate for ordinary internal modules:
 
 - concept and classification: core contract, plugin implementation, host/loader, compatibility surface
 - owner module and allowed paths

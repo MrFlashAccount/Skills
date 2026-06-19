@@ -52,6 +52,13 @@ Good source shape:
 - `adapters/` or delivery-specific folders: HTTP, CLI, presenters, persistence, queue, vendor gateways.
 - `composition/` or framework entrypoint: wiring of details to ports.
 
+Application sketch:
+
+- Controller maps `POST /loans` into `AssessLoanApplicationInput` and calls the use case.
+- Use case applies policy, requests credit data through a port, and returns `AssessLoanApplicationOutput(decision, reasons, next_steps)`.
+- Presenter maps output to HTTP/HTML/CLI response; persistence adapter maps repositories to the database.
+- Inner policy imports none of the web framework, ORM, queue, or vendor SDK types.
+
 Bad source shape:
 
 - `models/` that mixes ORM persistence, validation, use-case decisions, and domain rules without an explicit exception.
@@ -81,7 +88,7 @@ Bad source shape:
 
 ## Proof-map implications
 
-For every policy/detail boundary, Architect should record:
+For every policy/detail boundary, Architect should record the selective evidence needed for this pattern, not rote layer paperwork for trivial pass-through code:
 
 - concept and classification: policy, use case, boundary record, adapter, framework detail, persistence detail
 - owner module and allowed paths

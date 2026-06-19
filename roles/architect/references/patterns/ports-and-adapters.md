@@ -11,6 +11,7 @@ Also called Hexagonal Architecture. The hexagon is only a drawing device: it rem
 - **Adapter**: technology-specific translation between a port and an outside actor, framework, protocol, database, test harness, batch job, or another application.
 - **Primary / driving side**: actors that trigger application behavior: UI, HTTP, CLI, scheduler, test script, batch driver, another program.
 - **Secondary / driven side**: things the application calls to answer, persist, notify, publish, or retrieve: database, mailer, queue, payment API, filesystem, model provider.
+- **Inbound vs outbound mapping**: primary/driving adapters enter through inbound ports; secondary/driven adapters implement outbound ports the inside calls. Use one vocabulary consistently in the proof map.
 
 A port is not “an interface because interfaces are good.” It is the contract for a conversation the application can have while staying ignorant of the device or protocol on the other side.
 
@@ -23,6 +24,17 @@ A port is not “an interface because interfaces are good.” It is the contract
 - The app must keep working in headless or degraded modes, for example with an in-memory adapter while a database is unavailable.
 - Interfaces are currently named by technology, but the architecture needs them named by purpose.
 
+## Keep it light / when not to use
+
+Prefer a smaller pattern when there is no meaningful outside variation. A plain function, local module boundary, Functional Core/Shell split, or framework convention may be enough when the code has one delivery mechanism, one storage technology, fast tests, and no policy/detail leakage.
+
+Anti-signals:
+
+- Every dependency gets an interface, but no adapter can be replaced, tested, or named by application purpose.
+- The only goal is mocking; there is no protocol, persistence, UI, batch, degraded-mode, or test-harness pressure.
+- Port names mirror vendors or frameworks, so the outside still defines the inside.
+- A small CRUD slice gains ports, adapters, mappers, and composition code with no protected policy.
+
 ## Source-layout rule
 
 The owning application/context defines the port in its own language. Adapters live at the edge and translate inward or outward.
@@ -30,8 +42,15 @@ The owning application/context defines the port in its own language. Adapters li
 Good source shape:
 
 - `application/use-cases` or owning context: use-case policy and ports named by purpose.
-- `adapters/http`, `adapters/cli`, `adapters/fit`, `adapters/sql`, `adapters/in-memory`, etc.: technology mappings.
+- `adapters/http`, `adapters/cli`, `adapters/test`, `adapters/sql`, `adapters/in-memory`, etc.: technology mappings.
 - Tests may use an adapter at a primary port to drive behavior, and an in-memory or mock adapter at a secondary port to isolate external dependencies.
+
+Application sketch:
+
+- Inbound port `SubmitOrder` accepts `SubmitOrderCommand` from HTTP, CLI, or a test adapter.
+- Use case calls outbound port `InventoryReservation` and `PaymentAuthorization` in application terms.
+- `adapters/http/submit_order_controller.ts` maps web request to command; `adapters/sql/inventory_reservation.ts` and `adapters/stripe/payment_authorization.ts` translate outward.
+- Core tests drive `SubmitOrder` with in-memory outbound adapters; deleting Stripe affects composition and that adapter, not order policy.
 
 Bad source shape:
 
@@ -87,7 +106,7 @@ Useful pressure tests:
 
 ## Proof-map implications
 
-For every affected port/adaptor seam, Architect should record:
+For every affected port/adapter seam, Architect should record the selective evidence needed for this pattern, not boilerplate for every incidental interface:
 
 - concept: purpose-named port or adapter
 - classification: inbound port, outbound port, primary adapter, secondary adapter, or temporary compatibility wrapper

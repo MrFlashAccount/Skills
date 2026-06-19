@@ -8,7 +8,7 @@ This is lower-weight than ports/adapters or Clean Architecture. It is useful whe
 
 - **Functional core**: deterministic functions/components that take values in and return values out. They hold decisions, transformations, rules, and most execution paths.
 - **Imperative shell**: orchestration that owns side effects, persistent state, framework calls, network, disk, database, randomness, clock, logging, UI, and external libraries.
-- **Value boundary**: simple data crossing between shell and core. Values reduce boundary-call risks because they do not require stubbing a collaborator’s behavior.
+- **Value boundary**: simple data crossing between shell and core. Values reduce boundary-call risks because they do not require stubbing a collaborator’s behavior. Commands/results should name domain decisions, not transport or storage shapes.
 - **Test split**: many fast tests against the core; fewer integration checks for the shell’s wiring and external calls.
 
 ## Use it when
@@ -31,7 +31,7 @@ This is lower-weight than ports/adapters or Clean Architecture. It is useful whe
 ## Dependency rules
 
 - Core receives all needed facts explicitly as values; it does not reach out for hidden dependencies.
-- Core does not perform I/O, mutate external state, call framework APIs, allocate nondeterministic values, read clocks, log, persist, publish, or call network clients.
+- Core does not perform I/O, mutate external state, call framework APIs, allocate nondeterministic values, read clocks, log, persist, publish, or call network clients. Side-effecting capabilities belong in the shell. Only pure deterministic functions may be passed into core code, and only when they are part of the decision algorithm rather than a disguised adapter.
 - Shell may call dependencies and mutate state, but should keep branching small and delegate decisions to the core.
 - Shell translates external objects into core values and core results into external effects.
 - In larger systems, prefer many small functional cores with local shells over one global shell/core split.
@@ -51,6 +51,14 @@ Good source shape:
 - `decision.py`, `policy.ts`, `rules/`, `core/`, or context-local pure modules for deterministic logic.
 - `handler`, `job`, `controller`, `command`, `shell/`, or adapter modules for I/O and orchestration.
 - tests named around core decisions, plus a small number of shell integration/wiring tests.
+
+Application sketch:
+
+- Shell reads `HttpRequest`, authenticated user, current time, and repository rows, then builds `QuoteRequest(customer_tier, items, requested_at)`.
+- Core returns `QuoteDecision(total, discounts, required_approval, reasons)` with no logging, persistence, or mail.
+- Shell persists the quote, emits metrics, and sends approval mail based on the returned value.
+- Good command/result/value names: `PlanRenewalCommand(account_id, plan_code, requested_at)`, `RenewalDecision(accepted, invoice_lines, warnings)`, `Money(amount, currency)`.
+- Bad boundary values: `HttpRequest`, `OrderRow`, `DbSession`, `Mailer`, `Logger`, `dict` copied from JSON with no validated meaning, or `Command(do_anything=True)`.
 
 Bad source shape:
 
@@ -81,7 +89,7 @@ Bad source shape:
 
 ## Proof-map implications
 
-For every core/shell split, Architect should record:
+For every core/shell split, Architect should record the selective evidence needed for this pattern, not boilerplate for every tiny helper:
 
 - concept and classification: pure core, value boundary, imperative shell, external dependency
 - owner context/module and allowed paths
