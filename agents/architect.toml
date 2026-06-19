@@ -1525,6 +1525,13 @@ Good source shape:
 - `adapters/` or delivery-specific folders: HTTP, CLI, presenters, persistence, queue, vendor gateways.
 - `composition/` or framework entrypoint: wiring of details to ports.
 
+Application sketch:
+
+- Controller maps `POST /loans` into `AssessLoanApplicationInput` and calls the use case.
+- Use case applies policy, requests credit data through a port, and returns `AssessLoanApplicationOutput(decision, reasons, next_steps)`.
+- Presenter maps output to HTTP/HTML/CLI response; persistence adapter maps repositories to the database.
+- Inner policy imports none of the web framework, ORM, queue, or vendor SDK types.
+
 Bad source shape:
 
 - `models/` that mixes ORM persistence, validation, use-case decisions, and domain rules without an explicit exception.
@@ -1554,7 +1561,7 @@ Bad source shape:
 
 ## Proof-map implications
 
-For every policy/detail boundary, Architect should record:
+For every policy/detail boundary, Architect should record the selective evidence needed for this pattern, not rote layer paperwork for trivial pass-through code:
 
 - concept and classification: policy, use case, boundary record, adapter, framework detail, persistence detail
 - owner module and allowed paths
@@ -1592,7 +1599,7 @@ This is lower-weight than ports/adapters or Clean Architecture. It is useful whe
 
 - **Functional core**: deterministic functions/components that take values in and return values out. They hold decisions, transformations, rules, and most execution paths.
 - **Imperative shell**: orchestration that owns side effects, persistent state, framework calls, network, disk, database, randomness, clock, logging, UI, and external libraries.
-- **Value boundary**: simple data crossing between shell and core. Values reduce boundary-call risks because they do not require stubbing a collaborator’s behavior.
+- **Value boundary**: simple data crossing between shell and core. Values reduce boundary-call risks because they do not require stubbing a collaborator’s behavior. Commands/results should name domain decisions, not transport or storage shapes.
 - **Test split**: many fast tests against the core; fewer integration checks for the shell’s wiring and external calls.
 
 ## Use it when
@@ -1615,7 +1622,7 @@ This is lower-weight than ports/adapters or Clean Architecture. It is useful whe
 ## Dependency rules
 
 - Core receives all needed facts explicitly as values; it does not reach out for hidden dependencies.
-- Core does not perform I/O, mutate external state, call framework APIs, allocate nondeterministic values, read clocks, log, persist, publish, or call network clients.
+- Core does not perform I/O, mutate external state, call framework APIs, allocate nondeterministic values, read clocks, log, persist, publish, or call network clients. Side-effecting capabilities belong in the shell. Only pure deterministic functions may be passed into core code, and only when they are part of the decision algorithm rather than a disguised adapter.
 - Shell may call dependencies and mutate state, but should keep branching small and delegate decisions to the core.
 - Shell translates external objects into core values and core results into external effects.
 - In larger systems, prefer many small functional cores with local shells over one global shell/core split.
@@ -1635,6 +1642,14 @@ Good source shape:
 - `decision.py`, `policy.ts`, `rules/`, `core/`, or context-local pure modules for deterministic logic.
 - `handler`, `job`, `controller`, `command`, `shell/`, or adapter modules for I/O and orchestration.
 - tests named around core decisions, plus a small number of shell integration/wiring tests.
+
+Application sketch:
+
+- Shell reads `HttpRequest`, authenticated user, current time, and repository rows, then builds `QuoteRequest(customer_tier, items, requested_at)`.
+- Core returns `QuoteDecision(total, discounts, required_approval, reasons)` with no logging, persistence, or mail.
+- Shell persists the quote, emits metrics, and sends approval mail based on the returned value.
+- Good command/result/value names: `PlanRenewalCommand(account_id, plan_code, requested_at)`, `RenewalDecision(accepted, invoice_lines, warnings)`, `Money(amount, currency)`.
+- Bad boundary values: `HttpRequest`, `OrderRow`, `DbSession`, `Mailer`, `Logger`, `dict` copied from JSON with no validated meaning, or `Command(do_anything=True)`.
 
 Bad source shape:
 
@@ -1665,7 +1680,7 @@ Bad source shape:
 
 ## Proof-map implications
 
-For every core/shell split, Architect should record:
+For every core/shell split, Architect should record the selective evidence needed for this pattern, not boilerplate for every tiny helper:
 
 - concept and classification: pure core, value boundary, imperative shell, external dependency
 - owner context/module and allowed paths
@@ -1731,7 +1746,7 @@ This is not the same as “we have an interface.” The architecture earns its w
 - Plugin implementations depend on the core contract; core policy does not depend on plugin implementation modules.
 - Selection and wiring live in host/composition/configuration code, not scattered factory conditionals.
 - Plugins may call only documented extension APIs. They must not import core internals, mutate core-owned state directly, or rely on private ordering side effects.
-- Versioning, capability negotiation, or compatibility checks are required when plugins can be developed/released independently.
+- Versioning, capability negotiation, or compatibility checks are required when plugins can be developed/released independently. For first-party config-time plugins released with the core, a lighter bar is acceptable: validate the configured plugin name, required capability flags, and contract-test coverage at startup/CI.
 
 Binding checks:
 
@@ -1747,6 +1762,13 @@ Good source shape:
 - `plugins/<name>/` or package-level implementations: concrete extensions.
 - `plugin-host`, `registry`, `loader`, `composition`, or config layer: implementation selection and validation.
 - `tests/contract/`: shared contract tests each plugin implementation must pass.
+
+Contract/loader lifecycle sketch:
+
+- Contract: `ReportExporter` declares `id`, `capabilities`, `supports(format)`, and `export(report, sink)`; it receives only documented core values.
+- Plugin: `plugins/pdf_exporter` implements the contract and declares manifest metadata such as version, capabilities, and default config.
+- Loader: reads config/manifest, checks compatibility or first-party capability flags, orders plugins if needed, constructs dependencies, then registers implementations.
+- Lifecycle: `discover -> validate -> initialize -> execute -> shutdown`; failures are reported at composition time unless the product explicitly supports degraded operation.
 
 Bad source shape:
 
@@ -1777,7 +1799,7 @@ Bad source shape:
 
 ## Proof-map implications
 
-For every plugin seam, Architect should record:
+For every plugin seam, Architect should record the selective evidence needed for this pattern, not boilerplate for ordinary internal modules:
 
 - concept and classification: core contract, plugin implementation, host/loader, compatibility surface
 - owner module and allowed paths
@@ -1818,6 +1840,7 @@ Also called Hexagonal Architecture. The hexagon is only a drawing device: it rem
 - **Adapter**: technology-specific translation between a port and an outside actor, framework, protocol, database, test harness, batch job, or another application.
 - **Primary / driving side**: actors that trigger application behavior: UI, HTTP, CLI, scheduler, test script, batch driver, another program.
 - **Secondary / driven side**: things the application calls to answer, persist, notify, publish, or retrieve: database, mailer, queue, payment API, filesystem, model provider.
+- **Inbound vs outbound mapping**: primary/driving adapters enter through inbound ports; secondary/driven adapters implement outbound ports the inside calls. Use one vocabulary consistently in the proof map.
 
 A port is not “an interface because interfaces are good.” It is the contract for a conversation the application can have while staying ignorant of the device or protocol on the other side.
 
@@ -1830,6 +1853,17 @@ A port is not “an interface because interfaces are good.” It is the contract
 - The app must keep working in headless or degraded modes, for example with an in-memory adapter while a database is unavailable.
 - Interfaces are currently named by technology, but the architecture needs them named by purpose.
 
+## Keep it light / when not to use
+
+Prefer a smaller pattern when there is no meaningful outside variation. A plain function, local module boundary, Functional Core/Shell split, or framework convention may be enough when the code has one delivery mechanism, one storage technology, fast tests, and no policy/detail leakage.
+
+Anti-signals:
+
+- Every dependency gets an interface, but no adapter can be replaced, tested, or named by application purpose.
+- The only goal is mocking; there is no protocol, persistence, UI, batch, degraded-mode, or test-harness pressure.
+- Port names mirror vendors or frameworks, so the outside still defines the inside.
+- A small CRUD slice gains ports, adapters, mappers, and composition code with no protected policy.
+
 ## Source-layout rule
 
 The owning application/context defines the port in its own language. Adapters live at the edge and translate inward or outward.
@@ -1837,8 +1871,15 @@ The owning application/context defines the port in its own language. Adapters li
 Good source shape:
 
 - `application/use-cases` or owning context: use-case policy and ports named by purpose.
-- `adapters/http`, `adapters/cli`, `adapters/fit`, `adapters/sql`, `adapters/in-memory`, etc.: technology mappings.
+- `adapters/http`, `adapters/cli`, `adapters/test`, `adapters/sql`, `adapters/in-memory`, etc.: technology mappings.
 - Tests may use an adapter at a primary port to drive behavior, and an in-memory or mock adapter at a secondary port to isolate external dependencies.
+
+Application sketch:
+
+- Inbound port `SubmitOrder` accepts `SubmitOrderCommand` from HTTP, CLI, or a test adapter.
+- Use case calls outbound port `InventoryReservation` and `PaymentAuthorization` in application terms.
+- `adapters/http/submit_order_controller.ts` maps web request to command; `adapters/sql/inventory_reservation.ts` and `adapters/stripe/payment_authorization.ts` translate outward.
+- Core tests drive `SubmitOrder` with in-memory outbound adapters; deleting Stripe affects composition and that adapter, not order policy.
 
 Bad source shape:
 
@@ -1894,7 +1935,7 @@ Useful pressure tests:
 
 ## Proof-map implications
 
-For every affected port/adaptor seam, Architect should record:
+For every affected port/adapter seam, Architect should record the selective evidence needed for this pattern, not boilerplate for every incidental interface:
 
 - concept: purpose-named port or adapter
 - classification: inbound port, outbound port, primary adapter, secondary adapter, or temporary compatibility wrapper
@@ -1936,6 +1977,12 @@ Strategic DDD says one large unified model is often unrealistic. Instead, keep m
 - **Bounded context**: the boundary inside which one model and language are coherent.
 - **Polyseme**: one word with different meanings in different contexts, for example `Customer`, `Product`, `Account`, `Meter`.
 - **Context relationship**: how two bounded contexts integrate, translate, depend on, or protect their models.
+- **Shared kernel**: a small shared model owned jointly by contexts, with explicit coordination cost for every change.
+- **Published language**: a stable integration language/API/schema that downstream contexts can rely on without importing upstream internals.
+- **Anti-corruption layer**: translation code that protects a context from another model, legacy system, or vendor vocabulary.
+- **Customer/supplier**: upstream supplier context serves downstream customer needs through negotiated contracts and priorities.
+- **Conformist**: downstream context deliberately conforms to upstream language because translation or influence is not worth the cost.
+- **Separate ways**: contexts avoid integration because coordination cost is higher than duplication or independent workflows.
 - **Context map**: a durable record of contexts and their relationships.
 
 ## Use it when
@@ -1957,7 +2004,7 @@ Strategic DDD says one large unified model is often unrealistic. Instead, keep m
 
 - A term is only ubiquitous inside its bounded context; do not assume it means the same thing elsewhere.
 - Shared concepts may have different models in different contexts. Integration must map between them explicitly.
-- Human language/culture is usually the strongest boundary signal, but representation boundaries can also matter, such as in-memory model vs relational model.
+- Human language/culture is usually the strongest boundary signal, but representation boundaries can also matter, such as in-memory model vs relational model. Persistence representation alone is not a bounded context unless it carries different language, ownership, lifecycle, invariants, or integration rules.
 - Context boundaries should own source layout, docs, tests, contracts, and allowed dependency paths.
 - A central domain model spanning all contexts is a risk unless the domain is genuinely small and coherent.
 
@@ -1975,6 +2022,13 @@ Good source shape:
 - local models, tests, adapters, docs, and glossary entries collocated with their context.
 - explicit integration adapters or published contracts between contexts.
 - central docs route/index contexts but do not mirror all local ownership rules.
+
+Application sketch:
+
+- `Sales.Customer` means a buyer with quote eligibility and account-owner rules; `Support.Customer` means a contactable party with entitlement and case history.
+- Keep `sales/CONTEXT.md` and `support/CONTEXT.md` with local glossary and invariants.
+- Integrate through `CustomerSummaryPublishedLanguage` or an anti-corruption mapper such as `support/adapters/sales_customer_acl.py`; do not share one `Customer` class.
+- Context map entry: `Support` is customer of `Sales` published customer summary; `Support` may not import `sales/internal/*`.
 
 Bad source shape:
 
@@ -2005,7 +2059,7 @@ Bad source shape:
 
 ## Proof-map implications
 
-For every affected domain term/context, Architect should record:
+For every affected domain term/context, Architect should record the selective evidence needed for this pattern, not a mandatory proof-map for unrelated small edits:
 
 - concept and classification: bounded context, ubiquitous term, polyseme, integration contract, read model, DTO, schema, or adapter
 - owner context/module and allowed paths
@@ -2050,6 +2104,9 @@ Tactical DDD is not a folder template. Start with the context and language, then
 - **Domain service**: domain operation that is meaningful in the ubiquitous language but does not naturally belong to one entity or value object.
 - **Repository**: collection-like access to aggregate roots, not a generic query dumping ground.
 - **Domain event**: record of something domain-significant that happened inside the context.
+- **Process manager / saga**: application-level workflow that reacts to events or command results and coordinates multiple aggregates or external steps over time. It owns orchestration state, not aggregate invariants.
+- **Application workflow**: handler/service logic that manages transactions, permissions, retries, I/O, and calls into domain objects without becoming the domain model.
+- **Eventual consistency**: accepting that rules spanning aggregates or contexts complete through events/workflows later instead of one large transaction.
 
 ## Use it when
 
@@ -2076,7 +2133,7 @@ Tactical DDD is not a folder template. Start with the context and language, then
 - Aggregates are transaction/consistency boundaries, not object graphs or ORM include trees.
 - Keep aggregates as small as the true invariants allow; large clusters increase contention, loading cost, and accidental coupling.
 - Cross-aggregate references should usually be by identity, not deep object references, unless a stronger local rule says otherwise.
-- Rules that do not need same-transaction consistency should normally move to eventual consistency, domain events, process managers, or application workflow instead of bloating one aggregate.
+- Rules that do not need same-transaction consistency should normally move to eventual consistency, domain events, process managers, or application workflow instead of bloating one aggregate. A process manager coordinates `OrderPlaced -> ReserveInventory -> CapturePayment -> NotifyFulfillment`; it should not reach into aggregate internals or pretend all steps are one invariant.
 - Repositories load/save aggregate roots; they should not expose internals as arbitrary mutable collections.
 - Domain services should express domain operations, not application orchestration or infrastructure calls.
 - Application services/handlers coordinate transactions, permissions, I/O, and calls into the domain; they should not own domain invariants.
@@ -2089,6 +2146,13 @@ Good source shape:
 - entities, value objects, aggregate roots, domain services, events, and repositories are named in ubiquitous language.
 - tests exercise behavior through aggregate roots or domain operations, not by mutating internals.
 - persistence mappings/adapters stay outside or at the edge of the domain model unless the repo explicitly chooses active record.
+
+Application sketch:
+
+- `Order` aggregate root owns `place`, `cancel`, and `mark_paid` invariants for one order.
+- `Money` and `Sku` are value objects because validation/equality travel with their attributes.
+- `OrderRepository` loads/saves `Order` roots; query projections live outside as read models.
+- `CheckoutProcessManager` reacts to `OrderPlaced`, asks inventory/payment ports through application workflow, and emits commands/events for eventual consistency rather than enlarging `Order` to include warehouse and payment state.
 
 Bad source shape:
 
@@ -2124,7 +2188,7 @@ Bad source shape:
 
 ## Proof-map implications
 
-For every tactical structure, Architect should record:
+For every tactical structure, Architect should record the selective evidence needed for this pattern, not a mandatory checklist for plain records or CRUD helpers:
 
 - concept and classification: entity, value object, aggregate, aggregate root, domain service, repository, event, record, DTO, projection, schema
 - owner bounded context/module and allowed paths

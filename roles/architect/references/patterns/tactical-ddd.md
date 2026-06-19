@@ -13,6 +13,9 @@ Tactical DDD is not a folder template. Start with the context and language, then
 - **Domain service**: domain operation that is meaningful in the ubiquitous language but does not naturally belong to one entity or value object.
 - **Repository**: collection-like access to aggregate roots, not a generic query dumping ground.
 - **Domain event**: record of something domain-significant that happened inside the context.
+- **Process manager / saga**: application-level workflow that reacts to events or command results and coordinates multiple aggregates or external steps over time. It owns orchestration state, not aggregate invariants.
+- **Application workflow**: handler/service logic that manages transactions, permissions, retries, I/O, and calls into domain objects without becoming the domain model.
+- **Eventual consistency**: accepting that rules spanning aggregates or contexts complete through events/workflows later instead of one large transaction.
 
 ## Use it when
 
@@ -39,7 +42,7 @@ Tactical DDD is not a folder template. Start with the context and language, then
 - Aggregates are transaction/consistency boundaries, not object graphs or ORM include trees.
 - Keep aggregates as small as the true invariants allow; large clusters increase contention, loading cost, and accidental coupling.
 - Cross-aggregate references should usually be by identity, not deep object references, unless a stronger local rule says otherwise.
-- Rules that do not need same-transaction consistency should normally move to eventual consistency, domain events, process managers, or application workflow instead of bloating one aggregate.
+- Rules that do not need same-transaction consistency should normally move to eventual consistency, domain events, process managers, or application workflow instead of bloating one aggregate. A process manager coordinates `OrderPlaced -> ReserveInventory -> CapturePayment -> NotifyFulfillment`; it should not reach into aggregate internals or pretend all steps are one invariant.
 - Repositories load/save aggregate roots; they should not expose internals as arbitrary mutable collections.
 - Domain services should express domain operations, not application orchestration or infrastructure calls.
 - Application services/handlers coordinate transactions, permissions, I/O, and calls into the domain; they should not own domain invariants.
@@ -52,6 +55,13 @@ Good source shape:
 - entities, value objects, aggregate roots, domain services, events, and repositories are named in ubiquitous language.
 - tests exercise behavior through aggregate roots or domain operations, not by mutating internals.
 - persistence mappings/adapters stay outside or at the edge of the domain model unless the repo explicitly chooses active record.
+
+Application sketch:
+
+- `Order` aggregate root owns `place`, `cancel`, and `mark_paid` invariants for one order.
+- `Money` and `Sku` are value objects because validation/equality travel with their attributes.
+- `OrderRepository` loads/saves `Order` roots; query projections live outside as read models.
+- `CheckoutProcessManager` reacts to `OrderPlaced`, asks inventory/payment ports through application workflow, and emits commands/events for eventual consistency rather than enlarging `Order` to include warehouse and payment state.
 
 Bad source shape:
 
@@ -87,7 +97,7 @@ Bad source shape:
 
 ## Proof-map implications
 
-For every tactical structure, Architect should record:
+For every tactical structure, Architect should record the selective evidence needed for this pattern, not a mandatory checklist for plain records or CRUD helpers:
 
 - concept and classification: entity, value object, aggregate, aggregate root, domain service, repository, event, record, DTO, projection, schema
 - owner bounded context/module and allowed paths
