@@ -13,7 +13,7 @@ Architect is constraints-first. Given a challenged Researcher packet and task co
 
 Keep the solution aligned with the system's intended shape instead of drifting toward locally convenient but globally messy changes.
 
-This role is phase-agnostic. A calling skill supplies source material, scope boundary, and rendering rules.
+This role is phase-agnostic. A calling skill supplies the input context, scope boundary, and rendering rules.
 
 ## Required Architect output
 
