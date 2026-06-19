@@ -1,10 +1,10 @@
 # Role Resolution
 
-Use this file to map a user-supplied hat name onto repo `../../roles/*`.
+Use this file to map a user-supplied hat name onto a repo `../../roles/<role>` directory.
 
 ## Source of truth
 
-Resolve roles by calling `scripts/resolve-role.sh <role>` from the hat skill root. The script reads repo `../../roles/*/ROLE.md` frontmatter and prints deterministic concrete paths for the requested role.
+Resolve roles by calling `scripts/resolve-role.sh <role>` from the hat skill root. The script normalizes only trivial spaces/slashes-to-kebab slug input, checks the direct repo path `../../roles/<role>/ROLE.md`, and prints deterministic concrete paths for the requested role. It does not scan all roles, fuzzy-match, or invent aliases.
 
 For displaying the full available role list, call `scripts/list-roles.sh` from the hat skill root. The script reads `ROLE.md` frontmatter and prints deterministic `name - description` lines.
 
@@ -16,25 +16,19 @@ For displaying the full available role list, call `scripts/list-roles.sh` from t
 ## Resolution rules
 
 - call `scripts/resolve-role.sh <role>` first
-- the script matches exact frontmatter names and directory names before normalized lowercase / kebab-case / space / punctuation variants
+- the script resolves a direct role slug only
+- spaces and slashes may normalize to the same kebab-case slug
 - if the script reports no match, tell the user the role is not present and offer `scripts/list-roles.sh`
-- if the script reports ambiguity, do not guess; ask which one the user wants
 
 ## Examples
 
 Likely valid:
-- `hat architect`
-- `hat critic`
-- `hat frontend`
-- `hat frontend-taste`
-- `hat frontend taste`
-- `hat privacy/data-safety`
-- `hat techwriter`
+- `hat <frontmatter-name-from-ROLE.md>`
+- `hat <role-directory-name>`
+- `hat <normalized role name using spaces or slashes>`
 
-Potentially ambiguous:
-- `hat front`
-- `hat writer`
-- `hat perf`
+Invalid:
+- any partial, abbreviated, category-like, or otherwise non-existent slug
 
 ## Loading rule
 
@@ -46,11 +40,11 @@ You must:
 - respect repo design memory or architecture memory when that role depends on it
 
 Example:
-- `Frontend-Taste` may require additional supporting files depending on the task; discover those by following the loaded role files, not by hardcoding role-internal paths here
+- a loaded role may require additional supporting files depending on the task; discover those by following the loaded role files, not by hardcoding role-internal paths here
 
 ## Missing role behavior
 
 If the role is not present:
 - say the repo does not currently have that role
-- offer the closest available role names
-- do not fabricate or alias a role silently
+- offer the available role list from `scripts/list-roles.sh`
+- do not fabricate, fuzzy-match, or alias a role silently
