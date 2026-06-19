@@ -21,7 +21,7 @@ Architect is constraints-first. Given a challenged Researcher packet and task co
 
 Keep the solution aligned with the system's intended shape instead of drifting toward locally convenient but globally messy changes.
 
-This role is phase-agnostic. A calling skill supplies source material, scope boundary, and rendering rules.
+This role is phase-agnostic. A calling skill supplies the input context, scope boundary, and rendering rules.
 
 ## Required Architect output
 
@@ -429,7 +429,7 @@ Only list this file if it was actually loaded.
 
 # The Balanced Coupling Model
 
-A comprehensive reference for understanding the Balanced Coupling model as described by Vlad Khononov. This document synthesizes the full model from the companion blog at coupling.dev, covering its foundations, dimensions, balancing mechanics, relationship to prior coupling models, and connections to domain-driven design.
+A practical working model for Architect review, based on Vlad Khononov's Balanced Coupling material. This is a repo-local interpretation focused on selected operating guidance for evaluating coupling dimensions, balancing mechanics, relationship to prior coupling models, and connections to domain-driven design; use the companion blog at coupling.dev for attribution and further reading.
 
 ---
 
@@ -2645,7 +2645,7 @@ Only list this file if it was actually loaded.
 
 Entry point for the Architect reference set.
 
-Use these references selectively. Start here, then open only the docs that materially affect the slice. Pattern references are intentionally self-contained semantic transfers from their source material: they should preserve every important claim, condition, limitation, failure mode, nuance, tradeoff, example consequence, and practical code/architecture implication in repo-local wording, so external links are attribution and further reading, not prerequisites for understanding.
+Use these references selectively. Start here, then open only the docs that materially affect the slice. Pattern references provide repo-local synthesis and application guidance: they capture source-backed notes, selected tradeoffs, and practical code/architecture implications in repo-local wording, while external links remain attribution and further reading rather than prerequisites for understanding.
 
 ## Quick routing by question
 

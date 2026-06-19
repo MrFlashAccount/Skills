@@ -1,7 +1,7 @@
 
 # The Balanced Coupling Model
 
-A comprehensive reference for understanding the Balanced Coupling model as described by Vlad Khononov. This document synthesizes the full model from the companion blog at coupling.dev, covering its foundations, dimensions, balancing mechanics, relationship to prior coupling models, and connections to domain-driven design.
+A practical working model for Architect review, based on Vlad Khononov's Balanced Coupling material. This is a repo-local interpretation focused on selected operating guidance for evaluating coupling dimensions, balancing mechanics, relationship to prior coupling models, and connections to domain-driven design; use the companion blog at coupling.dev for attribution and further reading.
 
 ---
 
