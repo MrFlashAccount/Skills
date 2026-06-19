@@ -115,11 +115,7 @@ shared/<package-name>/
   *.md          # reference material and snippets
 ```
 
-When a canonical label and folder path differ, the folder path is the source of truth.
-Current non-trivial mappings:
-- `frontend taste` -> `roles/frontend-taste`
-- `privacy/data-safety` -> `roles/privacy-data-safety`
-- `qa/reliability` -> `roles/qa-reliability`
+When a canonical label and folder path differ, the folder path is the source of truth. Resolver scripts should use direct `roles/<slug>` path checks, not hardcoded role-name maps.
 
 ## Common workflows
 

@@ -1,53 +1,50 @@
 # Role Resolution
 
-Use this file to map a user-supplied hat name onto repo `../../roles/*`.
+Use this file to map a user-supplied hat name onto a repo `../../roles/<role>` directory.
 
 ## Source of truth
 
-Resolve roles from the repo `../../roles/` directory.
+Resolve roles by calling `scripts/resolve-role.sh <role>` from the hat skill root. The script normalizes only trivial spaces/slashes-to-kebab slug input, checks the direct repo path `../../roles/<role>/ROLE.md`, and prints deterministic concrete paths for the requested role. It does not scan all roles, fuzzy-match, or invent aliases.
 
 For displaying the full available role list, call `scripts/list-roles.sh` from the hat skill root. The script reads `ROLE.md` frontmatter and prints deterministic `name - description` lines.
 
-Primary files:
-- `../../roles/<role>/ROLE.md`
-- `../../roles/<role>/RUBRIC.md` when it exists
+`resolve-role.sh` output fields:
+- `role: <role>`
+- `role_file: roles/<role>/ROLE.md`
+- `rubric_file: roles/<role>/RUBRIC.md` when it exists
 
 ## Resolution rules
 
-- match exact role names first
-- then try common lowercase / kebab-case / space-normalized variants
-- then try close matches only when they are genuinely similar
-- if more than one role is plausible, do not guess; ask which one the user wants
+- call `scripts/resolve-role.sh <role>` first
+- the script resolves a direct role slug only
+- spaces and slashes may normalize to the same kebab-case slug
+- if the script reports no match, tell the user the role is not present and offer `scripts/list-roles.sh`
 
 ## Examples
 
 Likely valid:
-- `hat architect`
-- `hat critic`
-- `hat frontend`
-- `hat frontend-taste`
-- `hat techwriter`
+- `hat <frontmatter-name-from-ROLE.md>`
+- `hat <role-directory-name>`
+- `hat <normalized role name using spaces or slashes>`
 
-Potentially ambiguous:
-- `hat front`
-- `hat writer`
-- `hat perf`
+Invalid:
+- any partial, abbreviated, category-like, or otherwise non-existent slug
 
 ## Loading rule
 
 Loading a hat is not just naming a role.
 
 You must:
-- load the role's own files
+- load the `role_file` and `rubric_file` paths printed by `scripts/resolve-role.sh <role>`
 - follow the role's local read model when it says to load supporting files
 - respect repo design memory or architecture memory when that role depends on it
 
 Example:
-- `Frontend-Taste` may require additional supporting files depending on the task; discover those by following the loaded role files, not by hardcoding role-internal paths here
+- a loaded role may require additional supporting files depending on the task; discover those by following the loaded role files, not by hardcoding role-internal paths here
 
 ## Missing role behavior
 
 If the role is not present:
 - say the repo does not currently have that role
-- offer the closest available role names
-- do not fabricate or alias a role silently
+- offer the available role list from `scripts/list-roles.sh`
+- do not fabricate, fuzzy-match, or alias a role silently
