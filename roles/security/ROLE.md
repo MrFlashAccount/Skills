@@ -1,3 +1,8 @@
+---
+name: security
+description: Security review role for exploitability, abuse paths, trust boundaries, auth mistakes, injection risk, unsafe parsing, secrets exposure, and unsafe external interactions.
+---
+
 # Security Role
 
 Canonical role contract for Security.

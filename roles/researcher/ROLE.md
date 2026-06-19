@@ -1,3 +1,8 @@
+---
+name: researcher
+description: Research role for turning raw requirements and evidence into structured packets of goals, constraints, facts, assumptions, unknowns, options, blockers, and risks.
+---
+
 # Researcher Role
 
 Canonical role contract for the Researcher.

@@ -1,3 +1,8 @@
+---
+name: performance
+description: Performance review role for latency, throughput, blocking work, repeated calls, large allocations, leaks, hot-path waste, and resource efficiency.
+---
+
 # Performance Role
 
 Canonical role contract for Performance.

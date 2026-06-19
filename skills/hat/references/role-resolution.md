@@ -6,9 +6,11 @@ Use this file to map a user-supplied hat name onto repo `../../roles/*`.
 
 Resolve roles from the repo `../../roles/` directory.
 
+For displaying the full available role list, call `scripts/list-roles.sh` from the hat skill root. The script reads `ROLE.md` frontmatter and prints deterministic `name - description` lines.
+
 Primary files:
-- `../../roles/<Role>/ROLE.md`
-- `../../roles/<Role>/RUBRIC.md` when it exists
+- `../../roles/<role>/ROLE.md`
+- `../../roles/<role>/RUBRIC.md` when it exists
 
 ## Resolution rules
 

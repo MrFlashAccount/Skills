@@ -1,3 +1,8 @@
+---
+name: backend
+description: Server-side implementation and review role for contracts, data flow, validation, side effects, auth/permission hygiene, rollout safety, and testability.
+---
+
 # Backend Role
 
 Canonical role contract for Backend.

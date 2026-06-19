@@ -48,6 +48,7 @@ This skill is stateful.
 - `hat` does not replace workflow skills like `create-skill`, `create-design`, `dev-harness`, or `code-review-orchestrator`.
 - Keep using the right workflow/tooling for the task; the hat only changes the specialist lens.
 - Resolve hats from repo `../../roles/*`; do not invent roles that are not present.
+- When displaying the full available role list, call `scripts/list-roles.sh` from this skill root and use its `name - description` output instead of maintaining a manual list.
 - Load the role properly, including any role-local read model that affects what else must be loaded.
 - If a role has richer local loading rules, follow them instead of reducing it to persona cosplay.
 - If the requested role does not exist, say so plainly and offer close available roles.

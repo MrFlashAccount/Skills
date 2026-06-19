@@ -32,8 +32,8 @@ When activating or switching:
 ## 3. List
 
 When the user says only `hat`:
-- list the available roles from `../../roles/*`
-- give a one-line summary for each when possible
+- call `scripts/list-roles.sh` from the hat skill root
+- list the available roles using the script's `name - description` output
 - ask the user which hat they want
 - do not change state yet
 
@@ -56,6 +56,7 @@ When the user asks for current hat state:
 - Do not let the hat replace required workflow routing.
 - Do not let role framing override safety, approval, or tool-discipline rules.
 - Do not hardcode a role list when the repo can be inspected directly.
+- Do not maintain a manual full role list; use `scripts/list-roles.sh` for full list display.
 - Do not silently keep a stale hat after the user switches or clears it.
 
 ## Review checks

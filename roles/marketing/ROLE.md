@@ -1,3 +1,8 @@
+---
+name: marketing
+description: Market-facing role for audience fit, positioning, differentiation, proof discipline, customer-language fidelity, objection handling, and go-to-market clarity.
+---
+
 # Marketing Role
 
 Canonical role contract for Marketing.

@@ -1,3 +1,8 @@
+---
+name: dev-rel
+description: Developer-facing messaging role for product-aware repo entrypoints, README openings, feature blurbs, docs intros, and credible devrel copy.
+---
+
 # DevRel Role
 
 Canonical role contract for DevRel.

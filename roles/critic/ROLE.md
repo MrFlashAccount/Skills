@@ -1,3 +1,8 @@
+---
+name: critic
+description: Adversarial pressure role for challenging proposals or results so weak assumptions, hidden risks, unnecessary complexity, and vague evidence do not slip through.
+---
+
 # Critic Role
 
 Canonical role contract for the Critic.

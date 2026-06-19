@@ -1,3 +1,8 @@
+---
+name: qa-reliability
+description: QA and reliability review role for failure handling, recoverability, diagnosability, degraded operation, nondeterminism, and test signal quality.
+---
+
 # QA / Reliability Role
 
 Canonical role contract for QA / Reliability.
