@@ -4,20 +4,21 @@ Use this file to map a user-supplied hat name onto repo `../../roles/*`.
 
 ## Source of truth
 
-Resolve roles from the repo `../../roles/` directory.
+Resolve roles by calling `scripts/resolve-role.sh <role>` from the hat skill root. The script reads repo `../../roles/*/ROLE.md` frontmatter and prints deterministic concrete paths for the requested role.
 
 For displaying the full available role list, call `scripts/list-roles.sh` from the hat skill root. The script reads `ROLE.md` frontmatter and prints deterministic `name - description` lines.
 
-Primary files:
-- `../../roles/<role>/ROLE.md`
-- `../../roles/<role>/RUBRIC.md` when it exists
+`resolve-role.sh` output fields:
+- `role: <role>`
+- `role_file: roles/<role>/ROLE.md`
+- `rubric_file: roles/<role>/RUBRIC.md` when it exists
 
 ## Resolution rules
 
-- match exact role names first
-- then try common lowercase / kebab-case / space-normalized variants
-- then try close matches only when they are genuinely similar
-- if more than one role is plausible, do not guess; ask which one the user wants
+- call `scripts/resolve-role.sh <role>` first
+- the script matches exact frontmatter names and directory names before normalized lowercase / kebab-case / space / punctuation variants
+- if the script reports no match, tell the user the role is not present and offer `scripts/list-roles.sh`
+- if the script reports ambiguity, do not guess; ask which one the user wants
 
 ## Examples
 
@@ -26,6 +27,8 @@ Likely valid:
 - `hat critic`
 - `hat frontend`
 - `hat frontend-taste`
+- `hat frontend taste`
+- `hat privacy/data-safety`
 - `hat techwriter`
 
 Potentially ambiguous:
@@ -38,7 +41,7 @@ Potentially ambiguous:
 Loading a hat is not just naming a role.
 
 You must:
-- load the role's own files
+- load the `role_file` and `rubric_file` paths printed by `scripts/resolve-role.sh <role>`
 - follow the role's local read model when it says to load supporting files
 - respect repo design memory or architecture memory when that role depends on it
 
