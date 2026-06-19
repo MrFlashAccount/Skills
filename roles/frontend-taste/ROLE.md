@@ -1,3 +1,8 @@
+---
+name: frontend-taste
+description: Presentation-quality role for rendered UI taste review, screen-level visual direction, visual hierarchy, spacing, typography, composition, and polish.
+---
+
 # Frontend Taste Role
 
 Canonical role contract for Frontend Taste.

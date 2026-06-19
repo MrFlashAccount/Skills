@@ -1,3 +1,8 @@
+---
+name: privacy-data-safety
+description: Privacy and data-safety review role for local-path leakage, committed personal material, retained user data, consent, retention, and repo-visible private content exposure.
+---
+
 # Privacy / Data-Safety Role
 
 Canonical role contract for Privacy / Data-Safety.

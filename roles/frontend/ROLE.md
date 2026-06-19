@@ -1,3 +1,8 @@
+---
+name: frontend
+description: Client-side implementation and review role for contract consumption, state/data flow, loading/error/empty states, routing, hydration, async behavior, accessibility, performance, and maintainability.
+---
+
 # Frontend Role
 
 Canonical role contract for Frontend.

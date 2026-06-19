@@ -1,3 +1,8 @@
+---
+name: tech-writer
+description: Technical documentation role for quick starts, tutorials, how-tos, migration notes, and teaching-oriented docs that help readers succeed quickly and correctly.
+---
+
 # TechWriter Role
 
 Canonical role contract for TechWriter.

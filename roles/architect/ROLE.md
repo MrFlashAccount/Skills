@@ -1,3 +1,8 @@
+---
+name: architect
+description: Constraints-first architecture role for turning challenged research and task context into structural contracts, boundaries, invariants, and execution-shaping decisions.
+---
+
 # Architect Role
 
 Canonical role contract for the Architect.
