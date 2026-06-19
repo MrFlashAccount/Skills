@@ -97,6 +97,66 @@ For every plugin seam, Architect should record the selective evidence needed for
 - compatibility decision: delete, keep temporarily, or public exception for legacy plugin APIs
 - negative checks for plugin replacement/removal and contract-test coverage
 
+## Complete semantic transfer from source material
+
+These notes preserve the source intent in repo-local wording so reviewers do not need to open the Plugin source material to understand the pattern.
+
+### Source pattern intent
+
+A plugin links classes/modules during configuration rather than normal compilation/static dependency. The host/core exposes a separated interface or extension point; concrete implementations are found and attached through configuration, reflection/discovery, registry, dependency injection, manifest, package metadata, or runtime loading.
+
+The point is not merely having an interface. The point is that implementation choice is intentionally separated from core policy and can vary without editing the core code that uses the extension.
+
+### Separated interface pressure
+
+The interface belongs on the stable side that needs to remain ignorant of concrete implementations. Implementations depend on that contract. The core should be able to call the contract without importing implementation modules. This preserves the direction: core contract inward, plugin implementation outward.
+
+A plugin seam is useful when different deployments, environments, tenants, customers, partners, or release cadences need different behavior behind the same stable contract.
+
+### Configuration-time versus runtime
+
+Plugin architecture may mean runtime discovery/loading, but it does not have to. A first-party system may choose plugins at startup from config or a registry. A third-party ecosystem may need manifests, version checks, lifecycle hooks, and capability negotiation. The amount of machinery should match the independence and compatibility pressure.
+
+If a config key choosing one of two built-in implementations solves the problem, do not invent a plugin ecosystem. If external authors or independent releases are real, document compatibility and lifecycle rules before relying on the seam.
+
+### Host responsibilities
+
+The plugin host/loader owns selection and wiring. It should:
+
+- locate candidate implementations;
+- validate that they implement the contract;
+- check version/capability/config compatibility when needed;
+- construct dependencies;
+- register implementations in a predictable order when ordering matters;
+- report startup/configuration errors clearly;
+- shut plugins down or clean resources when the lifecycle requires it.
+
+The loader must not become the business-policy owner. It selects and manages extensions; it should not decide domain behavior that belongs in the core or plugin contract.
+
+### Contract responsibilities
+
+The extension contract should be narrow enough that plugins do not need core internals, but rich enough to express the intended extension. It should define inputs, outputs, error expectations, lifecycle callbacks, capability flags, and what the plugin is forbidden to mutate or observe.
+
+A weak contract causes plugins to import private internals, depend on ordering accidents, or mutate core state directly. Once plugin authors depend on a public method, field, event, or schema, it becomes a compatibility surface; temporary exceptions need an owner and removal condition.
+
+### Contract tests
+
+When multiple plugin implementations exist, shared contract tests are part of the architecture. Each implementation should prove it satisfies the same expectations. For third-party plugins, the contract test suite or compatibility checklist becomes a communication tool. For first-party config-time plugins, CI can run the same tests across built-in implementations.
+
+### Practical consequences for repo docs
+
+When this pattern is chosen, docs must preserve:
+
+- why implementation choice must vary independently;
+- where the stable extension contract lives;
+- how implementations are discovered or selected;
+- what lifecycle the host enforces;
+- what compatibility/version/capability checks exist;
+- what core internals plugins may not touch;
+- which APIs are public compatibility surfaces;
+- how contract tests prove replaceability;
+- when the design should collapse back to config, ports/adapters, or a simple interface.
+
 ## Sources
 
 1. Martin Fowler, “Plugin” — https://martinfowler.com/eaaCatalog/plugin.html

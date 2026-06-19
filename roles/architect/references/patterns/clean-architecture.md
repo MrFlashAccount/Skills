@@ -98,6 +98,86 @@ For every policy/detail boundary, Architect should record the selective evidence
 - schema/durable field owner when records cross persistence or API boundaries
 - negative checks for core tests without details and import-rule enforcement
 
+## Complete semantic transfer from source material
+
+These notes preserve the source intent in repo-local wording so reviewers do not need to open the Clean Architecture article to understand the pattern.
+
+### Shared idea across named architectures
+
+Clean Architecture combines the recurring properties of several architecture families: independence from frameworks, testability without external machinery, independence from UI, independence from database, and independence from outside agencies. The names and diagrams vary, but the common architecture aim is stable business/application policy separated from volatile delivery and infrastructure details.
+
+The diagram is not the rule. The dependency rule is the rule.
+
+### Dependency rule in full
+
+Source-code dependencies must point inward toward higher-level policy. Inner code must not mention names declared in outer rings. That includes classes, functions, variables, data formats, annotations, framework base classes, ORM models, SQL result records, HTTP request objects, vendor SDK types, or any other detail whose name would make the inner policy aware of the outer mechanism.
+
+Outer code may depend inward. Inner code may call outward only through abstractions that belong to the inner side. Runtime control flow may cross outward and inward, but source dependencies still point inward by using inversion: an inner use case calls an interface/port it owns, and an outer adapter implements it.
+
+### Ring semantics
+
+The number of rings is not fixed. The usual semantic progression is:
+
+- enterprise/domain rules: the most general and stable business rules;
+- application rules/use cases: application-specific orchestration of domain rules;
+- interface adapters: translation between use-case-friendly data and external formats;
+- frameworks/devices/details: web, UI, DB, filesystem, SDKs, frameworks, and tools.
+
+A smaller repo may collapse some rings, but it must not reverse the dependency direction when policy/detail pressure is real.
+
+### Entities / domain rules
+
+Entity-level policy is the part least likely to change because of application delivery choices. It contains business concepts and rules that would still matter if the UI, database, or framework changed. It should not require the app server, ORM, or transport framework to express its behavior.
+
+### Use cases / application rules
+
+Use cases contain application-specific business rules. They orchestrate the flow of data to and from entities/domain behavior and direct which ports are needed. A use case describes what the application does for one action, not how the web framework receives the request or how a database stores rows.
+
+Use cases are allowed to change when application behavior changes. They should not change merely because a database, UI, HTTP library, or framework is replaced.
+
+### Interface adapters
+
+Adapters convert between the data format most convenient for use cases/entities and the data format required by outside agencies. Controllers adapt incoming delivery mechanisms to use-case input. Presenters adapt use-case output to display/API output. Gateways/repositories adapt use-case requests to persistence or external services.
+
+Adapters are also where database records are converted into application/domain structures. A database row shape is not automatically a domain model. An ORM object may be convenient in adapter code but becomes a dependency violation when inner policy requires it.
+
+### Frameworks and drivers
+
+Frameworks, databases, web servers, UI toolkits, messaging systems, and devices sit at the outer edge. They are important operational choices but should be treated as details relative to application policy. The architecture should allow these choices to be deferred or changed where there is real volatility pressure.
+
+This does not mean frameworks are bad. It means framework coupling must not capture the policy that should survive framework replacement.
+
+### Boundary crossing data
+
+Data crossing inward should be simple and policy-friendly. It should not contain framework objects, database records, UI widgets, request contexts, response builders, or SDK payloads. Boundary records are often plain DTOs/commands/results. They can be boring, but they earn their existence only when they prevent detail leakage or stabilize a use-case contract.
+
+Do not pass a row or request object inward and call it a DTO. The source of truth for boundary data is the use case's needs, not the current external representation.
+
+### Main/composition consequence
+
+Wiring belongs outside. The composition root, framework entrypoint, dependency injection module, or application bootstrap creates concrete adapters and gives them to use cases. This outer main component is allowed to know everyone because it is a detail that assembles the system; it should not own policy.
+
+### Testability consequence
+
+Core policy and use cases should be testable without web server, UI, database, external services, container startup, or framework lifecycle. Integration tests still matter, but they should not be the only way to verify business behavior. If every meaningful test needs the outer details, the dependency rule is not delivering its main value.
+
+### Deferring decisions without stopping delivery
+
+The pattern helps defer decisions about UI, database, framework, and external agencies, but it does not require horizontal layer-first delivery. A team can still deliver vertical product slices. Each slice crosses from delivery to policy to adapter, while keeping source dependencies pointed inward.
+
+### Practical consequences for repo docs
+
+When this pattern is chosen, docs must preserve:
+
+- which policy is inner and why it should survive detail replacement;
+- which use cases own application-specific rules;
+- which outer mechanisms are details;
+- which concrete type names/imports may not cross inward;
+- where boundary data is defined and why;
+- where composition/wiring happens;
+- how tests prove policy without outer startup;
+- where the repo intentionally accepts an active-record/framework-centric exception, if any.
+
 ## Sources
 
 1. Robert C. Martin, “Clean Architecture” — https://blog.cleancoder.com/uncle-bob/2011/11/22/Clean-Architecture.html

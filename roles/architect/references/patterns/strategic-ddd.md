@@ -104,6 +104,65 @@ For every affected domain term/context, Architect should record the selective ev
 - compatibility decision for legacy shared models or aliases
 - negative checks proving no internal cross-context imports
 
+## Complete semantic transfer from source material
+
+These notes preserve the source intent in repo-local wording so reviewers do not need to open the DDD and Bounded Context source material to understand the pattern.
+
+### Domain model in software, not only diagrams
+
+DDD is about building software around a model of a complex domain. The model is not just a document or up-front diagram. It lives in code, tests, conversations, names, and behavior, and it evolves as the team learns. This matters most when the domain has messy rules, ambiguous words, and competing workflows.
+
+### Ubiquitous language
+
+A ubiquitous language is a shared language between technical and domain people inside one bounded context. It should show up in code names, test names, docs, examples, conversations, and review comments. The point is not a central glossary for the whole company; the point is that within a boundary, the same words carry the same model.
+
+If code uses one term, docs another, and business discussion a third, the model is not stable. If one word means different things in different workflows, the word must be bounded rather than forced into one global definition.
+
+### Why one enterprise model fails
+
+Large organizations often try to create one unified model of the entire domain. That breaks when different subdomains use the same words for different concepts or need different invariants. A `Customer` in sales, support, billing, and identity may have different lifecycle, fields, permissions, and responsibilities. A single shared class can become a false compromise that fits no context well.
+
+Strategic DDD accepts that several models may coexist. Each model is coherent inside its bounded context, and integration points translate or publish stable contracts between contexts.
+
+### Bounded context meaning
+
+A bounded context is a boundary of model applicability. Inside it, terms, invariants, source layout, tests, data ownership, and APIs should align. Outside it, the same term may mean something else. The boundary can align with a team, subdomain, workflow, product area, service, module, or package, but it is justified by language/model coherence, not by a folder name alone.
+
+A database schema, DTO namespace, or microservice is not automatically a bounded context. It becomes one only when it carries distinct language, ownership, invariants, lifecycle, or integration rules.
+
+### Context map meaning
+
+A context map records bounded contexts and the relationships between them. It is not just boxes on a diagram. It must explain how contexts depend, translate, share, conform, or stay separate. The map protects future work from accidentally merging meanings or bypassing translation.
+
+### Relationship patterns
+
+The relationship vocabulary matters because each relation has different coupling and ownership consequences:
+
+- **Shared kernel**: two contexts share a small part of the model/code/schema and coordinate every change. Keep it small because shared ownership slows independent evolution.
+- **Customer/supplier**: an upstream supplier serves downstream customer needs through negotiated expectations. Downstream influence and prioritization are part of the relationship.
+- **Conformist**: downstream adopts upstream's model because translation, negotiation, or protection is not worth the cost. This is a deliberate surrender, not accidental leakage.
+- **Published language**: contexts integrate through a stable, documented API/schema/event language that downstreams can rely on without importing upstream internals.
+- **Anti-corruption layer**: a context protects its model by translating from another model, legacy system, vendor vocabulary, or upstream contract.
+- **Separate ways**: contexts avoid integration when coordination is more expensive than duplication or independent workflows.
+- **Open host/service style relationship**: one context exposes a protocol/API meant for multiple consumers; consumers integrate through that stable public surface rather than private internals.
+
+### Translation over sharing
+
+When concepts cross a context boundary, explicit translation is usually safer than shared model reuse. Translation can happen in adapters, mappers, published-language clients, ACLs, or event consumers. The key is that each context keeps its own language and invariants internally.
+
+### Practical consequences for repo docs
+
+When this pattern is chosen, docs must preserve:
+
+- which terms are ambiguous/polysemic and in which contexts;
+- what each bounded context owns;
+- what invariants/lifecycle/data differ per context;
+- which context relationships exist and why;
+- where translation, published language, or ACL code lives;
+- what imports or shared models are forbidden;
+- what local `CONTEXT.md`, glossary, or context map must be updated;
+- what legacy shared term/model is tolerated temporarily and the compatibility plan for it.
+
 ## Sources
 
 1. Eric Evans, *Domain-Driven Design: Tackling Complexity in the Heart of Software*
