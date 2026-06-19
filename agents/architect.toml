@@ -1473,26 +1473,100 @@ Only list this file if it was actually loaded.
 
 # Clean Architecture
 
-Use Clean Architecture language when policy and detail have meaningfully different volatility and reviewers need a concrete rule about which direction dependencies may flow.
+Use Clean Architecture when the main architectural risk is policy/detail coupling: business rules or use cases are being shaped by frameworks, UI, persistence, transport, or vendor APIs.
+
+The practical point is not circles, ceremony, or a fixed number of layers. The point is a dependency rule: source-code dependencies point toward stable policy, while volatile details sit outside and translate.
+
+## Core shape
+
+- **Policy**: enterprise/domain rules and application use cases that should survive UI, framework, database, and delivery changes.
+- **Interactor / use case**: application-specific orchestration of policy; accepts simple input data and returns simple output data.
+- **Interface adapters**: controllers, presenters, gateways, mappers, repositories, and equivalent translators between external shapes and use-case shapes.
+- **Details**: UI, web framework, database, ORM, message bus, filesystem, devices, vendor SDKs, and deployment framework.
+- **Boundary data**: plain request/response models, DTOs, records, or messages that cross between policy and detail without smuggling framework objects inward.
 
 ## Use it when
 
-- frameworks, I/O, persistence, or transport should stay replaceable details
-- the review risk is inward leakage from detail code into policy code
-- the slice benefits from explicit source-code dependency rules rather than vague boundary talk
+- Controllers, views, ActiveRecord/ORM models, framework callbacks, or database records contain business rules.
+- Tests for core behavior require starting a web server, container, Rails/Django/Spring app, database, queue, or UI.
+- A team needs to defer or replace UI, database, framework, transport, or vendor choices without rewriting use cases.
+- “Convention over configuration” is being used as an excuse for coupling policy to framework objects.
+- Long skinny product slices are required, but each slice can still keep use cases decoupled from detail choices.
 
 ## Keep it lighter when
 
-- the slice is tiny, single-owner, and has no meaningful outer-detail pressure
-- extra layers would only rename pass-through code
+- The slice is tiny, single-owner, and no concrete bad dependency arrow is at risk.
+- A pass-through layer would only rename functions and increase navigation cost.
+- Framework types are the actual domain contract, not incidental delivery detail.
 
-## Practical check
+## Dependency rules
 
-If the proposed dependency rule does not forbid a concrete bad arrow, it is probably too vague to help review.
+- Inner policy must not import outer detail.
+- Controllers unpack framework requests into simple input data; they do not know business rules.
+- Interactors/use cases implement the application action by invoking domain/business objects and ports.
+- Presenters/views receive simple output data; they do not know business objects.
+- ORM/database records are persistence details unless the repo has explicitly chosen active-record domain modeling.
+- Framework conventions are acceptable only while they do not force policy to depend on framework types.
+
+Binding checks:
+
+- `must_not_import`: policy/use-case modules must not import web, UI, ORM, SQL, queue, vendor SDK, filesystem, or framework packages.
+- `must_not_accept`: use cases must not accept `HttpRequest`, controller context, ORM row, framework model, or vendor payload as core input.
+- `negative_check`: core tests run without server/container/database/framework startup.
+
+## Source-layout rule
+
+The source tree should make the policy/detail split visible enough for review.
+
+Good source shape:
+
+- `domain/` or owning context: rules and domain structures.
+- `application/` or `use_cases/`: interactors, commands, queries, ports, input/output models.
+- `adapters/` or delivery-specific folders: HTTP, CLI, presenters, persistence, queue, vendor gateways.
+- `composition/` or framework entrypoint: wiring of details to ports.
+
+Bad source shape:
+
+- `models/` that mixes ORM persistence, validation, use-case decisions, and domain rules without an explicit exception.
+- `services/` as an ownerless dump for business logic extracted from controllers.
+- boundary DTOs that are just renamed framework or database records.
+- “clean” layers where every class forwards to the next class with no owned policy.
+
+## Review checklist
+
+- What policy must survive UI/framework/database replacement?
+- Which concrete dependency arrows are forbidden?
+- Do use cases accept and return simple data, or framework/persistence objects?
+- Can core behavior be tested without outer details running?
+- Is any field-copying boundary earning decoupling, or is it rote duplication with no volatility pressure?
+- Are long skinny slices still end-to-end while remaining decoupled?
+- Does source layout reveal policy vs detail, or hide it behind generic `services` and `utils`?
+- Did the design avoid Big-Up-Front theater while still choosing dependency direction deliberately?
+
+## Failure modes
+
+- Circle cosplay: layers exist, but details still leak inward through imports, types, annotations, base classes, or data models.
+- Framework capture: the application is organized around Rails/Spring/Django/ORM conventions even where those conventions are not the domain.
+- DTO flood: many copy-only objects appear without any protected volatility boundary.
+- Use-case anemia: interactors become transaction scripts that bypass domain behavior and carry all invariants in procedural glue.
+- Detail-driven tests: every meaningful test starts a server, database, or container, making fast policy feedback impossible.
+- Deferral confusion: good architecture allows decisions to be deferred; it does not require teams to stop delivering whole vertical slices.
+
+## Proof-map implications
+
+For every policy/detail boundary, Architect should record:
+
+- concept and classification: policy, use case, boundary record, adapter, framework detail, persistence detail
+- owner module and allowed paths
+- forbidden imports/types crossing inward
+- runtime entrypoint and composition point
+- invariant: detail decisions do not define policy names or behavior
+- schema/durable field owner when records cross persistence or API boundaries
+- negative checks for core tests without details and import-rule enforcement
 
 ## Sources
 
-1. Robert C. Martin, "The Clean Architecture" — https://blog.cleancoder.com/uncle-bob/2011/11/22/Clean-Architecture.html
+1. Robert C. Martin, “Clean Architecture” — https://blog.cleancoder.com/uncle-bob/2011/11/22/Clean-Architecture.html
 2. Repo canon: `roles/architect/ROLE.md`, `roles/architect/RUBRIC.md`
 
 ## Final role evidence
@@ -1510,25 +1584,103 @@ Only list this file if it was actually loaded.
 
 # Functional Core, Imperative Shell
 
-Use this pattern when the core decisions can be expressed as pure value-in/value-out logic and the side effects can stay at the edge.
+Use Functional Core, Imperative Shell when the best architecture is a small deterministic core wrapped by side-effecting orchestration.
 
-The shell owns I/O, time, randomness, framework calls, and orchestration. The core owns rules, transformations, and decisions.
+This is lower-weight than ports/adapters or Clean Architecture. It is useful when the slice has real decisions, transformations, or branching logic, but the side effects are mostly coordination with time, state, I/O, framework calls, or external systems.
+
+## Core shape
+
+- **Functional core**: deterministic functions/components that take values in and return values out. They hold decisions, transformations, rules, and most execution paths.
+- **Imperative shell**: orchestration that owns side effects, persistent state, framework calls, network, disk, database, randomness, clock, logging, UI, and external libraries.
+- **Value boundary**: simple data crossing between shell and core. Values reduce boundary-call risks because they do not require stubbing a collaborator’s behavior.
+- **Test split**: many fast tests against the core; fewer integration checks for the shell’s wiring and external calls.
 
 ## Use it when
 
-- testability depends on isolating side effects
-- a small rules-heavy slice does not need heavier architectural machinery
-- a job, workflow step, or domain policy can be expressed as deterministic logic
+- The slice is rules-heavy but integration-light: validation, classification, routing decisions, planning, transformations, pricing, eligibility, selection, formatting, merge/sort/filter decisions.
+- Tests are slow or brittle because every branch currently requires I/O, mocks, framework startup, or database fixtures.
+- A function/class has many logical paths but only needs a few inputs to decide.
+- The shell has many dependencies but should have few branches.
+- Values can serve as messages between classes, modules, actors, jobs, or processes.
+- The team needs a small architecture move, not full DDD, Clean Architecture, or a plugin system.
 
 ## Anti-signals
 
-- forcing purity through framework glue that is mostly coordination
-- pretending the shell disappeared when side effects were only hidden
+- The work is mostly framework glue with little decision logic to extract.
+- Purity would require awkward contortions that hide, rather than isolate, side effects.
+- The “core” immediately calls back into time, random, database, logging, SDKs, or global state.
+- The shell becomes a giant god-orchestrator around one giant core.
+- Values are shaped by database rows or HTTP payloads instead of the core’s decision language.
+
+## Dependency rules
+
+- Core receives all needed facts explicitly as values; it does not reach out for hidden dependencies.
+- Core does not perform I/O, mutate external state, call framework APIs, allocate nondeterministic values, read clocks, log, persist, publish, or call network clients.
+- Shell may call dependencies and mutate state, but should keep branching small and delegate decisions to the core.
+- Shell translates external objects into core values and core results into external effects.
+- In larger systems, prefer many small functional cores with local shells over one global shell/core split.
+
+Binding checks:
+
+- `must_not_import`: core modules must not import shell modules, framework packages, SDKs, persistence clients, logging, clock/random providers, or process environment readers.
+- `must_accept`: core entrypoints accept explicit values or records, not framework/database objects.
+- `negative_check`: core tests run as plain unit tests with no mocks for external systems.
+
+## Source-layout rule
+
+Keep the split local to the owning context unless the repo already has a stronger architecture.
+
+Good source shape:
+
+- `decision.py`, `policy.ts`, `rules/`, `core/`, or context-local pure modules for deterministic logic.
+- `handler`, `job`, `controller`, `command`, `shell/`, or adapter modules for I/O and orchestration.
+- tests named around core decisions, plus a small number of shell integration/wiring tests.
+
+Bad source shape:
+
+- repo-wide `functional_core/` and `imperative_shell/` folders detached from feature ownership.
+- shell functions with hidden business branches because “they already have the dependencies.”
+- core functions that return commands so vague that nobody can tell what effect the shell must perform.
+- mutation hidden inside “pure” helpers through globals, caches, singletons, or implicit context.
+
+## Review checklist
+
+- Which logic paths belong in the deterministic core?
+- Which side effects remain in the shell?
+- Are values the boundary, or are mocks still standing in for behavior across the core boundary?
+- Does the core have many paths but few/no dependencies?
+- Does the shell have dependencies but few paths?
+- Are clocks, randomness, environment, database, network, filesystem, framework calls, and logging outside the core?
+- Is the split local and useful, or fake architecture around one tiny function?
+- Can the core be moved into another process/job/actor later because it communicates through values?
+
+## Failure modes
+
+- Hidden imperative core: the “pure” module reads globals, logs, calls time/random, or mutates cached objects.
+- Branchy shell: orchestration accumulates decisions, so tests still need mocks and integration setup for every path.
+- Value anemia: values are unvalidated bags with no stable meaning, so the core merely reshuffles data.
+- Giant split: one global shell and one global core create coordination mess; compose many local splits instead.
+- Actor/concurrency fantasy: value boundaries can help concurrency, but they do not justify introducing actors or processes without runtime pressure.
+- Perfection trap: forcing 99% purity can cost more than moving the important 80% of logic out of the shell.
+
+## Proof-map implications
+
+For every core/shell split, Architect should record:
+
+- concept and classification: pure core, value boundary, imperative shell, external dependency
+- owner context/module and allowed paths
+- forbidden imports and nondeterministic calls inside core
+- runtime entrypoint in the shell
+- invariant: core decisions are deterministic for equal inputs
+- test gate: core unit tests need no external mocks; shell checks cover wiring/effects
+- deletion proof: if the core module is deleted, decision complexity reappears in shell callers
 
 ## Sources
 
-1. Gary Bernhardt, "Boundaries" — https://www.destroyallsoftware.com/talks/boundaries
-2. Repo canon: `roles/architect/ROLE.md`, `roles/architect/RUBRIC.md`
+1. Gary Bernhardt, “Boundaries” — https://www.destroyallsoftware.com/talks/boundaries
+2. RubyEvents transcript/summary of Gary Bernhardt, “Boundaries” — https://www.rubyevents.org/talks/boundaries
+3. Sean Hammond, “Functional Core, Imperative Shell” — https://www.seanh.cc/2014/07/27/functional-core-imperative-shell/
+4. Repo canon: `roles/architect/ROLE.md`, `roles/architect/RUBRIC.md`
 
 ## Final role evidence
 
@@ -1545,21 +1697,99 @@ Only list this file if it was actually loaded.
 
 # Plugin Architecture
 
-Use plugin architecture when controlled extensibility is the point: the core owns a stable extension contract and optional modules attach through that contract without reaching into core internals.
+Use Plugin Architecture when controlled runtime/configuration-time extensibility is the point: a stable core contract lets optional implementations attach without rebuilding core policy or scattering environment conditionals through the application.
+
+This is not the same as “we have an interface.” The architecture earns its weight when deployments, products, tenants, integrations, or third parties need different implementations behind one explicit extension contract.
+
+## Core shape
+
+- **Core**: owns the stable extension contract, lifecycle expectations, compatibility rules, and what plugins may not touch.
+- **Plugin contract / extension point**: the narrow interface the plugin implements or registers against.
+- **Plugin implementation**: optional module selected by configuration, discovery, dependency injection, manifest, registry, or runtime loading.
+- **Plugin host / loader**: composition code that finds, validates, wires, orders, and isolates plugins.
+- **Separated interface pressure**: the core knows the contract; concrete implementations can vary by runtime environment or deployment.
 
 ## Use it when
 
-- the product needs multiple optional extensions, integrations, or third-party customization points
-- the extension seam must stay stable while implementations vary independently
+- Multiple runtime environments require different implementations of the same behavior.
+- Deployment configuration should choose implementations without editing factory conditionals, rebuilding, or redeploying core code.
+- Integrations or extensions vary independently of the core release cadence.
+- The product intentionally supports optional capabilities, tenant-specific modules, partner integrations, local drivers, or third-party extensions.
+- A growing set of factories or conditionals is already encoding environment-specific implementation choice.
 
 ## Anti-signals
 
-- calling something a plugin when there is only one built-in implementation and no extension pressure
-- exposing core internals because the extension contract was never made explicit
+- There is only one built-in implementation and no real pressure for alternate deployments.
+- The “plugin” needs direct access to core internals because the extension contract is weak.
+- A config file with class names would solve the problem, but the design invents discovery, lifecycle, sandboxing, and registries anyway.
+- Every feature becomes a plugin to avoid making ownership decisions.
+- Plugins are allowed to change core invariants, persistence shape, or dependency direction.
+
+## Dependency rules
+
+- Core defines the extension contract and owns plugin lifecycle semantics.
+- Plugin implementations depend on the core contract; core policy does not depend on plugin implementation modules.
+- Selection and wiring live in host/composition/configuration code, not scattered factory conditionals.
+- Plugins may call only documented extension APIs. They must not import core internals, mutate core-owned state directly, or rely on private ordering side effects.
+- Versioning, capability negotiation, or compatibility checks are required when plugins can be developed/released independently.
+
+Binding checks:
+
+- `must_not_import`: core modules must not import concrete plugin implementation modules.
+- `must_not_reach`: plugins must not import undocumented core internals or persistence details.
+- `negative_check`: adding/removing/replacing one plugin does not require changing core policy code.
+
+## Source-layout rule
+
+Good source shape:
+
+- `core/` or owning context: extension contract, plugin-facing types, lifecycle rules.
+- `plugins/<name>/` or package-level implementations: concrete extensions.
+- `plugin-host`, `registry`, `loader`, `composition`, or config layer: implementation selection and validation.
+- `tests/contract/`: shared contract tests each plugin implementation must pass.
+
+Bad source shape:
+
+- plugin implementations under core internals.
+- `if env == test/prod/vendor` conditionals spread through multiple factories.
+- one `plugins/` dumping ground with no owner, lifecycle, compatibility, or dependency rules.
+- public extension interfaces that expose internal domain objects, ORM records, framework contexts, or mutable core state.
+
+## Review checklist
+
+- What extension pressure exists: deployments, tenants, integrations, third parties, or independent release cadence?
+- What is the stable contract, and which side owns it?
+- How are plugins selected: configuration, manifest, registry, DI, package discovery, runtime loading?
+- What lifecycle does the host enforce: initialize, validate, execute, shutdown, migrate, order, capability check?
+- Can implementation choice change without editing scattered factories or rebuilding core?
+- What internal APIs are forbidden to plugins?
+- Are contract tests shared across plugin implementations?
+- Is this lighter as ports/adapters or configuration rather than a plugin architecture?
+
+## Failure modes
+
+- Conditional factory sprawl: every new deployment mode requires edits in several places.
+- Extension without contract: plugins work only by importing internals and depending on accident.
+- Over-pluginization: normal product modules become plugins, creating indirection with no independent variation.
+- Loader as policy owner: the registry/loader starts deciding business behavior instead of only selecting implementations.
+- Compatibility drift: plugins compile but fail at runtime because lifecycle/version/capability expectations are undocumented.
+- Public exception creep: temporary plugin APIs become permanent compatibility surfaces with no owner or removal condition.
+
+## Proof-map implications
+
+For every plugin seam, Architect should record:
+
+- concept and classification: core contract, plugin implementation, host/loader, compatibility surface
+- owner module and allowed paths
+- forbidden imports/reaches from core to plugin and plugin to internals
+- runtime selection/composition entrypoint
+- invariant: core policy is stable across plugin replacement
+- compatibility decision: delete, keep temporarily, or public exception for legacy plugin APIs
+- negative checks for plugin replacement/removal and contract-test coverage
 
 ## Sources
 
-1. Martin Fowler, "Plugin" — https://martinfowler.com/eaaCatalog/plugin.html
+1. Martin Fowler, “Plugin” — https://martinfowler.com/eaaCatalog/plugin.html
 2. Repo canon: `roles/architect/ROLE.md`, `roles/architect/RUBRIC.md`
 
 ## Final role evidence
@@ -1577,37 +1807,107 @@ Only list this file if it was actually loaded.
 
 # Ports and Adapters
 
-Use this pattern/form when a policy-owning context needs a stable seam across real variation, and a concrete technology or protocol must attach through that seam.
+Use Ports and Adapters when the architecture problem is an inside/outside boundary: application policy must be driven by different outside actors, or must call outside resources, without letting those outside technologies define the application model.
 
-This doc intentionally keeps seam, port, and adapter guidance together to avoid over-splitting the reference set.
+Also called Hexagonal Architecture. The hexagon is only a drawing device: it reminds reviewers that an application may have more than a top UI and bottom database, and that every outside technology attaches through a purpose-named boundary.
 
-## Core terms in this pattern
+## Core shape
 
-- `seam` — where interaction crosses between contexts, modules, or external dependencies
-- `port` — the interface at that seam through which a context is driven or reaches outward
-- `adapter` — the concrete attachment that translates between the port’s contract and a specific framework, transport, persistence layer, or external system
+- **Inside**: application behavior, use cases, business rules, and semantically meaningful operations.
+- **Port**: a purposeful conversation at the application boundary, described in application terms.
+- **Adapter**: technology-specific translation between a port and an outside actor, framework, protocol, database, test harness, batch job, or another application.
+- **Primary / driving side**: actors that trigger application behavior: UI, HTTP, CLI, scheduler, test script, batch driver, another program.
+- **Secondary / driven side**: things the application calls to answer, persist, notify, publish, or retrieve: database, mailer, queue, payment API, filesystem, model provider.
 
-Use `inbound port` for an interface that drives the context and `outbound port` for an interface the context calls outward through.
+A port is not “an interface because interfaces are good.” It is the contract for a conversation the application can have while staying ignorant of the device or protocol on the other side.
 
 ## Use it when
 
-- a policy-owning context needs a stable interface across a real seam
-- the interaction should be described by what the owning side needs, not by transport detail
-- translation, mapping, or isolation from framework/detail churn is real
+- UI, transport, database, external services, jobs, tests, or other applications must vary without rewriting policy.
+- Business logic is leaking into controllers, views, ORM models, SQL callbacks, framework hooks, or glue code.
+- Automated regression tests should drive the application without browser/server/database startup.
+- The same capability should be usable through human UI, batch script, test harness, API, or program-to-program call.
+- The app must keep working in headless or degraded modes, for example with an in-memory adapter while a database is unavailable.
+- Interfaces are currently named by technology, but the architecture needs them named by purpose.
 
-## Anti-signals
+## Source-layout rule
 
-- creating a port only for ceremony or mockability
-- adding an adapter where there is no meaningful translation or variation
-- celebrating a seam that has only one hypothetical adapter and no real pressure for replacement
+The owning application/context defines the port in its own language. Adapters live at the edge and translate inward or outward.
 
-## Practical heuristic
+Good source shape:
 
-One adapter is a hypothetical seam. Two adapters make the seam real.
+- `application/use-cases` or owning context: use-case policy and ports named by purpose.
+- `adapters/http`, `adapters/cli`, `adapters/fit`, `adapters/sql`, `adapters/in-memory`, etc.: technology mappings.
+- Tests may use an adapter at a primary port to drive behavior, and an in-memory or mock adapter at a secondary port to isolate external dependencies.
+
+Bad source shape:
+
+- ports named after current technologies (`SqlOrderPort`, `HttpUserPort`) when the application conversation is really `Orders`, `Users`, or `RateRepository`.
+- business rules in adapters, because “the controller already has the data.”
+- one global `ports/` or `adapters/` dumping ground detached from the owning bounded context.
+- adapter code importing inward objects and then reaching around the port into internals.
+
+## Dependency rules
+
+- Application policy must not depend on UI frameworks, HTTP request objects, ORM records, SQL clients, queue SDKs, mailer SDKs, or concrete external service clients.
+- Primary adapters convert outside input into the port’s request/message shape, then call inward.
+- Secondary adapters implement outward conversations required by the application and translate application requests into technology calls.
+- Use cases should be specified against the inner boundary, not against GUI fields, URL shapes, table structures, or vendor payloads.
+- Tests should cross the same port as real callers when the port is the reviewable boundary.
+
+Binding checks:
+
+- `must_not_import`: owning application/core modules must not import adapter modules or technology SDKs.
+- `must_not_name`: port names must not encode a replaceable technology unless the technology is the domain.
+- `negative_check`: delete or disable one adapter; application policy and other adapters should still compile/test except at composition.
+
+## Port sizing
+
+Do not create one port per use case by default, and do not collapse the whole app into only “input” and “output.” Choose the smallest set of purposeful conversations that reviewers can name and test.
+
+Useful pressure tests:
+
+- If two outside technologies perform the same purpose, they are likely adapters for one port.
+- If two conversations have different application purposes, forcing them through one port hides meaning.
+- If a port has only one adapter and no replacement, test, batch, degraded-mode, or protocol pressure, the seam is hypothetical.
+- Two real adapters make the seam real; one adapter requires explicit justification.
+
+## Review checklist
+
+- Which side is inside, and which outside technologies are details?
+- Are primary/driving adapters separate from secondary/driven adapters?
+- Does each port name the purpose of a conversation, not a protocol or vendor?
+- Can automated tests drive the application through a primary port without UI/server startup?
+- Can secondary dependencies be replaced by in-memory/mock/test adapters without changing policy?
+- Are use cases written at the application boundary rather than in GUI/database language?
+- Are there binding import checks that keep adapters out of core policy?
+- Did the architecture avoid a central adapter zoo by collocating adapters with the owning context?
+
+## Failure modes
+
+- Layered diagram theater: the drawing shows boundaries, but there is no import/test check to detect logic leaking into UI or persistence code.
+- Mock-only seam: an interface exists only to mock a dependency, with no real translation, no alternate adapter, and no ownership rule.
+- Adapter-owned domain language: the adapter’s protocol names become canonical domain terms.
+- Technology-first ports: every vendor gets its own port even when several vendors serve one application purpose.
+- Headless mode impossible: application behavior cannot run without UI/database/framework startup, so regression tests are slow and brittle.
+- Application switchboard: the app becomes routing glue that buffers and forwards outputs instead of expressing a meaningful conversation.
+
+## Proof-map implications
+
+For every affected port/adaptor seam, Architect should record:
+
+- concept: purpose-named port or adapter
+- classification: inbound port, outbound port, primary adapter, secondary adapter, or temporary compatibility wrapper
+- owner context/module and allowed paths
+- forbidden paths/layers, especially core-to-adapter imports
+- runtime entrypoint and composition point
+- invariant: application policy remains ignorant of external technology shape
+- compatibility decision for old imports or wrappers
+- negative checks proving adapter deletion/replacement boundaries
 
 ## Sources
 
-1. Alistair Cockburn, "Hexagonal architecture" — https://alistair.cockburn.us/hexagonal-architecture
+1. Alistair Cockburn, “Hexagonal architecture the original 2005 article” — https://alistair.cockburn.us/hexagonal-architecture
 2. Repo canon: `roles/architect/ROLE.md`, `roles/architect/RUBRIC.md`, `skills/create-architecture/references/language.md`
 
 ## Final role evidence
@@ -1625,25 +1925,102 @@ Only list this file if it was actually loaded.
 
 # Strategic DDD
 
-Use Strategic DDD when the hard part is domain boundaries, ownership, and language, not just code layering.
+Use Strategic DDD when the hard architecture problem is meaning, ownership, and boundary protection across a domain. It is not a synonym for “domain folder.”
 
-Its main outputs are bounded contexts, ubiquitous language, context relationships, and an ownership model that keeps different meanings from bleeding together.
+Strategic DDD says one large unified model is often unrealistic. Instead, keep models internally consistent inside bounded contexts, make each context’s language explicit, and describe how contexts relate where they integrate.
+
+## Core shape
+
+- **Domain model**: a conceptual model used by both software and domain discussion.
+- **Ubiquitous language**: terms used consistently by code, tests, docs, and domain experts inside one context.
+- **Bounded context**: the boundary inside which one model and language are coherent.
+- **Polyseme**: one word with different meanings in different contexts, for example `Customer`, `Product`, `Account`, `Meter`.
+- **Context relationship**: how two bounded contexts integrate, translate, depend on, or protect their models.
+- **Context map**: a durable record of contexts and their relationships.
 
 ## Use it when
 
-- multiple contexts or teams use overlapping words differently
-- context boundaries and translation matter more than framework layering
-- a context map or explicit ownership split would change structural decisions
+- Different teams, modules, workflows, or integrations use the same words with different meanings.
+- A concept has one lifecycle/invariant set in one area and a different lifecycle/invariant set elsewhere.
+- Integration requires translation between models, not just a function call.
+- Boundary choices will change source layout, ownership, dependency direction, API shape, or durable docs.
+- A context map would prevent future reviewers from merging meanings back together.
+- The domain is large enough that total model unification is expensive, brittle, or false.
 
 ## Keep it light when
 
-- one language and one owner still fit the whole slice
-- the split would be theater with no real boundary pressure
+- One language and one owner fit the slice.
+- The split would create folders without different meanings, invariants, teams, data ownership, or integration rules.
+- The work is really dependency direction, side-effect isolation, or extension wiring rather than domain boundary design.
+
+## Boundary rules
+
+- A term is only ubiquitous inside its bounded context; do not assume it means the same thing elsewhere.
+- Shared concepts may have different models in different contexts. Integration must map between them explicitly.
+- Human language/culture is usually the strongest boundary signal, but representation boundaries can also matter, such as in-memory model vs relational model.
+- Context boundaries should own source layout, docs, tests, contracts, and allowed dependency paths.
+- A central domain model spanning all contexts is a risk unless the domain is genuinely small and coherent.
+
+Binding checks:
+
+- `must_not_import`: one context must not import another context’s internals to reuse a term or data structure.
+- `must_translate`: cross-context calls crossing polysemic terms need an adapter, API, mapping layer, or published language.
+- `negative_check`: rename or change one context’s internal term/field; other contexts should only break at explicit integration points.
+
+## Source-layout rule
+
+Good source shape:
+
+- context-owned folders/packages with local `CONTEXT.md` or equivalent when boundary rules are durable.
+- local models, tests, adapters, docs, and glossary entries collocated with their context.
+- explicit integration adapters or published contracts between contexts.
+- central docs route/index contexts but do not mirror all local ownership rules.
+
+Bad source shape:
+
+- global `domain/entities` holding every noun from every context.
+- shared `Customer`, `Product`, `Order`, or `Account` model reused across contexts with different meaning.
+- generic service modules that coordinate contexts while owning nobody’s language.
+- context map replaced by a diagram that names boxes but omits relationship rules.
+
+## Review checklist
+
+- Which words are polysemic or overloaded?
+- What is the bounded context for each meaning?
+- What invariants/lifecycle/data owner differ between contexts?
+- Which relationships exist: translation, dependency, shared kernel, published language, anti-corruption, customer/supplier, conformist, separate ways?
+- Is a context map or local context doc required as durable architecture memory?
+- Does source layout scream the chosen contexts?
+- Are integration points explicit and testable?
+- Did the design avoid DDD theater for a single-owner local change?
+
+## Failure modes
+
+- Vocabulary laundering: a projection, DTO, snapshot, vendor payload, or persistence row is named as a domain entity.
+- Shared-model trap: one model is reused because names match, despite different invariants or lifecycle.
+- Context explosion: every folder becomes a bounded context with no distinct language pressure.
+- Context without relationship: boxes are named, but translation and dependency rules are absent.
+- Central glossary drift: shared docs define terms globally and erase local meaning.
+- Architecture silence: changed boundaries are not recorded, so later work accidentally crosses them.
+
+## Proof-map implications
+
+For every affected domain term/context, Architect should record:
+
+- concept and classification: bounded context, ubiquitous term, polyseme, integration contract, read model, DTO, schema, or adapter
+- owner context/module and allowed paths
+- forbidden paths/layers that would merge meanings
+- runtime/source entrypoint for cross-context interaction
+- invariant/lifecycle per context
+- schema/durable field owner
+- compatibility decision for legacy shared models or aliases
+- negative checks proving no internal cross-context imports
 
 ## Sources
 
 1. Eric Evans, *Domain-Driven Design: Tackling Complexity in the Heart of Software*
-2. Martin Fowler, "Bounded Context" — https://martinfowler.com/bliki/BoundedContext.html
+2. Martin Fowler, “Bounded Context” — https://martinfowler.com/bliki/BoundedContext.html
+3. Domain Language, “DDD Reference” — https://www.domainlanguage.com/ddd/reference/
 
 ## Final role evidence
 
@@ -1660,24 +2037,112 @@ Only list this file if it was actually loaded.
 
 # Tactical DDD
 
-Use Tactical DDD inside a bounded context when the model has real invariants, lifecycle rules, or business behavior that deserves explicit domain structures.
+Use Tactical DDD inside an already justified bounded context when the model has behavior, invariants, lifecycle, and consistency rules that deserve explicit domain structures.
 
-Typical tools are entities, value objects, aggregates, and domain services, used selectively rather than sprayed across the repo.
+Tactical DDD is not a folder template. Start with the context and language, then choose only the domain structures that protect real rules.
+
+## Core shape
+
+- **Entity**: domain object with identity, lifecycle, and invariants/behavior that remain meaningful as attributes change.
+- **Value object**: immutable or value-equality concept identified by its attributes, often used to make rules explicit and avoid primitive obsession.
+- **Aggregate**: consistency boundary around entities/value objects that must be changed atomically through an aggregate root.
+- **Aggregate root**: the entity that controls access to the aggregate and protects its invariants.
+- **Domain service**: domain operation that is meaningful in the ubiquitous language but does not naturally belong to one entity or value object.
+- **Repository**: collection-like access to aggregate roots, not a generic query dumping ground.
+- **Domain event**: record of something domain-significant that happened inside the context.
 
 ## Use it when
 
-- a context has rich rules that should live in the model instead of in procedural glue
-- invariants need a clear home inside one context
+- Business rules are currently scattered across handlers, controllers, jobs, validators, repositories, or transaction scripts.
+- Invariants need a single home and must hold across state changes.
+- Identity/lifecycle matters: the same conceptual thing persists while its attributes change.
+- Value concepts need validation/equality/behavior instead of primitive strings, numbers, or maps.
+- A group of objects must be updated atomically under one consistency boundary.
+- The context has rich language and rules; procedural glue is hiding that model.
 
 ## Anti-signals
 
-- adding repositories, aggregates, or entities everywhere by template
-- using tactical terms before the owning context and language are clear
+- The slice is CRUD over simple records with no meaningful invariants beyond storage validation.
+- Every table becomes an entity, every entity gets a service, and every service gets a repository.
+- Aggregates are copied from database relationships instead of consistency boundaries.
+- Domain services become a place to avoid putting behavior on entities/value objects.
+- The bounded context and ubiquitous language are still unclear.
+- The repo needs a read model, DTO, projection, snapshot, or schema, but it is being called an entity.
+
+## Modeling rules
+
+- A thing may be called an entity only if identity, lifecycle, and invariant-bearing behavior matter in this context.
+- Prefer value objects for concepts whose attributes define equality and whose validation should travel with the value.
+- Aggregates are transaction/consistency boundaries, not object graphs or ORM include trees.
+- Keep aggregates as small as the true invariants allow; large clusters increase contention, loading cost, and accidental coupling.
+- Cross-aggregate references should usually be by identity, not deep object references, unless a stronger local rule says otherwise.
+- Rules that do not need same-transaction consistency should normally move to eventual consistency, domain events, process managers, or application workflow instead of bloating one aggregate.
+- Repositories load/save aggregate roots; they should not expose internals as arbitrary mutable collections.
+- Domain services should express domain operations, not application orchestration or infrastructure calls.
+- Application services/handlers coordinate transactions, permissions, I/O, and calls into the domain; they should not own domain invariants.
+
+## Source-layout rule
+
+Good source shape:
+
+- tactical structures live inside the owning bounded context.
+- entities, value objects, aggregate roots, domain services, events, and repositories are named in ubiquitous language.
+- tests exercise behavior through aggregate roots or domain operations, not by mutating internals.
+- persistence mappings/adapters stay outside or at the edge of the domain model unless the repo explicitly chooses active record.
+
+Bad source shape:
+
+- global `entities/`, `repositories/`, `services/` folders shared by unrelated contexts.
+- ORM annotations or persistence IDs defining the model’s conceptual identity without review.
+- setters that allow invariants to be bypassed.
+- repositories per table when the domain boundary is aggregate-level.
+- anemic entities with all behavior in handlers or `*Service` classes.
+
+## Review checklist
+
+- What bounded context owns this model?
+- Which terms are ubiquitous inside that context?
+- Which objects have identity plus lifecycle plus invariants/behavior?
+- Which concepts are value objects, records, DTOs, projections, snapshots, or schemas instead of entities?
+- What aggregate boundary protects atomic consistency?
+- Is the aggregate as small as possible while still enforcing the invariant?
+- Which operations must go through the aggregate root?
+- Which rules can be eventually consistent instead of inside the aggregate transaction?
+- What belongs in a domain service, and why does it not belong on an entity/value object?
+- Do tests cross the same domain boundary callers use?
+- Are persistence and framework details kept from defining domain language?
+
+## Failure modes
+
+- Entity inflation: every noun/table/message becomes an entity without identity/lifecycle proof.
+- Aggregate bloat: a whole subdomain is loaded and saved as one consistency boundary, creating contention, locking, loading cost, and coupling.
+- Aggregate anemia: the root is a data bag and callers mutate internals directly.
+- Repository misuse: repositories expose query-specific DTOs, persistence concerns, or child collections as if they were aggregate roots.
+- Service gravity: behavior falls into domain services or application services because entities/value objects are too weak.
+- Persistence model capture: ORM shape becomes the domain model and blocks better invariants.
+- Tactical before strategic: entities and aggregates are designed before the context/language boundary is settled.
+
+## Proof-map implications
+
+For every tactical structure, Architect should record:
+
+- concept and classification: entity, value object, aggregate, aggregate root, domain service, repository, event, record, DTO, projection, schema
+- owner bounded context/module and allowed paths
+- forbidden paths/layers that bypass aggregate root or domain operation
+- runtime/source entrypoint for state changes
+- invariant/lifecycle or reason non-domain
+- schema/durable fields owner and persistence mapping boundary
+- compatibility decision for legacy names/wrappers
+- negative checks proving invariants cannot be bypassed and non-entities are not stored under entity namespaces
 
 ## Sources
 
 1. Eric Evans, *Domain-Driven Design: Tackling Complexity in the Heart of Software*
 2. Vaughn Vernon, *Implementing Domain-Driven Design*
+3. Martin Fowler, “Evans Classification” — https://martinfowler.com/bliki/EvansClassification.html
+4. Martin Fowler, “Value Object” — https://martinfowler.com/bliki/ValueObject.html
+5. Vaughn Vernon, “Effective Aggregate Design” — https://kalele.io/effective-aggregate-design/
+6. Domain Language, “DDD Reference” — https://www.domainlanguage.com/ddd/reference/
 
 ## Final role evidence
 
