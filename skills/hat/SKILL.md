@@ -1,6 +1,6 @@
 ---
 name: hat
-description: Activate, switch, list, query, or clear a sticky repo-role lens for the current conversation. Use when the user wants answers framed through one of the repo's `../../roles/*` such as `architect`, `critic`, or `frontend-taste`; when they say `hat <role>`; when they want to know which hat is active; or when they want to turn the hat off. This skill is for temporary role-mode routing only, not for workflow replacement or safety bypass.
+description: Activate, switch, list, query, or clear a sticky repo-role lens for the current conversation. Use when the user wants answers framed through one of the repo's dynamically discovered `../../roles/*`; when they say `hat <role>`; when they want to know which hat is active; or when they want to turn the hat off. This skill is for temporary role-mode routing only, not for workflow replacement or safety bypass.
 ---
 
 Turn a repo role into the active sticky lens for the current conversation until it is switched or cleared.
@@ -28,7 +28,7 @@ Choose one branch up front:
 5. `status`
    - report which hat is active now
 
-If the role name is ambiguous, do not guess. Show close matches and ask which one to use.
+If the role name does not resolve, do not guess. Show the available role list and ask which one to use.
 If the answer can be recovered from the repo, inspect that instead of asking.
 Ask one blocking question at a time.
 
@@ -51,7 +51,7 @@ This skill is stateful.
 - When displaying the full available role list, call `scripts/list-roles.sh` from this skill root and use its `name - description` output instead of maintaining a manual list.
 - Load the concrete `role_file` and `rubric_file` paths printed by `scripts/resolve-role.sh`, including any role-local read model that affects what else must be loaded.
 - If a role has richer local loading rules, follow them instead of reducing it to persona cosplay.
-- If the requested role does not exist, say so plainly and offer close available roles.
+- If the requested role does not exist, say so plainly and offer the available roles from `scripts/list-roles.sh`.
 - If the user switches hats, the old hat stops applying immediately.
 - If the user clears the hat, stop applying specialist framing and return to the normal assistant mode.
 - If wording is still bloated after the main review/fix loop, run a late-stage compression pass through `forthright` for AI-only skill material, then sanity-check that no trigger boundary, state transition, or safety rule was weakened.

@@ -7,9 +7,9 @@ Use this file for the edge cases around replacing or removing an active hat.
 A new `hat <role>` replaces the current active hat immediately.
 
 Example:
-- current state: `hat_active(architect)`
-- user: `hat critic`
-- new state: `hat_active(critic)`
+- current state: `hat_active(<old-role>)`
+- user: `hat <new-role>`
+- new state: `hat_active(<new-role>)`
 
 The assistant should confirm briefly that it switched from the old hat to the new one.
 
