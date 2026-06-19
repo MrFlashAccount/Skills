@@ -2,7 +2,7 @@
 
 Entry point for the Architect reference set.
 
-Use these references selectively. Start here, then open only the docs that materially affect the slice.
+Use these references selectively. Start here, then open only the docs that materially affect the slice. Pattern references are intentionally self-contained semantic transfers from their source material: they should preserve every important claim, condition, limitation, failure mode, nuance, tradeoff, example consequence, and practical code/architecture implication in repo-local wording, so external links are attribution and further reading, not prerequisites for understanding.
 
 ## Quick routing by question
 

@@ -117,6 +117,89 @@ For every affected port/adapter seam, Architect should record the selective evid
 - compatibility decision for old imports or wrappers
 - negative checks proving adapter deletion/replacement boundaries
 
+## Complete semantic transfer from source material
+
+These notes preserve the source intent in repo-local wording so reviewers do not need to open the original Hexagonal Architecture article to understand the pattern.
+
+### Original problem pressure
+
+The pattern starts from two recurring failures that look different but have the same cause.
+
+On the user side, business logic leaks into UI, controller, or presentation code. That makes automated regression hard because the behavior under test depends on visual details, web request machinery, field names, buttons, browser/server startup, or framework lifecycle. It also prevents the same application behavior from being driven by a batch script, another program, or a test harness before the final UI exists.
+
+On the data/resource side, application behavior becomes tied to a live database or external service. When that resource is unavailable, being redesigned, or replaced, developers cannot work and tests cannot run. The application is no longer independently executable.
+
+A common failed response is to add another layer and promise that logic will not leak into it. That promise is weak unless there is a detectable boundary: import checks, test shape, port contracts, and code ownership that reveal the leak when it happens.
+
+### Inside/outside, not top/bottom
+
+The useful asymmetry is not UI above database, or left side versus right side. The useful asymmetry is inside versus outside:
+
+- inside is the application behavior and semantic conversations it supports;
+- outside is every device, framework, protocol, datastore, person, test harness, batch job, or neighboring application that talks to it.
+
+The hexagon is a drawing convenience, not a six-sided rule. It prevents the one-dimensional stacked-layer mental model and leaves room for several ports. Most real applications have a small number of natural ports, often two to four, but the exact count is a judgment call. Both extremes are suspicious: one port per use case creates noise, while one generic input and one generic output side can erase meaning.
+
+### Port meaning
+
+A port is defined by the purpose of a conversation, not by the technology currently attached. The API/protocol of the port should express the application function at the inner boundary. If the port name or request type says `Http`, `Sql`, `Stripe`, `Kafka`, or `Django` when that technology is replaceable, the outside has named the inside.
+
+The same port can have several adapters. A human UI, HTTP endpoint, command-line command, batch driver, test fixture, and programmatic API may all drive the same application capability. A SQL database, flat-file store, in-memory store, mock oracle, or remote service may all answer the same application-side request when they serve the same purpose.
+
+### Adapter meaning
+
+An adapter converts between the port's application-level conversation and the outside technology's signals. For a driving side, the adapter turns user actions, test rows, HTTP requests, messages, or batch records into a port call. For a driven side, the adapter turns application requests into database calls, network calls, file writes, notifications, or vendor SDK calls, then maps the answer back.
+
+Adapters are allowed to know both worlds enough to translate. The application inside should not know the outside technology. The outside should not force its vocabulary, object lifecycle, error model, or schema shape into policy code.
+
+### Primary and secondary sides
+
+Architectural discussions can initially treat all outside actors symmetrically, but implementation benefits from distinguishing two flavors:
+
+- **Primary / driving actors** wake the application up and ask it to perform one of its advertised functions. Examples: human UI, automated regression suite, batch script, HTTP caller, another program.
+- **Secondary / driven actors** are called by the application to answer questions, persist data, notify someone, or record an outcome. Examples: database, mailer, payment service, file store, queue, downstream API.
+
+The distinction is about who initiates the conversation. Tests commonly substitute a scripted driver for a primary actor and a mock/in-memory implementation for a secondary actor. This is a consequence of the architecture, not a shortcut around thinking about the application boundary.
+
+### Use cases and functional specification
+
+Use cases should be written at the application boundary. They should specify functions/events the application supports and the semantic data needed, not GUI field layout, URL routing, table structure, vendor payloads, or current framework behavior. Boundary-level use cases are shorter, more stable, and cheaper to maintain because they survive changes in outside devices.
+
+### Development sequence consequence
+
+A healthy ports/adapters implementation supports this sequence:
+
+1. drive the application with an automated test harness while secondary resources are in-memory or mocked;
+2. add a UI or delivery adapter while still using replaceable secondary adapters;
+3. run integration tests through the same application boundary against real test resources;
+4. run production adapters against production resources.
+
+This means the application can be demoed, regression-tested, and integrated incrementally. It also means business-facing examples can be written before UI details are finalized.
+
+### Headless and isolated execution
+
+The strongest proof of the pattern is that the application can run without UI and without production databases. It can expose only an API/function boundary, accept a test/batch/program driver, and use mock or in-memory driven adapters. This enables standalone regression, development during external outages, application-to-application linking, and decomposition of larger suites into independently executable applications.
+
+### Purpose over technology examples
+
+A weather notification system may have ports for incoming weather feed, administration, subscriber notification, and subscriber data. New technologies such as HTTP feed or email notification should be new adapters for the same purposes, not new policy branches.
+
+A discount calculator may have a driving port for discount requests and a driven port for rate lookup. Tests, GUI, and batch are possible driving adapters; constant, in-memory, SQL, or remote repositories are possible driven adapters.
+
+A stored-output workflow can avoid turning the application into a switchboard. If presentation and storage are both output concerns for a specific interaction, a presentation adapter with storage capability may own buffering and save choice, rather than forcing the application to route its own output through multiple outside channels.
+
+### Practical consequences for repo docs
+
+When this pattern is chosen, docs must preserve:
+
+- which conversations are ports and why they are purposeful;
+- which adapters exist or are expected;
+- which outside technologies are replaceable details;
+- which use cases/specs are written at the inner boundary;
+- how tests drive primary ports and substitute secondary ports;
+- which imports or data shapes would prove outside leakage;
+- whether the app can run headless and with in-memory/mock resources.
+
 ## Sources
 
 1. Alistair Cockburn, “Hexagonal architecture the original 2005 article” — https://alistair.cockburn.us/hexagonal-architecture

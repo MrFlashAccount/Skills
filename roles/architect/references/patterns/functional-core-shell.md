@@ -99,6 +99,67 @@ For every core/shell split, Architect should record the selective evidence neede
 - test gate: core unit tests need no external mocks; shell checks cover wiring/effects
 - deletion proof: if the core module is deleted, decision complexity reappears in shell callers
 
+## Complete semantic transfer from source material
+
+These notes preserve the source intent in repo-local wording so reviewers do not need to open the Functional Core / Imperative Shell source material to understand the pattern.
+
+### The two kinds of code
+
+The technique classifies code by behavior, not by folder name.
+
+Functional-core code takes explicit values as input and returns values as output. It avoids implicit dependencies and keeps side effects out. Because it contains the decisions and branches, it may have many possible logical paths, but those paths are easy to test because the inputs are explicit and the output is deterministic.
+
+Imperative-shell code owns side effects and persistent state. It talks to frameworks, databases, networks, disk, UI, sessions, clocks, random sources, logging, environment, and external libraries. It may be highly integrated with the rest of the system, but it should have few branches. Ideally it mostly gathers facts, calls the core, and performs effects from the result.
+
+### Testability pressure
+
+The pattern is justified when tests are hard because the code mixes decisions with framework and I/O dependencies. A naive handler may be readable but still expensive to test if the test must boot a web app, rebuild a database, patch framework globals, fake sessions, intercept network calls, and know internal names used by a framework.
+
+The problem is not only slow tests. The deeper problem is that tests become coupled to incidental internals: global request/session objects, framework lifecycle, database setup, monkey patches, and import aliases. When those internals move, behavior tests break for the wrong reason.
+
+### Dependency extraction
+
+A practical refactor separates two dependency directions:
+
+- incoming dependencies are things that call this code, such as framework controller methods or plugin hooks;
+- outgoing dependencies are things this code calls, such as request params, config, HTTP clients, sessions, database APIs, redirects, clock, or logging.
+
+Incoming dependency extraction often means moving logic out of a framework method into a standalone function or local module function that the framework method calls. Outgoing dependency extraction means passing facts or callable capabilities as parameters instead of reading globals or calling SDK/framework functions directly from the decision logic.
+
+### Explicit parameters versus mocks
+
+Passing dependencies explicitly can make parameter lists longer and can feel indirect. That cost is acceptable when it removes hidden dependencies and lets tests call the decision code directly with simple fakes or values. Prefer explicit values and small callable parameters over patching many framework names.
+
+A callable parameter is safe in the core only when it is part of the decision algorithm or a deterministic supplied function. If it performs I/O, persistence, logging, time, random, or network work, it belongs in the shell or behind a heavier port/adapter boundary.
+
+### Coverage shape
+
+Most branch coverage should come from core tests. The shell may be so thin that it only needs a small number of integration/wiring checks. Leaving a trivial shell wrapper untested can be a conscious tradeoff when all meaningful behavior is covered in the core; alternatively, add one happy-path integration test for the wrapper and keep edge cases in core tests.
+
+### Values as boundaries
+
+The boundary should carry meaningful values, commands, or results. A core function receiving `QuoteRequest(customer_tier, items, requested_at)` is different from receiving an HTTP request or raw database row. Values should name the decision domain and be validated enough that the core is not just shuffling JSON dictionaries.
+
+Value boundaries also reduce the need to mock collaborators. Instead of asking a mock object how it behaves, the test supplies the facts the core needs and checks the returned decision.
+
+### Limits of the pattern
+
+This is a small architecture move. It does not automatically define domain ownership, cross-context translation, plugin compatibility, or dependency inversion for many interchangeable technologies. If the pressure is external replaceability, use ports/adapters. If the pressure is policy/detail dependency direction across a larger app, use Clean Architecture. If the pressure is domain language and ownership, use DDD.
+
+The pattern is also not a purity contest. Forcing every small helper to be pure or contorting code to achieve near-total purity can cost more than isolating the important decision paths. The useful target is that complex branching is deterministic and side-effect-free, while integration is thin and obvious.
+
+### Practical consequences for repo docs
+
+When this pattern is chosen, docs must preserve:
+
+- which logic paths moved into deterministic core code;
+- which side effects remain in shell code;
+- what values cross the boundary and what they mean;
+- what hidden dependencies were made explicit;
+- which tests prove core branches without framework/I/O setup;
+- which shell integration checks remain;
+- what impurity or shell branching is intentionally tolerated and why.
+
 ## Sources
 
 1. Gary Bernhardt, “Boundaries” — https://www.destroyallsoftware.com/talks/boundaries

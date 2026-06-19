@@ -108,6 +108,74 @@ For every tactical structure, Architect should record the selective evidence nee
 - compatibility decision for legacy names/wrappers
 - negative checks proving invariants cannot be bypassed and non-entities are not stored under entity namespaces
 
+## Complete semantic transfer from source material
+
+These notes preserve the source intent in repo-local wording so reviewers do not need to open the tactical DDD source material to understand the pattern.
+
+### Tactical patterns depend on strategic context
+
+Tactical DDD structures are meaningful only inside a bounded context with a reasonably clear language. They are not a folder template and not a table-to-class generator. Choose them to protect rules, identity, lifecycle, and consistency in the model.
+
+### Entity semantics
+
+An entity is defined by continuity of identity through change. Its attributes may change, but the same conceptual thing remains the same thing in the domain. Entities usually carry lifecycle and invariant-bearing behavior. Identity can be natural, assigned, synthetic, or contextual, but it must matter to the domain model, not only to the database.
+
+Calling a row, DTO, message, or schema object an entity is wrong when there is no domain identity/lifecycle/invariant behavior to protect.
+
+### Value object semantics
+
+A value object is defined by its attributes rather than identity. Two values with the same meaningful attributes are interchangeable. Value objects should generally be immutable or treated immutably, and validation/behavior should travel with the value. They are useful for money, quantities, ranges, names, identifiers-as-values, addresses, SKUs, and other concepts where primitive strings/numbers hide rules.
+
+Value objects reduce primitive obsession and make invalid states harder to express. They should not be turned into entities just because they are stored in a table.
+
+### Service semantics
+
+A domain service represents a domain operation that is meaningful in the ubiquitous language but does not naturally belong to one entity or value object. It should express domain behavior, not application orchestration, transactions, permissions, retries, framework calls, or infrastructure access.
+
+If behavior can live on an entity or value object without distorting the model, prefer that. A service bucket for all behavior creates an anemic model.
+
+### Aggregate semantics
+
+An aggregate is a consistency boundary. It groups entities and value objects that must be kept consistent together through one aggregate root. External callers should reference and modify the aggregate through the root, not by reaching into children and mutating internals.
+
+Aggregates are not ORM object graphs and not “all records related by foreign keys.” Design them around invariants that must be true immediately after a transaction. Keep them as small as the true consistency rules allow, because large aggregates increase locking, contention, loading cost, and coupling.
+
+### Aggregate root semantics
+
+The aggregate root is the only member other objects may hold direct references to for modification. It enforces invariants and coordinates changes inside the aggregate. Repositories load and save roots. Tests should exercise state changes through the root or a domain operation that uses it, not by poking internals.
+
+### Cross-aggregate and eventual consistency
+
+Rules that do not require same-transaction consistency should usually leave the aggregate. Use domain events, process managers/sagas, application workflows, or eventual consistency. Cross-aggregate references should normally be by identity to avoid accidentally creating one giant transactional object graph.
+
+A process manager coordinates a long-running workflow across aggregates or external systems. It owns orchestration state and retries, not the invariants of the aggregates it coordinates.
+
+### Repository semantics
+
+A repository provides collection-like access to aggregate roots. It hides persistence mechanics enough that domain code does not speak SQL/ORM/session language. It should not become a generic query dumping ground, table gateway for every child object, or source of arbitrary mutable collections. Query projections/read models can live outside repositories when they serve read concerns rather than aggregate consistency.
+
+### Domain events
+
+A domain event records something domain-significant that already happened inside the context. It should be named in past tense/domain language and carry enough stable information for subscribers without exposing mutable aggregate internals. Events help decouple follow-up work and enable eventual consistency, but they are not a substitute for enforcing invariants inside the aggregate that emitted them.
+
+### Application workflow boundary
+
+Application services, handlers, commands, or workflows manage permissions, transactions, I/O, retries, external calls, and sequencing. They call into domain objects and repositories. They should not contain the domain invariants themselves. If the only place a rule is enforced is a handler, callers can bypass it by using a different handler.
+
+### Practical consequences for repo docs
+
+When this pattern is chosen, docs must preserve:
+
+- the owning bounded context and local ubiquitous language;
+- which objects are entities and the identity/lifecycle proof for each;
+- which concepts are value objects and their equality/validation rules;
+- the aggregate boundary and immediate consistency invariant it protects;
+- the aggregate root and forbidden direct mutations;
+- which rules are eventual and which workflow/process manager coordinates them;
+- repository scope and what query/read-model concerns stay outside;
+- event names/payload ownership when events are used;
+- which persistence details are intentionally outside the domain model, or where active-record coupling is an explicit repo decision.
+
 ## Sources
 
 1. Eric Evans, *Domain-Driven Design: Tackling Complexity in the Heart of Software*
