@@ -6,14 +6,15 @@
     "test": "make -C develop test",
     "test:workflow-e2e": "make -C develop test-workflow-e2e",
     "workflow:validate": "node develop/lib/entrypoints/cli/validate-workflow.mjs workflows/dev-harness/workflow.json workflows/research-critic/workflow.json",
-    "validate": "npm run workflow-layout:check && npm run workflow-runtime-boundaries:check && npm test && npm run workflow:validate && npm run schema-validation:check-vendor-ajv",
+    "validate": "npm run workflow-layout:check && npm run workflow-runtime-boundaries:check && npm test && npm run workflow:validate && npm run agents:check && npm run schema-validation:check-vendor-ajv",
     "prepare": "git config core.hooksPath .githooks || true",
     "schema-validation:bundle-vendor-ajv": "node scripts/bundle-schema-validation-vendor-ajv.mjs",
     "schema-validation:check-vendor-ajv": "npm run schema-validation:bundle-vendor-ajv && git diff --exit-code -- shared/scripts/schema-validation/vendor/ajv.mjs && test -z \"$(git status --porcelain -- shared/scripts/schema-validation/vendor/ajv.mjs)\"",
     "maintain:bundle-schema-validation-vendor-ajv": "npm run schema-validation:bundle-vendor-ajv",
     "agents:generate": "node scripts/generate-codex-agents.mjs",
     "workflow-layout:check": "node scripts/check-no-old-workflow-layout.mjs",
-    "workflow-runtime-boundaries:check": "node scripts/check-workflow-runtime-boundaries.mjs"
+    "workflow-runtime-boundaries:check": "node scripts/check-workflow-runtime-boundaries.mjs",
+    "agents:check": "node scripts/check-generated-codex-agents.mjs"
   },
   "devDependencies": {
     "ajv": "^8.17.1",
