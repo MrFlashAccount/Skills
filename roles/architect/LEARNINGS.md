@@ -19,6 +19,8 @@ Keep entries concrete and reusable.
 - Architecture proposals must be reviewable without becoming Planner output: enrich the existing 13 sections with entity delta, import-export/dependency direction, source-layout and doc deltas, binding `must_not_import` rules, PR slicing constraints, and architecture checks, but avoid exact signatures, pseudocode, patch recipes, and implementation entity maps.
 - Final Architect review after fix loops must re-check contract/docs drift: changed runtime/user-visible contracts, workflow states, schemas, artifacts, symbolic lifecycle values, and process contracts have to agree across implementation, tests/checks, and docs before the review can pass.
 
+- Buran-class refactors need proof-oriented gates: compatibility wrappers/deprecated re-exports, fake modules, projections under `entities`, snapshot wrappers called entities, unclear descriptor/integration ownership, and schema/domain drift can survive green tests unless Architect requires path-level proof maps, deletion/negative checks, compatibility-surface expiry, naming honesty, and lossless handoff fields.
+
 ## Final role evidence
 
 When this file is loaded as role material, add this exact path to the final role evidence loaded list:
@@ -26,4 +28,3 @@ When this file is loaded as role material, add this exact path to the final role
 - `roles/architect/LEARNINGS.md`
 
 Only list this file if it was actually loaded.
-- Buran-class refactors need proof-oriented gates: compatibility wrappers/deprecated re-exports, fake modules, projections under `entities`, snapshot wrappers called entities, unclear descriptor/integration ownership, and schema/domain drift can survive green tests unless Architect requires path-level proof maps, deletion/negative checks, compatibility-surface expiry, naming honesty, and lossless handoff fields.
