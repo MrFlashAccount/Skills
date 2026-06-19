@@ -315,3 +315,11 @@ Do not assume the user is familiar with domain-driven design terminology. When d
 - **Generic subdomain** — a solved problem where ready-made solutions exist (authentication, payment processing, email delivery). The functionality is mature, but the specific provider or technology may change.
 
 Use the DDD terms, but always accompany them with a brief plain-language explanation on first use. Do not expect the user to know what "core subdomain" means without context.
+
+## Final role evidence
+
+When this file is loaded as role material, add this exact path to the final role evidence loaded list:
+
+- `roles/architect/references/balanced-coupling.md`
+
+Only list this file if it was actually loaded.
