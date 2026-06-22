@@ -1,0 +1,101 @@
+{
+  "name": "sample-workflow-parallel",
+  "version": 1,
+  "start": "prepare",
+  "done": "done",
+  "blocked": "blocked",
+  "steps": {
+    "prepare": {
+      "name": "Prepare",
+      "kind": "worker",
+      "input": {
+        "prompt": "Test-owned prepare step before parallel branches."
+      },
+      "output": {
+        "template": "orbita-sample-output.md",
+        "schema": "orbita-sample-architecture-draft-output.schema.json"
+      },
+      "next": [
+        "branch_a",
+        "branch_b"
+      ]
+    },
+    "branch_a": {
+      "name": "Branch A",
+      "kind": "worker",
+      "input": {
+        "state": [
+          "prepare"
+        ],
+        "prompt": "Test-owned parallel branch A."
+      },
+      "output": {
+        "template": "orbita-sample-output.md",
+        "schema": "orbita-sample-architecture-draft-output.schema.json"
+      },
+      "next": "join"
+    },
+    "branch_b": {
+      "name": "Branch B",
+      "kind": "worker",
+      "input": {
+        "state": [
+          "prepare"
+        ],
+        "prompt": "Test-owned parallel branch B."
+      },
+      "output": {
+        "template": "orbita-sample-output.md",
+        "schema": "orbita-sample-architecture-draft-output.schema.json"
+      },
+      "next": "join"
+    },
+    "join": {
+      "name": "Join",
+      "kind": "worker",
+      "input": {
+        "state": [
+          "branch_a",
+          "branch_b"
+        ],
+        "prompt": "Test-owned join step after parallel branches."
+      },
+      "output": {
+        "template": "orbita-sample-output.md",
+        "schema": "orbita-sample-architecture-draft-output.schema.json"
+      },
+      "next": "approve_research"
+    },
+    "approve_research": {
+      "name": "Approve research",
+      "kind": "approval",
+      "input": {
+        "state": [
+          "join"
+        ],
+        "prompt": "Test-owned approval fixture step."
+      },
+      "next": {
+        "match": "${{ output.approval }}",
+        "cases": {
+          "approved": "done",
+          "blocked": "blocked"
+        }
+      }
+    },
+    "done": {
+      "name": "Done",
+      "kind": "done",
+      "input": {
+        "prompt": "Done."
+      }
+    },
+    "blocked": {
+      "name": "Blocked",
+      "kind": "blocked",
+      "input": {
+        "prompt": "Blocked."
+      }
+    }
+  }
+}

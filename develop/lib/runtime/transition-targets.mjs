@@ -23,6 +23,10 @@ export function assertParallelTargets(workflow, stepId, targets, fieldPath = 'ne
 
     const targetStep = workflow.steps[targetStepId];
     invariant(
+      targetStep.kind === 'worker',
+      `workflow step '${stepId}' parallel branch target '${targetStepId}' must be a worker step`,
+    );
+    invariant(
       targetStep.kind !== 'done' && targetStep.kind !== 'blocked',
       `workflow step '${stepId}' parallel branch target '${targetStepId}' cannot be terminal`,
     );

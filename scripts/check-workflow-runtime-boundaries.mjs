@@ -23,6 +23,46 @@ function walk(start) {
   return statPaths;
 }
 
+
+function managedRuntimeRoots() {
+  const roots = [];
+  const add = (relativePath) => {
+    const full = abs(relativePath);
+    if (existsSync(full)) roots.push(full);
+  };
+  add('develop/.workflow-runs');
+  const worktrees = abs('.worktrees');
+  if (existsSync(worktrees)) {
+    for (const entry of readdirSync(worktrees, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      add(path.join('.worktrees', entry.name, 'develop', '.workflow-runs'));
+    }
+  }
+  return roots;
+}
+
+function assertNoLastResponseSnapshots() {
+  for (const rootDir of managedRuntimeRoots()) {
+    for (const file of walk(rootDir)) {
+      if (path.basename(file) === 'last-response.json' && file.split(path.sep).includes('.workflow-runner')) {
+        fail(`forbidden workflow runtime last-response snapshot: ${rel(file)}`);
+      }
+    }
+  }
+}
+
+function assertNoProductionLastResponseReferences() {
+  const allowed = new Set([
+    'scripts/check-workflow-runtime-boundaries.mjs',
+    'develop/lib/tests/orbita-boundaries.test.mjs',
+  ]);
+  const files = [
+    ...walk(abs('develop')),
+    ...walk(abs('scripts')),
+  ].filter((file) => /\.(?:mjs|js|json|md)$/.test(file) && !allowed.has(rel(file)) && !rel(file).includes('/tests/'));
+  scan(files, /last-response|lastResponse|last_response|last runner response/i, 'forbidden production last-response reference');
+}
+
 function scan(files, pattern, message) {
   for (const file of files.filter(existsSync)) {
     const text = readFileSync(file, 'utf8');
@@ -185,6 +225,8 @@ function checkBoundaries() {
 
   scan(sourceFiles, /entities\/(Workflow|Step|Template|Baton)\.mjs|entities\/errors\.mjs|entities\/Workflow\/schema|entities\/Workflow\/(expression|transition-next|transition-targets|state-keys|role-ref|status)\.mjs|entities\/(workflow-helpers|step-helpers|template-compiler)|entities\/Step\/(expressions\/parse|projection|transition-targets)\.mjs|resource-helpers|persistence\/(runner|WorkflowRuntimeReader|WorkflowFileReader|resource-resolver|role-material-catalog|json-io|path-utils|output-schema-validation|output-schema|RunStateFileWriter|RunStateFileReader|InstructionFileReader|InstructionFileWriter|TemplateFileReader)|persistence\/workflow-resources\/instruction-file-writer\.mjs|use-cases\/runtime\/parallel\/targets\.mjs|develop\/lib\/schemas|schemas\/output-schema-validation|dtos\/index\.mjs|RunStateDTO/, 'forbidden old workflow runtime surface reference');
   scan(sourceFiles, /applyOutputToBatonState[^\n]*entities\/Baton\/index\.mjs|entities\/Baton\/index\.mjs[^\n]*applyOutputToBatonState/, 'forbidden Baton helper import path');
+  assertNoLastResponseSnapshots();
+  assertNoProductionLastResponseReferences();
 
   scan(walk(abs('develop/docs')), /develop\/lib\/entities\/(Workflow|Baton|Step|Template)\.mjs|develop\/lib\/entities\/Workflow\/schema\//, 'develop docs cite stale workflow runtime layout reference');
 
@@ -201,9 +243,9 @@ function checkBoundaries() {
   const apiRunner = readFileSync(abs('develop/lib/entrypoints/api/workflowRunner.mjs'), 'utf8');
   assertContains(apiRunner, /readPersistedRunState\(paths\)/, 'API runner must read persisted run-state before rendering');
   assertContains(apiRunner, /projectRuntimeRunState\(persisted\)/, 'API runner must project persisted run-state before rendering');
-  assertContains(apiRunner, /assertLastResponseMatchesCurrentBaton\(lastResponse, current\.baton\)/, 'API runner must reject stale last-response baton before continue');
-  assertContains(apiRunner, /lastResponse\.requests \?\? \[\]/, 'API runner must validate current lastResponse.requests when loading instructions');
-  assertContains(apiRunner, /assertNamedOutputRefsMatchRequests\(parsedOutputRefs, requests\)/, 'API runner must validate host outputs against lastResponse.requests before continue');
+  assertContains(apiRunner, /hostResponseForCurrentState\(paths, current/, 'API runner must derive current host response from canonical state before writes');
+  assertContains(apiRunner, /currentResponse\.requests \?\? \[\]/, 'API runner must validate current canonical requests when loading instructions');
+  assertContains(apiRunner, /currentRequestForStep\(currentResponse, stepId\)/, 'API runner must validate host outputs against current canonical requests before continue');
   assertContains(apiRunner, /readInstructionDTO\(instructionPath, `instructions for workflow step \$\{stepId\}`\)/, 'API runner must read/validate committed instruction files before serving instructions');
   assertContains(apiRunner, /missing compiled instructions for workflow step/, 'API runner must fail when compiled instructions are missing');
 }

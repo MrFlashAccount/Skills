@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import workflowDoc from '../../../workflows/dev-harness/workflow.json' with { type: 'json' };
 import researchCriticWorkflowDoc from '../../../workflows/research-critic/workflow.json' with { type: 'json' };
+import orbitaSampleWorkflowDoc from './fixtures/orbita-sample.workflow.json' with { type: 'json' };
 import { WorkflowRuntimeError } from '../errors.mjs';
 import { validateWorkflow } from '../use-cases/ValidateWorkflow.mjs';
 import { validateWorkflowFile } from '../entrypoints/api/validateWorkflow.mjs';
@@ -377,6 +378,70 @@ test('dev harness implementation rework branches project review findings', () =>
     assert.match(workflowDoc.steps[stepId].input.prompt, /review_join needs_changes/);
   }
 });
+
+test('orbita sample research_attack output schema requires verdict or blocker by routed outcome', () => {
+  const workflowPath = path.join(REPO_ROOT, 'develop/lib/tests/fixtures/orbita-sample.workflow.json');
+  const schemaRef = orbitaSampleWorkflowDoc.steps.research_attack.output.schema;
+  const validFinding = {
+    category: 'can',
+    severity: 'can',
+    summary: 'Research packet is consistent.',
+    description: 'The critic checked the research draft and found no blocking revision requirement.',
+    evidence: [{ ref: 'research_draft output', details: 'Research packet was available for review.' }],
+    recommendation: 'Proceed to approval.',
+  };
+  const validVerdict = { summary: ['Checked.'], evidence_checked: ['research_draft output'], findings: [validFinding] };
+  const validBlocker = { summary: 'Cannot review.', source_step_id: 'research_attack', needed: 'Research draft evidence.' };
+
+  for (const output of [
+    { outcome: 'approved', verdict: validVerdict },
+    { outcome: 'needs_revision', verdict: validVerdict },
+    { outcome: 'blocked', blocker: validBlocker },
+  ]) {
+    const result = validateAgainstOutputSchema({
+      workflow: orbitaSampleWorkflowDoc,
+      workflowPath,
+      schemaRef,
+      repositoryRoot: REPO_ROOT,
+      output,
+    });
+    assert.equal(result.ok, true, `${output.outcome} should accept its required payload: ${result.errors}`);
+  }
+
+  for (const output of [
+    { outcome: 'approved' },
+    { outcome: 'needs_revision' },
+    { outcome: 'blocked' },
+  ]) {
+    const result = validateAgainstOutputSchema({
+      workflow: orbitaSampleWorkflowDoc,
+      workflowPath,
+      schemaRef,
+      repositoryRoot: REPO_ROOT,
+      output,
+    });
+    assert.equal(result.ok, false, `${output.outcome} should reject missing required routed payload`);
+  }
+
+  for (const [outcome, verdict] of [
+    ['needs_revision', { summary: ['Checked.'], evidence_checked: [], findings: [validFinding] }],
+    ['approved', { summary: ['Checked.'], evidence_checked: [], findings: [validFinding] }],
+    ['needs_revision', { summary: ['Checked.'], evidence_checked: ['research_draft output'], findings: [] }],
+    ['approved', { summary: ['Checked.'], evidence_checked: ['research_draft output'], findings: [] }],
+    ['needs_revision', { summary: ['Checked.'], evidence_checked: ['research_draft output'], findings: [{}] }],
+    ['approved', { summary: ['Checked.'], evidence_checked: ['research_draft output'], findings: [{}] }],
+  ]) {
+    const result = validateAgainstOutputSchema({
+      workflow: orbitaSampleWorkflowDoc,
+      workflowPath,
+      schemaRef,
+      repositoryRoot: REPO_ROOT,
+      output: { outcome, verdict },
+    });
+    assert.equal(result.ok, false, `${outcome} should reject structurally empty review evidence/findings`);
+  }
+});
+
 
 test('dev harness blocked outputs require only blocker plus routing fields, not success payloads', () => {
   const workflowPath = path.join(REPO_ROOT, 'workflows/dev-harness/workflow.json');
@@ -886,6 +951,52 @@ test('workflow semantic validation rejects unsafe dynamic array target schemas',
       return draft;
     }),
     /producer.*output\.next_steps.*target not found: missing_branch/,
+  );
+});
+
+test('workflow semantic validation rejects approval steps as parallel branch targets', () => {
+  writeSchema('selected-approval-branch-output.schema.json', {
+    ...routeSchema,
+    required: ['outcome', 'route', 'next_steps', 'selected'],
+    properties: {
+      ...routeSchema.properties,
+      selected: { enum: ['branch_a'] },
+    },
+  });
+
+  const makeApprovalBranch = (draft) => {
+    draft.steps.branch_a = {
+      name: 'Branch A Approval',
+      kind: 'approval',
+      input: { prompt: 'Approve branch.' },
+      next: 'join',
+    };
+    return draft;
+  };
+
+  assertSemanticFailure(
+    syntheticWorkflow((draft) => {
+      draft.steps.producer.next = ['branch_a', 'branch_b'];
+      return makeApprovalBranch(draft);
+    }),
+    /workflow step 'producer' parallel branch target 'branch_a' must be a worker step/,
+  );
+
+  assertSemanticFailure(
+    syntheticWorkflow((draft) => {
+      draft.steps.producer.next = '${{ output.next_steps }}';
+      return makeApprovalBranch(draft);
+    }),
+    /step 'producer' next expression \$\{\{ output\.next_steps \}\} array target schema is not a valid parallel fan-out: workflow step 'producer' parallel branch target 'branch_a' must be a worker step/,
+  );
+
+  assertSemanticFailure(
+    syntheticWorkflow((draft) => {
+      draft.steps.producer.output.schema = 'selected-approval-branch-output.schema.json';
+      draft.steps.producer.next = ['branch_b', '${{ output.selected }}'];
+      return makeApprovalBranch(draft);
+    }),
+    /step 'producer' next combined parallel targets are invalid: workflow step 'producer' parallel branch target 'branch_a' must be a worker step/,
   );
 });
 

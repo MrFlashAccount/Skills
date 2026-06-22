@@ -74,6 +74,45 @@
           },
           "additionalProperties": false
         },
+        "requesterBinding": {
+          "type": "object",
+          "required": ["sessionRef"],
+          "properties": {
+            "sessionRef": { "$ref": "#/$defs/safeFailureMetadata" },
+            "origin": {
+              "type": "object",
+              "properties": {
+                "channel": { "$ref": "#/$defs/safeFailureMetadata" },
+                "account": { "$ref": "#/$defs/safeFailureMetadata" },
+                "sender": { "$ref": "#/$defs/safeFailureMetadata" },
+                "recipient": { "$ref": "#/$defs/safeFailureMetadata" },
+                "thread": { "$ref": "#/$defs/safeFailureMetadata" },
+                "parentThread": { "$ref": "#/$defs/safeFailureMetadata" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "workflowDeliveries": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "required": ["marker", "deliveredAt"],
+            "properties": {
+              "marker": { "type": "string", "minLength": 1, "maxLength": 512, "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,511}$" },
+              "deliveredAt": { "type": "string", "minLength": 1 },
+              "status": { "enum": ["pending", "success", "skipped", "failed"] },
+              "reason": { "$ref": "#/$defs/safeFailureMetadata" },
+              "method": { "$ref": "#/$defs/safeFailureMetadata" },
+              "key": { "$ref": "#/$defs/safeFailureMetadata" },
+              "claimedAt": { "type": "string", "minLength": 1 },
+              "completedAt": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        },
         "workerLease": {
           "oneOf": [
             { "type": "null" },

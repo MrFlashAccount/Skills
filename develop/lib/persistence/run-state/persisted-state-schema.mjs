@@ -1,7 +1,6 @@
 import { resolve } from 'node:path';
 import { isInside } from '../filesystem/path-safety.mjs';
 import { assertBatonSchema } from '../../entities/Baton/schema/baton-schema.mjs';
-import { assertRunnerHostResponseSchema } from './schema/runner-host-response-schema.mjs';
 
 export const PERSISTED_RUN_STATE_VERSION = 1;
 export const PERSISTED_RUN_STATE_TOPOLOGY = 'split-files-v1';
@@ -48,7 +47,6 @@ export function assertPersistedRunState(state, name = 'persisted run state') {
   assertString(state.run.workflowPath, `${name} run.workflowPath`);
   assertString(state.run.repositoryRoot, `${name} run.repositoryRoot`);
   assertBatonSchema(state.baton);
-  if (state.lastResponse !== undefined) assertRunnerHostResponseSchema(state.lastResponse);
   assertObject(state.history, `${name} history`);
   if (state.history.mode !== 'file-ref' && state.history.mode !== 'embedded-text') throw new Error(`${name} history mode is invalid`);
   if (state.history.mode === 'file-ref') assertString(state.history.path, `${name} history.path`);
@@ -68,7 +66,6 @@ export function commitMetadata(commit) {
   if (!commit) return undefined;
   const sideEffects = {
     baton: Object.hasOwn(commit, 'baton'),
-    lastResponse: Object.hasOwn(commit, 'response'),
     history: typeof commit.historyText === 'string',
     instructions: Array.isArray(commit.instructions) ? commit.instructions.length : 0,
   };
@@ -85,7 +82,6 @@ export function projectRuntimeRunState(persisted) {
   assertPersistedRunState(persisted);
   return {
     baton: structuredClone(persisted.baton),
-    lastResponse: persisted.lastResponse === undefined ? undefined : structuredClone(persisted.lastResponse),
     instructions: structuredClone(persisted.instructions),
     history: structuredClone(persisted.history),
   };

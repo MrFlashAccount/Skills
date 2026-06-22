@@ -1,6 +1,6 @@
 import { constants } from 'node:fs';
 import { access, readFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { assertManagedRunStateFile } from './atomic-file.mjs';
 import {
   PERSISTED_RUN_STATE_TOPOLOGY,
@@ -34,44 +34,10 @@ async function readTextIfExists(path, name, { required = false } = {}) {
   catch (error) { throw new Error(`cannot read ${name} from ${path}: ${error.message}`); }
 }
 
-function instructionRefForRequest(paths, request) {
-  const stepId = request?.stepId ?? request?.id;
-  if (typeof stepId !== 'string' || stepId.length === 0) return undefined;
-  return {
-    id: request.id,
-    stepId,
-    path: resolve(join(paths.instructionsDir, `${stepId}.md`)),
-    action: request.action,
-    status: 'committed',
-    required: true,
-  };
-}
-
-function quarantineLegacyHostResponse(response) {
-  if (!response || typeof response !== 'object' || Array.isArray(response)) return response;
-  if (!Object.hasOwn(response, 'workflow')) return response;
-  const { workflow, ...publicResponse } = response;
-  return publicResponse;
-}
-
-async function committedInstructionRefs(paths, lastResponse) {
-  if (lastResponse?.status !== 'needs_host_actions') return [];
-  const refs = [];
-  for (const request of lastResponse.requests ?? []) {
-    const ref = instructionRefForRequest(paths, request);
-    if (!ref) continue;
-    refs.push({
-      ...ref,
-      content: await readTextIfExists(ref.path, `instructions for workflow step ${ref.stepId}`, { required: true }),
-    });
-  }
-  return refs;
-}
 
 export async function readPersistedRunState(paths) {
   const baton = await readJsonIfExists(paths.batonPath, 'baton');
   if (baton === undefined) throw new Error(`cannot read persisted run state: missing baton at ${paths.batonPath}`);
-  const lastResponse = quarantineLegacyHostResponse(await readJsonIfExists(paths.lastResponsePath, 'last runner response'));
   const historyText = await readTextIfExists(paths.historyPath, 'workflow history');
   const pendingCommit = await readJsonIfExists(paths.durableCommitPath, 'pending durable workflow commit');
   assertPendingCommitInstructionRefs(paths, pendingCommit);
@@ -82,13 +48,12 @@ export async function readPersistedRunState(paths) {
     action: instruction.action,
     status: instruction.status ?? 'pending',
   }));
-  const instructions = pendingInstructions.length > 0 ? pendingInstructions : await committedInstructionRefs(paths, lastResponse);
+  const instructions = pendingInstructions;
   return assertPersistedRunState({
     version: PERSISTED_RUN_STATE_VERSION,
     storageTopology: PERSISTED_RUN_STATE_TOPOLOGY,
     run: { runDir: paths.runDir, workflowPath: paths.workflowPath, repositoryRoot: paths.repositoryRoot },
     baton,
-    lastResponse,
     instructions,
     history: historyText === undefined
       ? { mode: 'file-ref', path: paths.historyPath }

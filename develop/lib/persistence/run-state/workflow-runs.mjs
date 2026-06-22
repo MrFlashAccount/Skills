@@ -92,7 +92,7 @@ function assertExistingWorkflowBinding(existing, paths, { requestedWorkflowPath 
   }
 }
 
-export async function registerWorkflowRunAtRoot({ runId, title, summary, workflowPath, workflowIdentity, status = 'running', taskKey, taskFingerprint, requestId, currentStep, currentGate, taskFlowId, runsRoot = workflowRunsRoot, claim = false, owner, harness, sessionId, workerId, leaseMs, now = new Date() } = {}) {
+export async function registerWorkflowRunAtRoot({ runId, title, summary, workflowPath, workflowIdentity, status = 'running', taskKey, taskFingerprint, requestId, currentStep, currentGate, taskFlowId, requesterBinding, runsRoot = workflowRunsRoot, claim = false, owner, harness, sessionId, workerId, leaseMs, now = new Date() } = {}) {
   const safeRunId = runId === undefined ? generatedRunId() : assertSafeRunId(runId);
   const paths = resolveRunPaths({ runId: safeRunId, workflowPath: workflowPathForCreate(workflowPath), runsRoot });
   const leaseToken = claim ? generateLeaseToken() : undefined;
@@ -110,6 +110,7 @@ export async function registerWorkflowRunAtRoot({ runId, title, summary, workflo
       currentStep,
       currentGate,
       taskFlowId,
+      requesterBinding,
       workerLease,
     });
     const response = publicRun(entry, { now });

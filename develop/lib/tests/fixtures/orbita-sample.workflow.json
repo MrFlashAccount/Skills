@@ -1,0 +1,104 @@
+{
+  "name": "sample-workflow",
+  "version": 1,
+  "start": "research_draft",
+  "done": "done",
+  "blocked": "blocked",
+  "steps": {
+    "research_draft": {
+      "name": "Research draft",
+      "kind": "worker",
+      "input": {
+        "state": [
+          "research_draft",
+          "research_attack",
+          "approve_research"
+        ],
+        "prompt": "Test-owned sample workflow research draft fixture step."
+      },
+      "output": {
+        "template": "orbita-sample-output.md",
+        "schema": "orbita-sample-research-draft-output.schema.json"
+      },
+      "next": {
+        "match": "${{ output.outcome }}",
+        "cases": {
+          "ready_for_attack": "research_attack",
+          "blocked": "blocked"
+        }
+      }
+    },
+    "research_attack": {
+      "name": "Research attack",
+      "kind": "worker",
+      "input": {
+        "state": [
+          "research_draft"
+        ],
+        "prompt": "Test-owned sample workflow research attack fixture step."
+      },
+      "output": {
+        "template": "orbita-sample-output.md",
+        "schema": "orbita-sample-research-attack-output.schema.json"
+      },
+      "next": {
+        "match": "${{ output.outcome }}",
+        "cases": {
+          "approved": "approve_research",
+          "needs_revision": "research_draft",
+          "blocked": "blocked"
+        }
+      }
+    },
+    "approve_research": {
+      "name": "Approve research",
+      "kind": "approval",
+      "input": {
+        "state": [
+          "research_draft",
+          "research_attack"
+        ],
+        "prompt": "Test-owned sample workflow approval fixture step."
+      },
+      "next": {
+        "match": "${{ output.approval }}",
+        "cases": {
+          "approved": "architecture_draft",
+          "rejected": "research_draft",
+          "blocked": "blocked"
+        }
+      }
+    },
+    "architecture_draft": {
+      "name": "Architecture draft",
+      "kind": "worker",
+      "input": {
+        "state": [
+          "research_draft",
+          "research_attack",
+          "approve_research"
+        ],
+        "prompt": "Test-owned downstream worker reached after approve_research."
+      },
+      "output": {
+        "template": "orbita-sample-output.md",
+        "schema": "orbita-sample-architecture-draft-output.schema.json"
+      },
+      "next": "done"
+    },
+    "done": {
+      "name": "Done",
+      "kind": "done",
+      "input": {
+        "prompt": "Done."
+      }
+    },
+    "blocked": {
+      "name": "Blocked",
+      "kind": "blocked",
+      "input": {
+        "prompt": "Blocked."
+      }
+    }
+  }
+}

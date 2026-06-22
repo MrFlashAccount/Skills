@@ -43,9 +43,27 @@ function normalizeFailureMetadata(index) {
   return index;
 }
 
+function normalizeRequesterBindings(index) {
+  if (!index?.runs || typeof index.runs !== 'object') return index;
+  for (const run of Object.values(index.runs)) {
+    if (Object.hasOwn(run, 'requesterBinding')) run.requesterBinding = sanitizedRequesterBinding(run.requesterBinding);
+  }
+  return index;
+}
+
+function normalizeWorkflowDeliveries(index) {
+  if (!index?.runs || typeof index.runs !== 'object') return index;
+  for (const run of Object.values(index.runs)) {
+    if (Object.hasOwn(run, 'workflowDeliveries')) run.workflowDeliveries = sanitizedWorkflowDeliveries(run.workflowDeliveries);
+  }
+  return index;
+}
+
 export function assertRunsIndex(index) {
   normalizeWorkerLeases(index);
   normalizeFailureMetadata(index);
+  normalizeRequesterBindings(index);
+  normalizeWorkflowDeliveries(index);
   assertRunsIndexSchema(index);
   for (const [key, run] of Object.entries(index.runs)) assertIndexRunKey(run, key);
   return index;
@@ -157,6 +175,42 @@ function sanitizedFailureMetadata(failure) {
   });
 }
 
+function sanitizedRequesterBinding(binding) {
+  if (!binding || typeof binding !== 'object' || Array.isArray(binding)) return undefined;
+  const originInput = binding.origin && typeof binding.origin === 'object' && !Array.isArray(binding.origin) ? binding.origin : undefined;
+  const origin = originInput ? pruneUndefinedProperties({
+    channel: sanitizeFailureMetadataValue(originInput.channel),
+    account: sanitizeFailureMetadataValue(originInput.account),
+    sender: sanitizeFailureMetadataValue(originInput.sender),
+    recipient: sanitizeFailureMetadataValue(originInput.recipient),
+    thread: sanitizeFailureMetadataValue(originInput.thread),
+    parentThread: sanitizeFailureMetadataValue(originInput.parentThread),
+  }) : undefined;
+  const sanitized = pruneUndefinedProperties({
+    sessionRef: sanitizeFailureMetadataValue(binding.sessionRef, { required: true }),
+    origin: origin && Object.keys(origin).length > 0 ? origin : undefined,
+  });
+  return sanitized.sessionRef ? sanitized : undefined;
+}
+
+function sanitizedWorkflowDeliveries(deliveries) {
+  if (!Array.isArray(deliveries)) return undefined;
+  const sanitized = deliveries.map((delivery) => {
+    if (!delivery || typeof delivery !== 'object' || Array.isArray(delivery)) return undefined;
+    return pruneUndefinedProperties({
+      marker: sanitizeFailureMetadataValue(delivery.marker, { required: true }),
+      deliveredAt: typeof delivery.deliveredAt === 'string' && delivery.deliveredAt.trim() ? delivery.deliveredAt.trim() : new Date().toISOString(),
+      status: sanitizeFailureMetadataValue(delivery.status),
+      reason: sanitizeFailureMetadataValue(delivery.reason),
+      method: sanitizeFailureMetadataValue(delivery.method),
+      key: sanitizeFailureMetadataValue(delivery.key),
+      claimedAt: typeof delivery.claimedAt === 'string' && delivery.claimedAt.trim() ? delivery.claimedAt.trim() : undefined,
+      completedAt: typeof delivery.completedAt === 'string' && delivery.completedAt.trim() ? delivery.completedAt.trim() : undefined,
+    });
+  }).filter((delivery) => delivery?.marker && delivery.marker !== REDACTED_FAILURE_METADATA).slice(-64);
+  return sanitized.length > 0 ? sanitized : undefined;
+}
+
 function indexEntryForPaths(paths, patch = {}, existing) {
   assertWorkflowBinding(paths, patch, existing);
   const now = new Date().toISOString();
@@ -178,6 +232,8 @@ function indexEntryForPaths(paths, patch = {}, existing) {
     currentGate: Object.hasOwn(patch, 'currentGate') ? patch.currentGate : existing?.currentGate,
     taskFlowId: patch.taskFlowId ?? existing?.taskFlowId,
     failure: Object.hasOwn(patch, 'failure') ? sanitizedFailureMetadata(patch.failure) : existing?.failure,
+    requesterBinding: Object.hasOwn(patch, 'requesterBinding') ? sanitizedRequesterBinding(patch.requesterBinding) : existing?.requesterBinding,
+    workflowDeliveries: Object.hasOwn(patch, 'workflowDeliveries') ? sanitizedWorkflowDeliveries(patch.workflowDeliveries) : existing?.workflowDeliveries,
     workerLease: Object.hasOwn(patch, 'workerLease') ? patch.workerLease : (existing?.workerLease ?? null),
   };
   pruneUndefinedProperties(entry.workflow);

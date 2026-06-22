@@ -90,7 +90,6 @@ async function snapshotDurableTargets(paths, instructions) {
     instructions: instructionSnapshots,
     history: await readTextIfExists(paths.historyPath),
     baton: await readTextIfExists(paths.batonPath),
-    lastResponse: await readTextIfExists(paths.lastResponsePath),
   };
 }
 
@@ -98,7 +97,6 @@ async function restoreDurableTargets(paths, snapshot) {
   for (const [instructionPath, instructionSnapshot] of snapshot.instructions.entries()) await restoreTextSnapshot(instructionPath, instructionSnapshot);
   await restoreTextSnapshot(paths.historyPath, snapshot.history);
   await restoreTextSnapshot(paths.batonPath, snapshot.baton);
-  await restoreTextSnapshot(paths.lastResponsePath, snapshot.lastResponse);
 }
 
 export async function recoverDurableCommit(paths) {
@@ -117,10 +115,6 @@ export async function recoverDurableCommit(paths) {
     maybeFailDurableCommitAfter('history');
     if (Object.hasOwn(commit, 'baton')) await writeJsonAtomic(paths.batonPath, commit.baton);
     maybeFailDurableCommitAfter('baton');
-    if (Object.hasOwn(commit, 'response')) {
-      await writeJsonAtomic(paths.lastResponsePath, commit.response);
-      maybeFailDurableCommitAfter('last-response');
-    }
     await rm(paths.durableCommitPath, { force: true });
     assertPersistedRunState(await readPersistedRunState(paths), 'persisted run state after recovery');
     return true;
@@ -134,10 +128,9 @@ function nextPersistedRunState(current, { response, baton, instructions = [], hi
   return {
     ...current,
     baton: writeBaton ? baton : current.baton,
-    ...(response === undefined ? {} : { lastResponse: response }),
     instructions: instructions.map((instruction) => ({ path: instruction.path, stepId: instruction.stepId, action: instruction.action, status: instruction.status ?? 'pending' })),
     history: { mode: 'embedded-text', path: current.history.path, text: historyText },
-    commit: { version: 1, id: commit.id, createdAt: commit.createdAt, status: 'pending', sideEffects: { baton: writeBaton, lastResponse: response !== undefined, history: true, instructions: instructions.length } },
+    commit: { version: 1, id: commit.id, createdAt: commit.createdAt, status: 'pending', sideEffects: { baton: writeBaton, history: true, instructions: instructions.length } },
   };
 }
 
@@ -151,10 +144,9 @@ export async function commitDurableRunState(paths, { response, baton, instructio
     id: `${Date.now()}-${process.pid}`,
     createdAt: new Date().toISOString(),
     status: 'pending',
-    ...(response === undefined ? {} : { response }),
     instructions,
     historyText,
-    sideEffects: { baton: writeBaton, lastResponse: response !== undefined, history: true, instructions: instructions.length },
+    sideEffects: { baton: writeBaton, history: true, instructions: instructions.length },
   };
   if (writeBaton) commit.baton = baton;
   await validateInstructionCommit(paths, instructions);
@@ -177,6 +169,5 @@ export async function appendHistory(paths, entry) {
 }
 
 export async function persistHostResponse(paths, response) {
-  await writeJsonAtomic(paths.lastResponsePath, response);
   await appendHistory(paths, { source: 'workflow-runner', baton: response.baton, requests: response.requests });
 }

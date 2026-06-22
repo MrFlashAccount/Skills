@@ -26,7 +26,7 @@ node develop/lib/entrypoints/cli/workflow-runner.mjs continue --lease-token <tok
 node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --lease-token <token> --run-id <run-id> --step-id <id>
 ```
 
-`next` creates the run files if needed and returns the current host work. `write-output` validates and accepts one current request output directly into baton/state. `continue` applies already-accepted outputs from baton/state, persists the new baton, and returns the next host work. `instructions` prints only the compiled instructions for one current requested step and fails for unknown, unsafe, or missing step instructions. Every write-capable or instruction-loading command validates a fresh explicit `--lease-token` before creating run directories, locks, index entries, baton/history, last-response, or instruction artifacts; `runId` is identity only, and durable lease state keeps only token hash, token epoch, and lease expiry.
+`next` creates the run files if needed and returns the current host work. `write-output` validates and accepts one current request output directly into baton/state. `continue` applies already-accepted outputs from baton/state, persists the new baton, and returns the next host work. `instructions` prints only the compiled instructions for one current requested step and fails for unknown, unsafe, or missing step instructions. Every write-capable or instruction-loading command validates a fresh explicit `--lease-token` before creating run directories, locks, index entries, baton/history or instruction artifacts; `runId` is identity only, and durable lease state keeps only token hash, token epoch, and lease expiry.
 
 ### Startup user prompt
 
@@ -120,29 +120,15 @@ For parallel branch requests, call `write-output` once per requested `stepId`; `
 
 ## OpenClaw mapping example
 
-OpenClaw is one possible host adapter:
+OpenClaw is one possible host adapter. The current Orbita adapter intentionally keeps validating writes in the deterministic parent process rather than delegating write authority to workers:
 
-- `run_worker` maps to spawning a fresh/disposable subagent or ACP session with a neutral bootstrap that runs `loadInstructionsCommand`.
-- Level 1 loop continuity across workflow iterations is prompt/state-only: draft/critic/revision workers must rely on workflow-projected input and prior accepted step outputs, not persistent worker lifecycle machinery. A concise clarification is an allowed same-session continuation: the subagent asks, pauses, receives the routed user reply in that same clarification session, and continues from existing context without restart or context widening. Persistent draft/critic agent reuse across workflow loop iterations is a future adapter concern and is not part of this slice.
-- The bootstrap must use this shape and substitute `<command>` with the request's `loadInstructionsCommand`:
-
-  ```text
-  Load the step instructions by running:
-
-  <command>
-
-  Then follow the loaded instructions exactly.
-
-  Do not add any behavior, role, output format, or constraints beyond the loaded instructions.
-
-  If the instructions cannot be loaded, stop with an error and do not continue.
-  ```
-
-- The loaded instructions must provide an exact validating writer command/tool. The subagent should use that single command/tool to write its generated JSON. If the command/tool returns validation errors, the subagent fixes the JSON and reruns the same command/tool for a bounded number of attempts. On success, the subagent reports acceptance, not an output path.
-- If no exact worker-side validating writer protocol is provided, the wrapper treats that as a blocked host capability instead of capturing a fallback output file.
+- `run_worker` maps to parent-side `instructions` loading followed by spawning a fresh/disposable subagent or ACP session with only the compiled step instructions and a strict JSON response contract.
+- Level 1 loop continuity across workflow iterations is prompt/state-only: draft/critic/revision workers must rely on workflow-projected input and prior accepted step outputs, not persistent worker lifecycle machinery. The current Orbita implementation waits for worker completion and parses one strict JSON output for the current step; it does not route same-session worker clarification replies back to the original requester. Workers that need user input must return the workflow-declared JSON outcome for user input or blocking so the deterministic runner can surface the next user-facing gate. Persistent draft/critic agent reuse and routed same-session clarification continuations are future adapter concerns and are not part of this slice.
+- The worker prompt must not include lease tokens, runner paths, validating-writer commands, raw requester session references, or private workflow state paths. It may include a managed artifact output directory when the step schema expects file artifacts; public delivery later filters those artifacts through the safe attachment renderer.
+- The worker returns only strict JSON for the current step output schema. The parent adapter parses that JSON and calls the runner's validating writer (`write-output`) with the held lease token. If validation fails, the parent treats the worker output as failed for that run attempt; it does not let the worker bypass validation.
 - The wrapper calls `workflow-runner.mjs continue` without `--output` after every current request has been accepted by `write-output`.
-- If OpenClaw cannot provide the requested capability, the wrapper writes a blocked JSON output through `write-output` when possible.
-- The adapter repeats until the runner returns a terminal status.
+- If OpenClaw cannot provide the requested worker capability, the wrapper marks the workflow failed or writes a blocked JSON output through `write-output` when possible; the adapter must not choose workflow transitions in prose.
+- The adapter repeats until the runner returns a terminal status or a user-facing pending gate, then delivers only the safe public status/card to the requester session through the runtime/session delivery primitive.
 
 This mapping is not part of the portable workflow contract. Other hosts can execute the same requests differently as long as they accept compatible JSON through `write-output` before `continue`. If a host action produces markdown or a report, the wrapper should wrap it in the step's expected JSON output or store it as a referenced artifact; it should not pass arbitrary markdown as runner output unless the step schema/runtime explicitly expects that.
 
