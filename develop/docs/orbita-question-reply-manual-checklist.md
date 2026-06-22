@@ -7,6 +7,7 @@ Use a local/dev Orbita setup only. Do not run this against a production Telegram
 - Orbita plugin is available in a requester session.
 - A workflow fixture or test workflow can reach a worker `needs_input` outcome that routes to a question gate, for example `research_draft` → `ask_*question*`.
 - You can see messages delivered to the original requester session.
+- Background delivery uses a trusted internal Orbita relay event injected into the original requester OpenClaw session via Gateway `sessions.send`; that relay header is assistant-private and must not be copied verbatim to the user. The main assistant should relay only the safe public card.
 
 ## Steps and expected results
 
@@ -17,6 +18,7 @@ Use a local/dev Orbita setup only. Do not run this against a production Telegram
    - Fail: command exposes raw workflow path internals, prompt text, lease tokens, or errors before the workflow reaches a public state.
 
 2. Verify the requester session receives a question card.
+   - Expected internal session event is marked `openclaw.orbita.background_relay.v1` and contains a `PUBLIC ORBITA CARD`; the user-visible assistant reply should show only that public card, not the assistant-private relay header copied verbatim.
    - Expected delivered message starts with `🪐 Orbita ждёт ответ`.
    - Expected content includes `run id: <run>`, `Needed: answer`, a safe summary/open question, and `Expected answer:` with only `/orbita reply <run> text`.
    - Pass: the card arrives in the original requester session.
@@ -35,5 +37,6 @@ Use a local/dev Orbita setup only. Do not run this against a production Telegram
    - Fail: workflow stays stuck on the question gate, duplicates the terminal delivery, or routes the update to the wrong session.
 
 5. Final privacy/surface check.
-   - Pass: question card and terminal/update delivery contain no private internals: `requesterBinding`, `sessionRef`, `origin`, `leaseToken`, raw prompt/transcript markers, schema names, local absolute paths, or workflow runner implementation details.
+   - Pass: question card and terminal/update delivery contain no private internals: `requesterBinding`, `sessionRef`, `origin`, `leaseToken`, raw prompt/transcript markers, schema names, local absolute paths, unsafe artifact paths, worker raw output, or workflow runner implementation details.
+   - Pass: relay envelope text, Gateway details, and idempotency/delivery diagnostics are not shown in the final user-visible assistant message.
    - Fail: any private/internal value appears in user-visible messages or stored public delivery diagnostics.
