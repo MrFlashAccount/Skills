@@ -8,6 +8,7 @@
     "outcome": {
       "enum": [
         "ready_for_attack",
+        "needs_input",
         "blocked"
       ]
     },

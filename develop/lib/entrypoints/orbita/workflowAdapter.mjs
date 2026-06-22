@@ -983,6 +983,7 @@ async function driveWorkflowFromResponse({ api, initialResponse, workflowPath, r
   }
 
   if (approvalRequestFor(response)) {
+    await releaseWorkflowRunLease({ runId: response.runId, workflowPath, runsRoot, response, leaseToken });
     await deliverWorkflowResponseToRequester({ api, pluginConfig: { workflowRunsRoot: runsRoot }, runsRoot, response, requesterBinding, workflowPath });
     return response;
   }
@@ -1112,6 +1113,24 @@ function hasApprovalRouting(request = {}, response = {}) {
   return request?.action === 'wait_for_approval' && typeof stepId === 'string' && /(?:^|[_-])approv(?:e|al)(?:$|[_-])/i.test(stepId);
 }
 
+function questionIntentText(request = {}, response = {}, stepId) {
+  const step = response?.workflow?.steps?.[stepId];
+  return [
+    request?.prompt,
+    request?.task,
+    request?.question,
+    step?.name,
+    step?.input?.prompt,
+    step?.input?.task,
+  ].filter((value) => typeof value === 'string' && value.trim()).join(' ');
+}
+
+function hasQuestionRouting(request = {}, response = {}) {
+  const stepId = String(request.stepId ?? request.id ?? response?.baton?.cursor ?? '');
+  if (/(?:^|[_-])(?:ask|question)(?:$|[_-])|question/i.test(stepId)) return true;
+  return /(?:^|\s)(?:ask|question|answer)(?:$|\s)|\?/i.test(questionIntentText(request, response, stepId));
+}
+
 function controlOutputCandidates(action, text, request, response) {
   const normalizedText = typeof text === 'string' && text.length > 0 ? text : undefined;
   if (action === 'approve') return [{ approval: 'approved' }];
@@ -1124,6 +1143,14 @@ function controlOutputCandidates(action, text, request, response) {
         { approval: 'rejected' },
       ]
       : [{ approval: 'rejected' }];
+  }
+  if (hasQuestionRouting(request, response)) {
+    return [
+      { answer: normalizedText ?? '' },
+      { text: normalizedText ?? '' },
+      { reply: normalizedText ?? '' },
+      { comment: normalizedText ?? '' },
+    ];
   }
   if (hasApprovalRouting(request, response)) {
     const lower = String(normalizedText ?? '').trim().toLowerCase();

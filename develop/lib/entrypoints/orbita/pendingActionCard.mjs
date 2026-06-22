@@ -160,10 +160,22 @@ async function safeArtifactAttachments(pluginConfig = {}, runId, response = {}) 
   return attachments;
 }
 
+function questionIntentText(request = {}, response = {}, stepId) {
+  const step = response?.workflow?.steps?.[stepId];
+  return [
+    request?.prompt,
+    request?.task,
+    request?.question,
+    step?.name,
+    step?.input?.prompt,
+    step?.input?.task,
+  ].filter((value) => typeof value === 'string' && value.trim()).join(' ');
+}
+
 function isApprovalPendingAction({ run = {}, request = {}, response = {}, stepId } = {}) {
   const normalizedStepId = String(stepId ?? run.currentGate ?? run.currentStep ?? '');
-  const outputSchema = String(request?.outputSchema ?? request?.output_schema ?? '');
-  if (/(?:^|[_-])(?:ask|question)(?:$|[_-])|question/i.test(normalizedStepId) || /question/i.test(outputSchema)) return false;
+  if (/(?:^|[_-])(?:ask|question)(?:$|[_-])|question/i.test(normalizedStepId)) return false;
+  if (/(?:^|\s)(?:ask|question|answer)(?:$|\s)|\?/i.test(questionIntentText(request, response, stepId))) return false;
   const step = response?.workflow?.steps?.[stepId];
   if (step?.kind === 'approval') return true;
   return request?.action === 'wait_for_approval' && /(?:^|[_-])approv(?:e|al)(?:$|[_-])/i.test(normalizedStepId);

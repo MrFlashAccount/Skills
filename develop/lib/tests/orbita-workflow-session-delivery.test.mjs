@@ -128,7 +128,7 @@ async function createRegisteredTerminalRun(root, runId) {
   return { runId, status: 'done', requestId: `orbita-${runId}`, baton: { cursor: 'done' }, requests: [] };
 }
 
-function deliveryApi({ sends = [], runDriver = true, workerOutcome = 'ready' } = {}) {
+function deliveryApi({ sends = [], runDriver = true, workerOutcome = 'ready', workerOutputs = {} } = {}) {
   return {
     runtime: {
       sessions: {
@@ -146,11 +146,12 @@ function deliveryApi({ sends = [], runDriver = true, workerOutcome = 'ready' } =
         messages: new Map(),
         async run({ message, sessionKey }) {
           const stepId = message.match(/Step: (\S+)/)?.[1];
-          const output = stepId === 'research_draft'
+          const configuredOutput = typeof workerOutputs[stepId] === 'function' ? workerOutputs[stepId]() : workerOutputs[stepId];
+          const output = configuredOutput ?? (stepId === 'research_draft'
             ? { outcome: 'ready_for_attack', research_packet: { summary: ['Research revised.'], scope: { in_scope: [], out_of_scope: [] }, constraints: [], risks: [], open_questions: [], recommendation: 'Approve research.' } }
             : stepId === 'research_attack'
               ? { outcome: 'approved', verdict: validResearchAttackVerdict('Research revised and approved.') }
-              : { outcome: workerOutcome };
+              : { outcome: workerOutcome });
           this.messages.set(sessionKey, [{ role: 'assistant', content: JSON.stringify(output) }]);
           return { runId: `runtime-${stepId}` };
         },
@@ -203,6 +204,61 @@ test('Orbita reject continuation delivers next user approval card with safe atta
     assert.equal(sends[0].attachments?.length, 1);
     assert.equal(sends[0].attachments[0].id, 'research-packet');
     assertPublicDeliveryClean(sends[0]);
+  });
+});
+
+test('Orbita worker question gate delivers card, accepts reply, and resumes to terminal update', async () => {
+  await withRoot(async (root) => {
+    const sends = [];
+    const api = deliveryApi({
+      sends,
+      workerOutputs: {
+        research_draft: {
+          outcome: 'needs_input',
+          summary: ['Need scope answer.'],
+          open_questions: ['Which repo path should be used?'],
+        },
+        architecture_draft: { outcome: 'ready', summary: ['Answer incorporated.'] },
+      },
+    });
+
+    const started = await runOrbita('run', { workflow: 'workflows/sample-workflow/workflow.json', _positionals: ['question reply flow'] }, {
+      pluginConfig: orbitaPluginConfig(root),
+      ctx: { sessionKey: 'agent:main:requester-a', origin: { channel: 'telegram', sender: 'user-a' } },
+      api,
+    });
+    assert.equal(started.ok, true);
+
+    await waitFor(() => sends.length === 1);
+    const runId = started.workflow_run_id;
+    assert.equal(sends[0].key, 'agent:main:requester-a');
+    assert.match(sends[0].message, /Orbita ждёт ответ/);
+    assert.match(sends[0].message, /Needed: answer/);
+    assert.match(sends[0].message, new RegExp(`/orbita reply ${runId} text`));
+    assert.doesNotMatch(sends[0].message, /\/orbita approve |\/orbita reject |approval needed|approve_research|question-answer\.schema\.json|BEGIN_PROMPT|BEGIN_TRANSCRIPT|raw prompt|schema/i);
+    assertPublicDeliveryClean(sends[0]);
+
+    const replied = await runOrbita('reply', { _positionals: [runId, 'Use the develop/lib test fixture path.'] }, {
+      pluginConfig: orbitaPluginConfig(root),
+      ctx: { sessionKey: 'agent:main:requester-a', origin: { channel: 'telegram', sender: 'user-a' } },
+      api,
+    });
+    assert.equal(replied.ok, true);
+    assert.equal(replied.mode, 'reply');
+    assert.equal(replied.accepted, true);
+
+    await waitFor(() => sends.length === 2);
+    assert.equal(sends[1].key, 'agent:main:requester-a');
+    assert.match(sends[1].message, /Orbita workflow update/);
+    assert.match(sends[1].message, /done/);
+    assert.doesNotMatch(sends[1].message, /requesterBinding|sessionRef|origin|leaseToken|workflow\.json|BEGIN_PROMPT|BEGIN_TRANSCRIPT|raw prompt|schema/i);
+    assertPublicDeliveryClean(sends[1]);
+
+    const state = await readWorkflowRunCanonicalState(orbitaPluginConfig(root), runId);
+    assert.equal(state.response.status, 'done');
+    assert.deepEqual(state.response.baton.state.outputs.ask_scope_question, {
+      answer: 'Use the develop/lib test fixture path.',
+    });
   });
 });
 

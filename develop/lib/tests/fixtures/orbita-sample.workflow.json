@@ -24,6 +24,24 @@
         "match": "${{ output.outcome }}",
         "cases": {
           "ready_for_attack": "research_attack",
+          "needs_input": "ask_scope_question",
+          "blocked": "blocked"
+        }
+      }
+    },
+    "ask_scope_question": {
+      "name": "Ask scope question",
+      "kind": "approval",
+      "input": {
+        "state": [
+          "research_draft"
+        ],
+        "prompt": "Test-owned sample workflow question fixture step."
+      },
+      "next": {
+        "match": "${{ output.answer }}",
+        "cases": {
+          "Use the develop/lib test fixture path.": "architecture_draft",
           "blocked": "blocked"
         }
       }
