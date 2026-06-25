@@ -57,7 +57,7 @@ function stepInstructionsFor(paths, interpreterResponse) {
   });
 }
 
-async function runnerResponseForRendered(paths, rendered, { initialized, resumed }) {
+async function runnerResponseForRendered(paths, rendered, { initialized, resumed, leaseToken }) {
   const workflowDoc = await readJson(paths.workflowPath, 'workflow');
   return {
     ...toHostResponse(rendered, {
@@ -66,6 +66,7 @@ async function runnerResponseForRendered(paths, rendered, { initialized, resumed
       workflowPath: paths.workflowPath,
       repositoryRoot: paths.repositoryRoot,
       runsRoot: paths.runsRoot === workflowRunsRoot ? undefined : paths.runsRoot,
+      leaseToken,
     }),
     runId: paths.runId,
     initialized,
@@ -124,16 +125,16 @@ async function indexedWorkflowPathForRun(paths) {
   return index.runs[paths.runId]?.workflow?.path;
 }
 
-async function persistNextHostResponse(paths, rendered, runState) {
-  const response = await runnerResponseForRendered(paths, rendered, runState);
+async function persistNextHostResponse(paths, rendered, runState, { leaseToken } = {}) {
+  const persistedResponse = await runnerResponseForRendered(paths, rendered, runState);
   await writePersistedRunStateUpdate(paths, {
-    response,
-    baton: response.baton,
+    response: persistedResponse,
+    baton: persistedResponse.baton,
     instructions: stepInstructionsFor(paths, rendered),
-    history: { source: 'workflow-runner', baton: response.baton, requests: response.requests },
+    history: { source: 'workflow-runner', baton: persistedResponse.baton, requests: persistedResponse.requests },
     writeBaton: runState.initialized,
   });
-  return response;
+  return runnerResponseForRendered(paths, rendered, { ...runState, leaseToken });
 }
 
 function publicApiError(error, options = {}) {
@@ -189,7 +190,7 @@ async function nextInternal({ runId, workflowPath, includeDiagnostics = false, u
       const response = await persistNextHostResponse(paths, rendered, {
         initialized: runState.initialized,
         resumed: runState.resumed,
-      });
+      }, { leaseToken });
       await upsertRunIndexEntry(paths, { status: response.status, workflowPath: paths.workflowPath, taskKey, taskFingerprint });
       return response;
     } catch (error) {
@@ -339,13 +340,14 @@ async function continueRunInternal({ runId, workflowPath, output, includeDiagnos
     const renderResources = resourcesWithValidatingWriter(runtime.resources, paths, { leaseToken });
     const rendered = renderAppliedResponse({ workflowDoc: runtime.workflow, response: applied, resources: renderResources, includeDiagnostics });
 
-    const response = await runnerResponseForRendered(paths, rendered, { initialized: false, resumed: true });
+    const persistedResponse = await runnerResponseForRendered(paths, rendered, { initialized: false, resumed: true });
+    const response = await runnerResponseForRendered(paths, rendered, { initialized: false, resumed: true, leaseToken });
     const workerLease = await renewedWorkerLeaseAuthority(paths, { leaseToken, now });
     await writePersistedRunStateUpdate(paths, {
-      response,
+      response: persistedResponse,
       baton: applied.baton,
       instructions: stepInstructionsFor(paths, rendered),
-      history: { source: 'workflow-runner-continue', baton: applied.baton, output: historyOutput, requests: response.requests },
+      history: { source: 'workflow-runner-continue', baton: applied.baton, output: historyOutput, requests: persistedResponse.requests },
     });
     await upsertRunIndexEntry(paths, { status: response.status, workflowPath: paths.workflowPath, workerLease });
     return response;
