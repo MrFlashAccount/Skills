@@ -3,9 +3,9 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 const root = process.cwd();
-const forbiddenDir = join(root, 'develop/lib/workflow');
+const forbiddenDir = join(root, 'skills/orbita/lib/workflow');
 const forbiddenPatterns = [
-  /develop\/lib\/workflow/,
+  /skills\/orbita\/lib\/workflow/,
   /\.\.\/workflow(?:\/|['"])/,
   /workflow\/interpreter/,
   /workflow\/prompt-renderer/,
@@ -35,9 +35,9 @@ function walk(dir, files = []) {
   return files;
 }
 
-if (existsSync(forbiddenDir)) fail('old workflow layout must not exist: develop/lib/workflow');
+if (existsSync(forbiddenDir)) fail('old workflow layout must not exist: skills/orbita/lib/workflow');
 
-for (const scope of ['develop', 'scripts', 'package.json', 'Makefile']) {
+for (const scope of ['skills/orbita', 'scripts', 'package.json', 'Makefile']) {
   const start = join(root, scope);
   if (!existsSync(start)) continue;
   const scopedFiles = scope.includes('.') || scope === 'Makefile' ? [start] : walk(start);

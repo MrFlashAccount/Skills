@@ -98,6 +98,8 @@ def scan_parent_prompt_boundaries(errors: list[str]) -> None:
         if not base.exists():
             continue
         for path in sorted(base.rglob("*.md")):
+            if ".workflow-runs" in path.parts:
+                continue
             rel = path.relative_to(ROOT).as_posix()
             text = path.read_text(encoding="utf-8")
             lower = text.lower()
