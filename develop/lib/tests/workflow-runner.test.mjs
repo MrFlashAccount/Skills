@@ -62,7 +62,7 @@ function writeJson(filePath, value) {
 }
 
 function requestsFromOrchestratorInstruction(instruction) {
-  const match = instruction.match(/^Execute every host request in this JSON and wait until all requested actions finish: (.+)\nThen run:/);
+  const match = instruction.match(/^Supersedes all previous workflow-runner stdout\.\nExecute every host request in this JSON and wait until all requested actions finish: (.+)\nThen run:/);
   assert.ok(match, instruction);
   return JSON.parse(match[1]);
 }
@@ -235,6 +235,7 @@ test('runner: next returns a single host action request with load command only',
   const leaseToken = leaseTokensByRunId.get(runId);
 
   assert.equal(response.status, 'needs_host_actions');
+  assert.match(response.orchestratorInstruction, /^Supersedes all previous workflow-runner stdout\./);
   assert.match(response.orchestratorInstruction, /Execute every host request in this JSON/);
   assert.deepEqual(requestsFromOrchestratorInstruction(response.orchestratorInstruction), response.requests);
   assert.match(response.orchestratorInstruction, new RegExp(`workflow-runner\\.mjs instructions --run-id '${runId}' --step-id 'prepare' --lease-token '${leaseToken}'`));
@@ -706,6 +707,7 @@ test('runner: continue --only-instructions prints terminal instruction text', ()
   const continued = runRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--only-instructions']);
   assert.equal(continued.status, 0, continued.stderr);
   assert.throws(() => JSON.parse(continued.stdout));
+  assert.match(continued.stdout, /^Supersedes all previous workflow-runner stdout\./);
   assert.match(continued.stdout, /Stop now/);
   assert.match(continued.stdout, /status done is the terminal result/);
 });

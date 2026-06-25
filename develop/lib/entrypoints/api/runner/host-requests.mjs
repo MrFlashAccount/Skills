@@ -3,6 +3,8 @@ import { loadOutputSchema } from "../../../persistence/workflow-resources/output
 
 const TERMINAL_ACTIONS = new Set(["stop_done", "stop_blocked"]);
 const SAFE_STEP_ID = /^[A-Za-z0-9_.-]+$/;
+const SUPERSEDES_STDOUT_INSTRUCTION =
+  "Supersedes all previous workflow-runner stdout.";
 
 export function assertSafeStepId(stepId) {
   if (
@@ -95,7 +97,7 @@ function orchestratorInstructionForStatus(status, ctx) {
   if (!instruction)
     throw new Error(`unknown workflow runner host response status: ${status}`);
 
-  return instruction(ctx);
+  return [SUPERSEDES_STDOUT_INSTRUCTION, instruction(ctx)].join("\n");
 }
 
 function resolvedOutputSchemaForStep(

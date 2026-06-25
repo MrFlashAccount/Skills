@@ -11,6 +11,8 @@ The orchestrator invokes public `workflow-runner` CLI commands with `--only-inst
 
 The runner controls the agent by returning the next textual instruction or prompt from `workflow-runner next` and `workflow-runner continue`. Treat that instruction as authoritative. `workflow-runner write-output` only accepts or rejects one host request output; it is not a navigation command.
 
+Treat runner stdout as a disposable active directive. Keep only the latest `workflow-runner next` or `workflow-runner continue --only-instructions` stdout as authoritative. Each new runner stdout replaces the previous active directive. Earlier runner stdout is stale context and must not be followed, merged, or used to decide the next action.
+
 Never inspect or mutate private runtime files to decide what to do. Use only public run and runner commands from the repo root.
 
 ## Bootstrap
