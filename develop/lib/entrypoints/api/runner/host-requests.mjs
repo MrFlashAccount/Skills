@@ -79,12 +79,7 @@ export function responseStatusForInterpreterResponse(interpreterResponse) {
 
 const TERMINAL_ORCHESTRATOR_INSTRUCTIONS_BY_STATUS = Object.freeze({
   needs_host_actions: (ctx) => [
-    "Execute every current host request and wait until all requested actions finish.",
-    ...ctx.requests.flatMap((request, index) => [
-      `${index + 1}. ${request.action} ${request.stepId}`,
-      "Load instructions with:",
-      request.loadInstructionsCommand,
-    ]),
+    `Execute every host request in this JSON and wait until all requested actions finish: ${JSON.stringify(ctx.requests)}`,
     "Then run:",
     ctx.continueCommand,
     "Follow that stdout instruction exactly.",

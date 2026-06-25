@@ -58,7 +58,7 @@ Terminal statuses:
 
 Non-terminal host work:
 
-- `needs_host_actions`: complete every current host request described in stdout text through the host actions below, wait until each requested action has accepted output, then run the exact `continue` command embedded in the stdout instruction.
+- `needs_host_actions`: complete every current host request from the inline JSON request array in stdout text through the host actions below, wait until each requested action has accepted output, then run the exact `continue` command embedded in the stdout instruction.
 
 Call `workflow-runner continue` only by running the exact command embedded in the latest stdout instruction.
 
@@ -90,6 +90,6 @@ Workers use the validating `write-output` command from their loaded instructions
 
 If a worker needs user input before validated output, ask the user's focused question and forward the answer back into the same worker session. Do not create a replacement worker for that continuation, and do not let workers treat themselves as direct user-facing agents.
 
-For `wait_for_approval`, load the request instructions via the exact load-instructions command in stdout, read the requested question/options and required JSON shape, ask only for that input, normalize the answer to strict JSON, and run the exact validating `write-output` command from the loaded instructions. Treat accepted output as completion of that host request, then continue following the latest `next`/`continue` stdout instruction.
+For `wait_for_approval`, load the request instructions via the exact `loadInstructionsCommand` from the request JSON, read the requested question/options and required JSON shape, ask only for that input, normalize the answer to strict JSON, and run the exact validating `write-output` command from the loaded instructions. Treat accepted output as completion of that host request, then continue following the latest `next`/`continue` stdout instruction.
 
 Final answer only when stdout instruction explicitly says to stop and report `done` or `blocked`.
