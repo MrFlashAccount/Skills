@@ -44,7 +44,7 @@ export function responseStatusForInterpreterResponse(interpreterResponse) {
 }
 
 const ORCHESTRATOR_INSTRUCTIONS_BY_STATUS = Object.freeze({
-  needs_host_actions: 'Execute every current request in stdout.requests[]. For each request, wait for the action result, submit the accepted JSON through workflow-runner write-output, then parse that stdout. When every current request has accepted output, call workflow-runner continue exactly once; the continue stdout.orchestratorInstruction controls the next step. Do not stop or report completion while status is needs_host_actions.',
+  needs_host_actions: 'Execute every current request in stdout.requests[]. For each request, wait for the action result. When the loaded instructions tell you to write output, run the exact validating workflow-runner write-output CLI command from those instructions with strict JSON. Parse that command stdout and follow its orchestratorInstruction exactly. When every current request has accepted output, run workflow-runner continue exactly once, parse its stdout, and follow its orchestratorInstruction exactly. Do not stop or report completion while status is needs_host_actions.',
   done: 'Stop now. Do not call another runner command. Report the completed result from this stdout; status done is the terminal result.',
   blocked: 'Stop now. Do not call another runner command. Report the blocker from this stdout; status blocked is the terminal result.',
 });
