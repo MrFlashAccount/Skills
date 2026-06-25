@@ -27,3 +27,4 @@ skills/cover-letter-writer/private/*
 
 # Local workflow runtime state
 develop/.workflow-runs/
+skills/orbita/.workflow-runs/

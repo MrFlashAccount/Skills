@@ -3,9 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "make -C develop test",
-    "test:workflow-e2e": "make -C develop test-workflow-e2e",
-    "workflow:validate": "node develop/lib/entrypoints/cli/validate-workflow.mjs workflows/dev-harness/workflow.json workflows/research-critic/workflow.json",
+    "test": "make -C skills/orbita test",
+    "test:workflow-e2e": "make -C skills/orbita test-workflow-e2e",
+    "workflow:validate": "node skills/orbita/lib/entrypoints/cli/validate-workflow.mjs workflows/dev-harness/workflow.json workflows/research-critic/workflow.json",
     "validate": "npm run workflow-layout:check && npm run workflow-runtime-boundaries:check && npm run role-evidence:check && npm test && npm run workflow:validate && npm run agents:check && npm run schema-validation:check-vendor-ajv",
     "prepare": "git config core.hooksPath .githooks || true",
     "schema-validation:bundle-vendor-ajv": "node scripts/bundle-schema-validation-vendor-ajv.mjs",
