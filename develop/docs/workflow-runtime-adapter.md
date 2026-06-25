@@ -43,7 +43,7 @@ When host work is needed, the runner returns:
 ```json
 {
   "status": "needs_host_actions",
-  "orchestratorInstruction": "Execute every current host request and wait until all requested actions finish.\n1. run_worker step_id\nLoad instructions with:\nnode develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-id 'run_id' --step-id 'step_id' --lease-token <lease-token>\nThen run:\nnode develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-id 'run_id' --lease-token <lease-token> --only-instructions\nFollow that stdout instruction exactly.",
+  "orchestratorInstruction": "Execute every host request in this JSON and wait until all requested actions finish: [{\"id\":\"step_id\",\"stepId\":\"step_id\",\"action\":\"run_worker\",\"loadInstructionsCommand\":\"node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-id 'run_id' --step-id 'step_id' --lease-token <lease-token>\"}]\nThen run:\nnode develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-id 'run_id' --lease-token <lease-token> --only-instructions\nFollow that stdout instruction exactly.",
   "baton": {},
   "requests": [
     {
@@ -56,7 +56,7 @@ When host work is needed, the runner returns:
 }
 ```
 
-`orchestratorInstruction` is a machine-visible directive for the host/orchestrator. When `status` is `needs_host_actions`, the host must treat the response as non-terminal: finish every request listed in the instruction, run the embedded `continue --only-instructions` command, and follow the next directive returned by runner stdout. Only `done` and `blocked` are terminal.
+`orchestratorInstruction` is a machine-visible directive for the host/orchestrator. When `status` is `needs_host_actions`, the host must treat the response as non-terminal: finish every request in the inline JSON request array, run the embedded `continue --only-instructions` command, and follow the next directive returned by runner stdout. Only `done` and `blocked` are terminal.
 
 Runner stdout commands include the explicit lease token when the runner was called with one. If a runner-returned command still contains a `<lease-token>` placeholder, hosts must substitute the fresh explicit lease token before executing it; the runner does not read a token from environment variables.
 
