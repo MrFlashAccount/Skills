@@ -108,7 +108,6 @@ test('runner: API next render failure does not overwrite existing index lifecycl
 
   const index = await readRunsIndex(runsIndexPathsForRoot(paths.runsRoot));
   assert.equal(index.runs[runId].status, 'done');
-  assert.equal(existsSync(path.join(paths.runnerDir, 'last-response.json')), false);
 });
 
 

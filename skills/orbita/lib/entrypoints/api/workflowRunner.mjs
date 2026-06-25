@@ -1,22 +1,18 @@
 import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { isDeepStrictEqual } from 'node:util';
 import { applyWorkflowOutput } from '../../use-cases/ApplyWorkflowOutput.mjs';
 import { validateAgainstOutputSchema } from '../../use-cases/runtime/output/output-schema-validation.mjs';
 import { workerOutputSchema } from '../../use-cases/runtime/output/worker-output-schema.mjs';
 import { renderAppliedResponse } from '../../use-cases/ContinueRun.mjs';
 import { runNext } from '../../use-cases/RunNext.mjs';
-import { loadInstructions as loadInstructionsUseCase } from '../../use-cases/LoadInstructions.mjs';
 import { resolveStartupUserPrompt, startupUserPromptTarget } from '../../use-cases/user-prompt.mjs';
 import { loadWorkflowRuntime } from '../../persistence/workflow-resources/runtime-reader.mjs';
-import { read as readInstructionDTO } from '../../persistence/workflow-resources/instruction-file-reader.mjs';
 import { writePersistedRunStateUpdate } from '../../persistence/run-state/PersistedRunStateWriter.mjs';
-import { assertSafeStepId, instructionPathForStep, responseStatusForInterpreterResponse, toHostResponse, writeOutputCommandForStep } from './runner/host-requests.mjs';
+import { assertSafeStepId, toHostResponse, writeOutputCommandForStep } from './runner/host-requests.mjs';
 import { readText } from '../../persistence/run-state/atomic-file.mjs';
 import { assertFreshTokenAuthority, assertMatchingTokenAuthority, buildTokenLease, renewTokenLease } from '../../persistence/run-state/lease-authority.mjs';
 import { recoverDurableCommit } from '../../persistence/run-state/durable-commit.mjs';
 import { readPersistedRunState } from '../../persistence/run-state/PersistedRunStateReader.mjs';
-import { projectRuntimeRunState } from '../../persistence/run-state/persisted-state-schema.mjs';
 import { ensureRunFiles, pathExists, resolveRunPaths, workflowRunsRoot } from '../../persistence/run-state/paths.mjs';
 import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot, upsertRunIndexEntry } from '../../persistence/run-state/run-index.mjs';
 import { withRunStateLock } from '../../persistence/run-state/lock.mjs';
@@ -35,15 +31,6 @@ async function readJson(pathname, kind) {
   } catch (error) {
     throw new Error(`failed to parse ${kind} JSON: ${error.message}`);
   }
-}
-
-function stepInstructionsFor(paths, interpreterResponse) {
-  if (responseStatusForInterpreterResponse(interpreterResponse) !== 'needs_host_actions') return [];
-
-  return (interpreterResponse.steps ?? []).map((step) => {
-    if (!step.compiledPrompt?.prompt) throw new Error(`missing compiled instructions for workflow step '${step.id}'`);
-    return { path: instructionPathForStep(paths.instructionsDir, step.id), content: step.compiledPrompt.prompt };
-  });
 }
 
 async function runnerResponseForRendered(paths, rendered, { initialized, resumed, leaseToken, includeInlineInstructions = false }) {
@@ -90,7 +77,7 @@ async function renewedWorkerLeaseAuthority(paths, { leaseToken, now = new Date()
 async function initializeMissingRunLease(paths, { leaseToken, now = new Date() } = {}) {
   const index = await readRunsIndex(runsIndexPathsForRoot(paths.runsRoot));
   if (index.runs[paths.runId]) return false;
-  const hasExistingRunState = await pathExists(paths.batonPath) || await pathExists(paths.historyPath) || await pathExists(paths.lastResponsePath);
+  const hasExistingRunState = await pathExists(paths.batonPath) || await pathExists(paths.historyPath);
   if (hasExistingRunState) {
     throw new Error(`workflow run requires indexed lease authority: ${paths.runId}`);
   }
@@ -118,9 +105,7 @@ async function indexedWorkflowPathForRun(paths) {
 async function persistNextHostResponse(paths, rendered, runState, { leaseToken } = {}) {
   const persistedResponse = await runnerResponseForRendered(paths, rendered, runState);
   await writePersistedRunStateUpdate(paths, {
-    response: persistedResponse,
     baton: persistedResponse.baton,
-    instructions: stepInstructionsFor(paths, rendered),
     history: { source: 'workflow-runner', baton: persistedResponse.baton, requests: persistedResponse.requests },
     writeBaton: runState.initialized,
   });
@@ -152,6 +137,19 @@ function resourcesWithValidatingWriter(resources, paths, { leaseToken } = {}) {
   };
 }
 
+async function renderCurrentHostResponse(paths, baton, { leaseToken, includeDiagnostics = false, includeInlineInstructions = false } = {}) {
+  const runtime = loadWorkflowRuntime({ workflowPath: paths.workflowPath, batonPath: paths.batonPath, baton });
+  const renderResources = resourcesWithValidatingWriter(runtime.resources, paths, { leaseToken });
+  const rendered = runNext({ workflowDoc: runtime.workflow, batonDoc: runtime.baton, resources: renderResources, includeDiagnostics });
+  const response = await runnerResponseForRendered(paths, rendered, {
+    initialized: false,
+    resumed: true,
+    leaseToken,
+    includeInlineInstructions,
+  });
+  return { runtime, rendered, response };
+}
+
 async function nextInternal({ runId, workflowPath, includeDiagnostics = false, userPrompt, userPromptFile, taskKey, taskFingerprint, leaseToken, now = new Date(), runsRoot } = {}) {
   const lockPaths = resolveRunPaths({ runId, runsRoot });
   await assertPreLockWorkerLeaseAuthority(lockPaths, { leaseToken, now, allowUnclaimed: true });
@@ -173,10 +171,9 @@ async function nextInternal({ runId, workflowPath, includeDiagnostics = false, u
       const runState = await ensureRunFiles(paths, { userPrompt: startupUserPrompt, userPromptTarget: startupPromptTarget });
       await recoverDurableCommit(paths);
       const persisted = await readPersistedRunState(paths);
-      const runtimeState = projectRuntimeRunState(persisted);
-      const runtime = loadWorkflowRuntime({ workflowPath: paths.workflowPath, batonPath: paths.batonPath, baton: runtimeState.baton });
+      const runtime = loadWorkflowRuntime({ workflowPath: paths.workflowPath, batonPath: paths.batonPath, baton: persisted.baton });
       const renderResources = resourcesWithValidatingWriter(runtime.resources, paths, { leaseToken });
-      const rendered = runNext({ workflowDoc: runtime.workflow, batonDoc: runtimeState.baton, resources: renderResources, includeDiagnostics });
+      const rendered = runNext({ workflowDoc: runtime.workflow, batonDoc: persisted.baton, resources: renderResources, includeDiagnostics });
       const response = await persistNextHostResponse(paths, rendered, {
         initialized: runState.initialized,
         resumed: runState.resumed,
@@ -192,27 +189,6 @@ async function nextInternal({ runId, workflowPath, includeDiagnostics = false, u
 
 function requestAliases(request) {
   return [request.id, request.stepId].filter((value, index, values) => typeof value === 'string' && value.length > 0 && values.indexOf(value) === index);
-}
-
-function batonWithoutCurrentRequestAcceptedOutputs(baton, requests) {
-  const next = structuredClone(baton);
-  const outputs = next.state?.outputs;
-  if (!outputs || typeof outputs !== 'object' || Array.isArray(outputs)) return next;
-  for (const request of requests ?? []) {
-    for (const alias of requestAliases(request)) delete outputs[alias];
-  }
-  if (Object.keys(outputs).length === 0) delete next.state.outputs;
-  return next;
-}
-
-function assertLastResponseMatchesCurrentBaton(lastResponse, currentBaton) {
-  if (isDeepStrictEqual(lastResponse.baton, currentBaton)) return;
-  const requests = lastResponse.requests ?? [];
-  if (isDeepStrictEqual(
-    batonWithoutCurrentRequestAcceptedOutputs(lastResponse.baton, requests),
-    batonWithoutCurrentRequestAcceptedOutputs(currentBaton, requests),
-  )) return;
-  throw new Error('stale last runner response: persisted baton no longer matches last-response context; run workflow-runner next before continue');
 }
 
 function stepIdForRequest(request) {
@@ -284,12 +260,11 @@ function outputForAcceptedState(currentBaton, requests, { isPreparedParallelCont
 async function outputForCurrentState(paths) {
   await recoverDurableCommit(paths);
   const current = await readPersistedRunState(paths);
-  const lastResponse = current.lastResponse;
-  if (lastResponse?.status !== 'needs_host_actions') throw new Error(`last runner response is '${lastResponse?.status}', not needs_host_actions`);
-  assertLastResponseMatchesCurrentBaton(lastResponse, current.baton);
+  const { response } = await renderCurrentHostResponse(paths, current.baton);
+  if (response.status !== 'needs_host_actions') throw new Error(`current runner response is '${response.status}', not needs_host_actions`);
 
-  const requests = lastResponse.requests ?? [];
-  const isPreparedParallelContinuation = requests.some((request) => stepIdForRequest(request) !== lastResponse.baton?.cursor);
+  const requests = response.requests ?? [];
+  const isPreparedParallelContinuation = requests.some((request) => stepIdForRequest(request) !== current.baton?.cursor);
   return outputForAcceptedState(current.baton, requests, { isPreparedParallelContinuation });
 }
 
@@ -330,14 +305,11 @@ async function continueRunInternal({ runId, workflowPath, output, includeDiagnos
     const renderResources = resourcesWithValidatingWriter(runtime.resources, paths, { leaseToken });
     const rendered = renderAppliedResponse({ workflowDoc: runtime.workflow, response: applied, resources: renderResources, includeDiagnostics });
 
-    const persistedResponse = await runnerResponseForRendered(paths, rendered, { initialized: false, resumed: true });
     const response = await runnerResponseForRendered(paths, rendered, { initialized: false, resumed: true, leaseToken, includeInlineInstructions: true });
     const workerLease = await renewedWorkerLeaseAuthority(paths, { leaseToken, now });
     await writePersistedRunStateUpdate(paths, {
-      response: persistedResponse,
       baton: applied.baton,
-      instructions: stepInstructionsFor(paths, rendered),
-      history: { source: 'workflow-runner-continue', baton: applied.baton, output: historyOutput, requests: persistedResponse.requests },
+      history: { source: 'workflow-runner-continue', baton: applied.baton, output: historyOutput, requests: response.requests },
     });
     await upsertRunIndexEntry(paths, { status: response.status, workflowPath: paths.workflowPath, workerLease });
     return response;
@@ -356,8 +328,8 @@ function parseOutputJson(json) {
   }
 }
 
-function currentRequestForStep(lastResponse, requestedStepId) {
-  const requests = lastResponse.requests ?? [];
+function currentRequestForStep(response, requestedStepId) {
+  const requests = response.requests ?? [];
   return requests.find((request) => requestAliases(request).includes(requestedStepId));
 }
 
@@ -401,19 +373,17 @@ async function writeOutputInternal({ runId, workflowPath, stepId, json, leaseTok
     await ensureRunFiles(paths);
     await recoverDurableCommit(paths);
     const current = await readPersistedRunState(paths);
-    const lastResponse = current.lastResponse;
-    if (lastResponse?.status !== 'needs_host_actions') throw new Error(`last runner response is '${lastResponse?.status}', not needs_host_actions`);
-    assertLastResponseMatchesCurrentBaton(lastResponse, current.baton);
-    const request = currentRequestForStep(lastResponse, stepId);
+    const { runtime, response } = await renderCurrentHostResponse(paths, current.baton, { leaseToken });
+    if (response.status !== 'needs_host_actions') throw new Error(`current runner response is '${response.status}', not needs_host_actions`);
+    const request = currentRequestForStep(response, stepId);
     if (!request) throw new Error(`unknown current workflow step id: ${stepId}`);
-    const runtime = loadWorkflowRuntime({ workflowPath: paths.workflowPath, batonPath: paths.batonPath, baton: current.baton });
     const validationResources = resourcesWithValidatingWriter(runtime.resources, paths, { leaseToken });
     const accepted = validateAcceptedOutputForRequest({ workflow: runtime.workflow, resources: validationResources, request, output });
     const acceptedStepId = stepIdForRequest(request);
     const baton = batonWithAcceptedOutput(current.baton, acceptedStepId, accepted);
     await writePersistedRunStateUpdate(paths, {
       baton,
-      history: { source: 'workflow-runner-write-output', baton, output: `accepted:${acceptedStepId}`, requests: lastResponse.requests ?? [] },
+      history: { source: 'workflow-runner-write-output', baton, output: `accepted:${acceptedStepId}`, requests: response.requests ?? [] },
     });
     return {
       ok: true,
@@ -433,26 +403,20 @@ async function loadInstructionsInternal({ runId, workflowPath, stepId, leaseToke
   const lockPaths = resolveRunPaths({ runId, runsRoot });
   await assertPreLockWorkerLeaseAuthority(lockPaths, { leaseToken, now });
   return withRunStateLock(lockPaths, async () => {
-    const paths = resolveRunPaths({ runId, runsRoot });
+    const paths = await resolveIndexedRunPaths({ runId, workflowPath, runsRoot });
     await assertWorkerLeaseAuthority(paths, { leaseToken, now });
     await recoverDurableCommit(paths);
     const current = await readPersistedRunState(paths);
-    const lastResponse = current.lastResponse;
-    if (lastResponse?.status !== 'needs_host_actions') throw new Error(`unknown current workflow step id: ${stepId}`);
-    const runtimePaths = await resolveIndexedRunPaths({ runId, workflowPath, runsRoot });
-    assertLastResponseMatchesCurrentBaton(lastResponse, current.baton);
-    const runtime = loadWorkflowRuntime({ workflowPath: runtimePaths.workflowPath, batonPath: paths.batonPath, baton: current.baton });
-    const instructionPath = instructionPathForStep(paths.instructionsDir, stepId);
-    loadInstructionsUseCase({
-      workflowDTO: runtime.workflow,
-      runStateDTO: { baton: runtime.baton, requests: lastResponse.requests ?? [], responseStatus: lastResponse.status },
-      instructionDTO: { path: instructionPath, content: '' },
-      resources: runtime.resources,
-      stepId,
-    });
-
-    const instruction = await readInstructionDTO(instructionPath, `instructions for workflow step ${stepId}`);
-    return instruction.toJSON().content;
+    const { rendered, response } = await renderCurrentHostResponse(paths, current.baton, { leaseToken });
+    if (response.status !== 'needs_host_actions') throw new Error(`unknown current workflow step id: ${stepId}`);
+    const request = currentRequestForStep(response, stepId);
+    if (!request) throw new Error(`unknown current workflow step id: ${stepId}`);
+    const renderedStep = (rendered.steps ?? []).find((step) => step.id === stepIdForRequest(request));
+    const prompt = renderedStep?.compiledPrompt?.prompt;
+    if (typeof prompt !== 'string' || prompt.trim().length === 0) {
+      throw new Error(`missing compiled instructions for workflow step '${stepIdForRequest(request)}'`);
+    }
+    return prompt;
   });
 }
 

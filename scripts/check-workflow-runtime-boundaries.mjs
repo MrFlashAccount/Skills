@@ -178,8 +178,6 @@ function checkBoundaries() {
     'skills/orbita/lib/entities/Baton/schema/baton-schema.mjs',
     'skills/orbita/lib/use-cases/runtime/output/schema/worker-output.json',
     'skills/orbita/lib/use-cases/runtime/output/schema/workflow-interpreter-response.json',
-    'skills/orbita/lib/persistence/run-state/schema/runner-host-response.json',
-    'skills/orbita/lib/persistence/run-state/schema/runner-host-response-schema.mjs',
     'skills/orbita/lib/entrypoints/cli/schema/workflow-interpreter-args.json',
   ].forEach(assertExists);
 
@@ -200,11 +198,10 @@ function checkBoundaries() {
 
   const apiRunner = readFileSync(abs('skills/orbita/lib/entrypoints/api/workflowRunner.mjs'), 'utf8');
   assertContains(apiRunner, /readPersistedRunState\(paths\)/, 'API runner must read persisted run-state before rendering');
-  assertContains(apiRunner, /projectRuntimeRunState\(persisted\)/, 'API runner must project persisted run-state before rendering');
-  assertContains(apiRunner, /assertLastResponseMatchesCurrentBaton\(lastResponse, current\.baton\)/, 'API runner must reject stale last-response baton before continue');
-  assertContains(apiRunner, /lastResponse\.requests \?\? \[\]/, 'API runner must validate current lastResponse.requests when loading instructions');
-  assertContains(apiRunner, /assertNamedOutputRefsMatchRequests\(parsedOutputRefs, requests\)/, 'API runner must validate host outputs against lastResponse.requests before continue');
-  assertContains(apiRunner, /readInstructionDTO\(instructionPath, `instructions for workflow step \$\{stepId\}`\)/, 'API runner must read/validate committed instruction files before serving instructions');
+  assertContains(apiRunner, /renderCurrentHostResponse\(paths, current\.baton/, 'API runner must derive current host response from persisted baton');
+  assertContains(apiRunner, /response\.requests \?\? \[\]/, 'API runner must validate current rendered response.requests');
+  assertContains(apiRunner, /assertNamedOutputRefsMatchRequests\(parsedOutputRefs, requests\)/, 'API runner must validate host outputs against current rendered requests before continue');
+  assertContains(apiRunner, /currentRequestForStep\(response, stepId\)/, 'API runner must validate instruction and output step ids against current rendered requests');
   assertContains(apiRunner, /missing compiled instructions for workflow step/, 'API runner must fail when compiled instructions are missing');
 }
 

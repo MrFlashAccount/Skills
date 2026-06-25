@@ -178,9 +178,9 @@ function expectRunner(args, label) {
   return JSON.parse(result.stdout);
 }
 
-function currentRequestIds(runDir) {
-  const lastResponse = JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8'));
-  return (lastResponse.requests ?? []).map((request) => request.stepId ?? request.id);
+function currentRequestIds(runId, workflowPath) {
+  const response = expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'derive current requests');
+  return (response.requests ?? []).map((request) => request.stepId ?? request.id);
 }
 
 function parseOutputRef(ref) {
@@ -189,14 +189,14 @@ function parseOutputRef(ref) {
 }
 
 function writeOutputFile({ runId, runDir, workflowPath, stepId, filePath, label = 'write output' }) {
-  const targetStepId = stepId ?? currentRequestIds(runDir)[0];
+  const targetStepId = stepId ?? currentRequestIds(runId, workflowPath)[0];
   const result = runRunner(['write-output', '--run-id', runId, '--workflow', workflowPath, '--step-id', targetStepId], { input: readFileSync(filePath, 'utf8') });
   assert.equal(result.status, 0, `${label} failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
   return JSON.parse(result.stdout);
 }
 
 function continueWithOutputs({ runId, runDir, workflowPath, refs, label = 'continue' }) {
-  const pendingIds = currentRequestIds(runDir);
+  const pendingIds = currentRequestIds(runId, workflowPath);
   for (const ref of Array.isArray(refs) ? refs : [refs]) {
     const { stepId, filePath } = parseOutputRef(ref);
     const targetStepId = stepId ?? (pendingIds.length === 1 ? pendingIds[0] : undefined);
@@ -310,9 +310,9 @@ test('runner: wait_for_approval request accepts request-specific host output JSO
   assert.deepEqual(response.baton.state.choose_path, { choice: 'option_a', answer: 'Ship the smaller fix first.' });
 });
 
-test('runner: single approval request with opaque id still applies output by stepId', () => {
-  const { runId, runDir } = runCase('approval-opaque-request-id');
-  const workflowPath = path.join(tempDir, 'approval-opaque-request-id-workflow.json');
+test('runner: single approval request applies output by current stepId', () => {
+  const { runId, runDir } = runCase('approval-step-id-output');
+  const workflowPath = path.join(tempDir, 'approval-step-id-output-workflow.json');
   const approvalWorkflow = structuredClone(workflowDoc);
   approvalWorkflow.start = 'choose_path';
   approvalWorkflow.steps = {
@@ -333,18 +333,14 @@ test('runner: single approval request with opaque id still applies output by ste
   const next = expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next opaque approval');
   assert.equal(next.status, 'needs_host_actions');
   assert.equal(next.requests[0].stepId, 'choose_path');
-  const lastResponsePath = path.join(runDir, '.workflow-runner', 'last-response.json');
-  const lastResponse = JSON.parse(readFileSync(lastResponsePath, 'utf8'));
-  lastResponse.requests[0].id = 'user-input-1';
-  writeJson(lastResponsePath, lastResponse);
 
   const outputPath = path.join(runDir, 'choose-path-answer.json');
-  writeJson(outputPath, { choice: 'option_a', answer: 'Opaque id should not imply parallel.' });
-  const response = continueWithOutputs({ runId, runDir, workflowPath, refs: `user-input-1=${outputPath}`, label: 'continue opaque approval' });
+  writeJson(outputPath, { choice: 'option_a', answer: 'Step id should not imply parallel.' });
+  const response = continueWithOutputs({ runId, runDir, workflowPath, refs: `choose_path=${outputPath}`, label: 'continue approval step id' });
 
   assert.equal(response.status, 'done');
   assert.equal(response.baton.cursor, 'done');
-  assert.deepEqual(response.baton.state.choose_path, { choice: 'option_a', answer: 'Opaque id should not imply parallel.' });
+  assert.deepEqual(response.baton.state.choose_path, { choice: 'option_a', answer: 'Step id should not imply parallel.' });
 });
 
 test('runner: approval request exposes optional output schema reference', () => {
@@ -417,7 +413,7 @@ test('runner: typed approval retry preserves validation feedback in instructions
 
   assert.notEqual(rejected.status, 0);
   assert.match(rejected.stderr, /output schema validation failed for step 'choose_path'/);
-  const response = JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8'));
+  const response = expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'derive approval output schema retry request');
   assert.equal(response.status, 'needs_host_actions');
   assert.equal(response.requests[0].action, 'wait_for_approval');
   assert.equal(response.requests[0].outputSchema, path.basename(schemaPath));
@@ -649,8 +645,7 @@ test('runner: startup prompt target removal before first output fails loudly ins
   writeJson(workflowPath, approvalWorkflow);
   const approvalOutput = path.join(runDir, 'choose-path-output-removed.json');
   writeJson(approvalOutput, { approval: 'approved' });
-  writeOutputFile({ runId, runDir, workflowPath, stepId: 'choose_path', filePath: approvalOutput, label: 'write approval before target removal' });
-  const result = runRunner(['continue', '--run-id', runId, '--workflow', workflowPath]);
+  const result = runRunner(['write-output', '--run-id', runId, '--workflow', workflowPath, '--step-id', 'choose_path'], { input: readFileSync(approvalOutput, 'utf8') });
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /startup user prompt target 'branch_a' is no longer defined|startup user prompt target 'branch_a' is not renderable/);
@@ -789,4 +784,3 @@ test('runner: continue collects parallel outputs and advances to join request', 
   const baton = JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8'));
   assert.equal(baton.cursor, 'join');
 });
-

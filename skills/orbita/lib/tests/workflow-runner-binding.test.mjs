@@ -76,7 +76,7 @@ test('runner binding: lease write surfaces cannot rebind an existing runId', asy
   );
 });
 
-test('runner binding: runId alone resumes the indexed workflow without legacy last-response path fallback', async () => {
+test('runner binding: runId alone resumes the indexed workflow without path fallback', async () => {
   const runId = `binding-${process.pid}-runid-only`;
   const firstWorkflow = workflowPath('runid-only-first', 'first');
   const registered = await registerWorkflowRun({ runId, workflowPath: firstWorkflow, claim: true });

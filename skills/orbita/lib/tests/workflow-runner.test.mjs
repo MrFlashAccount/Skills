@@ -194,9 +194,9 @@ function workerOutput(summary) {
   return { outcome: 'ready', results: [{ type: 'check', summary }] };
 }
 
-function currentRequestIds(runDir) {
-  const lastResponse = JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8'));
-  return (lastResponse.requests ?? []).map((request) => request.stepId ?? request.id);
+function currentRequestIds(runId, workflowPath) {
+  const response = expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'derive current requests');
+  return (response.requests ?? []).map((request) => request.stepId ?? request.id);
 }
 
 function parseOutputRef(ref) {
@@ -206,7 +206,7 @@ function parseOutputRef(ref) {
 }
 
 function writeOutputFile({ runId, runDir, workflowPath, stepId, filePath, label = 'write output' }) {
-  const targetStepId = stepId ?? currentRequestIds(runDir)[0];
+  const targetStepId = stepId ?? currentRequestIds(runId, workflowPath)[0];
   const result = runRunner(['write-output', '--run-id', runId, '--workflow', workflowPath, '--step-id', targetStepId], { input: readFileSync(filePath, 'utf8') });
   assert.equal(result.status, 0, `${label} failed
 stdout:
@@ -218,7 +218,7 @@ ${result.stderr}`);
 
 function continueWithOutputs({ runId, runDir, workflowPath, refs, label = 'continue' }) {
   const normalized = Array.isArray(refs) ? refs : [refs];
-  const pendingIds = currentRequestIds(runDir);
+  const pendingIds = currentRequestIds(runId, workflowPath);
   for (const ref of normalized) {
     const { stepId, filePath } = parseOutputRef(ref);
     const targetStepId = stepId ?? (pendingIds.length === 1 ? pendingIds[0] : undefined);
@@ -260,15 +260,6 @@ test('runner: next returns a single host action request with load command only',
   assert.equal(response.requests[0].loadInstructionsCommand, `node ./lib/entrypoints/cli/workflow-runner.mjs instructions --run-id '${runId}' --step-id 'prepare' --lease-token '${leaseToken}'`);
   assert.equal(Object.hasOwn(response.requests[0], 'outputPath'), false);
 
-  const lastResponse = JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8'));
-  assert.deepEqual(requestsFromOrchestratorInstruction(lastResponse.orchestratorInstruction), lastResponse.requests);
-  assert.match(lastResponse.orchestratorInstruction, /--lease-token <lease-token>/);
-  assert.match(lastResponse.orchestratorInstruction, /--only-instructions/);
-  assert.equal(lastResponse.requests[0].loadInstructionsCommand, `node ./lib/entrypoints/cli/workflow-runner.mjs instructions --run-id '${runId}' --step-id 'prepare' --lease-token <lease-token>`);
-  assert.equal(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8').includes(leaseToken), false);
-  assert.equal(Object.hasOwn(lastResponse.requests[0], 'instructionRef'), false);
-  assert.equal(Object.hasOwn(lastResponse.requests[0], 'outputPath'), false);
-
   const loaded = runRunner(['instructions', '--run-id', runId, '--step-id', 'prepare']);
   assert.equal(loaded.status, 0, loaded.stderr);
   assert.match(loaded.stdout, /# Prepare/);
@@ -293,9 +284,6 @@ test('runner: --only-instructions prints only orchestrator instruction text', ()
   assert.match(result.stdout, /workflow-runner\.mjs instructions --run-id/);
   assert.match(result.stdout, /workflow-runner\.mjs continue --run-id/);
   assert.match(result.stdout, /--only-instructions/);
-  const lastResponse = JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8'));
-  assert.equal(lastResponse.status, 'needs_host_actions');
-  assert.deepEqual(lastResponse.requests.map((request) => request.stepId), ['prepare']);
 });
 
 test('runner: approval host instruction inlines compiled approval prompt with projected artifact content', () => {
@@ -363,11 +351,6 @@ test('runner: approval host instruction inlines compiled approval prompt with pr
   assert.match(response.orchestratorInstruction, /Present artifact `research-packet`/);
   assert.match(response.orchestratorInstruction, new RegExp(`--lease-token '${leaseToken}'`));
 
-  const lastResponse = JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8'));
-  assert.doesNotMatch(lastResponse.orchestratorInstruction, /Approval request: approve/);
-  assert.doesNotMatch(lastResponse.orchestratorInstruction, /Full packet body for approval\./);
-  assert.equal(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8').includes(leaseToken), false);
-  assert.match(lastResponse.orchestratorInstruction, /--lease-token <lease-token>/);
 });
 
 test('runner: continue rejects legacy --output path handoff', () => {
@@ -401,7 +384,7 @@ test('runner: next rejects existing unindexed legacy run state instead of mintin
   assert.doesNotMatch(result.stderr, /\.workflow-runs\/runs\.json/);
 });
 
-test('runner: resumed next validates persisted aggregate instruction refs before rendering', async () => {
+test('runner: resumed next recomputes instructions without persisted prompt files', async () => {
   const { runId, runDir } = runCase('next-validates-persisted-state');
   const workflowPath = path.join(tempDir, 'next-validates-persisted-state-workflow.json');
   const singleWorkflow = structuredClone(workflowDoc);
@@ -414,13 +397,10 @@ test('runner: resumed next validates persisted aggregate instruction refs before
   assert.equal(first.status, 'needs_host_actions');
 
   const instructionPath = path.join(runDir, '.workflow-runner', 'instructions', 'prepare.md');
-  assert.equal(existsSync(instructionPath), true);
-  rmSync(instructionPath);
-
-  await assert.rejects(
-    () => runnerNext({ runId, workflowPath, leaseToken }),
-    /missing committed instruction file/,
-  );
+  assert.equal(existsSync(instructionPath), false);
+  const second = await runnerNext({ runId, workflowPath, leaseToken });
+  assert.equal(second.status, 'needs_host_actions');
+  assert.deepEqual(second.requests.map((request) => request.stepId), ['prepare']);
   assert.equal(existsSync(instructionPath), false);
 });
 
@@ -454,7 +434,6 @@ test('runner: next rejects dynamic transition without output schema coverage bef
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /step 'prepare' next expression \$\{\{ output\.outcome \}\} has no schema-covered path/);
   assert.equal(existsSync(path.join(runDir, '.workflow-runner', 'instructions', 'prepare.md')), false);
-  assert.equal(existsSync(path.join(runDir, '.workflow-runner', 'last-response.json')), false);
 });
 
 test('runner: user prompt is stored, included only in initial worker instructions, and preserved on continue', () => {
