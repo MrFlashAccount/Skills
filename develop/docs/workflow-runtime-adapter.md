@@ -43,6 +43,7 @@ When host work is needed, the runner returns:
 ```json
 {
   "status": "needs_host_actions",
+  "orchestratorInstruction": "Execute every request in requests[], write each accepted result through workflow-runner write-output, then call workflow-runner continue exactly once. Do not stop or report completion while status is needs_host_actions.",
   "baton": {},
   "requests": [
     {
@@ -54,6 +55,8 @@ When host work is needed, the runner returns:
   ]
 }
 ```
+
+`orchestratorInstruction` is a machine-visible continuation directive for the host/orchestrator. When `status` is `needs_host_actions`, the host must treat the response as non-terminal: finish every request in the current batch, write accepted outputs, and call `workflow-runner continue` exactly once. Only `done` and `blocked` are terminal.
 
 Hosts must substitute the `<lease-token>` placeholder with the fresh explicit lease token before executing `loadInstructionsCommand`; the runner does not read a token from environment variables.
 
@@ -69,6 +72,8 @@ A CLI failure is an execution error and should be reported by the host adapter i
 ## Output capture
 
 The host wrapper writes each request result through `workflow-runner write-output`. The command validates strict JSON against the current request/step output schema and accepts the normalized value directly into baton/state. There is no output-path handoff from worker to orchestrator, and `workflow-runner continue` does not accept output paths.
+
+On success, `write-output` stdout includes `orchestratorInstruction`. The host must treat that field as the next CLI-loop directive: after every current request has accepted output, call `workflow-runner continue` exactly once, and do not report completion from `write-output` stdout alone.
 
 Typical worker output envelope:
 

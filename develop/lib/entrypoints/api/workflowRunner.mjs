@@ -22,6 +22,8 @@ import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot, upsertRunInd
 import { withRunStateLock } from '../../persistence/run-state/lock.mjs';
 import { publicErrorMessage } from '../cli/public-error.mjs';
 
+const WRITE_OUTPUT_ORCHESTRATOR_INSTRUCTION = 'Output accepted. After every current request has accepted output, call workflow-runner continue exactly once. Do not stop or report completion after write-output stdout.';
+
 async function readJson(pathname, kind) {
   let content;
   try {
@@ -412,7 +414,7 @@ async function writeOutputInternal({ runId, workflowPath, stepId, json, leaseTok
       baton,
       history: { source: 'workflow-runner-write-output', baton, output: `accepted:${acceptedStepId}`, requests: lastResponse.requests ?? [] },
     });
-    return { ok: true, runId: paths.runId, stepId: acceptedStepId, accepted: true };
+    return { ok: true, runId: paths.runId, stepId: acceptedStepId, accepted: true, orchestratorInstruction: WRITE_OUTPUT_ORCHESTRATOR_INSTRUCTION };
   });
 }
 

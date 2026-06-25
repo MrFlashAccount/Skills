@@ -228,6 +228,8 @@ test('runner: next returns a single host action request with load command only',
   const response = expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next single');
 
   assert.equal(response.status, 'needs_host_actions');
+  assert.match(response.orchestratorInstruction, /call workflow-runner continue exactly once/);
+  assert.match(response.orchestratorInstruction, /Do not stop or report completion while status is needs_host_actions/);
   assert.equal(response.baton.cursor, 'prepare');
   assert.deepEqual(response.requests.map((request) => request.id), ['prepare']);
   assert.equal(response.requests[0].action, 'run_worker');
@@ -238,6 +240,7 @@ test('runner: next returns a single host action request with load command only',
   assert.equal(Object.hasOwn(response.requests[0], 'outputPath'), false);
 
   const lastResponse = JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8'));
+  assert.equal(lastResponse.orchestratorInstruction, response.orchestratorInstruction);
   assert.equal(Object.hasOwn(lastResponse.requests[0], 'instructionRef'), false);
   assert.equal(Object.hasOwn(lastResponse.requests[0], 'outputPath'), false);
 
@@ -635,7 +638,17 @@ test('runner: write-output accepts valid stdin JSON into baton state and continu
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next before write-output');
   const written = runRunner(['write-output', '--run-id', runId, '--step-id', 'prepare'], { input: JSON.stringify(workerOutput('prepared')) });
   assert.equal(written.status, 0, written.stderr);
-  assert.deepEqual(JSON.parse(written.stdout), { ok: true, runId, stepId: 'prepare', accepted: true });
+  const writtenResponse = JSON.parse(written.stdout);
+  assert.deepEqual(
+    writtenResponse,
+    {
+      ok: true,
+      runId,
+      stepId: 'prepare',
+      accepted: true,
+      orchestratorInstruction: 'Output accepted. After every current request has accepted output, call workflow-runner continue exactly once. Do not stop or report completion after write-output stdout.',
+    },
+  );
   const batonAfterWrite = JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8'));
   assert.equal(batonAfterWrite.cursor, 'prepare');
   assert.equal(batonAfterWrite.state.outputs.prepare.outcome, 'ready');
