@@ -11,7 +11,7 @@ import { resolveStartupUserPrompt, startupUserPromptTarget } from '../../use-cas
 import { loadWorkflowRuntime } from '../../persistence/workflow-resources/runtime-reader.mjs';
 import { read as readInstructionDTO } from '../../persistence/workflow-resources/instruction-file-reader.mjs';
 import { writePersistedRunStateUpdate } from '../../persistence/run-state/PersistedRunStateWriter.mjs';
-import { assertSafeStepId, continueInstructionCommandForRun, instructionPathForStep, responseStatusForInterpreterResponse, toHostResponse, writeOutputCommandForStep } from './runner/host-requests.mjs';
+import { assertSafeStepId, instructionPathForStep, responseStatusForInterpreterResponse, toHostResponse, writeOutputCommandForStep } from './runner/host-requests.mjs';
 import { readText } from '../../persistence/run-state/atomic-file.mjs';
 import { assertFreshTokenAuthority, assertMatchingTokenAuthority, buildTokenLease, renewTokenLease } from '../../persistence/run-state/lease-authority.mjs';
 import { recoverDurableCommit } from '../../persistence/run-state/durable-commit.mjs';
@@ -21,17 +21,6 @@ import { ensureRunFiles, pathExists, resolveRunPaths, workflowRunsRoot } from '.
 import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot, upsertRunIndexEntry } from '../../persistence/run-state/run-index.mjs';
 import { withRunStateLock } from '../../persistence/run-state/lock.mjs';
 import { publicErrorMessage } from '../cli/public-error.mjs';
-
-function writeOutputOrchestratorInstruction(continueCommand) {
-  return [
-    'Output accepted.',
-    'If any current request is still missing accepted output, execute that request next.',
-    'When every current request has accepted output, run:',
-    continueCommand,
-    'Follow that stdout instruction exactly.',
-    'Do not report completion from write-output stdout.',
-  ].join('\n');
-}
 
 async function readJson(pathname, kind) {
   let content;
@@ -430,10 +419,6 @@ async function writeOutputInternal({ runId, workflowPath, stepId, json, leaseTok
       runId: paths.runId,
       stepId: acceptedStepId,
       accepted: true,
-      orchestratorInstruction: writeOutputOrchestratorInstruction(continueInstructionCommandForRun(paths.runId, {
-        runsRoot: paths.runsRoot === workflowRunsRoot ? undefined : paths.runsRoot,
-        leaseToken,
-      })),
     };
   });
 }

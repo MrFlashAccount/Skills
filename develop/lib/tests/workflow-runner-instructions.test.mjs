@@ -601,8 +601,9 @@ test('runner API propagates custom runsRoot through next, instructions, and cont
   assert.match(instructions, /Prepare branch\./);
 
   const writeOutput = await runnerWriteOutput({ runId, workflowPath, runsRoot, stepId: 'prepare', json: readFileSync(outputPath, 'utf8'), leaseToken });
-  assert.equal(writeOutput.orchestratorInstruction.includes(`--runs-root '${runsRoot}'`), true);
-  assert.equal(writeOutput.orchestratorInstruction.includes('--only-instructions'), true);
+  assert.equal(writeOutput.ok, true);
+  assert.equal(writeOutput.accepted, true);
+  assert.equal(Object.hasOwn(writeOutput, 'orchestratorInstruction'), false);
   const continued = await runnerContinueRun({ runId, runsRoot, leaseToken });
 
   assert.equal(continued.status, 'needs_host_actions');

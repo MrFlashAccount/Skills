@@ -675,9 +675,7 @@ test('runner: write-output accepts valid stdin JSON into baton state and continu
   assert.equal(writtenResponse.runId, runId);
   assert.equal(writtenResponse.stepId, 'prepare');
   assert.equal(writtenResponse.accepted, true);
-  assert.match(writtenResponse.orchestratorInstruction, /Output accepted/);
-  assert.match(writtenResponse.orchestratorInstruction, /When every current request has accepted output, run:\nnode develop\/lib\/entrypoints\/cli\/workflow-runner\.mjs continue --run-id 'workflow-runner-test-[^']+-write-output-stdin-valid' --lease-token '[^']+' --only-instructions/);
-  assert.match(writtenResponse.orchestratorInstruction, /Follow that stdout instruction exactly/);
+  assert.equal(Object.hasOwn(writtenResponse, 'orchestratorInstruction'), false);
   const batonAfterWrite = JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8'));
   assert.equal(batonAfterWrite.cursor, 'prepare');
   assert.equal(batonAfterWrite.state.outputs.prepare.outcome, 'ready');
@@ -704,7 +702,7 @@ test('runner: continue --only-instructions prints terminal instruction text', ()
   assert.match(continued.stdout, /status done is the terminal result/);
 });
 
-test('runner: write-output --only-instructions prints accepted-output instruction text', () => {
+test('runner: write-output rejects --only-instructions because it is not an orchestrator command', () => {
   const { runId, runDir } = runCase('write-output-only-instructions');
   const workflowPath = path.join(tempDir, 'write-output-only-instructions-workflow.json');
   const workflow = schemaCoveredWorkflow({ prepare: { next: 'done' } });
@@ -712,13 +710,10 @@ test('runner: write-output --only-instructions prints accepted-output instructio
 
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next before write-output only instructions');
   const written = runRunner(['write-output', '--run-id', runId, '--step-id', 'prepare', '--only-instructions'], { input: JSON.stringify(workerOutput('prepared')) });
-  assert.equal(written.status, 0, written.stderr);
-  assert.throws(() => JSON.parse(written.stdout));
-  assert.match(written.stdout, /Output accepted/);
-  assert.match(written.stdout, /workflow-runner\.mjs continue --run-id/);
-  assert.match(written.stdout, /--only-instructions/);
+  assert.notEqual(written.status, 0);
+  assert.match(written.stderr, /usage: node develop\/lib\/entrypoints\/cli\/workflow-runner\.mjs/);
   const batonAfterWrite = JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8'));
-  assert.equal(batonAfterWrite.state.outputs.prepare.outcome, 'ready');
+  assert.equal(batonAfterWrite.state.outputs, undefined);
 });
 
 test('runner: write-output rejects invalid JSON/schema without accepting output', () => {
@@ -751,7 +746,7 @@ test('runner: worker instructions include prefilled validating write-output comm
   assert.match(instructions.stdout, /workflow-runner\.mjs write-output --run-id/);
   assert.match(instructions.stdout, /--step-id 'prepare'/);
   assert.match(instructions.stdout, /--lease-token '[^']+'/);
-  assert.match(instructions.stdout, /--only-instructions/);
+  assert.doesNotMatch(instructions.stdout, /write-output[^\n]*--only-instructions/);
   assert.doesNotMatch(instructions.stdout, /--lease-token <lease-token>/);
   assert.match(instructions.stdout, /Do not create a separate JSON output file and do not pass an output path to the orchestrator/);
 });
