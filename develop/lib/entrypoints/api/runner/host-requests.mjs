@@ -43,13 +43,16 @@ export function responseStatusForInterpreterResponse(interpreterResponse) {
   return 'needs_host_actions';
 }
 
+const ORCHESTRATOR_INSTRUCTIONS_BY_STATUS = Object.freeze({
+  needs_host_actions: 'Execute every current request in stdout.requests[]. For each request, wait for the action result, submit the accepted JSON through workflow-runner write-output, then parse that stdout. When every current request has accepted output, call workflow-runner continue exactly once; the continue stdout.orchestratorInstruction controls the next step. Do not stop or report completion while status is needs_host_actions.',
+  done: 'Stop now. Do not call another runner command. Report the completed result from this stdout; status done is the terminal result.',
+  blocked: 'Stop now. Do not call another runner command. Report the blocker from this stdout; status blocked is the terminal result.',
+});
+
 function orchestratorInstructionForStatus(status) {
-  if (status === 'needs_host_actions') {
-    return 'Execute every request in requests[], write each accepted result through workflow-runner write-output, then call workflow-runner continue exactly once. Do not stop or report completion while status is needs_host_actions.';
-  }
-  if (status === 'done') return 'Stop the workflow loop and report the completed result.';
-  if (status === 'blocked') return 'Stop the workflow loop and report the blocker.';
-  throw new Error(`unknown workflow runner host response status: ${status}`);
+  const instruction = ORCHESTRATOR_INSTRUCTIONS_BY_STATUS[status];
+  if (!instruction) throw new Error(`unknown workflow runner host response status: ${status}`);
+  return instruction;
 }
 
 function resolvedOutputSchemaForStep(step, { workflow, workflowPath, repositoryRoot = process.cwd() }) {

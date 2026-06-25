@@ -228,7 +228,9 @@ test('runner: next returns a single host action request with load command only',
   const response = expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next single');
 
   assert.equal(response.status, 'needs_host_actions');
-  assert.match(response.orchestratorInstruction, /call workflow-runner continue exactly once/);
+  assert.match(response.orchestratorInstruction, /Execute every current request in stdout\.requests\[\]/);
+  assert.match(response.orchestratorInstruction, /submit the accepted JSON through workflow-runner write-output/);
+  assert.match(response.orchestratorInstruction, /the continue stdout\.orchestratorInstruction controls the next step/);
   assert.match(response.orchestratorInstruction, /Do not stop or report completion while status is needs_host_actions/);
   assert.equal(response.baton.cursor, 'prepare');
   assert.deepEqual(response.requests.map((request) => request.id), ['prepare']);
@@ -646,7 +648,7 @@ test('runner: write-output accepts valid stdin JSON into baton state and continu
       runId,
       stepId: 'prepare',
       accepted: true,
-      orchestratorInstruction: 'Output accepted. After every current request has accepted output, call workflow-runner continue exactly once. Do not stop or report completion after write-output stdout.',
+      orchestratorInstruction: 'Output accepted. Parse this write-output stdout and wait until every current request has accepted output. If any current request is still missing accepted output, complete it next. When all current requests are accepted, call workflow-runner continue exactly once; the continue stdout.orchestratorInstruction controls the next step. Do not stop or report completion after write-output stdout.',
     },
   );
   const batonAfterWrite = JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8'));

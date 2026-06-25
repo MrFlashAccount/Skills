@@ -22,7 +22,7 @@ import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot, upsertRunInd
 import { withRunStateLock } from '../../persistence/run-state/lock.mjs';
 import { publicErrorMessage } from '../cli/public-error.mjs';
 
-const WRITE_OUTPUT_ORCHESTRATOR_INSTRUCTION = 'Output accepted. After every current request has accepted output, call workflow-runner continue exactly once. Do not stop or report completion after write-output stdout.';
+const WRITE_OUTPUT_ORCHESTRATOR_INSTRUCTION = 'Output accepted. Parse this write-output stdout and wait until every current request has accepted output. If any current request is still missing accepted output, complete it next. When all current requests are accepted, call workflow-runner continue exactly once; the continue stdout.orchestratorInstruction controls the next step. Do not stop or report completion after write-output stdout.';
 
 async function readJson(pathname, kind) {
   let content;
