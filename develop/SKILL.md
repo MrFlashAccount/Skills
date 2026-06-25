@@ -7,7 +7,7 @@ description: Use for running a workflow from the repo root through workflow-runn
 
 ## Core contract
 
-The orchestrator does not own workflow control. It invokes the appropriate public `workflow-runner` CLI command, parses stdout JSON, and strictly follows the returned `stdout.orchestratorInstruction`.
+The orchestrator invokes the public `workflow-runner` CLI, parses stdout JSON, and follows `stdout.orchestratorInstruction`.
 
 The runner controls the agent by returning the next textual instruction or prompt. Treat that instruction as authoritative after every successful `workflow-runner next`, `workflow-runner write-output`, and `workflow-runner continue`.
 
