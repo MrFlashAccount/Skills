@@ -47,6 +47,10 @@ export function continueCommandForRun(runId, { runsRoot, leaseToken } = {}) {
   return `node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-id ${shellQuote(runId)}${runsRootArg} --lease-token ${token}`;
 }
 
+export function continueInstructionCommandForRun(runId, options = {}) {
+  return `${continueCommandForRun(runId, options)} --only-instructions`;
+}
+
 export function writeOutputCommandForStep(
   runId,
   stepId,
@@ -59,7 +63,7 @@ export function writeOutputCommandForStep(
       ? shellQuote(leaseToken)
       : "<lease-token>";
   return [
-    `node develop/lib/entrypoints/cli/workflow-runner.mjs write-output --run-id ${shellQuote(runId)} --step-id ${shellQuote(stepId)}${runsRootArg} --lease-token ${token} <<'JSON'`,
+    `node develop/lib/entrypoints/cli/workflow-runner.mjs write-output --run-id ${shellQuote(runId)} --step-id ${shellQuote(stepId)}${runsRootArg} --lease-token ${token} --only-instructions <<'JSON'`,
     "<paste strict JSON here>",
     "JSON",
   ].join("\n");
@@ -75,10 +79,15 @@ export function responseStatusForInterpreterResponse(interpreterResponse) {
 
 const TERMINAL_ORCHESTRATOR_INSTRUCTIONS_BY_STATUS = Object.freeze({
   needs_host_actions: (ctx) => [
-    "Execute every request in stdout.requests[] and wait until all requested actions finish.",
+    "Execute every current host request and wait until all requested actions finish.",
+    ...ctx.requests.flatMap((request, index) => [
+      `${index + 1}. ${request.action} ${request.stepId}`,
+      "Load instructions with:",
+      request.loadInstructionsCommand,
+    ]),
     "Then run:",
     ctx.continueCommand,
-    "Parse that stdout JSON and follow its orchestratorInstruction exactly.",
+    "Follow that stdout instruction exactly.",
   ].join("\n"),
   done: () =>
     "Stop now. Do not call another runner command. Report the completed result from this stdout; status done is the terminal result.",
@@ -147,10 +156,15 @@ export function buildHostRequests(
 
 export function toHostResponse(interpreterResponse, options) {
   const status = responseStatusForInterpreterResponse(interpreterResponse);
+  const requests =
+    status === "needs_host_actions"
+      ? buildHostRequests(interpreterResponse, options)
+      : [];
   const response = {
     status,
     orchestratorInstruction: orchestratorInstructionForStatus(status, {
-      continueCommand: continueCommandForRun(options.runId, {
+      requests,
+      continueCommand: continueInstructionCommandForRun(options.runId, {
         runsRoot: options.runsRoot,
         leaseToken: options.leaseToken,
       }),
@@ -158,6 +172,6 @@ export function toHostResponse(interpreterResponse, options) {
     baton: interpreterResponse.baton,
   };
   if (status === "needs_host_actions")
-    response.requests = buildHostRequests(interpreterResponse, options);
+    response.requests = requests;
   return response;
 }

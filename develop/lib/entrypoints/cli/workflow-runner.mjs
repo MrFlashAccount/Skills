@@ -11,7 +11,7 @@ function fail(message) {
 }
 
 function usage() {
-  return 'usage: node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-id <id> [--workflow <workflow.json>] [--runs-root <dir>] [--diagnostics] [--user-prompt <text> | --user-prompt-file <path>] [--lease-token <token> + diagnostics metadata] | continue --run-id <id> [--workflow <workflow.json>] [--runs-root <dir>] [--diagnostics] [--lease-token <token> + diagnostics metadata] | instructions --run-id <id> --step-id <id> [--workflow <workflow.json>] [--runs-root <dir>] [--lease-token <token> + diagnostics metadata] | write-output --run-id <id> --step-id <id> [--json <json>] [--workflow <workflow.json>] [--runs-root <dir>] [--lease-token <token> + diagnostics metadata]';
+  return 'usage: node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-id <id> [--workflow <workflow.json>] [--runs-root <dir>] [--diagnostics] [--only-instructions] [--user-prompt <text> | --user-prompt-file <path>] [--lease-token <token> + diagnostics metadata] | continue --run-id <id> [--workflow <workflow.json>] [--runs-root <dir>] [--diagnostics] [--only-instructions] [--lease-token <token> + diagnostics metadata] | instructions --run-id <id> --step-id <id> [--workflow <workflow.json>] [--runs-root <dir>] [--lease-token <token> + diagnostics metadata] | write-output --run-id <id> --step-id <id> [--json <json>] [--workflow <workflow.json>] [--runs-root <dir>] [--only-instructions] [--lease-token <token> + diagnostics metadata]';
 }
 
 async function readStdin() {
@@ -32,6 +32,7 @@ function parseCliArgs(argv) {
         workflow: { type: 'string' },
         'runs-root': { type: 'string' },
         diagnostics: { type: 'boolean', default: false },
+        'only-instructions': { type: 'boolean', default: false },
         json: { type: 'string' },
         'user-prompt': { type: 'string' },
         'user-prompt-file': { type: 'string' },
@@ -49,6 +50,7 @@ function parseCliArgs(argv) {
     if (!['instructions', 'write-output'].includes(mode) && parsed.values['step-id']) fail(usage());
     if (mode !== 'next' && (parsed.values['user-prompt'] !== undefined || parsed.values['user-prompt-file'] !== undefined)) fail(usage());
     if (mode === 'instructions' && parsed.values.diagnostics) fail(usage());
+    if (mode === 'instructions' && parsed.values['only-instructions']) fail(usage());
     if (mode !== 'write-output' && parsed.values.json !== undefined) fail(usage());
     if (mode === 'write-output' && parsed.values.diagnostics) fail(usage());
     return { mode, values: parsed.values };
@@ -65,6 +67,14 @@ function leaseArgs(values) {
     workerId: values['worker-id'],
     leaseToken: values['lease-token'],
   };
+}
+
+function writeHostResponse(response, { onlyInstructions }) {
+  if (onlyInstructions) {
+    process.stdout.write(`${response.orchestratorInstruction}\n`);
+    return;
+  }
+  console.log(JSON.stringify(response, null, 2));
 }
 
 try {
@@ -87,7 +97,7 @@ try {
       json: values.json ?? await readStdin(),
       ...leaseArgs(values),
     });
-    console.log(JSON.stringify(response, null, 2));
+    writeHostResponse(response, { onlyInstructions: values['only-instructions'] });
   } else {
     const command = mode === 'next' ? next : continueRun;
     const response = await command({
@@ -99,7 +109,7 @@ try {
       userPromptFile: values['user-prompt-file'],
       ...leaseArgs(values),
     });
-    console.log(JSON.stringify(response, null, 2));
+    writeHostResponse(response, { onlyInstructions: values['only-instructions'] });
   }
 } catch (error) {
   if (error instanceof WorkflowRuntimeError) fail(error.message);

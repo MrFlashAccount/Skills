@@ -7,7 +7,7 @@ description: Use for running a workflow from the repo root through workflow-runn
 
 ## Core contract
 
-The orchestrator invokes the public `workflow-runner` CLI, parses stdout JSON, and follows `stdout.orchestratorInstruction`.
+The orchestrator invokes public `workflow-runner` CLI commands with `--only-instructions` when the command supports it, then follows stdout text exactly.
 
 The runner controls the agent by returning the next textual instruction or prompt. Treat that instruction as authoritative after every successful `workflow-runner next`, `workflow-runner write-output`, and `workflow-runner continue`.
 
@@ -42,14 +42,14 @@ Extract and preserve the exact `runId` and exact `lease_token`. Never invent, sh
 Start by asking the runner for the first instruction:
 
 ```bash
-node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-id <run-id> --user-prompt '<clear dense user task prompt>' --lease-token "$lease_token"
+node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-id <run-id> --user-prompt '<clear dense user task prompt>' --lease-token "$lease_token" --only-instructions
 ```
 
-Parse stdout JSON and follow `stdout.orchestratorInstruction`.
+Follow stdout text exactly.
 
 ## Command-driven execution
 
-After each JSON-producing runner command (`next`, `write-output`, `continue`), parse stdout JSON before acting. `instructions` prints loaded instruction text, not a host-response JSON object. `stdout.orchestratorInstruction` is the control surface for JSON host responses; `status` is supporting state.
+After each runner command that uses `--only-instructions`, follow stdout text exactly. `instructions` prints loaded instruction text and does not accept `--only-instructions`.
 
 Terminal statuses:
 
@@ -58,15 +58,15 @@ Terminal statuses:
 
 Non-terminal host work:
 
-- `needs_host_actions`: complete every current `stdout.requests[]` item through the host actions below, wait until each requested action has accepted output, then run the exact `continue` command embedded in `stdout.orchestratorInstruction`.
+- `needs_host_actions`: complete every current host request described in stdout text through the host actions below, wait until each requested action has accepted output, then run the exact `continue` command embedded in the stdout instruction.
 
-Call `workflow-runner continue` only by running the exact command embedded in the latest `orchestratorInstruction`.
+Call `workflow-runner continue` only by running the exact command embedded in the latest stdout instruction.
 
 Do not call `next` as a substitute for applying accepted request results. Do not report an intermediate cursor, next instruction, pending request, accepted output, or `needs_host_actions` as final completion.
 
 ## Host actions
 
-A host action is work requested by the runner in `stdout.requests[]`. Complete every current request unless one is impossible; if any required request cannot be completed, stop as blocked.
+A host action is work requested by the runner in stdout instruction text. Complete every current request unless one is impossible; if any required request cannot be completed, stop as blocked.
 
 Known request actions:
 
@@ -90,6 +90,6 @@ Workers use the validating `write-output` command from their loaded instructions
 
 If a worker needs user input before validated output, ask the user's focused question and forward the answer back into the same worker session. Do not create a replacement worker for that continuation, and do not let workers treat themselves as direct user-facing agents.
 
-For `wait_for_approval`, load the request instructions via `request.loadInstructionsCommand`, read the requested question/options and required JSON shape, ask only for that input, normalize the answer to strict JSON, and run the exact validating `write-output` command from the loaded instructions. Then parse stdout JSON and follow its `orchestratorInstruction`.
+For `wait_for_approval`, load the request instructions via the exact load-instructions command in stdout, read the requested question/options and required JSON shape, ask only for that input, normalize the answer to strict JSON, and run the exact validating `write-output` command from the loaded instructions. Then follow that stdout instruction exactly.
 
-Final answer only when parsed stdout has terminal `status: done` or `status: blocked`, or when `orchestratorInstruction` explicitly says to stop.
+Final answer only when stdout instruction explicitly says to stop and report `done` or `blocked`.
