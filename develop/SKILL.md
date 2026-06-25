@@ -58,7 +58,7 @@ Terminal statuses:
 
 Non-terminal host work:
 
-- `needs_host_actions`: satisfy the current `stdout.requests[]` through the host actions below, submit accepted outputs through validating `workflow-runner write-output`, then follow the new stdout `orchestratorInstruction`.
+- `needs_host_actions`: satisfy the current `stdout.requests[]` through the host actions below, run the exact validating `workflow-runner write-output` command from the loaded instructions, parse that stdout, and follow its `orchestratorInstruction`.
 
 Call `workflow-runner continue` only when the latest `orchestratorInstruction` says the current accepted request results should be continued:
 
@@ -97,6 +97,6 @@ Workers use the validating `write-output` command from their loaded instructions
 
 If a worker needs user input before validated output, ask the user's focused question and forward the answer back into the same worker session. Do not create a replacement worker for that continuation, and do not let workers treat themselves as direct user-facing agents.
 
-For `wait_for_approval`, load the request instructions via `request.loadInstructionsCommand`, read the requested question/options and required JSON shape, ask only for that input, normalize the answer to strict JSON, and submit it through the validating `write-output` command from the loaded instructions. Then parse stdout JSON and follow its `orchestratorInstruction`.
+For `wait_for_approval`, load the request instructions via `request.loadInstructionsCommand`, read the requested question/options and required JSON shape, ask only for that input, normalize the answer to strict JSON, and run the exact validating `write-output` command from the loaded instructions. Then parse stdout JSON and follow its `orchestratorInstruction`.
 
 Final answer only when parsed stdout has terminal `status: done` or `status: blocked`, or when `orchestratorInstruction` explicitly says to stop.

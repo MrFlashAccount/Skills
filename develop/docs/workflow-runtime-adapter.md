@@ -43,7 +43,7 @@ When host work is needed, the runner returns:
 ```json
 {
   "status": "needs_host_actions",
-  "orchestratorInstruction": "Execute every current request in stdout.requests[]. For each request, wait for the action result, submit the accepted JSON through workflow-runner write-output, then parse that stdout. When every current request has accepted output, call workflow-runner continue exactly once; the continue stdout.orchestratorInstruction controls the next step. Do not stop or report completion while status is needs_host_actions.",
+  "orchestratorInstruction": "Execute every current request in stdout.requests[]. For each request, wait for the action result. When the loaded instructions tell you to write output, run the exact validating workflow-runner write-output CLI command from those instructions with strict JSON. Parse that command stdout and follow its orchestratorInstruction exactly. When every current request has accepted output, run workflow-runner continue exactly once, parse its stdout, and follow its orchestratorInstruction exactly. Do not stop or report completion while status is needs_host_actions.",
   "baton": {},
   "requests": [
     {
