@@ -30,6 +30,7 @@ function baton(overrides = {}) {
 function response(nextBaton = baton()) {
   return {
     status: 'needs_host_actions',
+    orchestratorInstruction: 'Execute persisted-state test request.',
     baton: nextBaton,
     requests: [
       {

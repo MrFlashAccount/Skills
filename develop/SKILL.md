@@ -49,7 +49,7 @@ Parse stdout JSON and follow `stdout.orchestratorInstruction`.
 
 ## Command-driven execution
 
-After each runner command, parse stdout JSON before acting. `stdout.orchestratorInstruction` is the control surface; `status` is supporting state.
+After each JSON-producing runner command (`next`, `write-output`, `continue`), parse stdout JSON before acting. `instructions` prints loaded instruction text, not a host-response JSON object. `stdout.orchestratorInstruction` is the control surface for JSON host responses; `status` is supporting state.
 
 Terminal statuses:
 
