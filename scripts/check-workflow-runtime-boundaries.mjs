@@ -82,11 +82,11 @@ function formatChain(parents, leaf) {
 
 function entityOwnerFor(file) {
   const relativePath = rel(file);
-  const match = relativePath.match(/^develop\/lib\/entities\/([^/]+)\//);
+  const match = relativePath.match(/^skills\/orbita\/lib\/entities\/([^/]+)\//);
   return match?.[1];
 }
 
-function assertNoCrossEntityImports(entries = walk(abs('develop/lib/entities')).filter((file) => /\.(?:mjs|js|json)$/.test(file))) {
+function assertNoCrossEntityImports(entries = walk(abs('skills/orbita/lib/entities')).filter((file) => /\.(?:mjs|js|json)$/.test(file))) {
   for (const file of entries.filter(existsSync)) {
     const owner = entityOwnerFor(file);
     if (!owner) continue;
@@ -101,104 +101,104 @@ function assertNoCrossEntityImports(entries = walk(abs('develop/lib/entities')).
 
 function checkBoundaries() {
   const sourceFiles = [
-    ...walk(abs('develop/lib')),
+    ...walk(abs('skills/orbita/lib')),
     ...walk(abs('workflows')),
     existsSync(abs('README.md')) ? abs('README.md') : undefined,
   ].filter(Boolean).filter((file) => /\.(mjs|js|json|md)$/.test(file));
 
   const forbiddenPaths = [
-    'develop/lib/entities/Workflow.mjs',
-    'develop/lib/entities/Step.mjs',
-    'develop/lib/entities/Template.mjs',
-    'develop/lib/entities/Baton.mjs',
-    'develop/lib/entities/Workflow/expression.mjs',
-    'develop/lib/entities/Workflow/role-ref.mjs',
-    'develop/lib/entities/Workflow/state-keys.mjs',
-    'develop/lib/entities/Workflow/status.mjs',
-    'develop/lib/entities/Workflow/transition-next.mjs',
-    'develop/lib/entities/Workflow/transition-targets.mjs',
-    'develop/lib/entities/Step/projection.mjs',
-    'develop/lib/entities/Step/expressions/parse.mjs',
-    'develop/lib/entities/Step/transition-targets.mjs',
-    'develop/lib/entities/errors.mjs',
-    'develop/lib/entities/workflow-helpers',
-    'develop/lib/entities/Workflow/schema',
-    'develop/lib/entities/template-compiler',
-    'develop/lib/entities/step-helpers',
-    'develop/lib/entities/transition-next.mjs',
-    'develop/lib/entities/workflow-semantic-validation-context.mjs',
-    'develop/lib/resource-helpers',
-    'develop/lib/persistence/runner',
-    'develop/lib/persistence/WorkflowRuntimeReader.mjs',
-    'develop/lib/persistence/WorkflowFileReader.mjs',
-    'develop/lib/persistence/resource-resolver.mjs',
-    'develop/lib/persistence/role-material-catalog.mjs',
-    'develop/lib/persistence/output-schema.mjs',
-    'develop/lib/persistence/output-schema-validation.mjs',
-    'develop/lib/persistence/json-io.mjs',
-    'develop/lib/persistence/path-utils.mjs',
-    'develop/lib/persistence/RunStateFileWriter.mjs',
-    'develop/lib/persistence/RunStateFileReader.mjs',
-    'develop/lib/persistence/InstructionFileReader.mjs',
-    'develop/lib/persistence/InstructionFileWriter.mjs',
-    'develop/lib/persistence/workflow-resources/instruction-file-writer.mjs',
-    'develop/lib/persistence/TemplateFileReader.mjs',
-    'develop/lib/use-cases/runtime/parallel/targets.mjs',
-    'develop/lib/dtos/index.mjs',
-    'develop/lib/dtos/RunStateDTO.mjs',
-    'develop/lib/schemas',
+    'skills/orbita/lib/entities/Workflow.mjs',
+    'skills/orbita/lib/entities/Step.mjs',
+    'skills/orbita/lib/entities/Template.mjs',
+    'skills/orbita/lib/entities/Baton.mjs',
+    'skills/orbita/lib/entities/Workflow/expression.mjs',
+    'skills/orbita/lib/entities/Workflow/role-ref.mjs',
+    'skills/orbita/lib/entities/Workflow/state-keys.mjs',
+    'skills/orbita/lib/entities/Workflow/status.mjs',
+    'skills/orbita/lib/entities/Workflow/transition-next.mjs',
+    'skills/orbita/lib/entities/Workflow/transition-targets.mjs',
+    'skills/orbita/lib/entities/Step/projection.mjs',
+    'skills/orbita/lib/entities/Step/expressions/parse.mjs',
+    'skills/orbita/lib/entities/Step/transition-targets.mjs',
+    'skills/orbita/lib/entities/errors.mjs',
+    'skills/orbita/lib/entities/workflow-helpers',
+    'skills/orbita/lib/entities/Workflow/schema',
+    'skills/orbita/lib/entities/template-compiler',
+    'skills/orbita/lib/entities/step-helpers',
+    'skills/orbita/lib/entities/transition-next.mjs',
+    'skills/orbita/lib/entities/workflow-semantic-validation-context.mjs',
+    'skills/orbita/lib/resource-helpers',
+    'skills/orbita/lib/persistence/runner',
+    'skills/orbita/lib/persistence/WorkflowRuntimeReader.mjs',
+    'skills/orbita/lib/persistence/WorkflowFileReader.mjs',
+    'skills/orbita/lib/persistence/resource-resolver.mjs',
+    'skills/orbita/lib/persistence/role-material-catalog.mjs',
+    'skills/orbita/lib/persistence/output-schema.mjs',
+    'skills/orbita/lib/persistence/output-schema-validation.mjs',
+    'skills/orbita/lib/persistence/json-io.mjs',
+    'skills/orbita/lib/persistence/path-utils.mjs',
+    'skills/orbita/lib/persistence/RunStateFileWriter.mjs',
+    'skills/orbita/lib/persistence/RunStateFileReader.mjs',
+    'skills/orbita/lib/persistence/InstructionFileReader.mjs',
+    'skills/orbita/lib/persistence/InstructionFileWriter.mjs',
+    'skills/orbita/lib/persistence/workflow-resources/instruction-file-writer.mjs',
+    'skills/orbita/lib/persistence/TemplateFileReader.mjs',
+    'skills/orbita/lib/use-cases/runtime/parallel/targets.mjs',
+    'skills/orbita/lib/dtos/index.mjs',
+    'skills/orbita/lib/dtos/RunStateDTO.mjs',
+    'skills/orbita/lib/schemas',
   ];
   forbiddenPaths.forEach(assertAbsent);
 
   [
-    'develop/lib/entities/Workflow/index.mjs',
-    'develop/lib/entities/Step/index.mjs',
-    'develop/lib/entities/Template/index.mjs',
-    'develop/lib/entities/Baton/index.mjs',
-    'develop/lib/runtime/baton-state.mjs',
-    'develop/lib/runtime/expression.mjs',
-    'develop/lib/runtime/role-ref.mjs',
-    'develop/lib/runtime/state-keys.mjs',
-    'develop/lib/runtime/state-projection.mjs',
-    'develop/lib/runtime/step-status.mjs',
-    'develop/lib/runtime/transition-next.mjs',
-    'develop/lib/runtime/transition-targets.mjs',
-    'develop/lib/persistence/workflow-resources/runtime-reader.mjs',
-    'develop/lib/persistence/workflow-resources/workflow-file-reader.mjs',
-    'develop/lib/persistence/workflow-resources/resource-resolver.mjs',
-    'develop/lib/persistence/workflow-resources/output-schema-loader.mjs',
-    'develop/lib/persistence/workflow-resources/role-material-catalog.mjs',
-    'develop/lib/persistence/filesystem/path-safety.mjs',
-    'develop/lib/entrypoints/api/runner/host-requests.mjs',
-    'develop/lib/use-cases/workflow-semantic-validation.mjs',
-    'develop/lib/use-cases/runtime/output/output-schema-validation.mjs',
-    'develop/lib/file-contracts/workflow-document.json',
-    'develop/lib/file-contracts/workflow-document-schema.mjs',
-    'develop/lib/entities/Baton/schema/baton.json',
-    'develop/lib/entities/Baton/schema/baton-schema.mjs',
-    'develop/lib/use-cases/runtime/output/schema/worker-output.json',
-    'develop/lib/use-cases/runtime/output/schema/workflow-interpreter-response.json',
-    'develop/lib/persistence/run-state/schema/runner-host-response.json',
-    'develop/lib/persistence/run-state/schema/runner-host-response-schema.mjs',
-    'develop/lib/entrypoints/cli/schema/workflow-interpreter-args.json',
+    'skills/orbita/lib/entities/Workflow/index.mjs',
+    'skills/orbita/lib/entities/Step/index.mjs',
+    'skills/orbita/lib/entities/Template/index.mjs',
+    'skills/orbita/lib/entities/Baton/index.mjs',
+    'skills/orbita/lib/runtime/baton-state.mjs',
+    'skills/orbita/lib/runtime/expression.mjs',
+    'skills/orbita/lib/runtime/role-ref.mjs',
+    'skills/orbita/lib/runtime/state-keys.mjs',
+    'skills/orbita/lib/runtime/state-projection.mjs',
+    'skills/orbita/lib/runtime/step-status.mjs',
+    'skills/orbita/lib/runtime/transition-next.mjs',
+    'skills/orbita/lib/runtime/transition-targets.mjs',
+    'skills/orbita/lib/persistence/workflow-resources/runtime-reader.mjs',
+    'skills/orbita/lib/persistence/workflow-resources/workflow-file-reader.mjs',
+    'skills/orbita/lib/persistence/workflow-resources/resource-resolver.mjs',
+    'skills/orbita/lib/persistence/workflow-resources/output-schema-loader.mjs',
+    'skills/orbita/lib/persistence/workflow-resources/role-material-catalog.mjs',
+    'skills/orbita/lib/persistence/filesystem/path-safety.mjs',
+    'skills/orbita/lib/entrypoints/api/runner/host-requests.mjs',
+    'skills/orbita/lib/use-cases/workflow-semantic-validation.mjs',
+    'skills/orbita/lib/use-cases/runtime/output/output-schema-validation.mjs',
+    'skills/orbita/lib/file-contracts/workflow-document.json',
+    'skills/orbita/lib/file-contracts/workflow-document-schema.mjs',
+    'skills/orbita/lib/entities/Baton/schema/baton.json',
+    'skills/orbita/lib/entities/Baton/schema/baton-schema.mjs',
+    'skills/orbita/lib/use-cases/runtime/output/schema/worker-output.json',
+    'skills/orbita/lib/use-cases/runtime/output/schema/workflow-interpreter-response.json',
+    'skills/orbita/lib/persistence/run-state/schema/runner-host-response.json',
+    'skills/orbita/lib/persistence/run-state/schema/runner-host-response-schema.mjs',
+    'skills/orbita/lib/entrypoints/cli/schema/workflow-interpreter-args.json',
   ].forEach(assertExists);
 
-  scan(sourceFiles, /entities\/(Workflow|Step|Template|Baton)\.mjs|entities\/errors\.mjs|entities\/Workflow\/schema|entities\/Workflow\/(expression|transition-next|transition-targets|state-keys|role-ref|status)\.mjs|entities\/(workflow-helpers|step-helpers|template-compiler)|entities\/Step\/(expressions\/parse|projection|transition-targets)\.mjs|resource-helpers|persistence\/(runner|WorkflowRuntimeReader|WorkflowFileReader|resource-resolver|role-material-catalog|json-io|path-utils|output-schema-validation|output-schema|RunStateFileWriter|RunStateFileReader|InstructionFileReader|InstructionFileWriter|TemplateFileReader)|persistence\/workflow-resources\/instruction-file-writer\.mjs|use-cases\/runtime\/parallel\/targets\.mjs|develop\/lib\/schemas|schemas\/output-schema-validation|dtos\/index\.mjs|RunStateDTO/, 'forbidden old workflow runtime surface reference');
+  scan(sourceFiles, /entities\/(Workflow|Step|Template|Baton)\.mjs|entities\/errors\.mjs|entities\/Workflow\/schema|entities\/Workflow\/(expression|transition-next|transition-targets|state-keys|role-ref|status)\.mjs|entities\/(workflow-helpers|step-helpers|template-compiler)|entities\/Step\/(expressions\/parse|projection|transition-targets)\.mjs|resource-helpers|persistence\/(runner|WorkflowRuntimeReader|WorkflowFileReader|resource-resolver|role-material-catalog|json-io|path-utils|output-schema-validation|output-schema|RunStateFileWriter|RunStateFileReader|InstructionFileReader|InstructionFileWriter|TemplateFileReader)|persistence\/workflow-resources\/instruction-file-writer\.mjs|use-cases\/runtime\/parallel\/targets\.mjs|skills\/orbita\/lib\/schemas|schemas\/output-schema-validation|dtos\/index\.mjs|RunStateDTO/, 'forbidden old workflow runtime surface reference');
   scan(sourceFiles, /applyOutputToBatonState[^\n]*entities\/Baton\/index\.mjs|entities\/Baton\/index\.mjs[^\n]*applyOutputToBatonState/, 'forbidden Baton helper import path');
 
-  scan(walk(abs('develop/docs')), /develop\/lib\/entities\/(Workflow|Baton|Step|Template)\.mjs|develop\/lib\/entities\/Workflow\/schema\//, 'develop docs cite stale workflow runtime layout reference');
+  scan(walk(abs('skills/orbita/docs')), /skills\/orbita\/lib\/entities\/(Workflow|Baton|Step|Template)\.mjs|skills\/orbita\/lib\/entities\/Workflow\/schema\//, 'develop docs cite stale workflow runtime layout reference');
 
-  scan(walk(abs('develop/lib/entities')), /from ['"].*persistence\//, 'entities must not import persistence');
-  scan(walk(abs('develop/lib/entities')), /from ['"].*entrypoints\//, 'entities must not import entrypoints');
-  scan(walk(abs('develop/lib/entities/Workflow')), /use-cases\/runtime\/output|entrypoints\/cli\/schema|persistence\/run-state\/schema|workflows\/dev-harness|dtos\//, 'Workflow owner imports forbidden external owner');
-  scan(walk(abs('develop/lib/entities')).filter((file) => !rel(file).startsWith('develop/lib/entities/Baton/')), /from ['"].*Baton\/schema\//, 'entities outside Baton owner must not import Baton schema owner');
+  scan(walk(abs('skills/orbita/lib/entities')), /from ['"].*persistence\//, 'entities must not import persistence');
+  scan(walk(abs('skills/orbita/lib/entities')), /from ['"].*entrypoints\//, 'entities must not import entrypoints');
+  scan(walk(abs('skills/orbita/lib/entities/Workflow')), /use-cases\/runtime\/output|entrypoints\/cli\/schema|persistence\/run-state\/schema|workflows\/dev-harness|dtos\//, 'Workflow owner imports forbidden external owner');
+  scan(walk(abs('skills/orbita/lib/entities')).filter((file) => !rel(file).startsWith('skills/orbita/lib/entities/Baton/')), /from ['"].*Baton\/schema\//, 'entities outside Baton owner must not import Baton schema owner');
   assertNoCrossEntityImports();
-  scan(walk(abs('develop/lib/persistence/run-state')), /from ['"].*dtos\//, 'run-state persistence must not import DTOs');
-  scan(walk(abs('develop/lib/persistence')), /from ['"].*use-cases\//, 'persistence must not import use-cases');
-  scan([...walk(abs('develop/lib/entities/Baton')), ...walk(abs('develop/lib/use-cases')), ...walk(abs('develop/lib/persistence')), ...walk(abs('develop/lib/entrypoints'))], /WorkflowSchemaError/, 'WorkflowSchemaError must stay file-contract-owned');
-  scan([abs('develop/lib/validate/workflow-validation.md'), ...walk(abs('develop/docs')), ...walk(abs('docs')), ...walk(abs('scripts')), ...walk(abs('workflows'))].filter(existsSync), /develop\/lib\/schemas\/workflow-schema\.mjs|develop\/lib\/entities\/Workflow\/schema\/|\.\.\/schemas\/workflow-schema\.mjs|from ['"].*\/schemas\/workflow-schema\.mjs/, 'docs/scripts must not cite old workflow schema owner');
+  scan(walk(abs('skills/orbita/lib/persistence/run-state')), /from ['"].*dtos\//, 'run-state persistence must not import DTOs');
+  scan(walk(abs('skills/orbita/lib/persistence')), /from ['"].*use-cases\//, 'persistence must not import use-cases');
+  scan([...walk(abs('skills/orbita/lib/entities/Baton')), ...walk(abs('skills/orbita/lib/use-cases')), ...walk(abs('skills/orbita/lib/persistence')), ...walk(abs('skills/orbita/lib/entrypoints'))], /WorkflowSchemaError/, 'WorkflowSchemaError must stay file-contract-owned');
+  scan([abs('skills/orbita/lib/validate/workflow-validation.md'), ...walk(abs('skills/orbita/docs')), ...walk(abs('docs')), ...walk(abs('scripts')), ...walk(abs('workflows'))].filter(existsSync), /skills\/orbita\/lib\/schemas\/workflow-schema\.mjs|skills\/orbita\/lib\/entities\/Workflow\/schema\/|\.\.\/schemas\/workflow-schema\.mjs|from ['"].*\/schemas\/workflow-schema\.mjs/, 'docs/scripts must not cite old workflow schema owner');
 
-  const apiRunner = readFileSync(abs('develop/lib/entrypoints/api/workflowRunner.mjs'), 'utf8');
+  const apiRunner = readFileSync(abs('skills/orbita/lib/entrypoints/api/workflowRunner.mjs'), 'utf8');
   assertContains(apiRunner, /readPersistedRunState\(paths\)/, 'API runner must read persisted run-state before rendering');
   assertContains(apiRunner, /projectRuntimeRunState\(persisted\)/, 'API runner must project persisted run-state before rendering');
   assertContains(apiRunner, /assertLastResponseMatchesCurrentBaton\(lastResponse, current\.baton\)/, 'API runner must reject stale last-response baton before continue');
@@ -220,21 +220,21 @@ function runNegativeBoundaryCheck(setup, teardown) {
   return failed;
 }
 
-const batonFixture = abs('develop/lib/entities/Workflow/__boundary-negative-fixture.mjs');
+const batonFixture = abs('skills/orbita/lib/entities/Workflow/__boundary-negative-fixture.mjs');
 const batonSelfTestFailed = runNegativeBoundaryCheck(
   () => writeFileSync(batonFixture, "import { batonSchema } from '../Baton/schema/baton-schema.mjs';\nvoid batonSchema;\n"),
   () => rmSync(batonFixture, { force: true }),
 );
 if (batonSelfTestFailed) fail('boundary negative self-test failed: forbidden Baton schema import was accepted');
 
-const stepToWorkflowFixture = abs('develop/lib/entities/Step/__cross-entity-negative-fixture.mjs');
+const stepToWorkflowFixture = abs('skills/orbita/lib/entities/Step/__cross-entity-negative-fixture.mjs');
 const stepToWorkflowSelfTestFailed = runNegativeBoundaryCheck(
   () => writeFileSync(stepToWorkflowFixture, "import '../Workflow/index.mjs';\n"),
   () => rmSync(stepToWorkflowFixture, { force: true }),
 );
 if (stepToWorkflowSelfTestFailed) fail('boundary negative self-test failed: Step owner Workflow import was accepted');
 
-const workflowToStepFixture = abs('develop/lib/entities/Workflow/__cross-entity-negative-fixture.mjs');
+const workflowToStepFixture = abs('skills/orbita/lib/entities/Workflow/__cross-entity-negative-fixture.mjs');
 const workflowToStepSelfTestFailed = runNegativeBoundaryCheck(
   () => writeFileSync(workflowToStepFixture, "import '../Step/index.mjs';\n"),
   () => rmSync(workflowToStepFixture, { force: true }),
