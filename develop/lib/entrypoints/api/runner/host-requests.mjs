@@ -25,6 +25,12 @@ export function loadInstructionsCommandForStep(runId, stepId, { runsRoot } = {})
   return `node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-id ${shellQuote(runId)} --step-id ${shellQuote(stepId)}${runsRootArg} --lease-token <lease-token>`;
 }
 
+export function continueCommandForRun(runId, { runsRoot, leaseToken } = {}) {
+  const runsRootArg = runsRoot ? ` --runs-root ${shellQuote(runsRoot)}` : '';
+  const token = typeof leaseToken === 'string' && leaseToken.length > 0 ? shellQuote(leaseToken) : '<lease-token>';
+  return `node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-id ${shellQuote(runId)}${runsRootArg} --lease-token ${token}`;
+}
+
 export function writeOutputCommandForStep(runId, stepId, { runsRoot, leaseToken } = {}) {
   assertSafeStepId(stepId);
   const runsRootArg = runsRoot ? ` --runs-root ${shellQuote(runsRoot)}` : '';
@@ -43,16 +49,23 @@ export function responseStatusForInterpreterResponse(interpreterResponse) {
   return 'needs_host_actions';
 }
 
-const ORCHESTRATOR_INSTRUCTIONS_BY_STATUS = Object.freeze({
-  needs_host_actions: 'Execute every current request in stdout.requests[]. For each request, wait for the action result. When the loaded instructions tell you to write output, run the exact validating workflow-runner write-output CLI command from those instructions with strict JSON. Parse that command stdout and follow its orchestratorInstruction exactly. When every current request has accepted output, run workflow-runner continue exactly once, parse its stdout, and follow its orchestratorInstruction exactly. Do not stop or report completion while status is needs_host_actions.',
+const TERMINAL_ORCHESTRATOR_INSTRUCTIONS_BY_STATUS = Object.freeze({
   done: 'Stop now. Do not call another runner command. Report the completed result from this stdout; status done is the terminal result.',
   blocked: 'Stop now. Do not call another runner command. Report the blocker from this stdout; status blocked is the terminal result.',
 });
 
-function orchestratorInstructionForStatus(status) {
-  const instruction = ORCHESTRATOR_INSTRUCTIONS_BY_STATUS[status];
-  if (!instruction) throw new Error(`unknown workflow runner host response status: ${status}`);
-  return instruction;
+function orchestratorInstructionForStatus(status, { continueCommand } = {}) {
+  if (status === 'needs_host_actions') {
+    return [
+      'Execute every request in stdout.requests[] and wait until all requested actions finish.',
+      'Then run:',
+      continueCommand,
+      'Parse that stdout JSON and follow its orchestratorInstruction exactly.',
+    ].join('\n');
+  }
+  const instruction = TERMINAL_ORCHESTRATOR_INSTRUCTIONS_BY_STATUS[status];
+  if (instruction) return instruction;
+  throw new Error(`unknown workflow runner host response status: ${status}`);
 }
 
 function resolvedOutputSchemaForStep(step, { workflow, workflowPath, repositoryRoot = process.cwd() }) {
@@ -91,7 +104,11 @@ export function toHostResponse(interpreterResponse, options) {
   const status = responseStatusForInterpreterResponse(interpreterResponse);
   const response = {
     status,
-    orchestratorInstruction: orchestratorInstructionForStatus(status),
+    orchestratorInstruction: orchestratorInstructionForStatus(status, {
+      continueCommand: continueCommandForRun(options.runId, {
+        runsRoot: options.runsRoot,
+      }),
+    }),
     baton: interpreterResponse.baton,
   };
   if (status === 'needs_host_actions') response.requests = buildHostRequests(interpreterResponse, options);
