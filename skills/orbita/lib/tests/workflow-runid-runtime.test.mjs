@@ -36,7 +36,6 @@ test('workflow runner derives private run directory from public runId and indexe
     const paths = resolveRunPaths({ runId: id, workflowPath, runsRoot: defaultRunsRoot });
     assert.equal(existsSync(path.join(paths.runDir, 'baton.json')), true);
     assert.equal(existsSync(path.join(paths.runDir, 'history.md')), true);
-    assert.equal(existsSync(path.join(paths.runDir, '.workflow-runner', 'last-response.json')), true);
 
     const index = JSON.parse(readFileSync(path.join(defaultRunsRoot, 'runs.json'), 'utf8'));
     assert.equal(index.runs[id].runId, id);

@@ -53,7 +53,6 @@ function snapshotRunState(paths) {
     runnerDirExists: existsSync(paths.runnerDir),
     continueLockExists: existsSync(paths.continueLockPath),
     instructionsDirExists: existsSync(paths.instructionsDir),
-    lastResponseExists: existsSync(paths.lastResponsePath),
     baton: readIfExists(paths.batonPath),
     history: readIfExists(paths.historyPath),
     indexEntry: indexContent === undefined ? undefined : JSON.parse(indexContent).runs[paths.runId],
@@ -209,7 +208,6 @@ test('runner fairness: private claim authority lets generated run-id-only comman
   assert.equal('workflow' in response, false);
   assert.equal(response.requests[0].loadInstructionsCommand, `node ./lib/entrypoints/cli/workflow-runner.mjs instructions --run-id '${runId}' --step-id 'prepare' --lease-token '${claim.leaseToken}'`);
   assert.doesNotMatch(JSON.stringify(response), new RegExp('alice|session-a|portable'));
-  assert.equal(readFileSync(resolveRunPaths({ runId }).lastResponsePath, 'utf8').includes(claim.leaseToken), false);
 });
 
 test('runner fairness: worker output cannot author or rotate lease authority', async () => {

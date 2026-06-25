@@ -77,9 +77,7 @@ test('persisted-state writer rejects invalid next state before durable commit si
   const paths = setupRunDir('invalid_next');
   await assert.rejects(
     () => writePersistedRunStateUpdate(paths, {
-      response: response({ cursor: 'prepare' }),
       baton: { cursor: 'prepare' },
-      instructions: [],
       history: { source: 'test', baton: { cursor: 'prepare' } },
     }),
     /next persisted run state|baton failed schema validation/,
@@ -91,44 +89,13 @@ test('persisted-state writer rejects invalid next state before durable commit si
 
 
 
-test('persisted-state reader exposes committed instruction refs after journal removal', async () => {
-  const paths = setupRunDir('committed_instruction_refs');
-  await writePersistedRunStateUpdate(paths, {
-    response: response(baton({ cursor: 'prepare', status: 'running' })),
-    baton: baton({ cursor: 'prepare', status: 'running' }),
-    instructions: [{ path: path.join(paths.instructionsDir, 'prepare.md'), content: '# Prepare instructions' }],
-    history: { source: 'test', baton: baton({ cursor: 'prepare', status: 'running' }) },
-  });
-
-  assert.equal(existsSync(paths.durableCommitPath), false);
-  const persisted = await readPersistedRunState(paths);
-  assert.equal(persisted.instructions.length, 1);
-  assert.equal(persisted.instructions[0].stepId, 'prepare');
-  assert.match(persisted.instructions[0].content, /Prepare instructions/);
-});
-
-test('persisted-state reader rejects missing committed instruction file', async () => {
-  const paths = setupRunDir('missing_committed_instruction');
-  await writePersistedRunStateUpdate(paths, {
-    response: response(baton({ cursor: 'prepare', status: 'running' })),
-    baton: baton({ cursor: 'prepare', status: 'running' }),
-    instructions: [{ path: path.join(paths.instructionsDir, 'prepare.md'), content: '# Prepare instructions' }],
-    history: { source: 'test', baton: baton({ cursor: 'prepare', status: 'running' }) },
-  });
-  rmSync(path.join(paths.instructionsDir, 'prepare.md'), { force: true });
-
-  await assert.rejects(() => readPersistedRunState(paths), /missing committed instruction file/);
-});
-
 test('persisted-state writer acquires run-state lock before writing', async () => {
   const paths = setupRunDir('writer_lock');
   writeFileSync(paths.continueLockPath, `${JSON.stringify({ lockId: 'held', pid: process.pid, createdAt: '1970-01-01T00:00:00.000Z', heartbeatAt: new Date().toISOString() })}\n`);
 
   await assert.rejects(
     () => writePersistedRunStateUpdate(paths, {
-      response: response(baton({ cursor: 'done', status: 'done' })),
       baton: baton({ cursor: 'done', status: 'done' }),
-      instructions: [],
       history: { source: 'test', baton: baton({ cursor: 'done', status: 'done' }) },
     }),
     (error) => {
@@ -145,43 +112,6 @@ test('persisted-state writer acquires run-state lock before writing', async () =
   rmSync(paths.continueLockPath, { force: true });
 });
 
-test('persisted-state writer rejects escaping instruction paths before durable commit journal', async () => {
-  const paths = setupRunDir('invalid_instruction_ref');
-  const outsideInstruction = path.join(tempDir, 'outside-instruction.md');
-
-  await assert.rejects(
-    () => writePersistedRunStateUpdate(paths, {
-      response: response(baton({ cursor: 'done', status: 'done' })),
-      baton: baton({ cursor: 'done', status: 'done' }),
-      instructions: [{ path: outsideInstruction, content: '# Escape' }],
-      history: { source: 'test', baton: baton({ cursor: 'done', status: 'done' }) },
-    }),
-    /instruction path escapes instructions dir/,
-  );
-
-  assert.equal(existsSync(paths.durableCommitPath), false);
-  assert.equal(existsSync(outsideInstruction), false);
-  assert.equal(readFileSync(paths.historyPath, 'utf8'), '');
-});
-
-
-test('persisted-state reader rejects invalid current pending durable instruction refs', async () => {
-  const paths = setupRunDir('invalid_current_pending_instruction_ref');
-  writeJson(paths.durableCommitPath, {
-    version: 1,
-    id: 'pending-invalid-ref',
-    createdAt: new Date().toISOString(),
-    status: 'pending',
-    instructions: [{ path: path.join(tempDir, 'escaped-current-ref.md'), content: '# Escape' }],
-    sideEffects: { baton: false, lastResponse: false, history: false, instructions: 1 },
-  });
-
-  await assert.rejects(
-    () => readPersistedRunState(paths),
-    /pending durable workflow commit instruction path escapes instructions dir/,
-  );
-});
-
 test('persisted-state writer recovers existing pending journal before writing a new commit', async () => {
   const paths = setupRunDir('recover_existing_pending_before_write');
   const recoveredBaton = baton({ cursor: 'done', status: 'done' });
@@ -190,17 +120,13 @@ test('persisted-state writer recovers existing pending journal before writing a 
     id: 'pending-before-writer',
     createdAt: new Date().toISOString(),
     status: 'pending',
-    response: response(recoveredBaton),
     baton: recoveredBaton,
-    instructions: [{ path: path.join(paths.instructionsDir, 'prepare.md'), content: '# Pending prepare' }],
     historyText: 'old pending history\n',
-    sideEffects: { baton: true, lastResponse: true, history: true, instructions: 1 },
+    sideEffects: { baton: true, history: true },
   });
 
   await writePersistedRunStateUpdate(paths, {
-    response: response(baton({ cursor: 'blocked', status: 'blocked' })),
     baton: baton({ cursor: 'blocked', status: 'blocked' }),
-    instructions: [],
     history: { source: 'test-new-commit', baton: baton({ cursor: 'blocked', status: 'blocked' }) },
   });
 
@@ -216,8 +142,7 @@ test('persisted-state commit schema rejects missing id', async () => {
     version: 1,
     createdAt: new Date().toISOString(),
     status: 'pending',
-    instructions: [],
-    sideEffects: { baton: false, lastResponse: false, history: false, instructions: 0 },
+    sideEffects: { baton: false, history: false },
   });
 
   await assert.rejects(() => readPersistedRunState(paths), /persisted run-state commit id/);
@@ -238,9 +163,7 @@ test('persisted-state recovery restores targets after injected durable commit fa
   try {
     await assert.rejects(
       () => writePersistedRunStateUpdate(paths, {
-        response: response(baton({ cursor: 'done', status: 'done' })),
         baton: baton({ cursor: 'done', status: 'done' }),
-        instructions: [{ path: path.join(paths.instructionsDir, 'prepare.md'), content: '# Prepare' }],
         history: { source: 'test', baton: baton({ cursor: 'done', status: 'done' }) },
       }),
       /injected durable commit failure after history/,
@@ -251,7 +174,6 @@ test('persisted-state recovery restores targets after injected durable commit fa
 
   assert.equal(readFileSync(paths.batonPath, 'utf8'), beforeBaton);
   assert.equal(readFileSync(paths.historyPath, 'utf8'), '');
-  assert.equal(existsSync(path.join(paths.instructionsDir, 'prepare.md')), false);
 });
 
 test('persisted-state reader rejects symlinked split storage file', async () => {
@@ -266,30 +188,3 @@ test('persisted-state reader rejects symlinked split storage file', async () => 
 
 // Keep writeJsonAtomic imported so this test file also verifies the public atomic primitive remains loadable.
 assert.equal(typeof writeJsonAtomic, 'function');
-
-test('persisted-state reader quarantines legacy host response workflow path projection', async () => {
-  const paths = setupRunDir('legacy_response_workflow_quarantine');
-  const legacyWorkflowPath = path.join(tempDir, 'private-legacy-workflow.json');
-  writeJson(paths.lastResponsePath, { ...response(), workflow: legacyWorkflowPath });
-  writeFileSync(path.join(paths.instructionsDir, 'prepare.md'), '# Prepare instructions');
-
-  const persisted = await readPersistedRunState(paths);
-
-  assert.equal('workflow' in persisted.lastResponse, false);
-  assert.doesNotMatch(JSON.stringify(persisted.lastResponse), /private-legacy-workflow/);
-});
-
-test('runner host response schema rejects public legacy workflow path projection', () => {
-  assert.throws(
-    () => assertPersistedRunState({
-      version: 1,
-      storageTopology: 'split-files-v1',
-      run: { runDir: '/private/run', workflowPath: '/private/workflow.json', repositoryRoot: '/private' },
-      baton: baton(),
-      lastResponse: { ...response(), workflow: '/private/workflow.json' },
-      instructions: [],
-      history: { mode: 'embedded-text', path: '/private/history.md', text: '' },
-    }),
-    /must NOT have additional properties|additionalProperties/,
-  );
-});

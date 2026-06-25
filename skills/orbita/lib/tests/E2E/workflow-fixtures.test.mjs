@@ -88,9 +88,9 @@ function next(run, workflow, extra = []) {
   return expectRunner(['next', '--run-id', runId(run), '--workflow', workflow, ...extra], `next ${path.basename(workflow)}`);
 }
 
-function currentRequestIds(run) {
-  const lastResponse = JSON.parse(readFileSync(path.join(runPath(run), '.workflow-runner', 'last-response.json'), 'utf8'));
-  return (lastResponse.requests ?? []).map((request) => request.stepId ?? request.id);
+function currentRequestIds(run, workflow) {
+  const response = next(run, workflow);
+  return (response.requests ?? []).map((request) => request.stepId ?? request.id);
 }
 
 function parseOutputRef(ref) {
@@ -114,7 +114,7 @@ ${result.stderr}`);
 
 function continueWith(run, workflow, refs, label = 'continue') {
   const normalized = Array.isArray(refs) ? refs : [refs];
-  const pendingIds = currentRequestIds(run);
+  const pendingIds = currentRequestIds(run, workflow);
   for (const ref of normalized) {
     const { stepId, filePath } = parseOutputRef(ref);
     const targetStepId = stepId ?? (pendingIds.length === 1 ? pendingIds[0] : undefined);

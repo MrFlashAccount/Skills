@@ -1,7 +1,4 @@
-import { resolve } from 'node:path';
-import { isInside } from '../filesystem/path-safety.mjs';
 import { assertBatonSchema } from '../../entities/Baton/schema/baton-schema.mjs';
-import { assertRunnerHostResponseSchema } from './schema/runner-host-response-schema.mjs';
 
 export const PERSISTED_RUN_STATE_VERSION = 1;
 export const PERSISTED_RUN_STATE_TOPOLOGY = 'split-files-v1';
@@ -24,21 +21,6 @@ function assertCommitSchema(commit) {
   assertObject(commit.sideEffects, 'persisted run-state commit sideEffects');
 }
 
-export function assertPendingCommitInstructionRefs(paths, pendingCommit) {
-  if (pendingCommit === undefined) return;
-  if (pendingCommit.instructions === undefined) return;
-  if (!Array.isArray(pendingCommit.instructions)) throw new Error('pending durable workflow commit instructions must be an array');
-  const instructionsDir = resolve(paths.instructionsDir);
-  for (const [index, instruction] of pendingCommit.instructions.entries()) {
-    assertObject(instruction, `pending durable workflow commit instructions[${index}]`);
-    assertString(instruction.path, `pending durable workflow commit instructions[${index}].path`);
-    const instructionPath = resolve(instruction.path);
-    if (!isInside(instructionPath, instructionsDir)) {
-      throw new Error(`pending durable workflow commit instruction path escapes instructions dir: ${instruction.path}`);
-    }
-  }
-}
-
 export function assertPersistedRunState(state, name = 'persisted run state') {
   assertObject(state, name);
   if (state.version !== PERSISTED_RUN_STATE_VERSION) throw new Error(`${name} has unsupported version`);
@@ -48,7 +30,6 @@ export function assertPersistedRunState(state, name = 'persisted run state') {
   assertString(state.run.workflowPath, `${name} run.workflowPath`);
   assertString(state.run.repositoryRoot, `${name} run.repositoryRoot`);
   assertBatonSchema(state.baton);
-  if (state.lastResponse !== undefined) assertRunnerHostResponseSchema(state.lastResponse);
   assertObject(state.history, `${name} history`);
   if (state.history.mode !== 'file-ref' && state.history.mode !== 'embedded-text') throw new Error(`${name} history mode is invalid`);
   if (state.history.mode === 'file-ref') assertString(state.history.path, `${name} history.path`);
@@ -68,9 +49,7 @@ export function commitMetadata(commit) {
   if (!commit) return undefined;
   const sideEffects = {
     baton: Object.hasOwn(commit, 'baton'),
-    lastResponse: Object.hasOwn(commit, 'response'),
     history: typeof commit.historyText === 'string',
-    instructions: Array.isArray(commit.instructions) ? commit.instructions.length : 0,
   };
   return {
     version: 1,
@@ -78,15 +57,5 @@ export function commitMetadata(commit) {
     createdAt: commit.createdAt,
     status: commit.status ?? 'pending',
     sideEffects,
-  };
-}
-
-export function projectRuntimeRunState(persisted) {
-  assertPersistedRunState(persisted);
-  return {
-    baton: structuredClone(persisted.baton),
-    lastResponse: persisted.lastResponse === undefined ? undefined : structuredClone(persisted.lastResponse),
-    instructions: structuredClone(persisted.instructions),
-    history: structuredClone(persisted.history),
   };
 }

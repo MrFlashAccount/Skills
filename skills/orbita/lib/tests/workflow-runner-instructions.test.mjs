@@ -184,93 +184,6 @@ function workerOutput(summary) {
 
 after(() => rmSync(tempDir, { recursive: true, force: true }));
 
-test('runner: durable commit recovery uses derived run dir', () => {
-  const { runId, runDir } = runCase('durable-commit-derived-run-dir');
-  const workflowPath = path.join(tempDir, 'durable-commit-derived-run-dir-workflow.json');
-  const singleWorkflow = structuredClone(workflowDoc);
-  singleWorkflow.steps.prepare.next = 'done';
-  writeJson(workflowPath, singleWorkflow);
-
-  expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next durable symlinked parent setup');
-  const instructionPath = path.join(runDir, '.workflow-runner', 'instructions', 'prepare.md');
-  const durableCommitPath = path.join(runDir, '.workflow-runner', 'durable-commit.json');
-  writeJson(durableCommitPath, {
-    version: 1,
-    response: JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8')),
-    instructions: [{ path: instructionPath, content: 'instructions via symlinked parent\n' }],
-    historyText: '',
-  });
-
-  const result = runRunner(['instructions', '--run-id', runId, '--step-id', 'prepare']);
-
-  assert.equal(result.status, 0, `instructions failed
-stdout:
-${result.stdout}
-stderr:
-${result.stderr}`);
-  assert.equal(readFileSync(path.join(runDir, '.workflow-runner', 'instructions', 'prepare.md'), 'utf8'), 'instructions via symlinked parent\n');
-});
-
-
-test('runner: durable commit recovery rejects symlinked instructions dir', () => {
-  const { runId, runDir } = runCase('durable-commit-instructions-dir-symlink-escape');
-  const workflowPath = path.join(tempDir, 'durable-commit-instructions-dir-symlink-escape-workflow.json');
-  const singleWorkflow = structuredClone(workflowDoc);
-  singleWorkflow.steps.prepare.next = 'done';
-  writeJson(workflowPath, singleWorkflow);
-
-  expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next durable instructions dir symlink escape setup');
-  const outsideDir = path.join(tempDir, 'durable-commit-instructions-dir-outside');
-  mkdirSync(outsideDir, { recursive: true });
-  const instructionsDir = path.join(runDir, '.workflow-runner', 'instructions');
-  rmSync(instructionsDir, { recursive: true, force: true });
-  symlinkSync(outsideDir, instructionsDir, 'dir');
-  const durableCommitPath = path.join(runDir, '.workflow-runner', 'durable-commit.json');
-  writeJson(durableCommitPath, {
-    version: 1,
-    response: JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8')),
-    instructions: [{ path: path.join(instructionsDir, 'prepare.md'), content: 'pwned\n' }],
-    historyText: '',
-  });
-
-  const result = runRunner(['instructions', '--run-id', runId, '--step-id', 'prepare']);
-
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /durable workflow commit instructions dir is unsafe/);
-  assert.equal(existsSync(path.join(outsideDir, 'prepare.md')), false);
-});
-
-test('runner: durable commit recovery rejects existing symlink instruction file rollback', () => {
-  const { runId, runDir } = runCase('durable-commit-instruction-file-symlink-escape');
-  const workflowPath = path.join(tempDir, 'durable-commit-instruction-file-symlink-escape-workflow.json');
-  const singleWorkflow = structuredClone(workflowDoc);
-  singleWorkflow.steps.prepare.next = 'done';
-  writeJson(workflowPath, singleWorkflow);
-
-  expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next durable instruction file symlink escape setup');
-  const outsideSecret = path.join(tempDir, 'durable-commit-outside-secret.txt');
-  writeFileSync(outsideSecret, 'outside secret must not be copied\n');
-  const instructionPath = path.join(runDir, '.workflow-runner', 'instructions', 'prepare.md');
-  rmSync(instructionPath, { force: true });
-  symlinkSync(outsideSecret, instructionPath, 'file');
-  const durableCommitPath = path.join(runDir, '.workflow-runner', 'durable-commit.json');
-  writeJson(durableCommitPath, {
-    version: 1,
-    response: JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8')),
-    instructions: [{ path: instructionPath, content: 'new instructions\n' }],
-    historyText: '',
-  });
-
-  const result = runRunner(['instructions', '--run-id', runId, '--step-id', 'prepare'], {
-    env: { WORKFLOW_RUNNER_FAIL_DURABLE_COMMIT_AFTER: 'instructions' },
-  });
-
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /durable workflow commit instruction path escapes instructions dir/);
-  assert.equal(readFileSync(outsideSecret, 'utf8'), 'outside secret must not be copied\n');
-});
-
-
 test('runner: next resolves external workflow package shared resources from repo boundary', () => {
   const repoDir = path.join(tempDir, 'external-runner-shared-repo');
   const workflowDir = path.join(repoDir, 'workflows', 'demo');
@@ -322,7 +235,7 @@ test('runner: next uses semantic workflow validation and rejects schema-declared
   assert.match(result.stderr, /prepare.*next expression.*missing_step/);
 });
 
-test('runner: continue rejects explicit workflow mismatch with last-response context', () => {
+test('runner: continue rejects explicit workflow mismatch with indexed workflow context', () => {
   const { runId, runDir } = runCase('continue-workflow-mismatch');
   const workflowPath = path.join(tempDir, 'continue-workflow-mismatch-a.json');
   const otherWorkflowPath = path.join(tempDir, 'continue-workflow-mismatch-b.json');
@@ -340,7 +253,7 @@ test('runner: continue rejects explicit workflow mismatch with last-response con
   assert.equal(JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8')).cursor, 'prepare');
 });
 
-test('runner: instructions rejects explicit workflow mismatch with last-response context', () => {
+test('runner: instructions rejects explicit workflow mismatch with indexed workflow context', () => {
   const { runId, runDir } = runCase('instructions-workflow-mismatch');
   const workflowPath = path.join(tempDir, 'instructions-workflow-mismatch-a.json');
   const otherWorkflowPath = path.join(tempDir, 'instructions-workflow-mismatch-b.json');
@@ -357,28 +270,26 @@ test('runner: instructions rejects explicit workflow mismatch with last-response
   assert.match(mismatched.stderr, /already bound to a different workflow/);
 });
 
-test('runner: continue rejects stale last-response after baton advances', () => {
-  const { runId, runDir } = runCase('continue-stale-last-response');
-  const workflowPath = path.join(tempDir, 'continue-stale-last-response-workflow.json');
+test('runner: continue rejects when recomputed current response is terminal', () => {
+  const { runId, runDir } = runCase('continue-terminal-current-response');
+  const workflowPath = path.join(tempDir, 'continue-terminal-current-response-workflow.json');
   const singleWorkflow = structuredClone(workflowDoc);
   singleWorkflow.steps.prepare.next = 'done';
   writeJson(workflowPath, singleWorkflow);
 
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next stale continue setup');
-  const lastResponseBefore = readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8');
   writeJson(path.join(runDir, 'baton.json'), { cursor: 'done', status: 'done', state: { artifacts: [], results: [], prepare: workerOutput('prepared elsewhere') } });
 
   const stale = runRunner(['continue', '--run-id', runId, '--workflow', workflowPath]);
 
   assert.notEqual(stale.status, 0);
-  assert.match(stale.stderr, /stale last runner response/);
+  assert.match(stale.stderr, /current runner response is 'done', not needs_host_actions/);
   assert.equal(JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8')).cursor, 'done');
-  assert.equal(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8'), lastResponseBefore);
 });
 
-test('runner: instructions rejects stale last-response requests after baton advances', () => {
-  const { runId, runDir } = runCase('instructions-stale-request');
-  const workflowPath = path.join(tempDir, 'instructions-stale-request-workflow.json');
+test('runner: instructions rejects request that is not in recomputed current response', () => {
+  const { runId, runDir } = runCase('instructions-not-current-request');
+  const workflowPath = path.join(tempDir, 'instructions-not-current-request-workflow.json');
   const singleWorkflow = structuredClone(workflowDoc);
   singleWorkflow.steps.prepare.next = 'done';
   writeJson(workflowPath, singleWorkflow);
@@ -389,10 +300,10 @@ test('runner: instructions rejects stale last-response requests after baton adva
   const stale = runRunner(['instructions', '--run-id', runId, '--step-id', 'prepare']);
 
   assert.notEqual(stale.status, 0);
-  assert.match(stale.stderr, /stale last runner response/);
+  assert.match(stale.stderr, /unknown current workflow step id: prepare/);
 });
 
-test('runner: instructions rejects unknown, unsafe, and missing instructions', () => {
+test('runner: instructions rejects unknown and unsafe step ids, and recomputes missing prompt files', () => {
   const { runId, runDir } = runCase('instructions-errors');
   const workflowPath = path.join(tempDir, 'instructions-errors-workflow.json');
   const singleWorkflow = structuredClone(workflowDoc);
@@ -410,9 +321,10 @@ test('runner: instructions rejects unknown, unsafe, and missing instructions', (
   assert.match(unsafe.stderr, /invalid workflow step id/);
 
   rmSync(path.join(runDir, '.workflow-runner', 'instructions', 'prepare.md'), { force: true });
-  const missing = runRunner(['instructions', '--run-id', runId, '--step-id', 'prepare']);
-  assert.notEqual(missing.status, 0);
-  assert.match(missing.stderr, /cannot read instructions for workflow step prepare/);
+  const recomputed = runRunner(['instructions', '--run-id', runId, '--step-id', 'prepare']);
+  assert.equal(recomputed.status, 0, recomputed.stderr);
+  assert.match(recomputed.stdout, /# Prepare/);
+  assert.equal(existsSync(path.join(runDir, '.workflow-runner', 'instructions', 'prepare.md')), false);
 });
 
 test('runner: rendered artifact instructions include the absolute step artifact directory', () => {
@@ -436,7 +348,9 @@ test('runner: rendered artifact instructions include the absolute step artifact 
   writeJson(workflowPath, singleWorkflow);
 
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next artifact output dir');
-  const instructions = readFileSync(path.join(runDir, '.workflow-runner', 'instructions', 'prepare.md'), 'utf8');
+  const loaded = runRunner(['instructions', '--run-id', runId, '--step-id', 'prepare']);
+  assert.equal(loaded.status, 0, loaded.stderr);
+  const instructions = loaded.stdout;
 
   assert.match(instructions, new RegExp(`Artifact output directory for this step: ${path.join(runDir, 'prepare', 'artifacts').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
   assert.match(instructions, /Use the artifact id as the artifact file name\/stem/);

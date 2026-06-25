@@ -1,4 +1,3 @@
-import { join } from "node:path";
 import { loadOutputSchema } from "../../../persistence/workflow-resources/output-schema-loader.mjs";
 
 const TERMINAL_ACTIONS = new Set(["stop_done", "stop_blocked"]);
@@ -20,11 +19,6 @@ export function assertSafeStepId(stepId) {
 
 function shellQuote(value) {
   return `'${String(value).replaceAll("'", "'\\''")}'`;
-}
-
-export function instructionPathForStep(instructionsDir, stepId) {
-  assertSafeStepId(stepId);
-  return join(instructionsDir, `${stepId}.md`);
 }
 
 export function loadInstructionsCommandForStep(

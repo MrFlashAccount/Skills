@@ -178,9 +178,9 @@ function expectRunner(args, label) {
   return JSON.parse(result.stdout);
 }
 
-function currentRequestIds(runDir) {
-  const lastResponse = JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8'));
-  return (lastResponse.requests ?? []).map((request) => request.stepId ?? request.id);
+function currentRequestIds(runId, workflowPath) {
+  const response = expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'derive current requests');
+  return (response.requests ?? []).map((request) => request.stepId ?? request.id);
 }
 
 function parseOutputRef(ref) {
@@ -190,7 +190,7 @@ function parseOutputRef(ref) {
 }
 
 function writeOutputFile({ runId, runDir, workflowPath, stepId, filePath, label = 'write output', options = {} }) {
-  const targetStepId = stepId ?? currentRequestIds(runDir)[0];
+  const targetStepId = stepId ?? currentRequestIds(runId, workflowPath)[0];
   const result = runRunner(['write-output', '--run-id', runId, '--workflow', workflowPath, '--step-id', targetStepId], { input: readFileSync(filePath, 'utf8'), ...options });
   assert.equal(result.status, 0, `${label} failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
   return JSON.parse(result.stdout);
@@ -198,7 +198,7 @@ function writeOutputFile({ runId, runDir, workflowPath, stepId, filePath, label 
 
 function continueWithOutputs({ runId, runDir, workflowPath, refs, label = 'continue', options = {} }) {
   const normalized = Array.isArray(refs) ? refs : [refs];
-  const pendingIds = currentRequestIds(runDir);
+  const pendingIds = currentRequestIds(runId, workflowPath);
   for (const ref of normalized) {
     const { stepId, filePath } = parseOutputRef(ref);
     const targetStepId = stepId ?? (pendingIds.length === 1 ? pendingIds[0] : undefined);
@@ -320,7 +320,6 @@ test('runner: continue does not persist applied output when next render fails', 
   writeOutputFile({ runId, runDir, workflowPath, stepId: 'prepare', filePath: outputPath, label: 'write render failure output' });
   const batonBefore = readFileSync(path.join(runDir, 'baton.json'), 'utf8');
   const historyBefore = readFileSync(path.join(runDir, 'history.md'), 'utf8');
-  const lastResponseBefore = readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8');
 
   const result = runRunner(['continue', '--run-id', runId, '--workflow', workflowPath]);
 
@@ -328,7 +327,6 @@ test('runner: continue does not persist applied output when next render fails', 
   assert.match(result.stderr, /workflow prompt render failed/);
   assert.equal(readFileSync(path.join(runDir, 'baton.json'), 'utf8'), batonBefore);
   assert.equal(readFileSync(path.join(runDir, 'history.md'), 'utf8'), historyBefore);
-  assert.equal(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8'), lastResponseBefore);
 
   const baton = JSON.parse(batonBefore);
   assert.equal(baton.cursor, 'prepare');
@@ -355,7 +353,6 @@ test('runner: parallel continue does not create durable envelope when next rende
   writeOutputFile({ runId, runDir, workflowPath, stepId: 'branch_b', filePath: branchB, label: 'write branch b render failure output' });
   const batonBefore = readFileSync(path.join(runDir, 'baton.json'), 'utf8');
   const historyBefore = readFileSync(path.join(runDir, 'history.md'), 'utf8');
-  const lastResponseBefore = readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8');
 
   const result = runRunner(['continue', '--run-id', runId, '--workflow', workflowPath]);
 
@@ -363,12 +360,11 @@ test('runner: parallel continue does not create durable envelope when next rende
   assert.match(result.stderr, /workflow prompt render failed/);
   assert.equal(readFileSync(path.join(runDir, 'baton.json'), 'utf8'), batonBefore);
   assert.equal(readFileSync(path.join(runDir, 'history.md'), 'utf8'), historyBefore);
-  assert.equal(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8'), lastResponseBefore);
   assert.equal(existsSync(path.join(runDir, '.workflow-runner', 'parallel-output.json')), false);
 });
 
 test('runner: continue recovers from post-render durable commit failure without mismatched next state', () => {
-  for (const failurePoint of ['pending', 'instructions', 'history', 'baton', 'last-response']) {
+  for (const failurePoint of ['pending', 'history', 'baton']) {
     const { runId, runDir } = runCase(`durable-commit-${failurePoint}-failure`);
     const workflowPath = path.join(tempDir, `durable-commit-${failurePoint}-failure-workflow.json`);
     const singleWorkflow = structuredClone(workflowDoc);
@@ -382,11 +378,6 @@ test('runner: continue recovers from post-render durable commit failure without 
     writeOutputFile({ runId, runDir, workflowPath, stepId: 'prepare', filePath: outputPath, label: `write durable ${failurePoint} output` });
     const batonBefore = readFileSync(path.join(runDir, 'baton.json'), 'utf8');
     const historyBefore = readFileSync(path.join(runDir, 'history.md'), 'utf8');
-    const lastResponseBefore = readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8');
-    const joinInstructionPath = path.join(runDir, '.workflow-runner', 'instructions', 'join.md');
-    const staleJoinInstructions = 'stale join instructions must survive failed commit\n';
-    assert.equal(existsSync(joinInstructionPath), false);
-    writeFileSync(joinInstructionPath, staleJoinInstructions);
     const failed = runRunner(['continue', '--run-id', runId, '--workflow', workflowPath], {
       env: { WORKFLOW_RUNNER_FAIL_DURABLE_COMMIT_AFTER: failurePoint },
     });
@@ -395,8 +386,6 @@ test('runner: continue recovers from post-render durable commit failure without 
     assert.match(failed.stderr, new RegExp(`injected durable commit failure after ${failurePoint}`));
     assert.equal(readFileSync(path.join(runDir, 'baton.json'), 'utf8'), batonBefore);
     assert.equal(readFileSync(path.join(runDir, 'history.md'), 'utf8'), historyBefore);
-    assert.equal(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8'), lastResponseBefore);
-    assert.equal(readFileSync(joinInstructionPath, 'utf8'), staleJoinInstructions);
     assert.equal(existsSync(path.join(runDir, '.workflow-runner', 'durable-commit.json')), true);
 
     const recovered = runRunner(['instructions', '--run-id', runId, '--step-id', 'join']);
@@ -405,10 +394,10 @@ test('runner: continue recovers from post-render durable commit failure without 
     assert.equal(existsSync(path.join(runDir, '.workflow-runner', 'durable-commit.json')), false);
 
     const baton = JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8'));
-    const lastResponse = JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8'));
+    const nextResponse = expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], `derive recovered response ${failurePoint}`);
     assert.equal(baton.cursor, 'join');
-    assert.equal(lastResponse.status, 'needs_host_actions');
-    assert.deepEqual(lastResponse.requests.map((request) => request.id), ['join']);
+    assert.equal(nextResponse.status, 'needs_host_actions');
+    assert.deepEqual(nextResponse.requests.map((request) => request.id), ['join']);
     assert.equal(baton.state.prepare.results[0].summary, `prepared after durable ${failurePoint} retry`);
     assert.match(readFileSync(path.join(runDir, 'history.md'), 'utf8'), /output: accepted:prepare/);
   }
@@ -436,61 +425,3 @@ test('runner: durable commit recovery rejects symlinked history without reading 
   assert.equal(readFileSync(outsideSecret, 'utf8'), 'outside secret must not be read or overwritten\n');
   assert.equal(existsSync(path.join(runDir, '.workflow-runner', 'durable-commit.json')), false);
 });
-
-test('runner: durable commit recovery rejects instruction paths outside instructions dir', () => {
-  const { runId, runDir } = runCase('durable-commit-instruction-escape');
-  const workflowPath = path.join(tempDir, 'durable-commit-instruction-escape-workflow.json');
-  const singleWorkflow = structuredClone(workflowDoc);
-  singleWorkflow.steps.prepare.next = 'done';
-  writeJson(workflowPath, singleWorkflow);
-
-  expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next durable instruction escape setup');
-  const victimPath = path.join(tempDir, 'durable-commit-victim.txt');
-  rmSync(victimPath, { force: true });
-  const durableCommitPath = path.join(runDir, '.workflow-runner', 'durable-commit.json');
-  writeJson(durableCommitPath, {
-    version: 1,
-    response: JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8')),
-    instructions: [{ path: victimPath, content: 'pwned\n' }],
-    historyText: '',
-  });
-
-  const result = runRunner(['instructions', '--run-id', runId, '--step-id', 'prepare']);
-
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /durable workflow commit instruction path escapes instructions dir/);
-  assert.equal(existsSync(victimPath), false);
-});
-
-test('runner: durable commit recovery rejects symlinked instruction paths outside instructions dir', () => {
-  const { runId, runDir } = runCase('durable-commit-instruction-symlink-escape');
-  const workflowPath = path.join(tempDir, 'durable-commit-instruction-symlink-escape-workflow.json');
-  const singleWorkflow = structuredClone(workflowDoc);
-  singleWorkflow.steps.prepare.next = 'done';
-  writeJson(workflowPath, singleWorkflow);
-
-  expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next durable instruction symlink escape setup');
-  const outsideDir = path.join(tempDir, 'durable-commit-symlink-outside');
-  mkdirSync(outsideDir, { recursive: true });
-  const linkPath = path.join(runDir, '.workflow-runner', 'instructions', 'link');
-  rmSync(linkPath, { recursive: true, force: true });
-  symlinkSync(outsideDir, linkPath, 'dir');
-  const victimPath = path.join(outsideDir, 'pwned.md');
-  rmSync(victimPath, { force: true });
-  const durableCommitPath = path.join(runDir, '.workflow-runner', 'durable-commit.json');
-  writeJson(durableCommitPath, {
-    version: 1,
-    response: JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8')),
-    instructions: [{ path: path.join(linkPath, 'pwned.md'), content: 'pwned\n' }],
-    historyText: '',
-  });
-
-  const result = runRunner(['instructions', '--run-id', runId, '--step-id', 'prepare']);
-
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /durable workflow commit instruction path escapes instructions dir/);
-  assert.equal(existsSync(victimPath), false);
-});
-
-
-
