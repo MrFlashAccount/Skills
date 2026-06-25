@@ -58,7 +58,7 @@ When host work is needed, the runner returns:
 
 `orchestratorInstruction` is a machine-visible directive for the host/orchestrator. When `status` is `needs_host_actions`, the host must treat the response as non-terminal: finish every request in the current batch, run the embedded `continue` command, and follow the next directive returned by runner stdout. Only `done` and `blocked` are terminal.
 
-Hosts must substitute the `<lease-token>` placeholder with the fresh explicit lease token before executing any runner-returned command, including `loadInstructionsCommand` and commands embedded in `orchestratorInstruction`; the runner does not read a token from environment variables.
+Runner stdout commands include the explicit lease token when the runner was called with one. If a runner-returned command still contains a `<lease-token>` placeholder, hosts must substitute the fresh explicit lease token before executing it; the runner does not read a token from environment variables.
 
 The public host request contract is intentionally narrow: requested action identity, step identity, and the instruction-loader command are always public. Approval requests may additionally include output-schema metadata when the workflow step declares `output.schema`. `outputSchema` is the raw workflow reference. `resolvedOutputSchema` is the preferred host-adapter contract when present: it contains `{ ref, schema }`, where `ref` is the same raw workflow reference and `schema` is the JSON payload describing the normalized answer expected back from the host. Neither field exposes runner filesystem paths. Instruction storage paths are private runner state. Output paths are not part of the request contract.
 

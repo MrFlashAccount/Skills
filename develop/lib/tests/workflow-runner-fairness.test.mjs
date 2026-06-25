@@ -197,7 +197,7 @@ test('runner fairness: loadInstructions rejects unauthorized lease identity', as
   );
 });
 
-test('runner fairness: private claim authority lets generated run-id-only commands operate without public authority leakage', async () => {
+test('runner fairness: private claim authority lets generated run-id-only commands operate without durable authority leakage', async () => {
   const workflowPath = path.join(tempDir, 'private-authority-run-id-only.json');
   writeJson(workflowPath, workflowDoc);
   const { runId } = runCase('private-authority-run-id-only', workflowPath);
@@ -207,8 +207,8 @@ test('runner fairness: private claim authority lets generated run-id-only comman
 
   assert.equal(response.status, 'needs_host_actions');
   assert.equal('workflow' in response, false);
-  assert.equal(response.requests[0].loadInstructionsCommand, `node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-id '${runId}' --step-id 'prepare' --lease-token <lease-token>`);
-  assert.doesNotMatch(JSON.stringify(response), new RegExp(`alice|session-a|portable|${claim.leaseToken}`));
+  assert.equal(response.requests[0].loadInstructionsCommand, `node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-id '${runId}' --step-id 'prepare' --lease-token '${claim.leaseToken}'`);
+  assert.doesNotMatch(JSON.stringify(response), new RegExp('alice|session-a|portable'));
   assert.equal(readFileSync(resolveRunPaths({ runId }).lastResponsePath, 'utf8').includes(claim.leaseToken), false);
 });
 

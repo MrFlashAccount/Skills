@@ -226,10 +226,11 @@ test('runner: next returns a single host action request with load command only',
   writeJson(workflowPath, singleWorkflow);
 
   const response = expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next single');
+  const leaseToken = leaseTokensByRunId.get(runId);
 
   assert.equal(response.status, 'needs_host_actions');
   assert.match(response.orchestratorInstruction, /Execute every request in stdout\.requests\[\]/);
-  assert.match(response.orchestratorInstruction, /Then run:\nnode develop\/lib\/entrypoints\/cli\/workflow-runner\.mjs continue --run-id 'workflow-runner-test-[^']+-single' --lease-token <lease-token>/);
+  assert.match(response.orchestratorInstruction, new RegExp(`Then run:\\nnode develop/lib/entrypoints/cli/workflow-runner\\.mjs continue --run-id '${runId}' --lease-token '${leaseToken}'`));
   assert.match(response.orchestratorInstruction, /Parse that stdout JSON and follow its orchestratorInstruction exactly/);
   assert.doesNotMatch(response.orchestratorInstruction, /write-output/);
   assert.doesNotMatch(response.orchestratorInstruction, /loaded instructions/);
@@ -240,11 +241,13 @@ test('runner: next returns a single host action request with load command only',
   assert.equal(Object.hasOwn(response.requests[0], 'compiledPrompt'), false);
   assert.equal(response.requests[0].stepId, 'prepare');
   assert.equal(Object.hasOwn(response.requests[0], 'instructionRef'), false);
-  assert.match(response.requests[0].loadInstructionsCommand, /workflow-runner\.mjs instructions --run-id .* --step-id 'prepare' --lease-token <lease-token>/);
+  assert.equal(response.requests[0].loadInstructionsCommand, `node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-id '${runId}' --step-id 'prepare' --lease-token '${leaseToken}'`);
   assert.equal(Object.hasOwn(response.requests[0], 'outputPath'), false);
 
   const lastResponse = JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8'));
-  assert.equal(lastResponse.orchestratorInstruction, response.orchestratorInstruction);
+  assert.match(lastResponse.orchestratorInstruction, /--lease-token <lease-token>/);
+  assert.equal(lastResponse.requests[0].loadInstructionsCommand, `node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-id '${runId}' --step-id 'prepare' --lease-token <lease-token>`);
+  assert.equal(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8').includes(leaseToken), false);
   assert.equal(Object.hasOwn(lastResponse.requests[0], 'instructionRef'), false);
   assert.equal(Object.hasOwn(lastResponse.requests[0], 'outputPath'), false);
 

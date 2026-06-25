@@ -75,18 +75,15 @@ Known request actions:
 
 If a request action is unknown, stop as blocked.
 
-For `run_worker`, load the request instructions by embedding the request's exact `loadInstructionsCommand` in the worker bootstrap, replacing only the `<lease-token>` placeholder:
+For `run_worker`, load the request instructions by embedding the request's exact `loadInstructionsCommand` in the worker bootstrap. If the command contains a `<lease-token>` placeholder, replace only that placeholder:
 
 ```text
 Load the step instructions by running:
 
-<request.loadInstructionsCommand with <lease-token> replaced>
+<request.loadInstructionsCommand>
 
 Then follow the loaded instructions exactly.
-
-The loaded instructions include the validating write-output command. Use that exact command; supply only the required JSON body/stdin. If validation fails, fix the JSON and retry boundedly until accepted.
-
-Do not add behavior, role, output format, or constraints beyond the loaded instructions. If the instructions cannot be loaded, stop with an error.
+If the instructions cannot be loaded, stop with an error.
 ```
 
 Workers use the validating `write-output` command from their loaded instructions. Workers never call `continue`; runner stdout instructions tell the orchestrator what to do next.

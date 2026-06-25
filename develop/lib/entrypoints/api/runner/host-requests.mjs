@@ -1,11 +1,16 @@
-import { join } from 'node:path';
-import { loadOutputSchema } from '../../../persistence/workflow-resources/output-schema-loader.mjs';
+import { join } from "node:path";
+import { loadOutputSchema } from "../../../persistence/workflow-resources/output-schema-loader.mjs";
 
-const TERMINAL_ACTIONS = new Set(['stop_done', 'stop_blocked']);
+const TERMINAL_ACTIONS = new Set(["stop_done", "stop_blocked"]);
 const SAFE_STEP_ID = /^[A-Za-z0-9_.-]+$/;
 
 export function assertSafeStepId(stepId) {
-  if (typeof stepId !== 'string' || !SAFE_STEP_ID.test(stepId) || stepId === '.' || stepId === '..') {
+  if (
+    typeof stepId !== "string" ||
+    !SAFE_STEP_ID.test(stepId) ||
+    stepId === "." ||
+    stepId === ".."
+  ) {
     throw new Error(`invalid workflow step id for runner storage: ${stepId}`);
   }
 }
@@ -19,68 +24,100 @@ export function instructionPathForStep(instructionsDir, stepId) {
   return join(instructionsDir, `${stepId}.md`);
 }
 
-export function loadInstructionsCommandForStep(runId, stepId, { runsRoot } = {}) {
+export function loadInstructionsCommandForStep(
+  runId,
+  stepId,
+  { runsRoot, leaseToken } = {},
+) {
   assertSafeStepId(stepId);
-  const runsRootArg = runsRoot ? ` --runs-root ${shellQuote(runsRoot)}` : '';
-  return `node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-id ${shellQuote(runId)} --step-id ${shellQuote(stepId)}${runsRootArg} --lease-token <lease-token>`;
+  const runsRootArg = runsRoot ? ` --runs-root ${shellQuote(runsRoot)}` : "";
+  const token =
+    typeof leaseToken === "string" && leaseToken.length > 0
+      ? shellQuote(leaseToken)
+      : "<lease-token>";
+  return `node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --run-id ${shellQuote(runId)} --step-id ${shellQuote(stepId)}${runsRootArg} --lease-token ${token}`;
 }
 
 export function continueCommandForRun(runId, { runsRoot, leaseToken } = {}) {
-  const runsRootArg = runsRoot ? ` --runs-root ${shellQuote(runsRoot)}` : '';
-  const token = typeof leaseToken === 'string' && leaseToken.length > 0 ? shellQuote(leaseToken) : '<lease-token>';
+  const runsRootArg = runsRoot ? ` --runs-root ${shellQuote(runsRoot)}` : "";
+  const token =
+    typeof leaseToken === "string" && leaseToken.length > 0
+      ? shellQuote(leaseToken)
+      : "<lease-token>";
   return `node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-id ${shellQuote(runId)}${runsRootArg} --lease-token ${token}`;
 }
 
-export function writeOutputCommandForStep(runId, stepId, { runsRoot, leaseToken } = {}) {
+export function writeOutputCommandForStep(
+  runId,
+  stepId,
+  { runsRoot, leaseToken } = {},
+) {
   assertSafeStepId(stepId);
-  const runsRootArg = runsRoot ? ` --runs-root ${shellQuote(runsRoot)}` : '';
-  const token = typeof leaseToken === 'string' && leaseToken.length > 0 ? shellQuote(leaseToken) : '<lease-token>';
+  const runsRootArg = runsRoot ? ` --runs-root ${shellQuote(runsRoot)}` : "";
+  const token =
+    typeof leaseToken === "string" && leaseToken.length > 0
+      ? shellQuote(leaseToken)
+      : "<lease-token>";
   return [
     `node develop/lib/entrypoints/cli/workflow-runner.mjs write-output --run-id ${shellQuote(runId)} --step-id ${shellQuote(stepId)}${runsRootArg} --lease-token ${token} <<'JSON'`,
-    '<paste strict JSON here>',
-    'JSON',
-  ].join('\n');
+    "<paste strict JSON here>",
+    "JSON",
+  ].join("\n");
 }
 
 export function responseStatusForInterpreterResponse(interpreterResponse) {
   const steps = interpreterResponse.steps ?? [];
-  if (steps.length === 1 && steps[0].action === 'stop_done') return 'done';
-  if (steps.length === 1 && steps[0].action === 'stop_blocked') return 'blocked';
-  return 'needs_host_actions';
+  if (steps.length === 1 && steps[0].action === "stop_done") return "done";
+  if (steps.length === 1 && steps[0].action === "stop_blocked")
+    return "blocked";
+  return "needs_host_actions";
 }
 
 const TERMINAL_ORCHESTRATOR_INSTRUCTIONS_BY_STATUS = Object.freeze({
-  done: 'Stop now. Do not call another runner command. Report the completed result from this stdout; status done is the terminal result.',
-  blocked: 'Stop now. Do not call another runner command. Report the blocker from this stdout; status blocked is the terminal result.',
+  needs_host_actions: (ctx) => [
+    "Execute every request in stdout.requests[] and wait until all requested actions finish.",
+    "Then run:",
+    ctx.continueCommand,
+    "Parse that stdout JSON and follow its orchestratorInstruction exactly.",
+  ].join("\n"),
+  done: () =>
+    "Stop now. Do not call another runner command. Report the completed result from this stdout; status done is the terminal result.",
+  blocked: () =>
+    "Stop now. Do not call another runner command. Report the blocker from this stdout; status blocked is the terminal result.",
 });
 
-function orchestratorInstructionForStatus(status, { continueCommand } = {}) {
-  if (status === 'needs_host_actions') {
-    return [
-      'Execute every request in stdout.requests[] and wait until all requested actions finish.',
-      'Then run:',
-      continueCommand,
-      'Parse that stdout JSON and follow its orchestratorInstruction exactly.',
-    ].join('\n');
-  }
+function orchestratorInstructionForStatus(status, ctx) {
   const instruction = TERMINAL_ORCHESTRATOR_INSTRUCTIONS_BY_STATUS[status];
-  if (instruction) return instruction;
-  throw new Error(`unknown workflow runner host response status: ${status}`);
+  if (!instruction)
+    throw new Error(`unknown workflow runner host response status: ${status}`);
+
+  return instruction(ctx);
 }
 
-function resolvedOutputSchemaForStep(step, { workflow, workflowPath, repositoryRoot = process.cwd() }) {
+function resolvedOutputSchemaForStep(
+  step,
+  { workflow, workflowPath, repositoryRoot = process.cwd() },
+) {
   const schemaRef = step.step?.output?.schema;
-  if (step.action !== 'wait_for_approval' || !schemaRef) return undefined;
-  const resolved = loadOutputSchema({ workflow, workflowPath, schemaRef, repositoryRoot });
+  if (step.action !== "wait_for_approval" || !schemaRef) return undefined;
+  const resolved = loadOutputSchema({
+    workflow,
+    workflowPath,
+    schemaRef,
+    repositoryRoot,
+  });
   return {
     ref: schemaRef,
     schema: resolved.schema,
   };
 }
 
-export function buildHostRequests(interpreterResponse, { runId, workflow, workflowPath, repositoryRoot, runsRoot }) {
+export function buildHostRequests(
+  interpreterResponse,
+  { runId, workflow, workflowPath, repositoryRoot, runsRoot, leaseToken },
+) {
   const status = responseStatusForInterpreterResponse(interpreterResponse);
-  if (status !== 'needs_host_actions') return [];
+  if (status !== "needs_host_actions") return [];
 
   return interpreterResponse.steps
     .filter((step) => !TERMINAL_ACTIONS.has(step.action))
@@ -89,9 +126,17 @@ export function buildHostRequests(interpreterResponse, { runId, workflow, workfl
         id: step.id,
         stepId: step.id,
         action: step.action,
-        loadInstructionsCommand: loadInstructionsCommandForStep(runId, step.id, { runsRoot }),
+        loadInstructionsCommand: loadInstructionsCommandForStep(
+          runId,
+          step.id,
+          { runsRoot, leaseToken },
+        ),
       };
-      const resolvedOutputSchema = resolvedOutputSchemaForStep(step, { workflow, workflowPath, repositoryRoot });
+      const resolvedOutputSchema = resolvedOutputSchemaForStep(step, {
+        workflow,
+        workflowPath,
+        repositoryRoot,
+      });
       if (resolvedOutputSchema) {
         request.outputSchema = resolvedOutputSchema.ref;
         request.resolvedOutputSchema = resolvedOutputSchema;
@@ -107,10 +152,12 @@ export function toHostResponse(interpreterResponse, options) {
     orchestratorInstruction: orchestratorInstructionForStatus(status, {
       continueCommand: continueCommandForRun(options.runId, {
         runsRoot: options.runsRoot,
+        leaseToken: options.leaseToken,
       }),
     }),
     baton: interpreterResponse.baton,
   };
-  if (status === 'needs_host_actions') response.requests = buildHostRequests(interpreterResponse, options);
+  if (status === "needs_host_actions")
+    response.requests = buildHostRequests(interpreterResponse, options);
   return response;
 }
