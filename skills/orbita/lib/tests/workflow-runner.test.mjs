@@ -64,13 +64,19 @@ function writeJson(filePath, value) {
 function requestsFromOrchestratorInstruction(instruction) {
   const match = instruction.match(/^Supersedes all previous workflow-runner stdout\.\nExecute every host request in this JSON and wait until all requested actions finish: (.+)\nThen run:/);
   assert.ok(match, instruction);
-  return JSON.parse(match[1]);
+  const requests = JSON.parse(match[1]); assert.equal(Array.isArray(requests), true); return requests;
 }
 
 function terminalResponseFromOrchestratorInstruction(instruction) {
   const match = instruction.match(/\nStop now\. Do not call another runner command\. Terminal response JSON: (.+)\nReport /);
   assert.ok(match, instruction);
   return JSON.parse(match[1]);
+}
+
+function assertTextModeInstruction(instruction, { nonTerminal = false } = {}) {
+  assert.throws(() => JSON.parse(instruction)); assert.match(instruction, /^Supersedes all previous workflow-runner stdout\./);
+  assert.doesNotMatch(instruction, /"orchestratorInstruction"\s*:|\.workflow-runs|\.workflow-runner|last-response\.json|baton\.json/);
+  if (nonTerminal) assert.doesNotMatch(instruction, /"baton"\s*:|"requests"\s*:|"status"\s*:\s*"needs_host_actions"/);
 }
 
 function claimRunForTest(paths) {
@@ -285,14 +291,14 @@ test('runner: --only-instructions prints only orchestrator instruction text', ()
 
   const result = runRunner(['next', '--run-id', runId, '--workflow', workflowPath, '--only-instructions']);
   assert.equal(result.status, 0, result.stderr);
-  assert.throws(() => JSON.parse(result.stdout));
+  assertTextModeInstruction(result.stdout, { nonTerminal: true });
   assert.match(result.stdout, /Execute every host request in this JSON/);
   const instructionRequests = requestsFromOrchestratorInstruction(result.stdout);
-  assert.deepEqual(instructionRequests.map((request) => [request.action, request.stepId]), [['run_worker', 'prepare']]);
+  assert.deepEqual(instructionRequests.map(({ action, stepId }) => [action, stepId]), [['run_worker', 'prepare']]);
+  for (const field of ['compiledPrompt', 'instructionRef', 'outputPath']) assert.equal(Object.hasOwn(instructionRequests[0], field), false);
   assert.doesNotMatch(result.stdout, /Load instructions with:/);
-  assert.match(result.stdout, /workflow-runner\.mjs instructions --run-id/);
-  assert.match(result.stdout, /workflow-runner\.mjs continue --run-id/);
-  assert.match(result.stdout, /--only-instructions/);
+  assert.match(result.stdout, /node skills\/orbita\/lib\/entrypoints\/cli\/workflow-runner\.mjs instructions --run-id/);
+  assert.match(result.stdout, /Then run:\nnode skills\/orbita\/lib\/entrypoints\/cli\/workflow-runner\.mjs continue --run-id '[^']+' --lease-token '[^']+' --only-instructions/);
   const lastResponse = JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8'));
   assert.equal(lastResponse.status, 'needs_host_actions');
   assert.deepEqual(lastResponse.requests.map((request) => request.stepId), ['prepare']);
@@ -658,11 +664,7 @@ function schemaCoveredWorkflow(overrides = {}) {
     $schema: 'https://json-schema.org/draft/2020-12/schema',
     type: 'object',
     required: ['outcome'],
-    properties: {
-      outcome: { type: 'string' },
-      results: { type: 'array' },
-      artifacts: { type: 'array' },
-    },
+    properties: { outcome: { type: 'string' }, results: { type: 'array' }, artifacts: { type: 'array' } },
     additionalProperties: true,
   });
   const workflow = structuredClone(workflowDoc);
@@ -676,21 +678,22 @@ function schemaCoveredWorkflow(overrides = {}) {
   return workflow;
 }
 
+function writeSchemaWorkflow(label, overrides = {}) {
+  const workflowPath = path.join(tempDir, `${label}-workflow.json`); writeJson(workflowPath, schemaCoveredWorkflow(overrides)); return workflowPath;
+}
+
 test('runner: write-output accepts valid stdin JSON into baton state and continue advances without --output', () => {
   const { runId, runDir } = runCase('write-output-stdin-valid');
-  const workflowPath = path.join(tempDir, 'write-output-stdin-valid-workflow.json');
-  const workflow = schemaCoveredWorkflow({ prepare: { next: 'done' } });
-  writeJson(workflowPath, workflow);
+  const workflowPath = writeSchemaWorkflow('write-output-stdin-valid', { prepare: { next: 'done' } });
 
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next before write-output');
   const written = runRunner(['write-output', '--run-id', runId, '--step-id', 'prepare'], { input: JSON.stringify(workerOutput('prepared')) });
   assert.equal(written.status, 0, written.stderr);
   const writtenResponse = JSON.parse(written.stdout);
-  assert.equal(writtenResponse.ok, true);
-  assert.equal(writtenResponse.runId, runId);
-  assert.equal(writtenResponse.stepId, 'prepare');
-  assert.equal(writtenResponse.accepted, true);
+  assert.deepEqual(writtenResponse, { ok: true, runId, stepId: 'prepare', accepted: true });
   assert.equal(Object.hasOwn(writtenResponse, 'orchestratorInstruction'), false);
+  assert.equal(Object.hasOwn(writtenResponse, 'requests'), false);
+  assert.equal(Object.hasOwn(writtenResponse, 'baton'), false);
   const batonAfterWrite = JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8'));
   assert.equal(batonAfterWrite.cursor, 'prepare');
   assert.equal(batonAfterWrite.state.outputs.prepare.outcome, 'ready');
@@ -703,17 +706,15 @@ test('runner: write-output accepts valid stdin JSON into baton state and continu
 
 test('runner: continue --only-instructions prints terminal instruction text', () => {
   const { runId } = runCase('continue-only-instructions');
-  const workflowPath = path.join(tempDir, 'continue-only-instructions-workflow.json');
-  const workflow = schemaCoveredWorkflow({ prepare: { next: 'done' } });
-  writeJson(workflowPath, workflow);
+  const workflowPath = writeSchemaWorkflow('continue-only-instructions', { prepare: { next: 'done' } });
 
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next before continue only instructions');
   const written = runRunner(['write-output', '--run-id', runId, '--step-id', 'prepare'], { input: JSON.stringify(workerOutput('prepared')) });
   assert.equal(written.status, 0, written.stderr);
   const continued = runRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--only-instructions']);
   assert.equal(continued.status, 0, continued.stderr);
-  assert.throws(() => JSON.parse(continued.stdout));
-  assert.match(continued.stdout, /^Supersedes all previous workflow-runner stdout\./);
+  assertTextModeInstruction(continued.stdout);
+  assert.doesNotMatch(continued.stdout, /Then run:|Execute every host request|write-output|workflow-runner\.mjs continue|"requests"\s*:/);
   assert.match(continued.stdout, /Stop now/);
   const terminalResponse = terminalResponseFromOrchestratorInstruction(continued.stdout);
   assert.equal(terminalResponse.status, 'done');
@@ -723,36 +724,41 @@ test('runner: continue --only-instructions prints terminal instruction text', ()
 
 test('runner: blocked --only-instructions prints terminal blocker data', () => {
   const { runId } = runCase('blocked-only-instructions');
-  const workflowPath = path.join(tempDir, 'blocked-only-instructions-workflow.json');
-  const workflow = schemaCoveredWorkflow({ prepare: { next: 'blocked' } });
-  writeJson(workflowPath, workflow);
+  const workflowPath = writeSchemaWorkflow('blocked-only-instructions', { prepare: { next: 'blocked' } });
 
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next before blocked only instructions');
-  const output = {
-    ...workerOutput('blocked'),
-    blocker: { reason: 'needs human decision' },
-  };
+  const output = { ...workerOutput('blocked'), blocker: { reason: 'needs human decision' } };
   const written = runRunner(['write-output', '--run-id', runId, '--step-id', 'prepare'], { input: JSON.stringify(output) });
   assert.equal(written.status, 0, written.stderr);
   const continued = runRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--only-instructions']);
   assert.equal(continued.status, 0, continued.stderr);
-  assert.throws(() => JSON.parse(continued.stdout));
-  assert.match(continued.stdout, /^Supersedes all previous workflow-runner stdout\./);
+  assertTextModeInstruction(continued.stdout);
+  assert.doesNotMatch(continued.stdout, /Then run:|Execute every host request|write-output|workflow-runner\.mjs continue|"requests"\s*:/);
   const terminalResponse = terminalResponseFromOrchestratorInstruction(continued.stdout);
   assert.equal(terminalResponse.status, 'blocked');
   assert.deepEqual(terminalResponse.baton.blocker, { reason: 'needs human decision' });
   assert.match(continued.stdout, /status blocked is the terminal result/);
 });
+test('runner: continue --only-instructions prints only current non-terminal host requests', () => {
+  const { runId } = runCase('continue-only-instructions-nonterminal');
+  const workflowPath = writeSchemaWorkflow('continue-only-instructions-nonterminal');
+  expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next before nonterminal only instructions');
+  assert.equal(runRunner(['write-output', '--run-id', runId, '--step-id', 'prepare'], { input: JSON.stringify(workerOutput('prepared')) }).status, 0);
+  const continued = runRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--only-instructions']);
+  assert.equal(continued.status, 0, continued.stderr); assertTextModeInstruction(continued.stdout, { nonTerminal: true });
+  assert.match(continued.stdout, /Execute every host request in this JSON/); assert.match(continued.stdout, /Then run:\nnode skills\/orbita\/lib\/entrypoints\/cli\/workflow-runner\.mjs continue --run-id '[^']+' --lease-token '[^']+' --only-instructions/);
+  assert.deepEqual(requestsFromOrchestratorInstruction(continued.stdout).map(({ action, stepId }) => [action, stepId]).sort(), [['run_worker', 'branch_a'], ['run_worker', 'branch_b']]);
+  assert.doesNotMatch(continued.stdout, /write-output|Terminal response JSON/);
+});
 
 test('runner: write-output rejects --only-instructions because it is not an orchestrator command', () => {
   const { runId, runDir } = runCase('write-output-only-instructions');
-  const workflowPath = path.join(tempDir, 'write-output-only-instructions-workflow.json');
-  const workflow = schemaCoveredWorkflow({ prepare: { next: 'done' } });
-  writeJson(workflowPath, workflow);
+  const workflowPath = writeSchemaWorkflow('write-output-only-instructions', { prepare: { next: 'done' } });
 
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next before write-output only instructions');
   const written = runRunner(['write-output', '--run-id', runId, '--step-id', 'prepare', '--only-instructions'], { input: JSON.stringify(workerOutput('prepared')) });
   assert.notEqual(written.status, 0);
+  assert.doesNotMatch(written.stdout, /orchestratorInstruction|Execute every host request|Terminal response JSON|Then run:|workflow-runner\.mjs continue/);
   assert.match(written.stderr, /usage: node skills\/orbita\/lib\/entrypoints\/cli\/workflow-runner\.mjs/);
   const batonAfterWrite = JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8'));
   assert.equal(batonAfterWrite.state.outputs, undefined);
@@ -760,9 +766,7 @@ test('runner: write-output rejects --only-instructions because it is not an orch
 
 test('runner: write-output rejects invalid JSON/schema without accepting output', () => {
   const { runId, runDir } = runCase('write-output-invalid');
-  const workflowPath = path.join(tempDir, 'write-output-invalid-workflow.json');
-  const workflow = schemaCoveredWorkflow({ prepare: { next: 'done' } });
-  writeJson(workflowPath, workflow);
+  const workflowPath = writeSchemaWorkflow('write-output-invalid', { prepare: { next: 'done' } });
 
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next before invalid write-output');
   const invalid = runRunner(['write-output', '--run-id', runId, '--step-id', 'prepare'], { input: JSON.stringify({ results: [] }) });
@@ -778,9 +782,7 @@ test('runner: write-output rejects invalid JSON/schema without accepting output'
 
 test('runner: worker instructions include prefilled validating write-output command', () => {
   const { runId } = runCase('write-output-instructions');
-  const workflowPath = path.join(tempDir, 'write-output-instructions-workflow.json');
-  const workflow = schemaCoveredWorkflow({ prepare: { next: 'done' } });
-  writeJson(workflowPath, workflow);
+  const workflowPath = writeSchemaWorkflow('write-output-instructions', { prepare: { next: 'done' } });
 
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next before loading writer instructions');
   const instructions = runRunner(['instructions', '--run-id', runId, '--step-id', 'prepare']);
@@ -795,9 +797,7 @@ test('runner: worker instructions include prefilled validating write-output comm
 
 test('runner: write-output separates parallel request outputs by step id before continue without --output', () => {
   const { runId, runDir } = runCase('write-output-parallel-step-ids');
-  const workflowPath = path.join(tempDir, 'write-output-parallel-step-ids-workflow.json');
-  const workflow = schemaCoveredWorkflow({ join: { next: 'done' } });
-  writeJson(workflowPath, workflow);
+  const workflowPath = writeSchemaWorkflow('write-output-parallel-step-ids', { join: { next: 'done' } });
 
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next before prepare writer');
   assert.equal(runRunner(['write-output', '--run-id', runId, '--step-id', 'prepare'], { input: JSON.stringify(workerOutput('prepared')) }).status, 0);
