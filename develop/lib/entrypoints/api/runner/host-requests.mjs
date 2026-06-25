@@ -86,10 +86,10 @@ const TERMINAL_ORCHESTRATOR_INSTRUCTIONS_BY_STATUS = Object.freeze({
     ctx.continueCommand,
     "Follow that stdout instruction exactly.",
   ].join("\n"),
-  done: () =>
-    "Stop now. Do not call another runner command. Report the completed result from this stdout; status done is the terminal result.",
-  blocked: () =>
-    "Stop now. Do not call another runner command. Report the blocker from this stdout; status blocked is the terminal result.",
+  done: (ctx) =>
+    `Stop now. Do not call another runner command. Terminal response JSON: ${JSON.stringify({ status: "done", baton: ctx.baton })}\nReport the completed result from that JSON; status done is the terminal result.`,
+  blocked: (ctx) =>
+    `Stop now. Do not call another runner command. Terminal response JSON: ${JSON.stringify({ status: "blocked", baton: ctx.baton })}\nReport the blocker from that JSON; status blocked is the terminal result.`,
 });
 
 function orchestratorInstructionForStatus(status, ctx) {
@@ -165,6 +165,7 @@ export function toHostResponse(interpreterResponse, options) {
         runsRoot: options.runsRoot,
         leaseToken: options.leaseToken,
       }),
+      baton: interpreterResponse.baton,
     }),
     baton: interpreterResponse.baton,
   };

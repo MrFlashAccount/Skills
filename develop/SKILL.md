@@ -55,8 +55,8 @@ After each runner command that uses `--only-instructions`, follow stdout text ex
 
 Terminal statuses:
 
-- `done`: stop and report the completed result.
-- `blocked`: stop and report the blocker.
+- `done`: stop and report the completed result from the terminal response JSON in stdout.
+- `blocked`: stop and report the blocker from the terminal response JSON in stdout.
 
 Non-terminal host work:
 
@@ -94,4 +94,4 @@ If a worker needs user input before validated output, ask the user's focused que
 
 For `wait_for_approval`, load the request instructions via the exact `loadInstructionsCommand` from the request JSON, read the requested question/options and required JSON shape, ask only for that input, normalize the answer to strict JSON, and run the exact validating `write-output` command from the loaded instructions. Treat accepted output as completion of that host request, then continue following the latest `next`/`continue` stdout instruction.
 
-Final answer only when stdout instruction explicitly says to stop and report `done` or `blocked`.
+Final answer only when stdout instruction explicitly says to stop and report `done` or `blocked`; use the terminal response JSON embedded in that stdout as the source of final result or blocker details.
