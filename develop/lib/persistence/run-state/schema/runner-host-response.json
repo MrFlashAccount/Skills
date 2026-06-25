@@ -3,7 +3,7 @@
   "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/runner-host-response",
   "title": "Workflow Runner Host Response",
   "type": "object",
-  "required": ["status", "baton"],
+  "required": ["status", "orchestratorInstruction", "baton"],
   "properties": {
     "status": { "enum": ["needs_host_actions", "done", "blocked"] },
     "orchestratorInstruction": { "type": "string", "minLength": 1 },
