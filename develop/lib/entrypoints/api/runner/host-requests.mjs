@@ -43,6 +43,15 @@ export function responseStatusForInterpreterResponse(interpreterResponse) {
   return 'needs_host_actions';
 }
 
+function orchestratorInstructionForStatus(status) {
+  if (status === 'needs_host_actions') {
+    return 'Execute every request in requests[], write each accepted result through workflow-runner write-output, then call workflow-runner continue exactly once. Do not stop or report completion while status is needs_host_actions.';
+  }
+  if (status === 'done') return 'Stop the workflow loop and report the completed result.';
+  if (status === 'blocked') return 'Stop the workflow loop and report the blocker.';
+  throw new Error(`unknown workflow runner host response status: ${status}`);
+}
+
 function resolvedOutputSchemaForStep(step, { workflow, workflowPath, repositoryRoot = process.cwd() }) {
   const schemaRef = step.step?.output?.schema;
   if (step.action !== 'wait_for_approval' || !schemaRef) return undefined;
@@ -79,6 +88,7 @@ export function toHostResponse(interpreterResponse, options) {
   const status = responseStatusForInterpreterResponse(interpreterResponse);
   const response = {
     status,
+    orchestratorInstruction: orchestratorInstructionForStatus(status),
     baton: interpreterResponse.baton,
   };
   if (status === 'needs_host_actions') response.requests = buildHostRequests(interpreterResponse, options);
