@@ -88,12 +88,12 @@ Load the step instructions by running:
 
 Then follow the loaded instructions exactly.
 
-The loaded instructions include the validating write-output command. Use that exact command; supply only the required JSON body/stdin. If validation fails, fix the JSON and retry boundedly until accepted. On success, return the exact write-output stdout JSON to the orchestrator.
+The loaded instructions include the validating write-output command. Use that exact command; supply only the required JSON body/stdin. If validation fails, fix the JSON and retry boundedly until accepted.
 
 Do not add behavior, role, output format, or constraints beyond the loaded instructions. If the instructions cannot be loaded, stop with an error.
 ```
 
-Workers use the validating `write-output` command from their loaded instructions. Workers never call `continue`. The orchestrator parses the worker's returned `write-output` stdout JSON and follows its `orchestratorInstruction`.
+Workers use the validating `write-output` command from their loaded instructions. Workers never call `continue`; runner stdout instructions tell the orchestrator what to do next.
 
 If a worker needs user input before validated output, ask the user's focused question and forward the answer back into the same worker session. Do not create a replacement worker for that continuation, and do not let workers treat themselves as direct user-facing agents.
 
