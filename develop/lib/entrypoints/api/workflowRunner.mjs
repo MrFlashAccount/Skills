@@ -11,7 +11,7 @@ import { resolveStartupUserPrompt, startupUserPromptTarget } from '../../use-cas
 import { loadWorkflowRuntime } from '../../persistence/workflow-resources/runtime-reader.mjs';
 import { read as readInstructionDTO } from '../../persistence/workflow-resources/instruction-file-reader.mjs';
 import { writePersistedRunStateUpdate } from '../../persistence/run-state/PersistedRunStateWriter.mjs';
-import { assertSafeStepId, continueCommandForRun, instructionPathForStep, responseStatusForInterpreterResponse, toHostResponse, writeOutputCommandForStep } from './runner/host-requests.mjs';
+import { assertSafeStepId, continueInstructionCommandForRun, instructionPathForStep, responseStatusForInterpreterResponse, toHostResponse, writeOutputCommandForStep } from './runner/host-requests.mjs';
 import { readText } from '../../persistence/run-state/atomic-file.mjs';
 import { assertFreshTokenAuthority, assertMatchingTokenAuthority, buildTokenLease, renewTokenLease } from '../../persistence/run-state/lease-authority.mjs';
 import { recoverDurableCommit } from '../../persistence/run-state/durable-commit.mjs';
@@ -28,7 +28,7 @@ function writeOutputOrchestratorInstruction(continueCommand) {
     'If any current request is still missing accepted output, execute that request next.',
     'When every current request has accepted output, run:',
     continueCommand,
-    'Parse that stdout JSON and follow its orchestratorInstruction exactly.',
+    'Follow that stdout instruction exactly.',
     'Do not report completion from write-output stdout.',
   ].join('\n');
 }
@@ -430,7 +430,7 @@ async function writeOutputInternal({ runId, workflowPath, stepId, json, leaseTok
       runId: paths.runId,
       stepId: acceptedStepId,
       accepted: true,
-      orchestratorInstruction: writeOutputOrchestratorInstruction(continueCommandForRun(paths.runId, {
+      orchestratorInstruction: writeOutputOrchestratorInstruction(continueInstructionCommandForRun(paths.runId, {
         runsRoot: paths.runsRoot === workflowRunsRoot ? undefined : paths.runsRoot,
         leaseToken,
       })),

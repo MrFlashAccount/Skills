@@ -595,16 +595,19 @@ test('runner API propagates custom runsRoot through next, instructions, and cont
   assert.equal(first.requests[0].loadInstructionsCommand.includes(`--lease-token '${leaseToken}'`), true);
   assert.equal(first.orchestratorInstruction.includes(`--runs-root '${runsRoot}'`), true);
   assert.equal(first.orchestratorInstruction.includes(`--lease-token '${leaseToken}'`), true);
+  assert.equal(first.orchestratorInstruction.includes('--only-instructions'), true);
 
   const instructions = await runnerLoadInstructions({ runId, stepId: 'prepare', runsRoot, leaseToken });
   assert.match(instructions, /Prepare branch\./);
 
   const writeOutput = await runnerWriteOutput({ runId, workflowPath, runsRoot, stepId: 'prepare', json: readFileSync(outputPath, 'utf8'), leaseToken });
   assert.equal(writeOutput.orchestratorInstruction.includes(`--runs-root '${runsRoot}'`), true);
+  assert.equal(writeOutput.orchestratorInstruction.includes('--only-instructions'), true);
   const continued = await runnerContinueRun({ runId, runsRoot, leaseToken });
 
   assert.equal(continued.status, 'needs_host_actions');
   assert.equal(continued.requests[0].loadInstructionsCommand.includes(`--lease-token '${leaseToken}'`), true);
+  assert.equal(continued.orchestratorInstruction.includes('--only-instructions'), true);
   assert.deepEqual(continued.requests.map((request) => request.stepId).sort(), ['branch_a', 'branch_b']);
   for (const request of continued.requests) {
     assert.equal(request.loadInstructionsCommand.includes(`--runs-root '${runsRoot}'`), true);
