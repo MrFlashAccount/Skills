@@ -592,11 +592,13 @@ test('runner API propagates custom runsRoot through next, instructions, and cont
   assert.equal(first.status, 'needs_host_actions');
   assert.equal(first.requests[0].stepId, 'prepare');
   assert.equal(first.requests[0].loadInstructionsCommand.includes(`--runs-root '${runsRoot}'`), true);
+  assert.equal(first.orchestratorInstruction.includes(`--runs-root '${runsRoot}'`), true);
 
   const instructions = await runnerLoadInstructions({ runId, stepId: 'prepare', runsRoot, leaseToken });
   assert.match(instructions, /Prepare branch\./);
 
-  await runnerWriteOutput({ runId, workflowPath, runsRoot, stepId: 'prepare', json: readFileSync(outputPath, 'utf8'), leaseToken });
+  const writeOutput = await runnerWriteOutput({ runId, workflowPath, runsRoot, stepId: 'prepare', json: readFileSync(outputPath, 'utf8'), leaseToken });
+  assert.equal(writeOutput.orchestratorInstruction.includes(`--runs-root '${runsRoot}'`), true);
   const continued = await runnerContinueRun({ runId, runsRoot, leaseToken });
 
   assert.equal(continued.status, 'needs_host_actions');

@@ -58,13 +58,9 @@ Terminal statuses:
 
 Non-terminal host work:
 
-- `needs_host_actions`: satisfy the current `stdout.requests[]` through the host actions below, run the exact validating `workflow-runner write-output` command from the loaded instructions, parse that stdout, and follow its `orchestratorInstruction`.
+- `needs_host_actions`: complete every current `stdout.requests[]` item through the host actions below, wait until each requested action has accepted output, then run the exact `continue` command embedded in `stdout.orchestratorInstruction`.
 
-Call `workflow-runner continue` only when the latest `orchestratorInstruction` says the current accepted request results should be continued:
-
-```bash
-node develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-id <run-id> --lease-token "$lease_token"
-```
+Call `workflow-runner continue` only by running the exact command embedded in the latest `orchestratorInstruction`.
 
 Do not call `next` as a substitute for applying accepted request results. Do not report an intermediate cursor, next instruction, pending request, accepted output, or `needs_host_actions` as final completion.
 

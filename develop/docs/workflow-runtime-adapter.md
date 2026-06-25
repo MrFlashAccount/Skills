@@ -43,7 +43,7 @@ When host work is needed, the runner returns:
 ```json
 {
   "status": "needs_host_actions",
-  "orchestratorInstruction": "Execute every current request in stdout.requests[]. For each request, wait for the action result. When the loaded instructions tell you to write output, run the exact validating workflow-runner write-output CLI command from those instructions with strict JSON. Parse that command stdout and follow its orchestratorInstruction exactly. When every current request has accepted output, run workflow-runner continue exactly once, parse its stdout, and follow its orchestratorInstruction exactly. Do not stop or report completion while status is needs_host_actions.",
+  "orchestratorInstruction": "Execute every request in stdout.requests[] and wait until all requested actions finish.\nThen run:\nnode develop/lib/entrypoints/cli/workflow-runner.mjs continue --run-id 'run_id' --lease-token <lease-token>\nParse that stdout JSON and follow its orchestratorInstruction exactly.",
   "baton": {},
   "requests": [
     {
@@ -56,9 +56,9 @@ When host work is needed, the runner returns:
 }
 ```
 
-`orchestratorInstruction` is a machine-visible directive for the host/orchestrator. When `status` is `needs_host_actions`, the host must treat the response as non-terminal: finish every request in the current batch, write accepted outputs, and follow the next directive returned by runner stdout. Only `done` and `blocked` are terminal.
+`orchestratorInstruction` is a machine-visible directive for the host/orchestrator. When `status` is `needs_host_actions`, the host must treat the response as non-terminal: finish every request in the current batch, run the embedded `continue` command, and follow the next directive returned by runner stdout. Only `done` and `blocked` are terminal.
 
-Hosts must substitute the `<lease-token>` placeholder with the fresh explicit lease token before executing `loadInstructionsCommand`; the runner does not read a token from environment variables.
+Hosts must substitute the `<lease-token>` placeholder with the fresh explicit lease token before executing any runner-returned command, including `loadInstructionsCommand` and commands embedded in `orchestratorInstruction`; the runner does not read a token from environment variables.
 
 The public host request contract is intentionally narrow: requested action identity, step identity, and the instruction-loader command are always public. Approval requests may additionally include output-schema metadata when the workflow step declares `output.schema`. `outputSchema` is the raw workflow reference. `resolvedOutputSchema` is the preferred host-adapter contract when present: it contains `{ ref, schema }`, where `ref` is the same raw workflow reference and `schema` is the JSON payload describing the normalized answer expected back from the host. Neither field exposes runner filesystem paths. Instruction storage paths are private runner state. Output paths are not part of the request contract.
 
@@ -73,7 +73,7 @@ A CLI failure is an execution error and should be reported by the host adapter i
 
 The host wrapper writes each request result through `workflow-runner write-output`. The command validates strict JSON against the current request/step output schema and accepts the normalized value directly into baton/state. There is no output-path handoff from worker to orchestrator, and `workflow-runner continue` does not accept output paths.
 
-On success, `write-output` stdout includes `orchestratorInstruction`. The host must treat that field as the next CLI directive: wait for every current request to have accepted output, call `workflow-runner continue` exactly once when the batch is accepted, and do not report completion from `write-output` stdout alone.
+On success, `write-output` stdout includes `orchestratorInstruction`. The host must treat that field as the next CLI directive: if the current request batch is accepted, run the embedded `continue` command, and do not report completion from `write-output` stdout alone.
 
 Typical worker output envelope:
 

@@ -228,10 +228,12 @@ test('runner: next returns a single host action request with load command only',
   const response = expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next single');
 
   assert.equal(response.status, 'needs_host_actions');
-  assert.match(response.orchestratorInstruction, /Execute every current request in stdout\.requests\[\]/);
-  assert.match(response.orchestratorInstruction, /run the exact validating workflow-runner write-output CLI command/);
-  assert.match(response.orchestratorInstruction, /follow its orchestratorInstruction exactly/);
-  assert.match(response.orchestratorInstruction, /Do not stop or report completion while status is needs_host_actions/);
+  assert.match(response.orchestratorInstruction, /Execute every request in stdout\.requests\[\]/);
+  assert.match(response.orchestratorInstruction, /Then run:\nnode develop\/lib\/entrypoints\/cli\/workflow-runner\.mjs continue --run-id 'workflow-runner-test-[^']+-single' --lease-token <lease-token>/);
+  assert.match(response.orchestratorInstruction, /Parse that stdout JSON and follow its orchestratorInstruction exactly/);
+  assert.doesNotMatch(response.orchestratorInstruction, /write-output/);
+  assert.doesNotMatch(response.orchestratorInstruction, /loaded instructions/);
+  assert.doesNotMatch(response.orchestratorInstruction, /run workflow-runner continue exactly once/);
   assert.equal(response.baton.cursor, 'prepare');
   assert.deepEqual(response.requests.map((request) => request.id), ['prepare']);
   assert.equal(response.requests[0].action, 'run_worker');
@@ -641,16 +643,13 @@ test('runner: write-output accepts valid stdin JSON into baton state and continu
   const written = runRunner(['write-output', '--run-id', runId, '--step-id', 'prepare'], { input: JSON.stringify(workerOutput('prepared')) });
   assert.equal(written.status, 0, written.stderr);
   const writtenResponse = JSON.parse(written.stdout);
-  assert.deepEqual(
-    writtenResponse,
-    {
-      ok: true,
-      runId,
-      stepId: 'prepare',
-      accepted: true,
-      orchestratorInstruction: 'Output accepted. Parse this stdout and follow its instructions exactly: if any current request is still missing accepted output, execute that request next. When every current request has accepted output, run workflow-runner continue exactly once, parse its stdout, and follow its orchestratorInstruction exactly. Do not stop or report completion after write-output stdout.',
-    },
-  );
+  assert.equal(writtenResponse.ok, true);
+  assert.equal(writtenResponse.runId, runId);
+  assert.equal(writtenResponse.stepId, 'prepare');
+  assert.equal(writtenResponse.accepted, true);
+  assert.match(writtenResponse.orchestratorInstruction, /Output accepted/);
+  assert.match(writtenResponse.orchestratorInstruction, /When every current request has accepted output, run:\nnode develop\/lib\/entrypoints\/cli\/workflow-runner\.mjs continue --run-id 'workflow-runner-test-[^']+-write-output-stdin-valid' --lease-token '[^']+'/);
+  assert.match(writtenResponse.orchestratorInstruction, /Parse that stdout JSON and follow its orchestratorInstruction exactly/);
   const batonAfterWrite = JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8'));
   assert.equal(batonAfterWrite.cursor, 'prepare');
   assert.equal(batonAfterWrite.state.outputs.prepare.outcome, 'ready');
