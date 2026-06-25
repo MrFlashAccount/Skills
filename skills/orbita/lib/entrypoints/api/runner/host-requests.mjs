@@ -83,10 +83,11 @@ export function responseStatusForInterpreterResponse(interpreterResponse) {
 const TERMINAL_ORCHESTRATOR_INSTRUCTIONS_BY_STATUS = Object.freeze({
   needs_host_actions: (ctx) => [
     `Execute every host request in this JSON and wait until all requested actions finish: ${JSON.stringify(ctx.requests)}`,
+    ctx.inlineInstructions,
     "Then run:",
     ctx.continueCommand,
     "Follow that stdout instruction exactly.",
-  ].join("\n"),
+  ].filter(Boolean).join("\n"),
   done: (ctx) =>
     `Stop now. Do not call another runner command. Terminal response JSON: ${JSON.stringify({ status: "done", baton: ctx.baton })}\nReport the completed result from that JSON; status done is the terminal result.`,
   blocked: (ctx) =>
@@ -99,6 +100,29 @@ function orchestratorInstructionForStatus(status, ctx) {
     throw new Error(`unknown workflow runner host response status: ${status}`);
 
   return [SUPERSEDES_STDOUT_INSTRUCTION, instruction(ctx)].join("\n");
+}
+
+function inlineInstructionForStep(step) {
+  if (step.action !== "wait_for_approval") return "";
+  const prompt = step.compiledPrompt?.prompt;
+  if (typeof prompt !== "string" || prompt.trim().length === 0) {
+    throw new Error(`missing compiled approval instructions for workflow step '${step.id}'`);
+  }
+  return [
+    `Approval request: ${step.id}`,
+    "",
+    "The orchestrator must execute this approval instruction itself.",
+    "Use the following compiled approval prompt as the complete source for the user-facing approval message.",
+    "",
+    prompt.trimEnd(),
+  ].join("\n");
+}
+
+function inlineInstructionsForSteps(steps = []) {
+  return steps
+    .map((step) => inlineInstructionForStep(step))
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 function resolvedOutputSchemaForStep(
@@ -162,6 +186,9 @@ export function toHostResponse(interpreterResponse, options) {
     status,
     orchestratorInstruction: orchestratorInstructionForStatus(status, {
       requests,
+      inlineInstructions: options.includeInlineInstructions
+        ? inlineInstructionsForSteps(interpreterResponse.steps)
+        : "",
       continueCommand: continueInstructionCommandForRun(options.runId, {
         runsRoot: options.runsRoot,
         leaseToken: options.leaseToken,

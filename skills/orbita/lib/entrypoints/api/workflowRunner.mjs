@@ -46,7 +46,7 @@ function stepInstructionsFor(paths, interpreterResponse) {
   });
 }
 
-async function runnerResponseForRendered(paths, rendered, { initialized, resumed, leaseToken }) {
+async function runnerResponseForRendered(paths, rendered, { initialized, resumed, leaseToken, includeInlineInstructions = false }) {
   const workflowDoc = await readJson(paths.workflowPath, 'workflow');
   return {
     ...toHostResponse(rendered, {
@@ -56,6 +56,7 @@ async function runnerResponseForRendered(paths, rendered, { initialized, resumed
       repositoryRoot: paths.repositoryRoot,
       runsRoot: paths.runsRoot === workflowRunsRoot ? undefined : paths.runsRoot,
       leaseToken,
+      includeInlineInstructions,
     }),
     runId: paths.runId,
     initialized,
@@ -123,7 +124,7 @@ async function persistNextHostResponse(paths, rendered, runState, { leaseToken }
     history: { source: 'workflow-runner', baton: persistedResponse.baton, requests: persistedResponse.requests },
     writeBaton: runState.initialized,
   });
-  return runnerResponseForRendered(paths, rendered, { ...runState, leaseToken });
+  return runnerResponseForRendered(paths, rendered, { ...runState, leaseToken, includeInlineInstructions: true });
 }
 
 function publicApiError(error, options = {}) {
@@ -330,7 +331,7 @@ async function continueRunInternal({ runId, workflowPath, output, includeDiagnos
     const rendered = renderAppliedResponse({ workflowDoc: runtime.workflow, response: applied, resources: renderResources, includeDiagnostics });
 
     const persistedResponse = await runnerResponseForRendered(paths, rendered, { initialized: false, resumed: true });
-    const response = await runnerResponseForRendered(paths, rendered, { initialized: false, resumed: true, leaseToken });
+    const response = await runnerResponseForRendered(paths, rendered, { initialized: false, resumed: true, leaseToken, includeInlineInstructions: true });
     const workerLease = await renewedWorkerLeaseAuthority(paths, { leaseToken, now });
     await writePersistedRunStateUpdate(paths, {
       response: persistedResponse,
