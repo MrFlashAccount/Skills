@@ -67,6 +67,12 @@ function requestsFromOrchestratorInstruction(instruction) {
   return JSON.parse(match[1]);
 }
 
+function terminalResponseFromOrchestratorInstruction(instruction) {
+  const match = instruction.match(/\nStop now\. Do not call another runner command\. Terminal response JSON: (.+)\nReport /);
+  assert.ok(match, instruction);
+  return JSON.parse(match[1]);
+}
+
 function claimRunForTest(paths) {
   const knownToken = leaseTokensByRunId.get(paths.runId);
   if (knownToken) {
@@ -709,7 +715,33 @@ test('runner: continue --only-instructions prints terminal instruction text', ()
   assert.throws(() => JSON.parse(continued.stdout));
   assert.match(continued.stdout, /^Supersedes all previous workflow-runner stdout\./);
   assert.match(continued.stdout, /Stop now/);
+  const terminalResponse = terminalResponseFromOrchestratorInstruction(continued.stdout);
+  assert.equal(terminalResponse.status, 'done');
+  assert.equal(terminalResponse.baton.state.prepare.outcome, 'ready');
   assert.match(continued.stdout, /status done is the terminal result/);
+});
+
+test('runner: blocked --only-instructions prints terminal blocker data', () => {
+  const { runId } = runCase('blocked-only-instructions');
+  const workflowPath = path.join(tempDir, 'blocked-only-instructions-workflow.json');
+  const workflow = schemaCoveredWorkflow({ prepare: { next: 'blocked' } });
+  writeJson(workflowPath, workflow);
+
+  expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next before blocked only instructions');
+  const output = {
+    ...workerOutput('blocked'),
+    blocker: { reason: 'needs human decision' },
+  };
+  const written = runRunner(['write-output', '--run-id', runId, '--step-id', 'prepare'], { input: JSON.stringify(output) });
+  assert.equal(written.status, 0, written.stderr);
+  const continued = runRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--only-instructions']);
+  assert.equal(continued.status, 0, continued.stderr);
+  assert.throws(() => JSON.parse(continued.stdout));
+  assert.match(continued.stdout, /^Supersedes all previous workflow-runner stdout\./);
+  const terminalResponse = terminalResponseFromOrchestratorInstruction(continued.stdout);
+  assert.equal(terminalResponse.status, 'blocked');
+  assert.deepEqual(terminalResponse.baton.blocker, { reason: 'needs human decision' });
+  assert.match(continued.stdout, /status blocked is the terminal result/);
 });
 
 test('runner: write-output rejects --only-instructions because it is not an orchestrator command', () => {

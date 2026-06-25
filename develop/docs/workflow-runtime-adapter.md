@@ -56,7 +56,7 @@ When host work is needed, the runner returns:
 }
 ```
 
-`orchestratorInstruction` is a machine-visible directive for the host/orchestrator. Runner stdout is an active directive, not durable history: each new `next` or `continue --only-instructions` stdout supersedes every previous runner stdout. When `status` is `needs_host_actions`, the host must treat the response as non-terminal: finish every request in the inline JSON request array, run the embedded `continue --only-instructions` command, and follow the next directive returned by runner stdout. Only `done` and `blocked` are terminal.
+`orchestratorInstruction` is a machine-visible directive for the host/orchestrator. Runner stdout is an active directive, not durable history: each new `next` or `continue --only-instructions` stdout supersedes every previous runner stdout. When `status` is `needs_host_actions`, the host must treat the response as non-terminal: finish every request in the inline JSON request array, run the embedded `continue --only-instructions` command, and follow the next directive returned by runner stdout. Only `done` and `blocked` are terminal; terminal `--only-instructions` stdout includes minified terminal response JSON with `status` and `baton` so the host has final result or blocker details without falling back to full JSON mode.
 
 Runner stdout commands include the explicit lease token when the runner was called with one. If a runner-returned command still contains a `<lease-token>` placeholder, hosts must substitute the fresh explicit lease token before executing it; the runner does not read a token from environment variables.
 
