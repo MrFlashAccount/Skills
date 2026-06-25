@@ -62,7 +62,7 @@ function writeJson(filePath, value) {
 }
 
 function requestsFromOrchestratorInstruction(instruction) {
-  const match = instruction.match(/^Supersedes all previous workflow-runner stdout\.\nExecute every host request in this JSON and wait until all requested actions finish: (.+)\nThen run:/);
+  const match = instruction.match(/^Execute every host request in this JSON and wait until all requested actions finish: (.+)$/m);
   assert.ok(match, instruction);
   return JSON.parse(match[1]);
 }
@@ -296,6 +296,78 @@ test('runner: --only-instructions prints only orchestrator instruction text', ()
   const lastResponse = JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8'));
   assert.equal(lastResponse.status, 'needs_host_actions');
   assert.deepEqual(lastResponse.requests.map((request) => request.stepId), ['prepare']);
+});
+
+test('runner: approval host instruction inlines compiled approval prompt with projected artifact content', () => {
+  const { runId, runDir } = runCase('approval-inline-instructions');
+  const workflowPath = path.join(tempDir, 'approval-inline-instructions-workflow.json');
+  const schemaPath = path.join(tempDir, 'approval-inline-instructions.schema.json');
+  writeJson(schemaPath, {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['approval'],
+    properties: {
+      approval: { enum: ['approved', 'rejected', 'blocked'] },
+      blocker: { type: 'object' },
+    },
+    additionalProperties: false,
+  });
+  const approvalWorkflow = structuredClone(workflowDoc);
+  approvalWorkflow.steps.prepare.next = 'approve';
+  approvalWorkflow.steps.approve = {
+    name: 'Approve research',
+    kind: 'approval',
+    input: {
+      state: ['prepare'],
+      prompt: 'Present artifact `research-packet` from prepare to the user before asking for approval.',
+    },
+    output: { schema: path.basename(schemaPath) },
+    next: { match: '${{ output.approval }}', cases: { approved: 'done', rejected: 'prepare', blocked: 'blocked' } },
+  };
+  writeJson(workflowPath, approvalWorkflow);
+
+  expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next before approval inline');
+  const artifactPath = path.join(runDir, 'prepare', 'artifacts', 'research-packet.md');
+  mkdirSync(path.dirname(artifactPath), { recursive: true });
+  writeFileSync(artifactPath, '# Research Packet\n\nFull packet body for approval.\n');
+  const prepareOutputPath = path.join(tempDir, 'approval-inline-instructions-output.json');
+  writeJson(prepareOutputPath, {
+    outcome: 'ready',
+    artifacts: [
+      {
+        id: 'research-packet',
+        content_type: 'text/markdown',
+        path: artifactPath,
+        summary: 'summary only is insufficient',
+      },
+    ],
+    results: [{ type: 'check', summary: 'research ready' }],
+  });
+
+  const response = continueWithOutputs({ runId, runDir, workflowPath, refs: prepareOutputPath, label: 'continue to approval inline' });
+  const leaseToken = leaseTokensByRunId.get(runId);
+
+  assert.equal(response.status, 'needs_host_actions');
+  assert.equal(response.requests[0].action, 'wait_for_approval');
+  assert.deepEqual(Object.keys(response.requests[0]).sort(), ['action', 'id', 'loadInstructionsCommand', 'outputSchema', 'resolvedOutputSchema', 'stepId'].sort());
+  assert.match(response.orchestratorInstruction, /Approval request: approve/);
+  assert.match(response.orchestratorInstruction, /The orchestrator must execute this approval instruction itself\./);
+  assert.match(response.orchestratorInstruction, /Use the following compiled approval prompt as the complete source/);
+  assert.match(response.orchestratorInstruction, /# Approve research/);
+  assert.match(response.orchestratorInstruction, /## Output contract/);
+  assert.match(response.orchestratorInstruction, /## Projected baton state/);
+  assert.match(response.orchestratorInstruction, /### Projected artifact content/);
+  assert.match(response.orchestratorInstruction, /#### prepare\/research-packet/);
+  assert.match(response.orchestratorInstruction, /Full packet body for approval\./);
+  assert.match(response.orchestratorInstruction, /## Workflow step prompt/);
+  assert.match(response.orchestratorInstruction, /Present artifact `research-packet`/);
+  assert.match(response.orchestratorInstruction, new RegExp(`--lease-token '${leaseToken}'`));
+
+  const lastResponse = JSON.parse(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8'));
+  assert.doesNotMatch(lastResponse.orchestratorInstruction, /Approval request: approve/);
+  assert.doesNotMatch(lastResponse.orchestratorInstruction, /Full packet body for approval\./);
+  assert.equal(readFileSync(path.join(runDir, '.workflow-runner', 'last-response.json'), 'utf8').includes(leaseToken), false);
+  assert.match(lastResponse.orchestratorInstruction, /--lease-token <lease-token>/);
 });
 
 test('runner: continue rejects legacy --output path handoff', () => {
