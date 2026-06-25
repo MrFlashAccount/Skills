@@ -11,7 +11,7 @@ function fail(message) {
 }
 
 function usage() {
-  return 'usage: node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-id <id> [--workflow <workflow.json>] [--runs-root <dir>] [--diagnostics] [--only-instructions] [--user-prompt <text> | --user-prompt-file <path>] [--lease-token <token> + diagnostics metadata] | continue --run-id <id> [--workflow <workflow.json>] [--runs-root <dir>] [--diagnostics] [--only-instructions] [--lease-token <token> + diagnostics metadata] | instructions --run-id <id> --step-id <id> [--workflow <workflow.json>] [--runs-root <dir>] [--lease-token <token> + diagnostics metadata] | write-output --run-id <id> --step-id <id> [--json <json>] [--workflow <workflow.json>] [--runs-root <dir>] [--only-instructions] [--lease-token <token> + diagnostics metadata]';
+  return 'usage: node develop/lib/entrypoints/cli/workflow-runner.mjs next --run-id <id> [--workflow <workflow.json>] [--runs-root <dir>] [--diagnostics] [--only-instructions] [--user-prompt <text> | --user-prompt-file <path>] [--lease-token <token> + diagnostics metadata] | continue --run-id <id> [--workflow <workflow.json>] [--runs-root <dir>] [--diagnostics] [--only-instructions] [--lease-token <token> + diagnostics metadata] | instructions --run-id <id> --step-id <id> [--workflow <workflow.json>] [--runs-root <dir>] [--lease-token <token> + diagnostics metadata] | write-output --run-id <id> --step-id <id> [--json <json>] [--workflow <workflow.json>] [--runs-root <dir>] [--lease-token <token> + diagnostics metadata]';
 }
 
 async function readStdin() {
@@ -50,7 +50,7 @@ function parseCliArgs(argv) {
     if (!['instructions', 'write-output'].includes(mode) && parsed.values['step-id']) fail(usage());
     if (mode !== 'next' && (parsed.values['user-prompt'] !== undefined || parsed.values['user-prompt-file'] !== undefined)) fail(usage());
     if (mode === 'instructions' && parsed.values.diagnostics) fail(usage());
-    if (mode === 'instructions' && parsed.values['only-instructions']) fail(usage());
+    if (!['next', 'continue'].includes(mode) && parsed.values['only-instructions']) fail(usage());
     if (mode !== 'write-output' && parsed.values.json !== undefined) fail(usage());
     if (mode === 'write-output' && parsed.values.diagnostics) fail(usage());
     return { mode, values: parsed.values };
@@ -97,7 +97,7 @@ try {
       json: values.json ?? await readStdin(),
       ...leaseArgs(values),
     });
-    writeHostResponse(response, { onlyInstructions: values['only-instructions'] });
+    console.log(JSON.stringify(response, null, 2));
   } else {
     const command = mode === 'next' ? next : continueRun;
     const response = await command({

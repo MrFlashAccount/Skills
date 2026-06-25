@@ -26,7 +26,7 @@ node develop/lib/entrypoints/cli/workflow-runner.mjs continue --lease-token <tok
 node develop/lib/entrypoints/cli/workflow-runner.mjs instructions --lease-token <token> --run-id <run-id> --step-id <id>
 ```
 
-`next`, `write-output`, and `continue` also accept `--only-instructions`; with that flag stdout is exactly the `orchestratorInstruction` text instead of the full JSON host response. `next` creates the run files if needed and returns the current host work. `write-output` validates and accepts one current request output directly into baton/state. `continue` applies already-accepted outputs from baton/state, persists the new baton, and returns the next host work. `instructions` prints only the compiled instructions for one current requested step, does not accept `--only-instructions`, and fails for unknown, unsafe, or missing step instructions. Every write-capable or instruction-loading command validates a fresh explicit `--lease-token` before creating run directories, locks, index entries, baton/history, last-response, or instruction artifacts; `runId` is identity only, and durable lease state keeps only token hash, token epoch, and lease expiry.
+`next` and `continue` also accept `--only-instructions`; with that flag stdout is exactly the `orchestratorInstruction` text instead of the full JSON host response. `next` creates the run files if needed and returns the current host work. `write-output` validates and accepts one current request output directly into baton/state, then returns only acceptance JSON or validation errors; it does not accept `--only-instructions` and does not drive orchestrator navigation. `continue` applies already-accepted outputs from baton/state, persists the new baton, and returns the next host work. `instructions` prints only the compiled instructions for one current requested step, does not accept `--only-instructions`, and fails for unknown, unsafe, or missing step instructions. Every write-capable or instruction-loading command validates a fresh explicit `--lease-token` before creating run directories, locks, index entries, baton/history, last-response, or instruction artifacts; `runId` is identity only, and durable lease state keeps only token hash, token epoch, and lease expiry.
 
 ### Startup user prompt
 
@@ -73,7 +73,7 @@ A CLI failure is an execution error and should be reported by the host adapter i
 
 The host wrapper writes each request result through `workflow-runner write-output`. The command validates strict JSON against the current request/step output schema and accepts the normalized value directly into baton/state. There is no output-path handoff from worker to orchestrator, and `workflow-runner continue` does not accept output paths.
 
-On success, `write-output` stdout includes `orchestratorInstruction`, or prints only that instruction when called with `--only-instructions`. The host must treat that text as the next CLI directive: if the current request batch is accepted, run the embedded `continue --only-instructions` command, and do not report completion from `write-output` stdout alone.
+On success, `write-output` stdout is acceptance JSON such as `{ "ok": true, "accepted": true, ... }`. The host must not treat `write-output` stdout as the next workflow directive: it only marks one current request output as accepted. After every current request is accepted, the host continues following the latest `next`/`continue` instruction and runs the embedded `continue --only-instructions` command.
 
 Typical worker output envelope:
 
@@ -110,7 +110,7 @@ Missing host capability is represented as blocked output, not as a transition de
 For each requested step, accept output first:
 
 ```bash
-node develop/lib/entrypoints/cli/workflow-runner.mjs write-output --lease-token "$WORKFLOW_RUN_TOKEN" --run-id "$RUN_ID" --step-id "step_id" --workflow "$WORKFLOW" --only-instructions <<'JSON'
+node develop/lib/entrypoints/cli/workflow-runner.mjs write-output --lease-token "$WORKFLOW_RUN_TOKEN" --run-id "$RUN_ID" --step-id "step_id" --workflow "$WORKFLOW" <<'JSON'
 { "outcome": "ready", "artifacts": [], "results": [] }
 JSON
 ```

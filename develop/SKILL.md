@@ -9,7 +9,7 @@ description: Use for running a workflow from the repo root through workflow-runn
 
 The orchestrator invokes public `workflow-runner` CLI commands with `--only-instructions` when the command supports it, then follows stdout text exactly.
 
-The runner controls the agent by returning the next textual instruction or prompt. Treat that instruction as authoritative after every successful `workflow-runner next`, `workflow-runner write-output`, and `workflow-runner continue`.
+The runner controls the agent by returning the next textual instruction or prompt from `workflow-runner next` and `workflow-runner continue`. Treat that instruction as authoritative. `workflow-runner write-output` only accepts or rejects one host request output; it is not a navigation command.
 
 Never inspect or mutate private runtime files to decide what to do. Use only public run and runner commands from the repo root.
 
@@ -86,10 +86,10 @@ Then follow the loaded instructions exactly.
 If the instructions cannot be loaded, stop with an error.
 ```
 
-Workers use the validating `write-output` command from their loaded instructions. Workers never call `continue`; runner stdout instructions tell the orchestrator what to do next.
+Workers use the validating `write-output` command from their loaded instructions. `write-output` returns only acceptance JSON or validation errors; it does not drive the orchestrator. Workers never call `continue`; the latest `next`/`continue` stdout instruction tells the orchestrator what to do next after current host requests finish.
 
 If a worker needs user input before validated output, ask the user's focused question and forward the answer back into the same worker session. Do not create a replacement worker for that continuation, and do not let workers treat themselves as direct user-facing agents.
 
-For `wait_for_approval`, load the request instructions via the exact load-instructions command in stdout, read the requested question/options and required JSON shape, ask only for that input, normalize the answer to strict JSON, and run the exact validating `write-output` command from the loaded instructions. Then follow that stdout instruction exactly.
+For `wait_for_approval`, load the request instructions via the exact load-instructions command in stdout, read the requested question/options and required JSON shape, ask only for that input, normalize the answer to strict JSON, and run the exact validating `write-output` command from the loaded instructions. Treat accepted output as completion of that host request, then continue following the latest `next`/`continue` stdout instruction.
 
 Final answer only when stdout instruction explicitly says to stop and report `done` or `blocked`.

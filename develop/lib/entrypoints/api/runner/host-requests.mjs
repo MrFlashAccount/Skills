@@ -63,7 +63,7 @@ export function writeOutputCommandForStep(
       ? shellQuote(leaseToken)
       : "<lease-token>";
   return [
-    `node develop/lib/entrypoints/cli/workflow-runner.mjs write-output --run-id ${shellQuote(runId)} --step-id ${shellQuote(stepId)}${runsRootArg} --lease-token ${token} --only-instructions <<'JSON'`,
+    `node develop/lib/entrypoints/cli/workflow-runner.mjs write-output --run-id ${shellQuote(runId)} --step-id ${shellQuote(stepId)}${runsRootArg} --lease-token ${token} <<'JSON'`,
     "<paste strict JSON here>",
     "JSON",
   ].join("\n");
