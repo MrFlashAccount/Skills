@@ -178,7 +178,8 @@ async function nextInternal({ runId, workflowPath, includeDiagnostics = false, u
         initialized: runState.initialized,
         resumed: runState.resumed,
       }, { leaseToken });
-      await upsertRunIndexEntry(paths, { status: response.status, workflowPath: paths.workflowPath, taskKey, taskFingerprint });
+      const workerLease = await renewedWorkerLeaseAuthority(paths, { leaseToken, now });
+      await upsertRunIndexEntry(paths, { status: response.status, workflowPath: paths.workflowPath, taskKey, taskFingerprint, workerLease });
       return response;
     } catch (error) {
       if (createdIndexEntry) await markNewRunFailed(paths);
@@ -385,6 +386,8 @@ async function writeOutputInternal({ runId, workflowPath, stepId, json, leaseTok
       baton,
       history: { source: 'workflow-runner-write-output', baton, output: `accepted:${acceptedStepId}`, requests: response.requests ?? [] },
     });
+    const workerLease = await renewedWorkerLeaseAuthority(paths, { leaseToken, now });
+    await upsertRunIndexEntry(paths, { workflowPath: paths.workflowPath, workerLease });
     return {
       ok: true,
       runId: paths.runId,
@@ -416,6 +419,8 @@ async function loadInstructionsInternal({ runId, workflowPath, stepId, leaseToke
     if (typeof prompt !== 'string' || prompt.trim().length === 0) {
       throw new Error(`missing compiled instructions for workflow step '${stepIdForRequest(request)}'`);
     }
+    const workerLease = await renewedWorkerLeaseAuthority(paths, { leaseToken, now });
+    await upsertRunIndexEntry(paths, { workflowPath: paths.workflowPath, workerLease });
     return prompt;
   });
 }
