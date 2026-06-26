@@ -122,16 +122,23 @@ Known request actions:
 
 If a request action is unknown, stop as blocked.
 
-For `run_worker`, spawn the worker with exactly this bootstrap prompt and nothing else. Do not prepend or append user prompt text, task context, hostile priors, role hints, workflow summaries, output-format reminders, metadata, watchdog text, or any other instructions.
+For `run_worker`, choose the request instruction command before spawning or continuing the worker:
 
-Before spawning the worker, take the request's exact `loadInstructionsCommand`. If it contains the literal `<lease-token>` placeholder, replace only that placeholder with the current exact lease token. Do not otherwise rewrite, shorten, shell-normalize, quote-normalize, explain, or enrich the command.
+- Use `loadFollowupInstructionsCommand` only when the host can continue or restore the opaque `preferredAgentId`.
+- Otherwise use `loadInstructionsCommand` for a fresh worker.
+- After the actual worker id is known, run `bindAgentCommand` after replacing only the literal `<agent-id>` placeholder with the shell-quoted actual worker id.
+- Treat `preferredAgentId` and `baton.workerBindings[stepId]` as advisory reuse hints only. Do not create attempt ids, agent objects, lifecycle/session registries, transcripts, or output state through this path.
+
+Before spawning the worker, take the selected request instruction command. If it contains the literal `<lease-token>` placeholder, replace only that placeholder with the current exact lease token. Do not otherwise rewrite, shorten, shell-normalize, quote-normalize, explain, or enrich the command.
+
+Spawn the worker with exactly this bootstrap prompt and nothing else. Do not prepend or append user prompt text, task context, hostile priors, role hints, workflow summaries, output-format reminders, metadata, watchdog text, or any other instructions.
 
 The worker prompt must be exactly:
 
 ```text
 Load the step instructions by running:
 
-<request.loadInstructionsCommand>
+<selected request instruction command>
 
 Then follow the loaded instructions exactly.
 

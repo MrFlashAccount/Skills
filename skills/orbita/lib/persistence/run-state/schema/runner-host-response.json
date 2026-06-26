@@ -12,12 +12,27 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "stepId", "action", "loadInstructionsCommand"],
+        "required": ["id", "stepId", "action"],
         "properties": {
           "id": { "type": "string", "minLength": 1 },
           "stepId": { "type": "string", "minLength": 1 },
           "action": { "enum": ["run_worker", "wait_for_approval"] },
           "loadInstructionsCommand": { "type": "string", "minLength": 1 },
+          "preferredAgentId": {
+            "description": "Advisory opaque worker id previously bound for this step, or null when no binding exists.",
+            "type": ["string", "null"],
+            "minLength": 1
+          },
+          "bindAgentCommand": {
+            "description": "Public runner command for binding the actual selected worker id to this step. Hosts replace only the literal <agent-id> placeholder.",
+            "type": "string",
+            "minLength": 1
+          },
+          "loadFollowupInstructionsCommand": {
+            "description": "Instruction-loader command variant for a host-restored preferred worker. Uses the same validating write-output protocol as loadInstructionsCommand.",
+            "type": "string",
+            "minLength": 1
+          },
           "outputSchema": { "type": "string", "minLength": 1 },
           "resolvedOutputSchema": {
             "type": "object",
@@ -29,7 +44,38 @@
             "additionalProperties": false
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": { "action": { "const": "run_worker" } },
+              "required": ["action"]
+            },
+            "then": {
+              "required": [
+                "loadInstructionsCommand",
+                "preferredAgentId",
+                "bindAgentCommand",
+                "loadFollowupInstructionsCommand"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": { "action": { "const": "wait_for_approval" } },
+              "required": ["action"]
+            },
+            "then": {
+              "not": {
+                "anyOf": [
+                  { "required": ["preferredAgentId"] },
+                  { "required": ["bindAgentCommand"] },
+                  { "required": ["loadFollowupInstructionsCommand"] }
+                ]
+              }
+            }
+          }
+        ]
       }
     },
     "runId": { "type": "string", "minLength": 1 },

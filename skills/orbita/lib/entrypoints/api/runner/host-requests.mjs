@@ -35,6 +35,34 @@ export function loadInstructionsCommandForStep(
   return `${WORKFLOW_RUNNER_COMMAND} instructions --run-id ${shellQuote(runId)} --step-id ${shellQuote(stepId)}${runsRootArg} --lease-token ${token}`;
 }
 
+export function loadFollowupInstructionsCommandForStep(
+  runId,
+  stepId,
+  { runsRoot, leaseToken } = {},
+) {
+  assertSafeStepId(stepId);
+  const runsRootArg = runsRoot ? ` --runs-root ${shellQuote(runsRoot)}` : "";
+  const token =
+    typeof leaseToken === "string" && leaseToken.length > 0
+      ? shellQuote(leaseToken)
+      : "<lease-token>";
+  return `${WORKFLOW_RUNNER_COMMAND} instructions --follow-up --run-id ${shellQuote(runId)} --step-id ${shellQuote(stepId)}${runsRootArg} --lease-token ${token}`;
+}
+
+export function bindAgentCommandForStep(
+  runId,
+  stepId,
+  { runsRoot, leaseToken } = {},
+) {
+  assertSafeStepId(stepId);
+  const runsRootArg = runsRoot ? ` --runs-root ${shellQuote(runsRoot)}` : "";
+  const token =
+    typeof leaseToken === "string" && leaseToken.length > 0
+      ? shellQuote(leaseToken)
+      : "<lease-token>";
+  return `${WORKFLOW_RUNNER_COMMAND} bind-agent --run-id ${shellQuote(runId)} --step-id ${shellQuote(stepId)}${runsRootArg} --agent-id <agent-id> --lease-token ${token}`;
+}
+
 export function continueCommandForRun(runId, { runsRoot, leaseToken } = {}) {
   const runsRootArg = runsRoot ? ` --runs-root ${shellQuote(runsRoot)}` : "";
   const token =
@@ -151,6 +179,17 @@ function resolvedOutputSchemaForStep(
   };
 }
 
+function preferredAgentIdForStep(baton, stepId) {
+  const bindings = baton?.workerBindings;
+  if (!bindings || typeof bindings !== "object" || Array.isArray(bindings)) {
+    return null;
+  }
+  const preferredAgentId = bindings[stepId];
+  return typeof preferredAgentId === "string" && preferredAgentId.length > 0
+    ? preferredAgentId
+    : null;
+}
+
 export function buildHostRequests(
   interpreterResponse,
   { runId, workflow, workflowPath, repositoryRoot, runsRoot, leaseToken },
@@ -171,6 +210,21 @@ export function buildHostRequests(
           { runsRoot, leaseToken },
         ),
       };
+      if (step.action === "run_worker") {
+        request.preferredAgentId = preferredAgentIdForStep(
+          interpreterResponse.baton,
+          step.id,
+        );
+        request.loadFollowupInstructionsCommand =
+          loadFollowupInstructionsCommandForStep(runId, step.id, {
+            runsRoot,
+            leaseToken,
+          });
+        request.bindAgentCommand = bindAgentCommandForStep(runId, step.id, {
+          runsRoot,
+          leaseToken,
+        });
+      }
       const resolvedOutputSchema = resolvedOutputSchemaForStep(step, {
         workflow,
         workflowPath,

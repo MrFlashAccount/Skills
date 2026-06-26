@@ -68,6 +68,14 @@
       },
       "additionalProperties": false
     },
+    "workerBindings": {
+      "description": "Runner-owned advisory worker reuse hints keyed by workflow step id. Values are opaque host worker ids; this is not an attempt, lifecycle, session, transcript, or output registry.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
     "user_prompt": {
       "description": "Raw run-level startup user prompt captured when the workflow run is initialized. Immutable after start/resume.",
       "type": "string",
