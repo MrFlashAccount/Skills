@@ -17,6 +17,14 @@ Treat runner stdout as a disposable active directive. Keep only the latest `work
 
 Never inspect or mutate private runtime files to decide what to do. Use only public run and runner commands from the skill root.
 
+Orbita is a host adapter, not the task implementer. After a runner-directed host request exists:
+
+- Execute only the current runner stdout and the exact commands embedded in it.
+- Do not inspect task repository source, workflow source, runner `lib/**`, schemas, or CLI help to infer protocol or continue logic.
+- Do not do independent research, implementation, or review for the user task while a worker owns the requested step.
+- Do not reconstruct missing `write-output`, `continue`, or approval JSON from source code. If the latest stdout does not provide enough executable instruction to finish the host request, stop as blocked and report a runner contract bug.
+- After spawning a worker, wait for that worker's accepted output or blocker before continuing the run.
+
 ## Routing model
 
 Most Orbita branches overlap. Do not treat routing as durable modes. Classify only enough to choose the next public command:
@@ -128,6 +136,8 @@ If the instructions cannot be loaded, stop with an error.
 Workers use the validating `write-output` command from their loaded instructions. `write-output` returns only acceptance JSON or validation errors; it does not drive the orchestrator. Workers never call `continue`; the latest `next`/`continue` stdout instruction tells the orchestrator what to do next after current host requests finish.
 
 If a worker needs user input before validated output, ask the user's focused question and forward the answer back into the same worker session. Do not create a replacement worker for that continuation, and do not let workers treat themselves as direct user-facing agents.
+
+Do not run task-repository discovery, code reads, tests, implementation commands, or review commands in the parent session while a worker request is outstanding unless the current runner stdout explicitly requests that exact host action.
 
 For `wait_for_approval`, the orchestrator handles the request directly. Follow the approval instruction in the latest runner stdout: it inlines the compiled approval prompt for the current request. Treat that compiled prompt as the complete source for the user-facing approval message, including workflow prompt, projected baton state, projected artifact content when present, output contract, and validating `write-output` command. Show the required approval context/artifacts to the user before asking for a decision. Do not reduce the gate to a summary-only question. Normalize the user's answer to strict JSON and run the validating `write-output` command from the compiled prompt. Treat accepted output as completion of that host request, then continue following the latest `next`/`continue` stdout instruction.
 

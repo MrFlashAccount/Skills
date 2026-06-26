@@ -1,5 +1,5 @@
 import runsIndexSchema from './runs-index.json' with { type: 'json' };
-import { assertJsonSchema } from 'schema-validation';
+import { assertJsonSchema } from '../../../../../../shared/scripts/schema-validation/schema-validation.mjs';
 
 export { runsIndexSchema };
 
