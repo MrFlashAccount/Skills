@@ -1,6 +1,7 @@
 {
   "name": "dev-harness",
   "version": 1,
+  "description": "End-to-end planning and execution workflow for non-trivial code work: research, critic review, architecture gate, implementation plan, approval, implementation dispatch, and review. Use when a task needs structured evidence, staged approvals, role delegation, implementation slicing, or coordinated review before completion. Do not use when the user only needs a lightweight research verdict, a simple direct fix, a one-shot answer, or workflow creation/design.",
   "start": "research_draft",
   "done": "done",
   "blocked": "blocked",

@@ -1,6 +1,7 @@
 {
   "name": "research-critic",
   "version": 1,
+  "description": "Pre-implementation Researcher -> Critic workflow for closing task context before downstream planning or implementation. Use when a task needs evidence gathering, assumption pressure, ambiguity cleanup, readiness judgment, or a reusable research packet. Do not use when the task is already approved for direct implementation, needs PR/code review, or should be executed through a larger planning/development workflow.",
   "start": "research_draft",
   "done": "done",
   "blocked": "blocked",

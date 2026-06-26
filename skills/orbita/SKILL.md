@@ -1,11 +1,13 @@
 ---
 name: orbita
-description: Use Orbita for workflow-runner jobs when the user says /orbita, orbita, workflow-runner, run workflow, continue workflow, resume run, host actions, worker handoff, approval gate, or asks to drive a repository workflow through the runner CLI.
+description: Use Orbita for workflow-runner jobs when the user says /orbita, orbita, workflow-runner, run workflow, continue workflow, resume run, host actions, worker handoff, approval gate, asks to pick the right workflow, list available workflows, create/design a workflow, or drive a repository workflow through the runner CLI.
 ---
 
 # Orbita
 
 ## Core contract
+
+Orbita is the router-entrypoint for `workflow-runner`: route the user's request to catalog display, workflow resolution, new-run bootstrap, existing-run resume, or runner-directed host actions. After a run starts, the runner controls execution.
 
 The orchestrator invokes public `workflow-runner` CLI commands with `--only-instructions` when the command supports it, then follows stdout text exactly.
 
@@ -14,6 +16,41 @@ The runner controls the agent by returning the next textual instruction or promp
 Treat runner stdout as a disposable active directive. Keep only the latest `workflow-runner next` or `workflow-runner continue --only-instructions` stdout as authoritative. Each new runner stdout replaces the previous active directive. Earlier runner stdout is stale context and must not be followed, merged, or used to decide the next action.
 
 Never inspect or mutate private runtime files to decide what to do. Use only public run and runner commands from the skill root.
+
+## Routing model
+
+Most Orbita branches overlap. Do not treat routing as durable modes. Classify only enough to choose the next public command:
+
+- If the latest runner stdout is already active, follow that stdout. Do not inspect the workflow catalog.
+- If the user only asks to list/show available workflows, run `node ./lib/entrypoints/cli/workflow-catalog.mjs list --human`, show the list, and stop.
+- If the user asks to continue/resume/reclaim an existing run, list public run identities first. If no existing run fits and the user still wants work executed, create a new run through workflow resolution.
+- Before creating any new run, resolve the workflow first, even when the user named a workflow.
+
+## New-run workflow selection
+
+Resolve the workflow before creating a new run. Do not create/register a run until the exact catalog `path` is known.
+
+List available workflows by calling the public catalog command from this skill root:
+
+```bash
+node ./lib/entrypoints/cli/workflow-catalog.mjs list --json
+```
+
+Use only the catalog output's workflow `name`, top-level `description`, and `path` for preflight routing. Do not manually walk `../../workflows`, read private runtime state, or inspect `steps.*.input.prompt` to choose a workflow.
+
+If the user gave an exact workflow path, use that path only after confirming it appears in the catalog. If the user gave a workflow name, alias, or fuzzy workflow name, resolve it through the public resolver command:
+
+```bash
+node ./lib/entrypoints/cli/workflow-catalog.mjs resolve '<workflow name or path>' --json
+```
+
+Use a single resolver match directly. If resolver returns multiple matches, ask the user to choose from those matches. If resolver returns no match, fall back to catalog-based task matching.
+
+When the user did not name a workflow, rank catalog candidates from the task and workflow descriptions, then ask one selection question with at most three best candidates. Use `request_user_input` when available. Each candidate must be shown as `name - short reason`; the user may pick one candidate, ask to show all workflows, or type a workflow name/path manually. If the user replies with a fuzzy or partial workflow name, run `node ./lib/entrypoints/cli/workflow-catalog.mjs resolve '<workflow name or path>' --json`; if it still matches several candidates, ask one narrower selection question.
+
+When no candidate fits, say that no existing workflow fits and offer to list workflows or create/design a new workflow if such a workflow exists in the catalog.
+
+Catalog/list requests stop after showing catalog output unless the user also asked to run a workflow. Use `node ./lib/entrypoints/cli/workflow-catalog.mjs list --human` only when presenting the workflow list directly to the user.
 
 ## Bootstrap
 
@@ -27,7 +64,7 @@ node ./lib/entrypoints/cli/workflow-runs.mjs list
 
 Select an existing run only from public JSON fields such as `runId`, title, summary, workflow identity/path, status, timestamps, task key/fingerprint, and occupancy state. If exactly one candidate is clear, use its exact `runId`. If several are plausible, ask the user to choose by human-readable summaries. If a candidate is occupied, ask whether to wait, choose another run, or explicitly resolve the lease.
 
-When no existing run fits, create/register one run identity:
+When no existing run fits, resolve the workflow through new-run workflow selection, then create/register one run identity:
 
 ```bash
 node ./lib/entrypoints/cli/workflow-runs.mjs create --workflow <workflow> --title '<title>' --summary '<summary>' --owner <owner> --harness <harness> --session-id <session-id>

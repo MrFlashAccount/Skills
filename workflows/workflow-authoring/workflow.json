@@ -1,0 +1,151 @@
+{
+  "name": "workflow-authoring",
+  "version": 1,
+  "description": "Create or materially update workflow-runner workflows, including workflow.json, output schemas, catalog description, and validation coverage. Use when the user asks to create, design, add, or significantly change a workflow, or when an Orbita task has no suitable existing workflow and the user wants a reusable workflow built. Do not use when the user only wants to run an existing workflow, list workflows, perform ordinary direct implementation, or make a small runner engine fix.",
+  "start": "workflow_design_draft",
+  "done": "done",
+  "blocked": "blocked",
+  "steps": {
+    "workflow_design_draft": {
+      "name": "Workflow design draft",
+      "kind": "worker",
+      "input": {
+        "role": "architect",
+        "state": [
+          "workflow_design_draft",
+          "workflow_design_attack",
+          "approve_workflow_design"
+        ],
+        "prompt": "Design the smallest useful workflow-runner workflow for the user's task. Inspect existing workflows and repo rules. Produce a workflow contract with name, path, top-level description, use/do-not-use boundaries, steps, roles, approval gates, output schemas, validation plan, and non-goals. When revising after workflow_design_attack feedback or approve_workflow_design rejection, read projected feedback and address it explicitly while preserving approved constraints. Return ready_for_attack when the contract is ready for critic review, or blocked when the workflow should not be created or required context is unavailable. Do not edit files in this step."
+      },
+      "output": {
+        "template": "../../shared/templates/architecture-proposal-template.md",
+        "schema": "schemas/workflow-design-draft-output.json"
+      },
+      "next": {
+        "match": "${{ output.outcome }}",
+        "cases": {
+          "ready_for_attack": "workflow_design_attack",
+          "blocked": "blocked"
+        }
+      }
+    },
+    "workflow_design_attack": {
+      "name": "Workflow design attack",
+      "kind": "worker",
+      "input": {
+        "role": "critic",
+        "state": [
+          "workflow_design_draft"
+        ],
+        "prompt": "Attack the proposed workflow contract. Assume the workflow is unnecessary, overcomplicated, too vague, missing validation, or should be a direct skill/task instead. Check routing description quality, step/gate necessity, role ownership, output schemas, validation surface, and whether an existing workflow already fits. Return approved, needs_revision, or blocked."
+      },
+      "output": {
+        "template": "../../shared/templates/review-verdict-template.md",
+        "schema": "schemas/workflow-gate-verdict-output.json"
+      },
+      "next": {
+        "match": "${{ output.outcome }}",
+        "cases": {
+          "approved": "approve_workflow_design",
+          "needs_revision": "workflow_design_draft",
+          "blocked": "blocked"
+        }
+      }
+    },
+    "approve_workflow_design": {
+      "name": "Approve workflow design",
+      "kind": "approval",
+      "input": {
+        "state": [
+          "workflow_design_draft",
+          "workflow_design_attack"
+        ],
+        "prompt": "Show the workflow contract and critic verdict to the user. Continue only after explicit approval. Return approval approved to implement the workflow, rejected to revise the design, or blocked with the blocker."
+      },
+      "next": {
+        "match": "${{ output.approval }}",
+        "cases": {
+          "approved": "workflow_implementation",
+          "rejected": "workflow_design_draft",
+          "blocked": "blocked"
+        }
+      }
+    },
+    "workflow_implementation": {
+      "name": "Workflow implementation",
+      "kind": "worker",
+      "input": {
+        "role": "architect",
+        "state": [
+          "workflow_design_draft",
+          "workflow_design_attack",
+          "approve_workflow_design",
+          "workflow_implementation",
+          "workflow_implementation_attack"
+        ],
+        "prompt": "Implement exactly the approved workflow contract. Add or update workflow.json, schemas, and any minimal docs/tests needed for catalog and validation. Keep workflow routing in top-level description. When revising after workflow_implementation_attack feedback, read projected feedback and address it explicitly while preserving the approved workflow design. Run the narrow validation available for the changed workflow and report changed files plus validation results. Return implemented or blocked."
+      },
+      "output": {
+        "template": "../../shared/templates/implementer-handoff-template.md",
+        "schema": "schemas/workflow-implementation-output.json"
+      },
+      "next": {
+        "match": "${{ output.outcome }}",
+        "cases": {
+          "implemented": "workflow_implementation_attack",
+          "blocked": "blocked"
+        }
+      }
+    },
+    "workflow_implementation_attack": {
+      "name": "Workflow implementation attack",
+      "kind": "worker",
+      "input": {
+        "role": "critic",
+        "state": [
+          "workflow_design_draft",
+          "workflow_implementation"
+        ],
+        "prompt": "Review the implemented workflow against the approved contract. Check that catalog description is useful for routing, workflow files/schemas exist, validation was run or the blocker is explicit, and the implementation did not change runner engine behavior unnecessarily. Return approved, needs_revision, or blocked."
+      },
+      "output": {
+        "template": "../../shared/templates/review-verdict-template.md",
+        "schema": "schemas/workflow-gate-verdict-output.json"
+      },
+      "next": {
+        "match": "${{ output.outcome }}",
+        "cases": {
+          "approved": "done",
+          "needs_revision": "workflow_implementation",
+          "blocked": "blocked"
+        }
+      }
+    },
+    "done": {
+      "name": "Done",
+      "kind": "done",
+      "input": {
+        "state": [
+          "workflow_implementation",
+          "workflow_implementation_attack"
+        ],
+        "prompt": "Workflow has been implemented and reviewed."
+      }
+    },
+    "blocked": {
+      "name": "Blocked",
+      "kind": "blocked",
+      "input": {
+        "state": [
+          "workflow_design_draft",
+          "workflow_design_attack",
+          "approve_workflow_design",
+          "workflow_implementation",
+          "workflow_implementation_attack"
+        ],
+        "prompt": "Workflow authoring is blocked. Surface the blocker and required input."
+      }
+    }
+  }
+}

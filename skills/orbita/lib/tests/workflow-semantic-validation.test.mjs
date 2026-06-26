@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import workflowDoc from '../../../../workflows/dev-harness/workflow.json' with { type: 'json' };
 import researchCriticWorkflowDoc from '../../../../workflows/research-critic/workflow.json' with { type: 'json' };
+import workflowAuthoringWorkflowDoc from '../../../../workflows/workflow-authoring/workflow.json' with { type: 'json' };
 import { WorkflowRuntimeError } from '../errors.mjs';
 import { validateWorkflow } from '../use-cases/ValidateWorkflow.mjs';
 import { validateWorkflowFile } from '../entrypoints/api/validateWorkflow.mjs';
@@ -307,6 +308,50 @@ test('dev harness revision loops project the feedback that caused revision', () 
     'planning_attack',
     'approve_plan',
   ]);
+});
+
+test('workflow authoring design revision projects prior feedback', () => {
+  assert.deepEqual(workflowAuthoringWorkflowDoc.steps.workflow_design_draft.input.state, [
+    'workflow_design_draft',
+    'workflow_design_attack',
+    'approve_workflow_design',
+  ]);
+  assert.match(workflowAuthoringWorkflowDoc.steps.workflow_design_draft.input.prompt, /When revising after workflow_design_attack feedback or approve_workflow_design rejection/);
+});
+
+test('workflow authoring implementation revision projects review findings', () => {
+  assert.deepEqual(workflowAuthoringWorkflowDoc.steps.workflow_implementation.input.state, [
+    'workflow_design_draft',
+    'workflow_design_attack',
+    'approve_workflow_design',
+    'workflow_implementation',
+    'workflow_implementation_attack',
+  ]);
+  assert.match(workflowAuthoringWorkflowDoc.steps.workflow_implementation.input.prompt, /When revising after workflow_implementation_attack feedback/);
+});
+
+test('workflow authoring design output requires branch payloads', () => {
+  const workflowPath = path.join(REPO_ROOT, 'workflows/workflow-authoring/workflow.json');
+  const schemaContext = {
+    workflow: workflowAuthoringWorkflowDoc,
+    workflowPath,
+    schemaRef: workflowAuthoringWorkflowDoc.steps.workflow_design_draft.output.schema,
+    repositoryRoot: REPO_ROOT,
+  };
+
+  const missingContract = validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'ready_for_attack' } });
+  assert.equal(missingContract.ok, false);
+  assert.match(missingContract.errors, /workflow_contract/);
+
+  const withContract = validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'ready_for_attack', workflow_contract: { name: 'example' } } });
+  assert.equal(withContract.ok, true);
+
+  const missingBlocker = validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'blocked' } });
+  assert.equal(missingBlocker.ok, false);
+  assert.match(missingBlocker.errors, /blocker/);
+
+  const withBlocker = validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'blocked', blocker: { summary: 'Blocked.' } } });
+  assert.equal(withBlocker.ok, true);
 });
 
 test('revision loop continuity separates projected state from clarification-session continuation', () => {
