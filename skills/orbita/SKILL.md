@@ -133,6 +133,15 @@ Then follow the loaded instructions exactly.
 If the instructions cannot be loaded, stop with an error.
 ```
 
+Enforce the host watchdog for every `run_worker` request:
+
+- Wait at most 10 minutes for the worker to return accepted output or a blocker.
+- If the worker is still running, interrupt that same worker with a focused status request asking it to immediately run validating `write-output` or report the exact blocker.
+- Wait at most 2 more minutes for that status request.
+- If the worker still gives no accepted output or blocker, close that worker and retry the same current host request once with a fresh worker.
+- If the retry also gives no accepted output or blocker within the same 10 minute plus 2 minute watchdog window, stop as blocked and report the hung worker/request ids.
+- Do not use heartbeat as a substitute for this watchdog; worker bootstrap hangs must be detected before waiting out the run lease.
+
 Workers use the validating `write-output` command from their loaded instructions. `write-output` returns only acceptance JSON or validation errors; it does not drive the orchestrator. Workers never call `continue`; the latest `next`/`continue` stdout instruction tells the orchestrator what to do next after current host requests finish.
 
 If a worker needs user input before validated output, ask the user's focused question and forward the answer back into the same worker session. Do not create a replacement worker for that continuation, and do not let workers treat themselves as direct user-facing agents.
