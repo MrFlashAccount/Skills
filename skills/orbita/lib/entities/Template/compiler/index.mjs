@@ -1,5 +1,5 @@
 import { finalOutputReminder, outputContractSection, readOutputSchema, readOutputTemplate } from './sections/output-contract.mjs';
-import { projectedStateBlock } from './sections/projected-state.mjs';
+import { projectedArtifactReadItems, projectedStateBlock } from './sections/projected-state.mjs';
 import { projectState } from '../../../runtime/state-projection.mjs';
 import { section, trimStable } from './utils.mjs';
 import { readInputRole } from './sections/role.mjs';
@@ -14,12 +14,26 @@ function workflowInstruction({ workflow }) {
   return firstNonEmptyString([workflow?.instruction, workflow?.instructions]);
 }
 
-function assembleFixedPrompt({ promptLayer, templatePath, workflowInstructionBlock, inlinePrompt, roleBlock, stateBlock, outputContract, userPrompt, finalReminder }) {
+function requiredReadsBlock(items = []) {
+  if (items.length === 0) return '';
+  const lines = [
+    'Read these files before acting, in order:',
+    '',
+  ];
+  items.forEach((item, index) => {
+    const suffix = item.contentType ? ` (${item.contentType})` : '';
+    lines.push(`${index + 1}. ${item.label}${suffix}: \`${item.path}\``);
+  });
+  lines.push('', 'Do not proceed until all required reads are complete.');
+  return lines.join('\n');
+}
+
+function assembleFixedPrompt({ promptLayer, templatePath, workflowInstructionBlock, requiredReads, inlinePrompt, stateBlock, outputContract, userPrompt, finalReminder }) {
   assertNoUnsupportedPlaceholders(promptLayer, templatePath);
   const parts = [trimStable(promptLayer)];
 
   if (workflowInstructionBlock) parts.push(section('Workflow instruction', workflowInstructionBlock).trimEnd());
-  if (roleBlock) parts.push(section('Role material', roleBlock).trimEnd());
+  if (requiredReads) parts.push(section('Required reads', requiredReads).trimEnd());
   if (outputContract) parts.push(outputContract.trimEnd());
   if (stateBlock) parts.push(section('Projected baton state', stateBlock).trimEnd());
   if (inlinePrompt) parts.push(section('Workflow step prompt', inlinePrompt.trim()));
@@ -48,12 +62,16 @@ export function renderWorkflowPrompt({ workflow, baton, stepId, step, resources,
 
   const usesDefaultPrompt = inputTemplate.content === undefined;
   const promptLayer = usesDefaultPrompt ? defaultPrompt({ step, input }) : inputTemplate.content;
+  const requiredReads = requiredReadsBlock([
+    ...inputRole.readItems,
+    ...projectedArtifactReadItems(projection),
+  ]);
   const prompt = assembleFixedPrompt({
     promptLayer,
     templatePath: inputTemplate.metadataPath,
     workflowInstructionBlock,
+    requiredReads,
     inlinePrompt: input.prompt ?? '',
-    roleBlock: inputRole.content,
     stateBlock,
     outputContract,
     userPrompt: step.kind === 'worker' && baton.user_prompt_injected !== true ? userPrompt : undefined,

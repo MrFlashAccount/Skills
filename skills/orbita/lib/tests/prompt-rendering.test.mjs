@@ -301,7 +301,7 @@ test('prompt renderer: rejects input template placeholders as unsupported', () =
   );
 });
 
-test('prompt renderer: appends role output and state sections in fixed compiled layer order', () => {
+test('prompt renderer: appends required reads, output, and state sections in fixed compiled layer order', () => {
   writeRoleMaterial('backend');
   writeFileSync(path.join(tempDir, 'minimal-template.md'), '# Worker step\n');
   writeFileSync(path.join(tempDir, 'minimal-output.md'), '## Required return\nUse this contract.\n');
@@ -328,9 +328,9 @@ test('prompt renderer: appends role output and state sections in fixed compiled 
     '# Worker step',
     '## Workflow instruction',
     'Use the deterministic workflow renderer.',
-    '## Role material',
-    '<!-- role material: roles/backend/ROLE.md -->',
-    '<!-- role material: roles/backend/RUBRIC.md -->',
+    '## Required reads',
+    "1. Role material for 'backend': `roles/backend/ROLE.md`",
+    "2. Role material for 'backend': `roles/backend/RUBRIC.md`",
     '## Output contract',
     '<!-- output template: minimal-output.md -->',
     '## Required return\nUse this contract.',
@@ -602,7 +602,7 @@ test('prompt renderer: mixed current approval and worker gives user prompt only 
   assert.equal(rendered[1].compiledPrompt.prompt.includes(rawPrompt), true);
 });
 
-test('prompt renderer: resolves input.role and inlines ROLE.md and RUBRIC.md', () => {
+test('prompt renderer: resolves input.role as required reads for ROLE.md and RUBRIC.md', () => {
   writeRoleMaterial('custom-backend', {
     roleBody: '# Custom Role\n\nBackend role instructions.\n',
     rubricBody: '# Custom Rubric\n\nBackend rubric checks.\n',
@@ -618,10 +618,11 @@ test('prompt renderer: resolves input.role and inlines ROLE.md and RUBRIC.md', (
 
   const compiled = renderFixture({ label: 'render-role-material', stepId: 'worker_step', step });
 
-  assert.match(compiled.prompt, /<!-- role material: roles\/custom-backend\/ROLE\.md -->/);
-  assert.match(compiled.prompt, /# Custom Role\n\nBackend role instructions\./);
-  assert.match(compiled.prompt, /<!-- role material: roles\/custom-backend\/RUBRIC\.md -->/);
-  assert.match(compiled.prompt, /# Custom Rubric\n\nBackend rubric checks\./);
+  assert.match(compiled.prompt, /## Required reads/);
+  assert.match(compiled.prompt, /1\. Role material for 'custom-backend': `roles\/custom-backend\/ROLE\.md`/);
+  assert.match(compiled.prompt, /2\. Role material for 'custom-backend': `roles\/custom-backend\/RUBRIC\.md`/);
+  assert.doesNotMatch(compiled.prompt, /Backend role instructions\./);
+  assert.doesNotMatch(compiled.prompt, /Backend rubric checks\./);
   assert.deepEqual(compiled.metadata.roleMaterial, ['roles/custom-backend/ROLE.md', 'roles/custom-backend/RUBRIC.md']);
 });
 

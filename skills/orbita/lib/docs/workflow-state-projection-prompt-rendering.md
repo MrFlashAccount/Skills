@@ -16,7 +16,7 @@ Prompt rendering is deterministic runtime behavior, not an orchestrator shortcut
 - the current workflow `step`;
 - optional step `input.template` and inline `input.prompt`;
 - explicitly allowed baton state from `input.state`;
-- role material from `input.role` when present, resolved from `roles/<name>/ROLE.md` and `roles/<name>/RUBRIC.md`;
+- required-read references for `input.role` when present, resolved from `roles/<name>/ROLE.md` and `roles/<name>/RUBRIC.md`;
 - worker output instructions from `output.template` when present;
 - optional JSON response constraints from `output.schema` when present.
 
@@ -156,8 +156,8 @@ Renderer behavior:
 
 - validate `input.role` as a role directory name (`A-Z`, `a-z`, `0-9`, `_`, `-`) and reject traversal or path-like values;
 - resolve role files from `roles/<input.role>/ROLE.md` and `roles/<input.role>/RUBRIC.md` under the repository root;
-- inline both files into the fixed `## Role material` section, with deterministic `<!-- role material: ... -->` source comments;
-- append a `## Role material` section when `input.role` is present; input templates do not consume role variables;
+- list both files in the fixed `## Required reads` section instead of inlining their content;
+- append a `## Required reads` section when `input.role` or projected artifact files are present; input templates do not consume role variables;
 - fail with a deterministic `WorkflowRuntimeError` when either required role material file is missing or escapes the repository root;
 - do not infer capabilities, map roles to subagent agents, or make role required for worker steps unless a separate schema decision is approved.
 
@@ -287,7 +287,7 @@ If `input.template` exists, the renderer uses it only as static top-level markdo
 After that top layer, the renderer always concatenates fixed sections in this order when each source exists:
 
 1. `## Workflow instruction` from workflow-level instruction text;
-2. `## Role material` if `input.role` exists;
+2. `## Required reads` if `input.role` or projected artifact files exist;
 3. `## Output contract` if `output.template` or `output.schema` exists;
 4. `## Projected baton state` if `input.state` selected anything;
 5. `## Workflow step prompt` if `input.prompt` exists;

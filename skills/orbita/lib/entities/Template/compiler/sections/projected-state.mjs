@@ -13,17 +13,13 @@ function projectedArtifactRecords(projection) {
   return records;
 }
 
-function artifactContentBlock({ projection, resources }) {
+export function projectedArtifactReadItems(projection) {
   const records = projectedArtifactRecords(projection);
-  if (records.length === 0) return '';
-  const readRunArtifact = resources?.readRunArtifact;
-  if (typeof readRunArtifact !== 'function') return '';
-  const lines = ['### Projected artifact content'];
-  for (const { stepId, artifact } of records) {
-    const content = readRunArtifact(artifact.path);
-    lines.push('', `#### ${stepId}/${artifact.id}`, '', `path: ${artifact.path}`, `content_type: ${artifact.content_type}`, '', '```', content.trimEnd(), '```');
-  }
-  return `${lines.join('\n')}\n`;
+  return records.map(({ stepId, artifact }) => ({
+    label: `Projected artifact '${artifact.id}' from '${stepId}'`,
+    path: artifact.path,
+    contentType: artifact.content_type,
+  }));
 }
 
 export function projectedStateBlock({ workflow, projection, resources, readOutputSchema }) {
@@ -36,7 +32,6 @@ export function projectedStateBlock({ workflow, projection, resources, readOutpu
     readOutputSchema,
   });
   const json = fencedJson(projection.value).trimEnd();
-  const artifactContent = artifactContentBlock({ projection, resources });
   const body = notes ? `${notes}\n\n${json}` : json;
-  return artifactContent ? `${body}\n\n${artifactContent}` : `${body}\n`;
+  return `${body}\n`;
 }

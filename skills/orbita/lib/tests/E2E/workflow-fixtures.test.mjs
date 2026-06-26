@@ -161,8 +161,10 @@ test('E2E fixture: long happy path loops through review revision and preserves l
   assert.equal(planned.requests[0].action, 'wait_for_approval');
   assert.equal(planned.baton.state.plan.artifacts[0].summary, 'plan v1');
   const approvalInstructions = instructions(run, 'approval_gate');
-  assert.match(approvalInstructions, /### Projected artifact content/);
-  assert.match(approvalInstructions, /Plan artifact content for approval\./);
+  assert.match(approvalInstructions, /## Required reads/);
+  assert.match(approvalInstructions, /Projected artifact 'plan' from 'plan' \(text\/markdown\):/);
+  assert.match(approvalInstructions, /plan\/artifacts\/plan\.md/);
+  assert.doesNotMatch(approvalInstructions, /Plan artifact content for approval\./);
 
   const approved = continueWith(run, workflow, output('approval-approved.json'), 'continue approval');
   assert.equal(approved.baton.cursor, 'implement');
@@ -183,7 +185,7 @@ test('E2E fixture: long happy path loops through review revision and preserves l
   assert.match(readHistory(run), /id=review action=run_worker/);
 });
 
-test('E2E fixture: DevHarness-style artifact path exposes actual content to downstream review instructions', () => {
+test('E2E fixture: DevHarness-style artifact path is required-read context for downstream review instructions', () => {
   const workflow = fixture('long-revision.workflow.json');
   const run = runDir('artifact-content');
 
@@ -203,8 +205,10 @@ test('E2E fixture: DevHarness-style artifact path exposes actual content to down
   const reviewRequest = continueWith(run, workflow, implementOutputPath, 'continue implementation readable artifact');
   assert.equal(reviewRequest.baton.cursor, 'review');
   const reviewInstructions = instructions(run, 'review');
-  assert.match(reviewInstructions, /### Projected artifact content/);
-  assert.match(reviewInstructions, /Concrete implementation artifact content for reviewer\./);
+  assert.match(reviewInstructions, /## Required reads/);
+  assert.match(reviewInstructions, /Projected artifact 'packet' from 'implement' \(text\/markdown\):/);
+  assert.match(reviewInstructions, /implement\/artifacts\/packet\.md/);
+  assert.doesNotMatch(reviewInstructions, /Concrete implementation artifact content for reviewer\./);
 });
 
 test('E2E fixture: match route covers retry loop and blocked terminal variant', () => {

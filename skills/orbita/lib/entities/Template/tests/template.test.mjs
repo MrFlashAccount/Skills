@@ -118,7 +118,7 @@ test('Template compiles workflow expressions through the entity API', () => {
   assert.deepEqual(new Template().compileExpression('${{ input.producer.route }}').segments, ['input', 'producer', 'route']);
 });
 
-test('renderWorkflowPrompt assembles templates, role material, output contract, projected state, and metadata', () => {
+test('renderWorkflowPrompt assembles templates, required reads, output contract, projected state, and metadata', () => {
   const rendered = renderWorkflowPrompt({
     workflow,
     baton,
@@ -130,7 +130,10 @@ test('renderWorkflowPrompt assembles templates, role material, output contract, 
 
   assert.match(rendered.prompt, /^# Custom Consumer/m);
   assert.match(rendered.prompt, /## Workflow instruction\n\nKeep workflow-level context visible\./);
-  assert.match(rendered.prompt, /<!-- role material: \/roles\/backend\/ROLE\.md -->/);
+  assert.match(rendered.prompt, /## Required reads/);
+  assert.match(rendered.prompt, /1\. Role material for 'backend': `\/roles\/backend\/ROLE\.md`/);
+  assert.match(rendered.prompt, /2\. Role material for 'backend': `\/roles\/backend\/RUBRIC\.md`/);
+  assert.match(rendered.prompt, /3\. Projected artifact 'research-packet' from 'producer' \(text\/markdown\): `producer\/artifacts\/research-packet\.md`/);
   assert.match(rendered.prompt, /## Output contract/);
   assert.match(rendered.prompt, /No validating writer command is provided in these instructions, so do not invent one/);
   assert.match(rendered.prompt, /do not create or hand off a separate JSON output path/);
