@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { validateJsonSchema } from 'schema-validation';
+import { validateJsonSchema } from '../../../../shared/scripts/schema-validation/schema-validation.mjs';
 import reviewJoinOutputSchema from '../../../../workflows/dev-harness/schemas/review-join-output.json' with { type: 'json' };
 import reviewerSelectionOutputSchema from '../../../../workflows/dev-harness/schemas/reviewer-selection-output.json' with { type: 'json' };
 import { assertBatonSchema, batonSchema } from '../entities/Baton/schema/baton-schema.mjs';

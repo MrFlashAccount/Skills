@@ -1,6 +1,6 @@
 import { existsSync, lstatSync, realpathSync } from 'node:fs';
 import { basename, dirname, isAbsolute, relative, resolve } from 'node:path';
-import { SchemaValidationError, formatSchemaErrors, validateJsonSchema } from 'schema-validation';
+import { SchemaValidationError, formatSchemaErrors, validateJsonSchema } from '../../../../../../shared/scripts/schema-validation/schema-validation.mjs';
 import { batonSchema } from '../../../entities/Baton/schema/baton-schema.mjs';
 import { loadOutputSchema } from '../../../persistence/workflow-resources/output-schema-loader.mjs';
 

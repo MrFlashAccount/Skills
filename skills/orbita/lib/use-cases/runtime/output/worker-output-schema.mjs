@@ -1,6 +1,6 @@
 import workerOutputSchema from './schema/worker-output.json' with { type: 'json' };
 import { batonSchema } from '../../../entities/Baton/schema/baton-schema.mjs';
-import { assertJsonSchema } from 'schema-validation';
+import { assertJsonSchema } from '../../../../../../shared/scripts/schema-validation/schema-validation.mjs';
 
 export { workerOutputSchema };
 
