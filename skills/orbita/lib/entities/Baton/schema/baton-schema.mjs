@@ -1,5 +1,5 @@
 import batonSchema from './baton.json' with { type: 'json' };
-import { assertJsonSchema } from 'schema-validation';
+import { assertJsonSchema } from '../../../../../../shared/scripts/schema-validation/schema-validation.mjs';
 
 export { batonSchema };
 
