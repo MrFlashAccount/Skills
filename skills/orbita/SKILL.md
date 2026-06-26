@@ -122,7 +122,11 @@ Known request actions:
 
 If a request action is unknown, stop as blocked.
 
-For `run_worker`, load the request instructions by embedding the request's exact `loadInstructionsCommand` in the worker bootstrap. If the command contains a `<lease-token>` placeholder, replace only that placeholder:
+For `run_worker`, spawn the worker with exactly this bootstrap prompt and nothing else. Do not prepend or append user prompt text, task context, hostile priors, role hints, workflow summaries, output-format reminders, metadata, watchdog text, or any other instructions.
+
+Before spawning the worker, take the request's exact `loadInstructionsCommand`. If it contains the literal `<lease-token>` placeholder, replace only that placeholder with the current exact lease token. Do not otherwise rewrite, shorten, shell-normalize, quote-normalize, explain, or enrich the command.
+
+The worker prompt must be exactly:
 
 ```text
 Load the step instructions by running:
@@ -130,8 +134,13 @@ Load the step instructions by running:
 <request.loadInstructionsCommand>
 
 Then follow the loaded instructions exactly.
-If the instructions cannot be loaded, stop with an error.
+
+Do not add any behavior, role, output format, or constraints beyond the loaded instructions.
+
+If the instructions cannot be loaded, stop with an error and do not continue.
 ```
+
+Only `<request.loadInstructionsCommand>` may be substituted. The final spawned worker prompt must contain no other text.
 
 Enforce the host watchdog for every `run_worker` request:
 
