@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "outcome"
+  ],
+  "properties": {
+    "outcome": {
+      "enum": [
+        "approved",
+        "needs_revision",
+        "blocked"
+      ]
+    },
+    "verdict": {
+      "type": "string"
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "blocker": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": true
+}
