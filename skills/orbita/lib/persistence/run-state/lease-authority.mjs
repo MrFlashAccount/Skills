@@ -1,6 +1,6 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 
-export const DEFAULT_LEASE_MS = 30 * 60 * 1000;
+export const DEFAULT_LEASE_MS = 60 * 60 * 1000;
 export const DEFAULT_TOKEN_EPOCH = 1;
 export const LEASE_TOKEN_PREFIX = 't';
 
