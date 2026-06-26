@@ -341,6 +341,10 @@ test('runner: approval host instruction inlines compiled approval prompt with pr
   assert.match(response.orchestratorInstruction, /Approval request: approve/);
   assert.match(response.orchestratorInstruction, /The orchestrator must execute this approval instruction itself\./);
   assert.match(response.orchestratorInstruction, /Use the following compiled approval prompt as the complete source/);
+  assert.match(response.orchestratorInstruction, /Do not inspect workflow source, runner internals, schema files, or CLI help to reconstruct approval output\./);
+  assert.match(response.orchestratorInstruction, /After the user decides, normalize the answer to strict JSON and submit it with this validating command:/);
+  assert.match(response.orchestratorInstruction, new RegExp(`workflow-runner\\.mjs write-output --run-id '${runId}' --step-id 'approve' --lease-token '${leaseToken}' <<'JSON'`));
+  assert.match(response.orchestratorInstruction, /<paste strict JSON here>/);
   assert.match(response.orchestratorInstruction, /# Approve research/);
   assert.match(response.orchestratorInstruction, /## Output contract/);
   assert.match(response.orchestratorInstruction, /## Projected baton state/);
