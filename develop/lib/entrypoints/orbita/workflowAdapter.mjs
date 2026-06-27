@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { next, writeOutput, continueRun, loadInstructions } from '../api/workflowRunner.mjs';
 import { listWorkflowRuns, registerWorkflowRun, heartbeatWorkflowRun, claimWorkflowRun } from '../api/workflowRuns.mjs';
 import { formatWorkflowRunBlock, safePublicRequestId as safeNativePublicRequestId, safeWorkflowRunTitle } from './nativePresentation.mjs';
-import { buildOrbitaRelayMessage, sendGatewayRequesterSessionMessage } from './gatewaySessionRelay.mjs';
+import { sendRequesterSessionMessage } from './gatewaySessionRelay.mjs';
 import { pendingUserActionText, safeArtifactAttachments } from './pendingActionCard.mjs';
 import { Baton } from '../../entities/Baton/index.mjs';
 import { assertBatonSchema } from '../../entities/Baton/schema/baton-schema.mjs';
@@ -544,6 +544,17 @@ function requesterSessionTarget(requesterBinding = {}) {
   return sessionRef;
 }
 
+function requesterDeliveryContext(requesterBinding = {}) {
+  const origin = requesterBinding?.origin && typeof requesterBinding.origin === 'object' && !Array.isArray(requesterBinding.origin) ? requesterBinding.origin : {};
+  const deliveryContext = pruneUndefinedDeliveryProperties({
+    channel: firstCompactContextValue(origin.channel),
+    to: firstCompactContextValue(origin.to, origin.recipient, origin.sender),
+    accountId: firstCompactContextValue(origin.accountId, origin.account),
+    threadId: firstCompactContextValue(origin.threadId, origin.thread),
+  });
+  return Object.keys(deliveryContext).length > 0 ? deliveryContext : undefined;
+}
+
 function hostActionsForDelivery(response = {}) {
   return (response.requests ?? [])
     .map((request) => ({ action: safeFailureIdentifier(request?.action), step_id: safeFailureIdentifier(request?.stepId ?? request?.id) }))
@@ -674,6 +685,12 @@ function pruneUndefinedDeliveryProperties(value) {
 function safeDeliveryFailureReason(reason) {
   return [
     'missing_target_or_text',
+    'runtime_sessions_send_unavailable',
+    'runtime_sessions_send_failed',
+    'system_event_queue_unavailable',
+    'system_event_queue_failed',
+    'system_event_queue_wake_unavailable',
+    'system_event_queue_wake_failed',
     'gateway_session_relay_unavailable',
     'workflow_delivery_claim_failed',
     'workflow_delivery_finalize_failed',
@@ -773,30 +790,6 @@ async function finalizeWorkflowDeliveryDurable({ runId, workflowPath, runsRoot, 
   return { marked: true, delivery };
 }
 
-async function sendRequesterSessionMessage({ api, sessionKey, text, idempotencyKey } = {}) {
-  if (!sessionKey || !text) return { sent: false, reason: 'missing_target_or_text' };
-  const relayMessage = buildOrbitaRelayMessage(text);
-  try {
-    const result = await sendGatewayRequesterSessionMessage({
-      sessionKey,
-      text: relayMessage,
-      idempotencyKey,
-      env: api?.orbita?.gatewayEnv,
-      gatewayClientClass: api?.orbita?.GatewayClient,
-      settings: api?.orbita?.gatewaySettings,
-      importRuntime: api?.orbita?.importGatewayRuntime,
-    });
-    return { ...result, attempts: 1, failedAttempts: [] };
-  } catch (error) {
-    return {
-      sent: false,
-      reason: 'gateway_session_relay_unavailable',
-      method: 'gateway.sessions.send.adapter',
-      error: String(error?.message ?? error),
-      failedAttempts: [{ method: 'gateway.sessions.send.adapter', error: String(error?.message ?? error) }],
-    };
-  }
-}
 
 export async function deliverWorkflowResponseToRequester({ api, pluginConfig, runsRoot, response, requesterBinding, workflowPath }) {
   const marker = workflowDeliveryMarker(response);
@@ -858,7 +851,7 @@ export async function deliverWorkflowResponseToRequester({ api, pluginConfig, ru
     return { sent: false, reason, marker, durable: claim.durable };
   }
 
-  const result = await sendRequesterSessionMessage({ api, sessionKey, text: card.text, idempotencyKey: key });
+  const result = await sendRequesterSessionMessage({ api, pluginConfig, sessionKey, text: card.text, idempotencyKey: key, deliveryContext: requesterDeliveryContext(card.requesterBinding) });
   const status = result.sent ? 'success' : 'failed';
   try {
     await finalizeWorkflowDeliveryDurable({
@@ -1037,7 +1030,7 @@ function isRunnableWorkerState(response) {
     && requests.every((request) => request?.action === 'run_worker');
 }
 
-async function driveWorkflowFromResponse({ api, initialResponse, workflowPath, runsRoot, leaseToken, requestId, workflowIdentity, requesterBinding }) {
+async function driveWorkflowFromResponse({ api, pluginConfig = {}, initialResponse, workflowPath, runsRoot, leaseToken, requestId, workflowIdentity, requesterBinding }) {
   let response = initialResponse;
 
   while (isRunnableWorkerState(response)) {
@@ -1060,20 +1053,20 @@ async function driveWorkflowFromResponse({ api, initialResponse, workflowPath, r
 
   if (approvalRequestFor(response)) {
     await releaseWorkflowRunLease({ runId: response.runId, workflowPath, runsRoot, response, leaseToken });
-    await deliverWorkflowResponseToRequester({ api, pluginConfig: { workflowRunsRoot: runsRoot }, runsRoot, response, requesterBinding, workflowPath });
+    await deliverWorkflowResponseToRequester({ api, pluginConfig: { ...pluginConfig, workflowRunsRoot: runsRoot }, runsRoot, response, requesterBinding, workflowPath });
     return response;
   }
   if (isTerminalWorkflowState(response)) {
     await releaseWorkflowRunLease({ runId: response.runId, workflowPath, runsRoot, response, leaseToken });
-    await deliverWorkflowResponseToRequester({ api, pluginConfig: { workflowRunsRoot: runsRoot }, runsRoot, response, requesterBinding, workflowPath });
+    await deliverWorkflowResponseToRequester({ api, pluginConfig: { ...pluginConfig, workflowRunsRoot: runsRoot }, runsRoot, response, requesterBinding, workflowPath });
     return response;
   }
   throw new Error('unsupported_workflow_host_action');
 }
 
-async function driveWorkflow({ api, runId, workflowPath, runsRoot, leaseToken, task, requestId, workflowIdentity, requesterBinding }) {
+async function driveWorkflow({ api, pluginConfig = {}, runId, workflowPath, runsRoot, leaseToken, task, requestId, workflowIdentity, requesterBinding }) {
   const response = await next({ runId, workflowPath, userPrompt: task, leaseToken, runsRoot });
-  return driveWorkflowFromResponse({ api, initialResponse: response, workflowPath, runsRoot, leaseToken, requestId, workflowIdentity, requesterBinding });
+  return driveWorkflowFromResponse({ api, pluginConfig, initialResponse: response, workflowPath, runsRoot, leaseToken, requestId, workflowIdentity, requesterBinding });
 }
 
 async function driveWorkflowAndRecordFailure(options) {
@@ -1106,6 +1099,7 @@ async function startBackgroundWorkflowDriveFromResponse(options) {
       },
       run: () => driveWorkflowFromResponse({
         api: options.api,
+        pluginConfig: options.pluginConfig,
         initialResponse: options.initialResponse,
         workflowPath: options.workflowPath,
         runsRoot: options.runsRoot,
@@ -1124,6 +1118,7 @@ async function startBackgroundWorkflowDriveFromResponse(options) {
   setImmediate(() => {
     void driveWorkflowFromResponse({
       api: options.api,
+      pluginConfig: options.pluginConfig,
       initialResponse: options.initialResponse,
       workflowPath: options.workflowPath,
       runsRoot: options.runsRoot,
@@ -1445,7 +1440,7 @@ export async function continueWorkflowRunFromOrbita(values = {}, { pluginConfig 
       candidates: controlOutputCandidates(action, text, request, response),
     });
     continued = await continueRun({ runId, workflowPath, runsRoot, leaseToken });
-    await startBackgroundWorkflowDriveFromResponse({ api, runId, workflowPath, runsRoot, leaseToken, initialResponse: continued, requestId, workflowIdentity, requesterBinding: requesterBindingFromContext(ctx) });
+    await startBackgroundWorkflowDriveFromResponse({ api, pluginConfig, runId, workflowPath, runsRoot, leaseToken, initialResponse: continued, requestId, workflowIdentity, requesterBinding: requesterBindingFromContext(ctx) });
   } catch (error) {
     await releaseWorkflowRunLease({ runId, workflowPath, runsRoot, response: response ?? { runId, status: claim?.run?.status, baton: { cursor: stepId }, requests: [request] }, leaseToken }).catch(() => {});
     if (/output schema validation failed|approval output failed schema validation|unknown current workflow step id|current workflow state is .* not needs_host_actions|workflow semantic validation failed|invalid workflow runId/i.test(String(error?.message ?? error))) {
@@ -1511,7 +1506,7 @@ export async function runWorkflow(values = {}, { pluginConfig = {}, ctx = {}, ap
       await releaseWorkflowRunLease({ runId: registered.runId, workflowPath, runsRoot, response: { runId: registered.runId, status: registered.status, baton: { cursor: undefined }, requests: [] }, leaseToken: registered.leaseToken }).catch(() => {});
       return publicWorkflowError('workflow_lease_persistence_failed', { requestId });
     }
-    scheduleBackgroundWorkflowDrive({ api, runId: registered.runId, workflowPath, runsRoot, leaseToken: registered.leaseToken, task, requestId, workflowIdentity, requesterBinding });
+    scheduleBackgroundWorkflowDrive({ api, pluginConfig, runId: registered.runId, workflowPath, runsRoot, leaseToken: registered.leaseToken, task, requestId, workflowIdentity, requesterBinding });
     const text = ackText({ runId: registered.runId, requestId });
     return {
       ok: true,

@@ -299,6 +299,100 @@ test('Orbita worker-only background gate does not send before a user-facing stat
 });
 
 
+test('Orbita approval delivery preserves system event queue experiment flag through workflow driver', async () => {
+  await withRoot(async (root) => {
+    const runId = `run-${process.pid}-delivery-driver-system-event`;
+    await createSampleWorkflowApprovalRun(root, runId);
+    const events = [];
+    const heartbeats = [];
+    const api = deliveryApi();
+    api.runtime.system = {
+      enqueueSystemEvent(text, options) {
+        events.push({ text, options });
+        return true;
+      },
+      requestHeartbeat(params) {
+        heartbeats.push(params);
+      },
+    };
+    api.runtime.sessions = {
+      async send() {
+        throw new Error('runtime.sessions.send must not be called when system event queue experiment is enabled');
+      },
+    };
+
+    const ack = await runOrbita('approve', { _positionals: [runId] }, {
+      pluginConfig: { ...orbitaPluginConfig(root), experimentalSystemEventQueueDelivery: true },
+      ctx: { sessionKey: 'agent:main:approver-b' },
+      api,
+    });
+
+    assert.equal(ack.ok, true);
+    await waitFor(() => events.length === 1);
+    assert.equal(events[0].options.sessionKey, 'agent:main:requester-a');
+    assert.equal(events[0].options.contextKey, `orbita-workflow-delivery:${runId}:terminal:done`);
+    assert.equal(events[0].options.trusted, true);
+    assert.deepEqual(events[0].options.deliveryContext, { channel: 'telegram', to: 'user-a' });
+    assert.match(events[0].text, /Orbita workflow update/);
+    assert.doesNotMatch(events[0].text, /Internal trusted Orbita relay event|PUBLIC ORBITA CARD|runtime\.sessions\.send|agent:main:requester-a/);
+    assert.equal(heartbeats.length, 1);
+    assert.deepEqual(heartbeats[0], { source: 'other', intent: 'immediate', sessionKey: 'agent:main:requester-a', reason: 'orbita_workflow_delivery' });
+    await waitFor(async () => {
+      const index = JSON.parse(await readFile(join(root, 'runs.json'), 'utf8'));
+      return index.runs[runId].workflowDeliveries?.[0]?.method === 'runtime.system.enqueueSystemEvent';
+    });
+    const index = JSON.parse(await readFile(join(root, 'runs.json'), 'utf8'));
+    assert.equal(index.runs[runId].workflowDeliveries[0].method, 'runtime.system.enqueueSystemEvent');
+    assert.equal(index.runs[runId].workflowDeliveries[0].status, 'success');
+    assertPublicDeliveryClean(index.runs[runId].workflowDeliveries[0]);
+  });
+});
+
+test('Orbita approval delivery uses runtime sessions.send by default when experiment flag is absent', async () => {
+  await withRoot(async (root) => {
+    const runId = `run-${process.pid}-delivery-driver-runtime-send-default`;
+    await createSampleWorkflowApprovalRun(root, runId);
+    const events = [];
+    const sends = [];
+    const api = deliveryApi();
+    api.runtime.system = {
+      enqueueSystemEvent(text, options) {
+        events.push({ text, options });
+        return true;
+      },
+      requestHeartbeat() {},
+    };
+    api.runtime.sessions = {
+      async send(params) {
+        sends.push(params);
+        return { ok: true };
+      },
+    };
+
+    const ack = await runOrbita('approve', { _positionals: [runId] }, {
+      pluginConfig: orbitaPluginConfig(root),
+      ctx: { sessionKey: 'agent:main:approver-b' },
+      api,
+    });
+
+    assert.equal(ack.ok, true);
+    await waitFor(() => sends.length === 1);
+    assert.equal(events.length, 0);
+    assert.equal(sends[0].key, 'agent:main:requester-a');
+    assert.equal(sends[0].idempotencyKey, `orbita-workflow-delivery:${runId}:terminal:done`);
+    assert.match(sends[0].message, new RegExp(ORBITA_RELAY_EVENT_TYPE));
+    await waitFor(async () => {
+      const index = JSON.parse(await readFile(join(root, 'runs.json'), 'utf8'));
+      return index.runs[runId].workflowDeliveries?.[0]?.method === 'runtime.sessions.send';
+    });
+    const index = JSON.parse(await readFile(join(root, 'runs.json'), 'utf8'));
+    assert.equal(index.runs[runId].workflowDeliveries[0].method, 'runtime.sessions.send');
+    assert.equal(index.runs[runId].workflowDeliveries[0].status, 'success');
+    assertPublicDeliveryClean(index.runs[runId].workflowDeliveries[0]);
+  });
+});
+
+
 test('Orbita background workflow failure delivers one safe failure update to requester session', async () => {
   await withRoot(async (root) => {
     const sends = [];
