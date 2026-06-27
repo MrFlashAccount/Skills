@@ -243,7 +243,7 @@ test('Step.validateInstructionRequest accepts a requested branch reached by a st
 
 test('Step.validateInstructionRequest rejects unknown current request ids', () => {
   const step = new Step({ id: 'producer', step: workflowDoc().steps.producer });
-  assert.throws(() => step.validateInstructionRequest({ workflow: workflowDoc(), baton: batonDoc(), runState: { requests: [] }, stepId: 'missing' }), /unknown current workflow step id: missing/);
+  assert.throws(() => step.validateInstructionRequest({ workflow: workflowDoc(), baton: batonDoc(), runState: { requests: [] }, stepId: 'missing' }), /stale workflow-runner command from an older response: requested step 'missing'.*current request step ids: none/);
 });
 
 test('Workflow constructor clones boundary data before exposing steps', () => {

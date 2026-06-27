@@ -135,7 +135,7 @@ function withLeaseTokenArg(args, token) {
 
 function runRunner(args, options = {}) {
   const token = claimRunForRunnerArgs(args);
-  return spawnSync(process.execPath, ['skills/orbita/lib/entrypoints/cli/workflow-runner.mjs', ...withLeaseTokenArg(args, token)], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUN_TOKEN: token ?? testLeaseToken, ...(options.env ?? {}) } });
+  return spawnSync(process.execPath, ['skills/orbita/lib/entrypoints/cli/workflow-runner.mjs', ...withLeaseTokenArg(args, token)], { cwd: root, encoding: 'utf8', input: options.input, env: { ...process.env, WORKFLOW_RUN_TOKEN: token ?? testLeaseToken, ...(options.env ?? {}) } });
 }
 
 async function runRunnerAsync(args) {
@@ -172,8 +172,8 @@ function makeFifo(filePath) {
   assert.equal(result.status, 0, `mkfifo ${filePath} failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
 }
 
-function expectRunner(args, label) {
-  const result = runRunner(args);
+function expectRunner(args, label, options = {}) {
+  const result = runRunner(args, options);
   assert.equal(result.status, 0, `${label} failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
   return JSON.parse(result.stdout);
 }
@@ -300,7 +300,39 @@ test('runner: instructions rejects request that is not in recomputed current res
   const stale = runRunner(['instructions', '--run-id', runId, '--step-id', 'prepare']);
 
   assert.notEqual(stale.status, 0);
-  assert.match(stale.stderr, /unknown current workflow step id: prepare/);
+  assert.match(stale.stderr, /stale workflow-runner command from an older response/);
+  assert.match(stale.stderr, /requested step 'prepare'/);
+  assert.match(stale.stderr, /current request step ids: none/);
+  assert.match(stale.stderr, /Use the latest workflow-runner response\/instructions/);
+});
+
+test('runner: stale older-response commands name the current request step ids', () => {
+  const { runId } = runCase('stale-current-request-diagnostics');
+  const workflowPath = path.join(tempDir, 'stale-current-request-diagnostics-workflow.json');
+  writeJson(workflowPath, workflowDoc);
+
+  expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next stale current request diagnostics');
+  expectRunner(['write-output', '--run-id', runId, '--step-id', 'prepare'], 'write prepare before stale diagnostics', { input: JSON.stringify(workerOutput('prepared')) });
+  let continued = expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath], 'continue to branch fanout');
+  assert.deepEqual(continued.requests.map((request) => request.stepId), ['branch_a', 'branch_b']);
+
+  expectRunner(['write-output', '--run-id', runId, '--step-id', 'branch_a'], 'write branch_a before stale diagnostics', { input: JSON.stringify(workerOutput('branch a')) });
+  expectRunner(['write-output', '--run-id', runId, '--step-id', 'branch_b'], 'write branch_b before stale diagnostics', { input: JSON.stringify(workerOutput('branch b')) });
+  continued = expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath], 'continue to join request');
+  assert.deepEqual(continued.requests.map((request) => request.stepId), ['join']);
+
+  const staleInstructions = runRunner(['instructions', '--run-id', runId, '--step-id', 'branch_a']);
+  assert.notEqual(staleInstructions.status, 0);
+  assert.match(staleInstructions.stderr, /stale workflow-runner command from an older response/);
+  assert.match(staleInstructions.stderr, /requested step 'branch_a'/);
+  assert.match(staleInstructions.stderr, /current request step ids: join/);
+  assert.match(staleInstructions.stderr, /Use the latest workflow-runner response\/instructions/);
+
+  const staleBind = runRunner(['bind-agent', '--run-id', runId, '--step-id', 'branch_a', '--agent-id', 'worker-branch-a']);
+  assert.notEqual(staleBind.status, 0);
+  assert.match(staleBind.stderr, /stale workflow-runner command from an older response/);
+  assert.match(staleBind.stderr, /requested step 'branch_a'/);
+  assert.match(staleBind.stderr, /current request step ids: join/);
 });
 
 test('runner: instructions rejects unknown and unsafe step ids, and recomputes missing prompt files', () => {
@@ -314,7 +346,9 @@ test('runner: instructions rejects unknown and unsafe step ids, and recomputes m
 
   const unknown = runRunner(['instructions', '--run-id', runId, '--step-id', 'nope']);
   assert.notEqual(unknown.status, 0);
-  assert.match(unknown.stderr, /unknown current workflow step id: nope/);
+  assert.match(unknown.stderr, /stale workflow-runner command from an older response/);
+  assert.match(unknown.stderr, /requested step 'nope'/);
+  assert.match(unknown.stderr, /current request step ids: prepare/);
 
   const unsafe = runRunner(['instructions', '--run-id', runId, '--step-id', '../prepare']);
   assert.notEqual(unsafe.status, 0);

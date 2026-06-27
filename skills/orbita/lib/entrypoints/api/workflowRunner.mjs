@@ -334,6 +334,18 @@ function currentRequestForStep(response, requestedStepId) {
   return requests.find((request) => requestAliases(request).includes(requestedStepId));
 }
 
+function currentRequestStepIds(response) {
+  return (response.requests ?? [])
+    .map(stepIdForRequest)
+    .filter((stepId, index, values) => typeof stepId === 'string' && stepId.length > 0 && values.indexOf(stepId) === index);
+}
+
+function staleWorkflowCommandError(stepId, response) {
+  const current = currentRequestStepIds(response);
+  const currentText = current.length > 0 ? current.join(', ') : 'none';
+  return new Error(`stale workflow-runner command from an older response: requested step '${stepId}' is no longer valid for the current workflow state (current request step ids: ${currentText}). Use the latest workflow-runner response/instructions.`);
+}
+
 function validateAcceptedOutputForRequest({ workflow, resources, request, output }) {
   const requestStepId = stepIdForRequest(request);
   const step = workflow.steps?.[requestStepId];
@@ -394,9 +406,9 @@ async function writeOutputInternal({ runId, workflowPath, stepId, json, leaseTok
     await recoverDurableCommit(paths);
     const current = await readPersistedRunState(paths);
     const { runtime, response } = await renderCurrentHostResponse(paths, current.baton, { leaseToken });
-    if (response.status !== 'needs_host_actions') throw new Error(`current runner response is '${response.status}', not needs_host_actions`);
+    if (response.status !== 'needs_host_actions') throw staleWorkflowCommandError(stepId, response);
     const request = currentRequestForStep(response, stepId);
-    if (!request) throw new Error(`unknown current workflow step id: ${stepId}`);
+    if (!request) throw staleWorkflowCommandError(stepId, response);
     const validationResources = resourcesWithValidatingWriter(runtime.resources, paths, { leaseToken });
     const accepted = validateAcceptedOutputForRequest({ workflow: runtime.workflow, resources: validationResources, request, output });
     const acceptedStepId = stepIdForRequest(request);
@@ -432,9 +444,9 @@ async function bindAgentInternal({ runId, workflowPath, stepId, agentId, leaseTo
     await recoverDurableCommit(paths);
     const current = await readPersistedRunState(paths);
     const { response } = await renderCurrentHostResponse(paths, current.baton, { leaseToken });
-    if (response.status !== 'needs_host_actions') throw new Error(`current runner response is '${response.status}', not needs_host_actions`);
+    if (response.status !== 'needs_host_actions') throw staleWorkflowCommandError(stepId, response);
     const request = currentRequestForStep(response, stepId);
-    if (!request) throw new Error(`unknown current workflow step id: ${stepId}`);
+    if (!request) throw staleWorkflowCommandError(stepId, response);
     if (request.action !== 'run_worker') throw new Error(`workflow step '${stepId}' is not a run_worker request`);
     const acceptedStepId = stepIdForRequest(request);
     const baton = batonWithWorkerBinding(current.baton, acceptedStepId, agentId);
@@ -468,9 +480,9 @@ async function loadInstructionsInternal({ runId, workflowPath, stepId, followUp 
     await recoverDurableCommit(paths);
     const current = await readPersistedRunState(paths);
     const { rendered, response } = await renderCurrentHostResponse(paths, current.baton, { leaseToken });
-    if (response.status !== 'needs_host_actions') throw new Error(`unknown current workflow step id: ${stepId}`);
+    if (response.status !== 'needs_host_actions') throw staleWorkflowCommandError(stepId, response);
     const request = currentRequestForStep(response, stepId);
-    if (!request) throw new Error(`unknown current workflow step id: ${stepId}`);
+    if (!request) throw staleWorkflowCommandError(stepId, response);
     const renderedStep = (rendered.steps ?? []).find((step) => step.id === stepIdForRequest(request));
     const prompt = renderedStep?.compiledPrompt?.prompt;
     if (typeof prompt !== 'string' || prompt.trim().length === 0) {

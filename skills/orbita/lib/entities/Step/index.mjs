@@ -29,6 +29,18 @@ function requireObject(value, name) {
   invariant(value && typeof value === 'object' && !Array.isArray(value), `${name} must be an object`);
 }
 
+function requestStepIds(requests = []) {
+  return requests
+    .map((request) => request?.stepId ?? request?.id)
+    .filter((stepId, index, values) => typeof stepId === 'string' && stepId.length > 0 && values.indexOf(stepId) === index);
+}
+
+function staleCurrentRequestMessage(stepId, requests = []) {
+  const current = requestStepIds(requests);
+  const currentText = current.length > 0 ? current.join(', ') : 'none';
+  return `stale workflow-runner command from an older response: requested step '${stepId}' is no longer valid for the current workflow state (current request step ids: ${currentText}). Use the latest workflow-runner response/instructions.`;
+}
+
 function validateOutputKind(step, output, stepId) {
   if (step.kind === 'approval') {
     invariant(!('outcome' in output), `approval cursor '${stepId}' must use host/user output fields, not outcome`);
@@ -162,11 +174,11 @@ export class Step {
     const workflowDoc = workflowData(workflow);
     const requests = runState.requests ?? batonData?.requests ?? [];
     const request = requests.find((candidate) => candidate?.stepId === stepId || candidate?.id === stepId);
-    invariant(request, `unknown current workflow step id: ${stepId}`);
+    invariant(request, staleCurrentRequestMessage(stepId, requests));
 
     const requestStepId = request.stepId ?? request.id;
-    invariant(typeof requestStepId === 'string' && requestStepId.length > 0, `unknown current workflow step id: ${stepId}`);
-    invariant(workflowDoc.steps?.[requestStepId], `unknown current workflow step id: ${stepId}`);
+    invariant(typeof requestStepId === 'string' && requestStepId.length > 0, staleCurrentRequestMessage(stepId, requests));
+    invariant(workflowDoc.steps?.[requestStepId], staleCurrentRequestMessage(stepId, requests));
 
     if (requestStepId === this.id) return { ok: true, stepId: requestStepId };
     if (batonData?.state && Object.hasOwn(batonData.state, this.id) && Object.hasOwn(this.data, 'next')) {
@@ -174,7 +186,7 @@ export class Step {
       if (resolved.targetStepIds?.includes(requestStepId)) return { ok: true, stepId: requestStepId };
     }
 
-    throw new Error(`unknown current workflow step id: ${stepId}`);
+    throw new Error(staleCurrentRequestMessage(stepId, requests));
   }
 
   prepareRenderContext({ workflow, baton, userPrompt } = {}) {
