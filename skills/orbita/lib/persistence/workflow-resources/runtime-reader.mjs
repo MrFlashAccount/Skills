@@ -111,12 +111,12 @@ function readRoleMaterialFile({ root, role, fileName }) {
   try {
     resolvedPath = realpathSync(candidate);
   } catch {
-    return { path: relative };
+    return { path: path.resolve(candidate) };
   }
   if (!isInside(resolvedPath, root)) {
     throw new WorkflowRuntimeError(`workflow prompt render failed: input.role material escapes repository root: ${relative}`);
   }
-  return { content: readFileSync(resolvedPath, 'utf8'), path: relative };
+  return { content: readFileSync(resolvedPath, 'utf8'), path: resolvedPath };
 }
 
 function loadRoleMaterials({ workflow, repositoryRoot }) {
@@ -136,6 +136,7 @@ export function loadWorkflowResources({ workflow, workflowPath, repositoryRoot =
     schemaDefinitions: [batonSchema],
     roleMaterials: loadRoleMaterials({ workflow, repositoryRoot }),
     allowedRoles: listAllowedWorkflowRoles({ repositoryRoot }),
+    runDir: runDir ? path.resolve(runDir) : undefined,
     readRunArtifact: artifactReaderForRunDir(runDir),
   };
 }

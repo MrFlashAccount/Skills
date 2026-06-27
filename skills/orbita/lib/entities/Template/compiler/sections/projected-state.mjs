@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { projectedFieldNotes } from './projected-field-notes.mjs';
 import { fencedJson } from '../../../../runtime/state-projection.mjs';
 
@@ -13,11 +14,16 @@ function projectedArtifactRecords(projection) {
   return records;
 }
 
-export function projectedArtifactReadItems(projection) {
+function unambiguousArtifactPath(artifactPath, runDir) {
+  if (path.isAbsolute(artifactPath)) return path.resolve(artifactPath);
+  return runDir ? path.resolve(runDir, artifactPath) : artifactPath;
+}
+
+export function projectedArtifactReadItems(projection, { runDir } = {}) {
   const records = projectedArtifactRecords(projection);
   return records.map(({ stepId, artifact }) => ({
     label: `Projected artifact '${artifact.id}' from '${stepId}'`,
-    path: artifact.path,
+    path: unambiguousArtifactPath(artifact.path, runDir),
     contentType: artifact.content_type,
   }));
 }

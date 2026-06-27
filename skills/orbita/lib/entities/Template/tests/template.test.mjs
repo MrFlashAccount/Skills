@@ -124,7 +124,7 @@ test('renderWorkflowPrompt assembles templates, required reads, output contract,
     baton,
     stepId: 'consumer',
     step: workflow.steps.consumer,
-    resources: { ...resources, artifactOutputDir: '/tmp/workflow-runner-test/consumer/artifacts' },
+    resources: { ...resources, runDir: '/tmp/workflow-runner-test', artifactOutputDir: '/tmp/workflow-runner-test/consumer/artifacts' },
     userPrompt: 'extra operator context',
   });
 
@@ -133,7 +133,7 @@ test('renderWorkflowPrompt assembles templates, required reads, output contract,
   assert.match(rendered.prompt, /## Required reads/);
   assert.match(rendered.prompt, /1\. Role material for 'backend': `\/roles\/backend\/ROLE\.md`/);
   assert.match(rendered.prompt, /2\. Role material for 'backend': `\/roles\/backend\/RUBRIC\.md`/);
-  assert.match(rendered.prompt, /3\. Projected artifact 'research-packet' from 'producer' \(text\/markdown\): `producer\/artifacts\/research-packet\.md`/);
+  assert.match(rendered.prompt, /3\. Projected artifact 'research-packet' from 'producer' \(text\/markdown\): `\/tmp\/workflow-runner-test\/producer\/artifacts\/research-packet\.md`/);
   assert.match(rendered.prompt, /## Output contract/);
   assert.match(rendered.prompt, /No validating writer command is provided in these instructions, so do not invent one/);
   assert.match(rendered.prompt, /do not create or hand off a separate JSON output path/);

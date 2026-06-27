@@ -64,7 +64,7 @@ export function renderWorkflowPrompt({ workflow, baton, stepId, step, resources,
   const promptLayer = usesDefaultPrompt ? defaultPrompt({ step, input }) : inputTemplate.content;
   const requiredReads = requiredReadsBlock([
     ...inputRole.readItems,
-    ...projectedArtifactReadItems(projection),
+    ...projectedArtifactReadItems(projection, resources),
   ]);
   const prompt = assembleFixedPrompt({
     promptLayer,
