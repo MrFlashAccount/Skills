@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
 import { WorkflowRuntimeError } from '../../errors.mjs';
-import { continueRun, loadInstructions, next, writeOutput } from '../api/workflowRunner.mjs';
+import { bindAgent, continueRun, loadInstructions, next, writeOutput } from '../api/workflowRunner.mjs';
 import { publicErrorMessage } from './public-error.mjs';
 
 
@@ -11,7 +11,7 @@ function fail(message) {
 }
 
 function usage() {
-  return 'usage: node ./lib/entrypoints/cli/workflow-runner.mjs next --run-id <id> [--workflow <workflow.json>] [--runs-root <dir>] [--diagnostics] [--only-instructions] [--user-prompt <text> | --user-prompt-file <path>] [--lease-token <token> + diagnostics metadata] | continue --run-id <id> [--workflow <workflow.json>] [--runs-root <dir>] [--diagnostics] [--only-instructions] [--lease-token <token> + diagnostics metadata] | instructions --run-id <id> --step-id <id> [--workflow <workflow.json>] [--runs-root <dir>] [--lease-token <token> + diagnostics metadata] | write-output --run-id <id> --step-id <id> [--json <json>] [--workflow <workflow.json>] [--runs-root <dir>] [--lease-token <token> + diagnostics metadata]';
+  return 'usage: node ./lib/entrypoints/cli/workflow-runner.mjs next --run-id <id> [--workflow <workflow.json>] [--runs-root <dir>] [--diagnostics] [--only-instructions] [--user-prompt <text> | --user-prompt-file <path>] [--lease-token <token> + diagnostics metadata] | continue --run-id <id> [--workflow <workflow.json>] [--runs-root <dir>] [--diagnostics] [--only-instructions] [--lease-token <token> + diagnostics metadata] | instructions --run-id <id> --step-id <id> [--follow-up] [--workflow <workflow.json>] [--runs-root <dir>] [--lease-token <token> + diagnostics metadata] | bind-agent --run-id <id> --step-id <id> --agent-id <id> [--workflow <workflow.json>] [--runs-root <dir>] [--lease-token <token> + diagnostics metadata] | write-output --run-id <id> --step-id <id> [--json <json>] [--workflow <workflow.json>] [--runs-root <dir>] [--lease-token <token> + diagnostics metadata]';
 }
 
 async function readStdin() {
@@ -22,7 +22,7 @@ async function readStdin() {
 
 function parseCliArgs(argv) {
   const [mode, ...rest] = argv;
-  if (!['next', 'continue', 'instructions', 'write-output'].includes(mode)) fail(usage());
+  if (!['next', 'continue', 'instructions', 'bind-agent', 'write-output'].includes(mode)) fail(usage());
   try {
     const parsed = parseArgs({
       args: rest,
@@ -34,25 +34,30 @@ function parseCliArgs(argv) {
         diagnostics: { type: 'boolean', default: false },
         'only-instructions': { type: 'boolean', default: false },
         json: { type: 'string' },
+        'follow-up': { type: 'boolean', default: false },
         'user-prompt': { type: 'string' },
         'user-prompt-file': { type: 'string' },
         owner: { type: 'string' },
         harness: { type: 'string' },
         'session-id': { type: 'string' },
         'worker-id': { type: 'string' },
+        'agent-id': { type: 'string' },
         'lease-token': { type: 'string' },
       },
       strict: true,
       allowPositionals: false,
     });
     if (!parsed.values['run-id']) fail(usage());
-    if (['instructions', 'write-output'].includes(mode) && !parsed.values['step-id']) fail(usage());
-    if (!['instructions', 'write-output'].includes(mode) && parsed.values['step-id']) fail(usage());
+    if (['instructions', 'bind-agent', 'write-output'].includes(mode) && !parsed.values['step-id']) fail(usage());
+    if (!['instructions', 'bind-agent', 'write-output'].includes(mode) && parsed.values['step-id']) fail(usage());
+    if (mode === 'bind-agent' && !parsed.values['agent-id']) fail(usage());
+    if (mode !== 'bind-agent' && parsed.values['agent-id']) fail(usage());
     if (mode !== 'next' && (parsed.values['user-prompt'] !== undefined || parsed.values['user-prompt-file'] !== undefined)) fail(usage());
     if (mode === 'instructions' && parsed.values.diagnostics) fail(usage());
+    if (mode !== 'instructions' && parsed.values['follow-up']) fail(usage());
     if (!['next', 'continue'].includes(mode) && parsed.values['only-instructions']) fail(usage());
     if (mode !== 'write-output' && parsed.values.json !== undefined) fail(usage());
-    if (mode === 'write-output' && parsed.values.diagnostics) fail(usage());
+    if (['bind-agent', 'write-output'].includes(mode) && parsed.values.diagnostics) fail(usage());
     return { mode, values: parsed.values };
   } catch (error) {
     fail(`${error.message}\n${usage()}`);
@@ -85,9 +90,19 @@ try {
       workflowPath: values.workflow,
       runsRoot: values['runs-root'],
       stepId: values['step-id'],
+      followUp: values['follow-up'],
       ...leaseArgs(values),
     });
     process.stdout.write(instructions);
+  } else if (mode === 'bind-agent') {
+    await bindAgent({
+      runId: values['run-id'],
+      workflowPath: values.workflow,
+      runsRoot: values['runs-root'],
+      stepId: values['step-id'],
+      agentId: values['agent-id'],
+      ...leaseArgs(values),
+    });
   } else if (mode === 'write-output') {
     const response = await writeOutput({
       runId: values['run-id'],

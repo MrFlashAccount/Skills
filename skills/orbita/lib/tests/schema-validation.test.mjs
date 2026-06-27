@@ -5,8 +5,9 @@ import reviewJoinOutputSchema from '../../../../workflows/dev-harness/schemas/re
 import reviewerSelectionOutputSchema from '../../../../workflows/dev-harness/schemas/reviewer-selection-output.json' with { type: 'json' };
 import { assertBatonSchema, batonSchema } from '../entities/Baton/schema/baton-schema.mjs';
 import { assertWorkflowSchema, workflowSchema } from '../file-contracts/workflow-document-schema.mjs';
+import runnerHostResponseSchema from '../persistence/run-state/schema/runner-host-response.json' with { type: 'json' };
 
-const runtimeSchemas = [workflowSchema, batonSchema, reviewerSelectionOutputSchema, reviewJoinOutputSchema];
+const runtimeSchemas = [workflowSchema, batonSchema, reviewerSelectionOutputSchema, reviewJoinOutputSchema, runnerHostResponseSchema];
 
 function minimalWorkflowDoc(overrides = {}) {
   return {
@@ -105,4 +106,67 @@ test('workflow schema accepts workflow documents without workflow-level instruct
 test('workflow schema permits empty workflow-level instruction values as optional metadata', () => {
   assert.doesNotThrow(() => assertWorkflowSchema(minimalWorkflowDoc({ instruction: '' })));
   assert.doesNotThrow(() => assertWorkflowSchema(minimalWorkflowDoc({ instructions: '  \n\t' })));
+});
+
+test('runner host response schema enforces action-conditional reuse hint fields', () => {
+  const validRunWorker = {
+    status: 'needs_host_actions',
+    orchestratorInstruction: 'Execute host requests.',
+    baton: {
+      cursor: 'worker_step',
+      status: 'running',
+      state: { artifacts: [], results: [] },
+    },
+    requests: [
+      {
+        id: 'worker_step',
+        stepId: 'worker_step',
+        action: 'run_worker',
+        loadInstructionsCommand: 'node workflow-runner.mjs instructions',
+        preferredAgentId: null,
+        bindAgentCommand: 'node workflow-runner.mjs bind-agent --agent-id <agent-id>',
+        loadFollowupInstructionsCommand: 'node workflow-runner.mjs instructions --follow-up',
+      },
+    ],
+  };
+  const validApproval = {
+    ...validRunWorker,
+    requests: [
+      {
+        id: 'approval_step',
+        stepId: 'approval_step',
+        action: 'wait_for_approval',
+      },
+    ],
+  };
+
+  assert.equal(validateJsonSchema(runnerHostResponseSchema, validRunWorker, { schemas: runtimeSchemas }).ok, true);
+  assert.equal(validateJsonSchema(runnerHostResponseSchema, {
+    ...validRunWorker,
+    requests: [{ ...validRunWorker.requests[0], preferredAgentId: undefined }],
+  }, { schemas: runtimeSchemas }).ok, false);
+  assert.equal(validateJsonSchema(runnerHostResponseSchema, {
+    ...validRunWorker,
+    requests: [{ ...validRunWorker.requests[0], bindAgentCommand: undefined }],
+  }, { schemas: runtimeSchemas }).ok, false);
+  assert.equal(validateJsonSchema(runnerHostResponseSchema, {
+    ...validRunWorker,
+    requests: [{ ...validRunWorker.requests[0], loadFollowupInstructionsCommand: undefined }],
+  }, { schemas: runtimeSchemas }).ok, false);
+  assert.equal(validateJsonSchema(runnerHostResponseSchema, {
+    ...validApproval,
+    requests: [{ ...validApproval.requests[0], preferredAgentId: null }],
+  }, { schemas: runtimeSchemas }).ok, false);
+  assert.equal(validateJsonSchema(runnerHostResponseSchema, {
+    ...validApproval,
+    requests: [{ ...validApproval.requests[0], bindAgentCommand: 'node workflow-runner.mjs bind-agent' }],
+  }, { schemas: runtimeSchemas }).ok, false);
+  assert.equal(validateJsonSchema(runnerHostResponseSchema, {
+    ...validApproval,
+    requests: [{ ...validApproval.requests[0], loadFollowupInstructionsCommand: 'node workflow-runner.mjs instructions --follow-up' }],
+  }, { schemas: runtimeSchemas }).ok, false);
+  assert.equal(validateJsonSchema(runnerHostResponseSchema, {
+    ...validRunWorker,
+    requests: [{ ...validRunWorker.requests[0], attemptId: 'attempt-1' }],
+  }, { schemas: runtimeSchemas }).ok, false);
 });

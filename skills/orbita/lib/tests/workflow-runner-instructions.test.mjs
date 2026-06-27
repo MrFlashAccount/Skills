@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { continueRun as runnerContinueRun, loadInstructions as runnerLoadInstructions, next as runnerNext, writeOutput as runnerWriteOutput } from '../entrypoints/api/workflowRunner.mjs';
+import { bindAgent as runnerBindAgent, continueRun as runnerContinueRun, loadInstructions as runnerLoadInstructions, next as runnerNext, writeOutput as runnerWriteOutput } from '../entrypoints/api/workflowRunner.mjs';
 import { resolveRunPaths } from '../persistence/run-state/paths.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
@@ -506,13 +506,23 @@ test('runner API propagates custom runsRoot through next, instructions, and cont
   assert.equal(first.status, 'needs_host_actions');
   assert.equal(first.requests[0].stepId, 'prepare');
   assert.equal(first.requests[0].loadInstructionsCommand.includes(`--runs-root '${runsRoot}'`), true);
+  assert.equal(first.requests[0].loadFollowupInstructionsCommand.includes(`--runs-root '${runsRoot}'`), true);
+  assert.equal(first.requests[0].bindAgentCommand.includes(`--runs-root '${runsRoot}'`), true);
   assert.equal(first.requests[0].loadInstructionsCommand.includes(`--lease-token '${leaseToken}'`), true);
+  assert.equal(first.requests[0].loadFollowupInstructionsCommand.includes(`--lease-token '${leaseToken}'`), true);
+  assert.equal(first.requests[0].bindAgentCommand.includes(`--lease-token '${leaseToken}'`), true);
+  assert.equal(first.requests[0].bindAgentCommand.includes('--agent-id <agent-id>'), true);
   assert.equal(first.orchestratorInstruction.includes(`--runs-root '${runsRoot}'`), true);
   assert.equal(first.orchestratorInstruction.includes(`--lease-token '${leaseToken}'`), true);
   assert.equal(first.orchestratorInstruction.includes('--only-instructions'), true);
 
   const instructions = await runnerLoadInstructions({ runId, stepId: 'prepare', runsRoot, leaseToken });
   assert.match(instructions, /Prepare branch\./);
+  const followUpInstructions = await runnerLoadInstructions({ runId, stepId: 'prepare', followUp: true, runsRoot, leaseToken });
+  assert.equal(followUpInstructions, instructions);
+
+  const bound = await runnerBindAgent({ runId, stepId: 'prepare', agentId: 'custom-root-worker', runsRoot, leaseToken });
+  assert.deepEqual(bound, { ok: true, runId, stepId: 'prepare', bound: true });
 
   const writeOutput = await runnerWriteOutput({ runId, workflowPath, runsRoot, stepId: 'prepare', json: readFileSync(outputPath, 'utf8'), leaseToken });
   assert.equal(writeOutput.ok, true);
@@ -522,11 +532,16 @@ test('runner API propagates custom runsRoot through next, instructions, and cont
 
   assert.equal(continued.status, 'needs_host_actions');
   assert.equal(continued.requests[0].loadInstructionsCommand.includes(`--lease-token '${leaseToken}'`), true);
+  assert.equal(continued.requests[0].loadFollowupInstructionsCommand.includes(`--lease-token '${leaseToken}'`), true);
+  assert.equal(continued.requests[0].bindAgentCommand.includes(`--lease-token '${leaseToken}'`), true);
   assert.equal(continued.orchestratorInstruction.includes('--only-instructions'), true);
   assert.deepEqual(continued.requests.map((request) => request.stepId).sort(), ['branch_a', 'branch_b']);
   for (const request of continued.requests) {
     assert.equal(request.loadInstructionsCommand.includes(`--runs-root '${runsRoot}'`), true);
+    assert.equal(request.loadFollowupInstructionsCommand.includes(`--runs-root '${runsRoot}'`), true);
+    assert.equal(request.bindAgentCommand.includes(`--runs-root '${runsRoot}'`), true);
   }
-  assert.equal(existsSync(path.join(resolveRunPaths({ runId, runsRoot }).runDir, 'baton.json')), true);
+  const baton = JSON.parse(readFileSync(path.join(resolveRunPaths({ runId, runsRoot }).runDir, 'baton.json'), 'utf8'));
+  assert.deepEqual(baton.workerBindings, { prepare: 'custom-root-worker' });
   assert.equal(existsSync(resolveRunPaths({ runId }).runDir), false);
 });

@@ -363,6 +363,25 @@ function batonWithAcceptedOutput(baton, stepId, output) {
   return nextBaton;
 }
 
+function assertAgentId(agentId) {
+  if (
+    typeof agentId !== 'string' ||
+    agentId.trim().length === 0 ||
+    /[\r\n\0]/.test(agentId)
+  ) {
+    throw new Error('workflow agent id must be a non-empty single-line string');
+  }
+}
+
+function batonWithWorkerBinding(baton, stepId, agentId) {
+  const nextBaton = structuredClone(baton);
+  nextBaton.workerBindings = {
+    ...(nextBaton.workerBindings ?? {}),
+    [stepId]: agentId,
+  };
+  return nextBaton;
+}
+
 async function writeOutputInternal({ runId, workflowPath, stepId, json, leaseToken, now = new Date(), runsRoot } = {}) {
   assertSafeStepId(stepId);
   const output = parseOutputJson(json);
@@ -401,8 +420,46 @@ export async function writeOutput(options = {}) {
   return publicApiCall(() => writeOutputInternal(options), { runsRoot: options.runsRoot });
 }
 
-async function loadInstructionsInternal({ runId, workflowPath, stepId, leaseToken, now = new Date(), runsRoot } = {}) {
+async function bindAgentInternal({ runId, workflowPath, stepId, agentId, leaseToken, now = new Date(), runsRoot } = {}) {
   assertSafeStepId(stepId);
+  assertAgentId(agentId);
+  const lockPaths = resolveRunPaths({ runId, runsRoot });
+  await assertPreLockWorkerLeaseAuthority(lockPaths, { leaseToken, now, allowStale: true });
+  return withRunStateLock(lockPaths, async () => {
+    const paths = await resolveContinueRunPaths({ runId, workflowPath, runsRoot });
+    await assertWorkerLeaseAuthority(paths, { leaseToken, now, allowStale: true });
+    await ensureRunFiles(paths);
+    await recoverDurableCommit(paths);
+    const current = await readPersistedRunState(paths);
+    const { response } = await renderCurrentHostResponse(paths, current.baton, { leaseToken });
+    if (response.status !== 'needs_host_actions') throw new Error(`current runner response is '${response.status}', not needs_host_actions`);
+    const request = currentRequestForStep(response, stepId);
+    if (!request) throw new Error(`unknown current workflow step id: ${stepId}`);
+    if (request.action !== 'run_worker') throw new Error(`workflow step '${stepId}' is not a run_worker request`);
+    const acceptedStepId = stepIdForRequest(request);
+    const baton = batonWithWorkerBinding(current.baton, acceptedStepId, agentId);
+    await writePersistedRunStateUpdate(paths, {
+      baton,
+      history: { source: 'workflow-runner-bind-agent', baton, output: `bound-agent:${acceptedStepId}`, requests: response.requests ?? [] },
+    });
+    const workerLease = await renewedWorkerLeaseAuthority(paths, { leaseToken, now });
+    await upsertRunIndexEntry(paths, { workflowPath: paths.workflowPath, workerLease });
+    return {
+      ok: true,
+      runId: paths.runId,
+      stepId: acceptedStepId,
+      bound: true,
+    };
+  });
+}
+
+export async function bindAgent(options = {}) {
+  return publicApiCall(() => bindAgentInternal(options), { runsRoot: options.runsRoot });
+}
+
+async function loadInstructionsInternal({ runId, workflowPath, stepId, followUp = false, leaseToken, now = new Date(), runsRoot } = {}) {
+  assertSafeStepId(stepId);
+  if (followUp !== true && followUp !== false) throw new Error('followUp must be a boolean');
   const lockPaths = resolveRunPaths({ runId, runsRoot });
   await assertPreLockWorkerLeaseAuthority(lockPaths, { leaseToken, now });
   return withRunStateLock(lockPaths, async () => {
