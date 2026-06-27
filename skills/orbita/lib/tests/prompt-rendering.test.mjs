@@ -343,6 +343,58 @@ test('prompt renderer: appends required reads, output, and state sections in fix
   ]);
 });
 
+test('prompt renderer: runtime layer resolves role and artifact required-read paths before compilation', () => {
+  writeRoleMaterial('backend');
+  writeFileSync(path.join(tempDir, 'runtime-required-reads-template.md'), '# Worker step\n');
+  const runDir = path.join(tempDir, 'runs', 'runtime-required-reads');
+  mkdirSync(path.join(runDir, 'worker_step', 'artifacts'), { recursive: true });
+  const step = {
+    name: 'Approval step',
+    kind: 'approval',
+    input: { template: 'runtime-required-reads-template.md', role: 'backend', state: ['worker_step'], prompt: 'Approve.' },
+    next: 'done',
+  };
+  const workflow = {
+    ...schemaWorkflowDoc,
+    steps: { ...schemaWorkflowDoc.steps, approval_step: step },
+  };
+  const workflowPath = writeJson('runtime-required-reads-workflow.json', workflow);
+  const resources = loadWorkflowResources({ workflow, workflowPath, repositoryRoot: tempDir, runDir });
+
+  const compiled = renderPromptWithResources({
+    workflowPath,
+    workflow,
+    baton: baton({ cursor: 'approval_step', state: { artifacts: [], results: [], worker_step: { artifacts: [{ id: 'packet', content_type: 'text/markdown', path: 'worker_step/artifacts/packet.md' }] } } }),
+    stepId: 'approval_step',
+    step,
+    repositoryRoot: tempDir,
+    resources,
+  });
+
+  assert.ok(compiled.prompt.includes(`1. Role material for 'backend': \`${path.join(tempDir, 'roles', 'backend', 'ROLE.md')}\``));
+  assert.ok(compiled.prompt.includes(`3. Projected artifact 'packet' from 'worker_step' (text/markdown): \`${path.join(runDir, 'worker_step', 'artifacts', 'packet.md')}\``));
+});
+
+test('prompt renderer: rejects relative projected artifact read paths when no runtime resolver is available', () => {
+  writeFileSync(path.join(tempDir, 'cwd-ambiguity-template.md'), '# Worker step\n');
+  const step = {
+    name: 'Approval step',
+    kind: 'approval',
+    input: { template: 'cwd-ambiguity-template.md', state: ['worker_step'], prompt: 'Approve.' },
+    next: 'done',
+  };
+
+  assert.throws(
+    () => renderFixture({
+      label: 'cwd-ambiguity',
+      stepId: 'approval_step',
+      step,
+      batonDoc: baton({ cursor: 'approval_step', state: { artifacts: [], results: [], worker_step: { artifacts: [{ id: 'packet', path: 'worker_step/artifacts/packet.md' }] } } }),
+    }),
+    /projected artifact path must be absolute before template compilation: worker_step\/artifacts\/packet\.md/,
+  );
+});
+
 test('prompt renderer: renders workflow instruction alias when instructions is non-empty', () => {
   const compiled = renderFixture({
     label: 'render-instructions-alias',

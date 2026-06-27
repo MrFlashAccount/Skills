@@ -1,8 +1,6 @@
 import { finalOutputReminder, outputContractSection, readOutputSchema, readOutputTemplate } from './sections/output-contract.mjs';
-import { projectedArtifactReadItems, projectedStateBlock } from './sections/projected-state.mjs';
-import { projectState } from '../../../runtime/state-projection.mjs';
+import { projectedStateBlock } from './sections/projected-state.mjs';
 import { section, trimStable } from './utils.mjs';
-import { readInputRole } from './sections/role.mjs';
 import { assertNoUnsupportedPlaceholders, defaultPrompt, readInputTemplate } from './sections/template.mjs';
 
 function firstNonEmptyString(candidates) {
@@ -43,13 +41,10 @@ function assembleFixedPrompt({ promptLayer, templatePath, workflowInstructionBlo
   return `${parts.filter(Boolean).join('\n\n')}\n`;
 }
 
-export function renderWorkflowPrompt({ workflow, baton, stepId, step, resources, includeDiagnostics = false, userPrompt } = {}) {
+export function renderWorkflowPrompt({ workflow, stepId, step, resources, projection = { value: {}, projectedKeys: [] }, requiredReads = [], roleMetadataPaths = [], includeDiagnostics = false, userPrompt, userPromptInjected = false } = {}) {
   const input = step.input ?? {};
-  const selectors = input.state ?? [];
-  const projection = projectState({ batonState: baton.state ?? {}, selectors, stepId });
   const stateBlock = projectedStateBlock({ workflow, projection, resources, readOutputSchema });
   const inputTemplate = readInputTemplate({ input, resources });
-  const inputRole = readInputRole({ input, resources });
   const outputTemplate = readOutputTemplate({ step, resources });
   const outputSchema = readOutputSchema({ workflow, step, resources });
   const outputContract = outputContractSection(outputTemplate.content, outputTemplate.metadataPath, outputSchema.content, outputSchema.metadataPath, outputSchema.schema, {
@@ -62,19 +57,16 @@ export function renderWorkflowPrompt({ workflow, baton, stepId, step, resources,
 
   const usesDefaultPrompt = inputTemplate.content === undefined;
   const promptLayer = usesDefaultPrompt ? defaultPrompt({ step, input }) : inputTemplate.content;
-  const requiredReads = requiredReadsBlock([
-    ...inputRole.readItems,
-    ...projectedArtifactReadItems(projection, resources),
-  ]);
+  const requiredReadsSection = requiredReadsBlock(requiredReads);
   const prompt = assembleFixedPrompt({
     promptLayer,
     templatePath: inputTemplate.metadataPath,
     workflowInstructionBlock,
-    requiredReads,
+    requiredReads: requiredReadsSection,
     inlinePrompt: input.prompt ?? '',
     stateBlock,
     outputContract,
-    userPrompt: step.kind === 'worker' && baton.user_prompt_injected !== true ? userPrompt : undefined,
+    userPrompt: step.kind === 'worker' && userPromptInjected !== true ? userPrompt : undefined,
     finalReminder,
   });
   const diagnostics = usesDefaultPrompt
@@ -91,7 +83,7 @@ export function renderWorkflowPrompt({ workflow, baton, stepId, step, resources,
   if (input.template) metadata.inputTemplate = input.template;
   if (step.output?.template) metadata.outputTemplate = step.output.template;
   if (step.output?.schema) metadata.outputSchema = step.output.schema;
-  if (inputRole.metadataPaths.length > 0) metadata.roleMaterial = inputRole.metadataPaths;
+  if (roleMetadataPaths.length > 0) metadata.roleMaterial = roleMetadataPaths;
   if (projection.projectedKeys.length > 0) metadata.projectedStateKeys = projection.projectedKeys;
 
   const compiledPrompt = { prompt };

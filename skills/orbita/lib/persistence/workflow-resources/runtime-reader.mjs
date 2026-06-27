@@ -74,6 +74,11 @@ function artifactReaderForRunDir(runDir) {
   return (artifactPath) => readRunArtifactContent({ runDir, artifactPath });
 }
 
+function artifactPathResolverForRunDir(runDir) {
+  if (!runDir) return undefined;
+  return (artifactPath) => resolveSafeRunArtifactPath({ runDir, artifactPath });
+}
+
 function isDeferredMissingResource(error) {
   return error instanceof WorkflowRuntimeError && /\b(missing|not found)\b/.test(error.message);
 }
@@ -138,6 +143,7 @@ export function loadWorkflowResources({ workflow, workflowPath, repositoryRoot =
     allowedRoles: listAllowedWorkflowRoles({ repositoryRoot }),
     runDir: runDir ? path.resolve(runDir) : undefined,
     readRunArtifact: artifactReaderForRunDir(runDir),
+    resolveRunArtifactPath: artifactPathResolverForRunDir(runDir),
   };
 }
 
