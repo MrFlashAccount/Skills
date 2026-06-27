@@ -95,7 +95,7 @@ try {
     });
     process.stdout.write(instructions);
   } else if (mode === 'bind-agent') {
-    const response = await bindAgent({
+    await bindAgent({
       runId: values['run-id'],
       workflowPath: values.workflow,
       runsRoot: values['runs-root'],
@@ -103,7 +103,6 @@ try {
       agentId: values['agent-id'],
       ...leaseArgs(values),
     });
-    console.log(JSON.stringify(response, null, 2));
   } else if (mode === 'write-output') {
     const response = await writeOutput({
       runId: values['run-id'],
