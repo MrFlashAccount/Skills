@@ -289,7 +289,7 @@ test('runner: --only-instructions prints only orchestrator instruction text', ()
   assert.match(result.stdout, /--only-instructions/);
 });
 
-test('runner: approval host instruction inlines compiled approval prompt with projected artifact content', () => {
+test('runner: approval host instruction lists projected artifact content as required read', () => {
   const { runId, runDir } = runCase('approval-inline-instructions');
   const workflowPath = path.join(tempDir, 'approval-inline-instructions-workflow.json');
   const schemaPath = path.join(tempDir, 'approval-inline-instructions.schema.json');
@@ -349,11 +349,13 @@ test('runner: approval host instruction inlines compiled approval prompt with pr
   assert.match(response.orchestratorInstruction, new RegExp(`workflow-runner\\.mjs write-output --run-id '${runId}' --step-id 'approve' --lease-token '${leaseToken}' <<'JSON'`));
   assert.match(response.orchestratorInstruction, /<paste strict JSON here>/);
   assert.match(response.orchestratorInstruction, /# Approve research/);
+  assert.match(response.orchestratorInstruction, /## Required reads/);
+  assert.match(response.orchestratorInstruction, /Projected artifact 'research-packet' from 'prepare' \(text\/markdown\):/);
+  assert.match(response.orchestratorInstruction, /prepare\/artifacts\/research-packet\.md/);
   assert.match(response.orchestratorInstruction, /## Output contract/);
   assert.match(response.orchestratorInstruction, /## Projected baton state/);
-  assert.match(response.orchestratorInstruction, /### Projected artifact content/);
-  assert.match(response.orchestratorInstruction, /#### prepare\/research-packet/);
-  assert.match(response.orchestratorInstruction, /Full packet body for approval\./);
+  assert.doesNotMatch(response.orchestratorInstruction, /### Projected artifact content/);
+  assert.doesNotMatch(response.orchestratorInstruction, /Full packet body for approval\./);
   assert.match(response.orchestratorInstruction, /## Workflow step prompt/);
   assert.match(response.orchestratorInstruction, /Present artifact `research-packet`/);
   assert.match(response.orchestratorInstruction, new RegExp(`--lease-token '${leaseToken}'`));

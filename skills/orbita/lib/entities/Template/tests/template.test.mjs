@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { renderWorkflowPrompt as renderCompiledWorkflowPrompt } from '../compiler/index.mjs';
 import { Template, renderWorkflowPrompt } from '../index.mjs';
 
 const workflow = {
@@ -101,7 +102,7 @@ const baton = {
     producer: {
       outcome: 'ready',
       route: 'review',
-      artifacts: [{ id: 'research-packet', content_type: 'text/markdown', path: 'producer/artifacts/research-packet.md' }],
+      artifacts: [{ id: 'research-packet', content_type: 'text/markdown', path: '/tmp/workflow-runner-test/producer/artifacts/research-packet.md' }],
     },
     artifacts: [],
     results: [],
@@ -118,19 +119,42 @@ test('Template compiles workflow expressions through the entity API', () => {
   assert.deepEqual(new Template().compileExpression('${{ input.producer.route }}').segments, ['input', 'producer', 'route']);
 });
 
-test('renderWorkflowPrompt assembles templates, role material, output contract, projected state, and metadata', () => {
+test('template compiler renders already-resolved required read paths without resolving them', () => {
+  const rendered = renderCompiledWorkflowPrompt({
+    workflow,
+    stepId: 'consumer',
+    step: workflow.steps.consumer,
+    resources,
+    projection: { value: {}, projectedKeys: [] },
+    requiredReads: [
+      { label: "Role material for 'backend'", path: '/abs/project/roles/backend/ROLE.md' },
+      { label: "Projected artifact 'research-packet' from 'producer'", path: '/abs/run/producer/artifacts/research-packet.md', contentType: 'text/markdown' },
+    ],
+    roleMetadataPaths: ['/abs/project/roles/backend/ROLE.md'],
+  });
+
+  assert.match(rendered.prompt, /1\. Role material for 'backend': `\/abs\/project\/roles\/backend\/ROLE\.md`/);
+  assert.match(rendered.prompt, /2\. Projected artifact 'research-packet' from 'producer' \(text\/markdown\): `\/abs\/run\/producer\/artifacts\/research-packet\.md`/);
+  assert.doesNotMatch(rendered.prompt, /workflow-runner-test/);
+  assert.deepEqual(rendered.metadata.roleMaterial, ['/abs/project/roles/backend/ROLE.md']);
+});
+
+test('renderWorkflowPrompt assembles templates, required reads, output contract, projected state, and metadata', () => {
   const rendered = renderWorkflowPrompt({
     workflow,
     baton,
     stepId: 'consumer',
     step: workflow.steps.consumer,
-    resources: { ...resources, artifactOutputDir: '/tmp/workflow-runner-test/consumer/artifacts' },
+    resources: { ...resources, runDir: '/tmp/workflow-runner-test', artifactOutputDir: '/tmp/workflow-runner-test/consumer/artifacts' },
     userPrompt: 'extra operator context',
   });
 
   assert.match(rendered.prompt, /^# Custom Consumer/m);
   assert.match(rendered.prompt, /## Workflow instruction\n\nKeep workflow-level context visible\./);
-  assert.match(rendered.prompt, /<!-- role material: \/roles\/backend\/ROLE\.md -->/);
+  assert.match(rendered.prompt, /## Required reads/);
+  assert.match(rendered.prompt, /1\. Role material for 'backend': `\/roles\/backend\/ROLE\.md`/);
+  assert.match(rendered.prompt, /2\. Role material for 'backend': `\/roles\/backend\/RUBRIC\.md`/);
+  assert.match(rendered.prompt, /3\. Projected artifact 'research-packet' from 'producer' \(text\/markdown\): `\/tmp\/workflow-runner-test\/producer\/artifacts\/research-packet\.md`/);
   assert.match(rendered.prompt, /## Output contract/);
   assert.match(rendered.prompt, /No validating writer command is provided in these instructions, so do not invent one/);
   assert.match(rendered.prompt, /do not create or hand off a separate JSON output path/);

@@ -1,8 +1,6 @@
 import { finalOutputReminder, outputContractSection, readOutputSchema, readOutputTemplate } from './sections/output-contract.mjs';
 import { projectedStateBlock } from './sections/projected-state.mjs';
-import { projectState } from '../../../runtime/state-projection.mjs';
 import { section, trimStable } from './utils.mjs';
-import { readInputRole } from './sections/role.mjs';
 import { assertNoUnsupportedPlaceholders, defaultPrompt, readInputTemplate } from './sections/template.mjs';
 
 function firstNonEmptyString(candidates) {
@@ -14,12 +12,26 @@ function workflowInstruction({ workflow }) {
   return firstNonEmptyString([workflow?.instruction, workflow?.instructions]);
 }
 
-function assembleFixedPrompt({ promptLayer, templatePath, workflowInstructionBlock, inlinePrompt, roleBlock, stateBlock, outputContract, userPrompt, finalReminder }) {
+function requiredReadsBlock(items = []) {
+  if (items.length === 0) return '';
+  const lines = [
+    'Read these files before acting, in order:',
+    '',
+  ];
+  items.forEach((item, index) => {
+    const suffix = item.contentType ? ` (${item.contentType})` : '';
+    lines.push(`${index + 1}. ${item.label}${suffix}: \`${item.path}\``);
+  });
+  lines.push('', 'Do not proceed until all required reads are complete.');
+  return lines.join('\n');
+}
+
+function assembleFixedPrompt({ promptLayer, templatePath, workflowInstructionBlock, requiredReads, inlinePrompt, stateBlock, outputContract, userPrompt, finalReminder }) {
   assertNoUnsupportedPlaceholders(promptLayer, templatePath);
   const parts = [trimStable(promptLayer)];
 
   if (workflowInstructionBlock) parts.push(section('Workflow instruction', workflowInstructionBlock).trimEnd());
-  if (roleBlock) parts.push(section('Role material', roleBlock).trimEnd());
+  if (requiredReads) parts.push(section('Required reads', requiredReads).trimEnd());
   if (outputContract) parts.push(outputContract.trimEnd());
   if (stateBlock) parts.push(section('Projected baton state', stateBlock).trimEnd());
   if (inlinePrompt) parts.push(section('Workflow step prompt', inlinePrompt.trim()));
@@ -29,13 +41,10 @@ function assembleFixedPrompt({ promptLayer, templatePath, workflowInstructionBlo
   return `${parts.filter(Boolean).join('\n\n')}\n`;
 }
 
-export function renderWorkflowPrompt({ workflow, baton, stepId, step, resources, includeDiagnostics = false, userPrompt } = {}) {
+export function renderWorkflowPrompt({ workflow, stepId, step, resources, projection = { value: {}, projectedKeys: [] }, requiredReads = [], roleMetadataPaths = [], includeDiagnostics = false, userPrompt, userPromptInjected = false } = {}) {
   const input = step.input ?? {};
-  const selectors = input.state ?? [];
-  const projection = projectState({ batonState: baton.state ?? {}, selectors, stepId });
   const stateBlock = projectedStateBlock({ workflow, projection, resources, readOutputSchema });
   const inputTemplate = readInputTemplate({ input, resources });
-  const inputRole = readInputRole({ input, resources });
   const outputTemplate = readOutputTemplate({ step, resources });
   const outputSchema = readOutputSchema({ workflow, step, resources });
   const outputContract = outputContractSection(outputTemplate.content, outputTemplate.metadataPath, outputSchema.content, outputSchema.metadataPath, outputSchema.schema, {
@@ -48,15 +57,16 @@ export function renderWorkflowPrompt({ workflow, baton, stepId, step, resources,
 
   const usesDefaultPrompt = inputTemplate.content === undefined;
   const promptLayer = usesDefaultPrompt ? defaultPrompt({ step, input }) : inputTemplate.content;
+  const requiredReadsSection = requiredReadsBlock(requiredReads);
   const prompt = assembleFixedPrompt({
     promptLayer,
     templatePath: inputTemplate.metadataPath,
     workflowInstructionBlock,
+    requiredReads: requiredReadsSection,
     inlinePrompt: input.prompt ?? '',
-    roleBlock: inputRole.content,
     stateBlock,
     outputContract,
-    userPrompt: step.kind === 'worker' && baton.user_prompt_injected !== true ? userPrompt : undefined,
+    userPrompt: step.kind === 'worker' && userPromptInjected !== true ? userPrompt : undefined,
     finalReminder,
   });
   const diagnostics = usesDefaultPrompt
@@ -73,7 +83,7 @@ export function renderWorkflowPrompt({ workflow, baton, stepId, step, resources,
   if (input.template) metadata.inputTemplate = input.template;
   if (step.output?.template) metadata.outputTemplate = step.output.template;
   if (step.output?.schema) metadata.outputSchema = step.output.schema;
-  if (inputRole.metadataPaths.length > 0) metadata.roleMaterial = inputRole.metadataPaths;
+  if (roleMetadataPaths.length > 0) metadata.roleMaterial = roleMetadataPaths;
   if (projection.projectedKeys.length > 0) metadata.projectedStateKeys = projection.projectedKeys;
 
   const compiledPrompt = { prompt };

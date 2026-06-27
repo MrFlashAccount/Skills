@@ -301,7 +301,7 @@ test('prompt renderer: rejects input template placeholders as unsupported', () =
   );
 });
 
-test('prompt renderer: appends role output and state sections in fixed compiled layer order', () => {
+test('prompt renderer: appends required reads, output, and state sections in fixed compiled layer order', () => {
   writeRoleMaterial('backend');
   writeFileSync(path.join(tempDir, 'minimal-template.md'), '# Worker step\n');
   writeFileSync(path.join(tempDir, 'minimal-output.md'), '## Required return\nUse this contract.\n');
@@ -328,9 +328,9 @@ test('prompt renderer: appends role output and state sections in fixed compiled 
     '# Worker step',
     '## Workflow instruction',
     'Use the deterministic workflow renderer.',
-    '## Role material',
-    '<!-- role material: roles/backend/ROLE.md -->',
-    '<!-- role material: roles/backend/RUBRIC.md -->',
+    '## Required reads',
+    `1. Role material for 'backend': \`${path.join(tempDir, 'roles', 'backend', 'ROLE.md')}\``,
+    `2. Role material for 'backend': \`${path.join(tempDir, 'roles', 'backend', 'RUBRIC.md')}\``,
     '## Output contract',
     '<!-- output template: minimal-output.md -->',
     '## Required return\nUse this contract.',
@@ -341,6 +341,58 @@ test('prompt renderer: appends role output and state sections in fixed compiled 
     '## Final reminder',
     'Return exactly according to the output contract above.',
   ]);
+});
+
+test('prompt renderer: runtime layer resolves role and artifact required-read paths before compilation', () => {
+  writeRoleMaterial('backend');
+  writeFileSync(path.join(tempDir, 'runtime-required-reads-template.md'), '# Worker step\n');
+  const runDir = path.join(tempDir, 'runs', 'runtime-required-reads');
+  mkdirSync(path.join(runDir, 'worker_step', 'artifacts'), { recursive: true });
+  const step = {
+    name: 'Approval step',
+    kind: 'approval',
+    input: { template: 'runtime-required-reads-template.md', role: 'backend', state: ['worker_step'], prompt: 'Approve.' },
+    next: 'done',
+  };
+  const workflow = {
+    ...schemaWorkflowDoc,
+    steps: { ...schemaWorkflowDoc.steps, approval_step: step },
+  };
+  const workflowPath = writeJson('runtime-required-reads-workflow.json', workflow);
+  const resources = loadWorkflowResources({ workflow, workflowPath, repositoryRoot: tempDir, runDir });
+
+  const compiled = renderPromptWithResources({
+    workflowPath,
+    workflow,
+    baton: baton({ cursor: 'approval_step', state: { artifacts: [], results: [], worker_step: { artifacts: [{ id: 'packet', content_type: 'text/markdown', path: 'worker_step/artifacts/packet.md' }] } } }),
+    stepId: 'approval_step',
+    step,
+    repositoryRoot: tempDir,
+    resources,
+  });
+
+  assert.ok(compiled.prompt.includes(`1. Role material for 'backend': \`${path.join(tempDir, 'roles', 'backend', 'ROLE.md')}\``));
+  assert.ok(compiled.prompt.includes(`3. Projected artifact 'packet' from 'worker_step' (text/markdown): \`${path.join(runDir, 'worker_step', 'artifacts', 'packet.md')}\``));
+});
+
+test('prompt renderer: rejects relative projected artifact read paths when no runtime resolver is available', () => {
+  writeFileSync(path.join(tempDir, 'cwd-ambiguity-template.md'), '# Worker step\n');
+  const step = {
+    name: 'Approval step',
+    kind: 'approval',
+    input: { template: 'cwd-ambiguity-template.md', state: ['worker_step'], prompt: 'Approve.' },
+    next: 'done',
+  };
+
+  assert.throws(
+    () => renderFixture({
+      label: 'cwd-ambiguity',
+      stepId: 'approval_step',
+      step,
+      batonDoc: baton({ cursor: 'approval_step', state: { artifacts: [], results: [], worker_step: { artifacts: [{ id: 'packet', path: 'worker_step/artifacts/packet.md' }] } } }),
+    }),
+    /projected artifact path must be absolute before template compilation: worker_step\/artifacts\/packet\.md/,
+  );
 });
 
 test('prompt renderer: renders workflow instruction alias when instructions is non-empty', () => {
@@ -602,7 +654,7 @@ test('prompt renderer: mixed current approval and worker gives user prompt only 
   assert.equal(rendered[1].compiledPrompt.prompt.includes(rawPrompt), true);
 });
 
-test('prompt renderer: resolves input.role and inlines ROLE.md and RUBRIC.md', () => {
+test('prompt renderer: resolves input.role as required reads for ROLE.md and RUBRIC.md', () => {
   writeRoleMaterial('custom-backend', {
     roleBody: '# Custom Role\n\nBackend role instructions.\n',
     rubricBody: '# Custom Rubric\n\nBackend rubric checks.\n',
@@ -618,11 +670,14 @@ test('prompt renderer: resolves input.role and inlines ROLE.md and RUBRIC.md', (
 
   const compiled = renderFixture({ label: 'render-role-material', stepId: 'worker_step', step });
 
-  assert.match(compiled.prompt, /<!-- role material: roles\/custom-backend\/ROLE\.md -->/);
-  assert.match(compiled.prompt, /# Custom Role\n\nBackend role instructions\./);
-  assert.match(compiled.prompt, /<!-- role material: roles\/custom-backend\/RUBRIC\.md -->/);
-  assert.match(compiled.prompt, /# Custom Rubric\n\nBackend rubric checks\./);
-  assert.deepEqual(compiled.metadata.roleMaterial, ['roles/custom-backend/ROLE.md', 'roles/custom-backend/RUBRIC.md']);
+  assert.match(compiled.prompt, /## Required reads/);
+  const rolePath = path.join(tempDir, 'roles', 'custom-backend', 'ROLE.md');
+  const rubricPath = path.join(tempDir, 'roles', 'custom-backend', 'RUBRIC.md');
+  assert.match(compiled.prompt, new RegExp(`1\\. Role material for 'custom-backend': \`${rolePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\``));
+  assert.match(compiled.prompt, new RegExp(`2\\. Role material for 'custom-backend': \`${rubricPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\``));
+  assert.doesNotMatch(compiled.prompt, /Backend role instructions\./);
+  assert.doesNotMatch(compiled.prompt, /Backend rubric checks\./);
+  assert.deepEqual(compiled.metadata.roleMaterial, [rolePath, rubricPath]);
 });
 
 test('prompt renderer: input.role rejects traversal and external escape attempts', () => {
@@ -674,7 +729,7 @@ test('prompt renderer: missing role material fails deterministically', () => {
 
   assert.throws(
     () => renderFixture({ label: 'render-role-missing-material', stepId: 'worker_step', step }),
-    /missing role material for input\.role 'missing-rubric': roles\/missing-rubric\/RUBRIC\.md/,
+    new RegExp(`missing role material for input\\.role 'missing-rubric': ${path.join(roleDir, 'RUBRIC.md').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`),
   );
 });
 
@@ -793,6 +848,36 @@ test('workflow resource refs resolve from the workflow package directory after p
 });
 
 
+
+
+test('prompt renderer: role required reads use full repository paths, not cwd-relative paths', () => {
+  const workflowDir = path.join(tempDir, 'role-required-read-repo', 'workflows', 'demo');
+  const repositoryRoot = path.dirname(path.dirname(workflowDir));
+  mkdirSync(workflowDir, { recursive: true });
+  const roleDir = path.join(repositoryRoot, 'roles', 'backend');
+  mkdirSync(roleDir, { recursive: true });
+  writeFileSync(path.join(roleDir, 'ROLE.md'), '# Backend role\n');
+  writeFileSync(path.join(roleDir, 'RUBRIC.md'), '# Backend rubric\n');
+  writeFileSync(path.join(workflowDir, 'workflow.json'), '{}\n');
+  const workflowPath = path.join(workflowDir, 'workflow.json');
+  const doc = structuredClone(schemaWorkflowDoc);
+  doc.steps.worker_step.input = { role: 'backend', state: [], prompt: 'Run worker.' };
+  doc.steps.worker_step.output = {};
+
+  const rendered = renderPromptWithResources({
+    workflowPath,
+    workflow: doc,
+    baton: baton(),
+    stepId: 'worker_step',
+    step: doc.steps.worker_step,
+    repositoryRoot,
+  });
+
+  assert.match(rendered.prompt, new RegExp(`Role material for 'backend': \`${path.join(roleDir, 'ROLE.md').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\``));
+  assert.match(rendered.prompt, new RegExp(`Role material for 'backend': \`${path.join(roleDir, 'RUBRIC.md').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\``));
+  assert.doesNotMatch(rendered.prompt, /Role material for 'backend': `roles\/backend\/ROLE\.md`/);
+  assert.deepEqual(rendered.metadata.roleMaterial, [path.join(roleDir, 'ROLE.md'), path.join(roleDir, 'RUBRIC.md')]);
+});
 
 
 test('prompt renderer: default repository boundary allows workflow package shared schema refs', () => {

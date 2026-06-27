@@ -3,6 +3,7 @@
  * It receives render context; file/resource loading stays in persistence/legacy adapters.
  */
 import { parsePathExpression } from '../../runtime/expression.mjs';
+import { prepareWorkflowPromptContext } from '../../runtime/prompt-render-context.mjs';
 import { renderWorkflowPrompt as renderCompiledWorkflowPrompt } from './compiler/index.mjs';
 
 function cloneBoundaryData(dto) {
@@ -27,7 +28,12 @@ export class Template {
     if (typeof this.data.content === 'string') {
       return { prompt: this.data.content.replace(/\$\{\{\s*userPrompt\s*\}\}/g, context.userPrompt ?? '') };
     }
-    return renderCompiledWorkflowPrompt({ ...this.data, ...context });
+    const promptContext = { ...this.data, ...context };
+    return renderCompiledWorkflowPrompt({
+      ...promptContext,
+      ...prepareWorkflowPromptContext(promptContext),
+      userPromptInjected: promptContext.baton?.user_prompt_injected === true,
+    });
   }
 }
 
