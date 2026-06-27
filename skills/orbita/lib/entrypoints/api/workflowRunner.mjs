@@ -442,6 +442,8 @@ async function bindAgentInternal({ runId, workflowPath, stepId, agentId, leaseTo
       baton,
       history: { source: 'workflow-runner-bind-agent', baton, output: `bound-agent:${acceptedStepId}`, requests: response.requests ?? [] },
     });
+    const workerLease = await renewedWorkerLeaseAuthority(paths, { leaseToken, now });
+    await upsertRunIndexEntry(paths, { workflowPath: paths.workflowPath, workerLease });
     return {
       ok: true,
       runId: paths.runId,

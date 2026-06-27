@@ -5,6 +5,7 @@ import path from 'node:path';
 import test, { after } from 'node:test';
 import { bindAgent, continueRun, loadInstructions, next, writeOutput } from '../entrypoints/api/workflowRunner.mjs';
 import { resolveRunPaths } from '../persistence/run-state/paths.mjs';
+import { readRunsIndex } from '../persistence/run-state/run-index.mjs';
 import { registerWorkflowRunAtRoot } from '../persistence/run-state/workflow-runs.mjs';
 
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-runner-reuse-hints-'));
@@ -176,6 +177,30 @@ test('runner reuse hints: bind-agent stores and overwrites top-level worker bind
   assert.deepEqual(readBaton(runDir).workerBindings, { prepare: 'worker-2' });
   const retried = await next({ runId, workflowPath, leaseToken, now });
   assert.equal(retried.requests[0].preferredAgentId, 'worker-2');
+});
+
+test('runner reuse hints: bind-agent renews stale matching worker lease', async () => {
+  const workflow = structuredClone(workflowDoc);
+  workflow.steps.prepare.next = 'done';
+  const { runId, workflowPath, leaseToken, now } = await runCase('bind-agent-renews-lease', workflow);
+  const paths = resolveRunPaths({ runId, workflowPath });
+  await next({ runId, workflowPath, leaseToken, now });
+  const before = (await readRunsIndex(paths)).runs[runId].workerLease;
+  assert.equal(before.leaseExpiresAt, '2026-06-01T11:00:01.000Z');
+
+  await bindAgent({
+    runId,
+    workflowPath,
+    stepId: 'prepare',
+    agentId: 'worker-after-expiry',
+    leaseToken,
+    now: new Date('2026-06-01T11:05:00.000Z'),
+  });
+
+  const after = (await readRunsIndex(paths)).runs[runId].workerLease;
+  assert.equal(after.tokenHash, before.tokenHash);
+  assert.equal(after.tokenEpoch, before.tokenEpoch);
+  assert.equal(after.leaseExpiresAt, '2026-06-01T12:05:00.000Z');
 });
 
 test('runner reuse hints: bind-agent keeps parallel step bindings separated', async () => {
