@@ -212,6 +212,46 @@ function workerOutput(summary) {
   return { outcome: 'ready', results: [{ type: 'check', summary }] };
 }
 
+test('runner: looped step requires fresh accepted output for each visit', () => {
+  const { runId, runDir } = runCase('looped-step-fresh-output');
+  const workflowPath = path.join(tempDir, 'looped-step-fresh-output-workflow.json');
+  writeJson(workflowPath, {
+    name: 'looped-step-fresh-output',
+    version: 1,
+    start: 'review_dispatch',
+    done: 'done',
+    blocked: 'blocked',
+    steps: {
+      review_dispatch: {
+        name: 'Review dispatch',
+        kind: 'worker',
+        input: { prompt: 'Dispatch review.' },
+        output: { template: 'output.md' },
+        next: 'review_dispatch',
+      },
+      done: { name: 'Done', kind: 'done', input: { prompt: 'Finished.' } },
+      blocked: { name: 'Blocked', kind: 'blocked', input: { prompt: 'Blocked.' } },
+    },
+  });
+
+  const first = expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next looped step first visit');
+  assert.deepEqual(first.requests.map((request) => request.id), ['review_dispatch']);
+
+  const outputPath = path.join(runDir, 'review-dispatch-output.json');
+  writeJson(outputPath, workerOutput('first visit complete'));
+  const second = continueWithOutputs({ runId, runDir, workflowPath, refs: outputPath, label: 'continue looped step first visit' });
+  assert.equal(second.status, 'needs_host_actions');
+  assert.deepEqual(second.requests.map((request) => request.id), ['review_dispatch']);
+  assert.equal(second.baton.state.outputs.review_dispatch.results[0].summary, 'first visit complete');
+  assert.equal(Object.hasOwn(second.baton, 'acceptedOutputs'), false);
+
+  const staleContinue = runRunner(['continue', '--run-id', runId, '--workflow', workflowPath]);
+  assert.notEqual(staleContinue.status, 0, 'continue without a fresh output must not reuse stale state.outputs.review_dispatch');
+  assert.match(staleContinue.stderr, /missing accepted host output for workflow step review_dispatch/);
+
+  assert.deepEqual(currentRequestIds(runId, workflowPath), ['review_dispatch']);
+});
+
 after(() => rmSync(tempDir, { recursive: true, force: true }));
 
 test('runner: dynamic parallel with one branch still applies branch output as parallel envelope', () => {

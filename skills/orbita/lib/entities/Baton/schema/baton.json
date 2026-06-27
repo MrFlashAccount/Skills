@@ -76,6 +76,13 @@
         "minLength": 1
       }
     },
+    "acceptedOutputs": {
+      "description": "Runner-owned freshness markers for host outputs accepted for the current rendered request visit. Historical output values remain in state.outputs for projection, but only marked entries may satisfy workflow-runner continue.",
+      "type": "object",
+      "additionalProperties": {
+        "const": true
+      }
+    },
     "user_prompt": {
       "description": "Raw run-level startup user prompt captured when the workflow run is initialized. Immutable after start/resume.",
       "type": "string",

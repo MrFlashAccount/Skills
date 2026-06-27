@@ -198,9 +198,11 @@ function stepIdForRequest(request) {
 
 function acceptedOutputForRequest(baton, request) {
   const outputs = baton?.state?.outputs;
+  const acceptedOutputs = baton?.acceptedOutputs;
   if (!outputs || typeof outputs !== 'object' || Array.isArray(outputs)) return undefined;
+  if (!acceptedOutputs || typeof acceptedOutputs !== 'object' || Array.isArray(acceptedOutputs)) return undefined;
   for (const alias of requestAliases(request)) {
-    if (Object.hasOwn(outputs, alias)) return structuredClone(outputs[alias]);
+    if (Object.hasOwn(acceptedOutputs, alias) && Object.hasOwn(outputs, alias)) return structuredClone(outputs[alias]);
   }
   return undefined;
 }
@@ -303,14 +305,15 @@ async function continueRunInternal({ runId, workflowPath, output, includeDiagnos
     const { outputValue, historyOutput, currentBaton } = await outputForCurrentState(paths);
     const runtime = loadWorkflowRuntime({ workflowPath: paths.workflowPath, batonPath: paths.batonPath, baton: currentBaton });
     const applied = applyWorkflowOutput({ workflowDoc: runtime.workflow, batonDoc: runtime.baton, outputValue, resources: runtime.resources });
+    const appliedBaton = batonWithoutAcceptedOutputs(applied.baton);
     const renderResources = resourcesWithValidatingWriter(runtime.resources, paths, { leaseToken });
-    const rendered = renderAppliedResponse({ workflowDoc: runtime.workflow, response: applied, resources: renderResources, includeDiagnostics });
+    const rendered = renderAppliedResponse({ workflowDoc: runtime.workflow, response: { ...applied, baton: appliedBaton }, resources: renderResources, includeDiagnostics });
 
     const response = await runnerResponseForRendered(paths, rendered, { initialized: false, resumed: true, leaseToken, includeInlineInstructions: true });
     const workerLease = await renewedWorkerLeaseAuthority(paths, { leaseToken, now });
     await writePersistedRunStateUpdate(paths, {
-      baton: applied.baton,
-      history: { source: 'workflow-runner-continue', baton: applied.baton, output: historyOutput, requests: response.requests },
+      baton: appliedBaton,
+      history: { source: 'workflow-runner-continue', baton: appliedBaton, output: historyOutput, requests: response.requests },
     });
     await upsertRunIndexEntry(paths, { status: response.status, workflowPath: paths.workflowPath, workerLease });
     return response;
@@ -360,6 +363,16 @@ function batonWithAcceptedOutput(baton, stepId, output) {
       [stepId]: structuredClone(output),
     },
   };
+  nextBaton.acceptedOutputs = {
+    ...(nextBaton.acceptedOutputs ?? {}),
+    [stepId]: true,
+  };
+  return nextBaton;
+}
+
+function batonWithoutAcceptedOutputs(baton) {
+  const nextBaton = structuredClone(baton);
+  delete nextBaton.acceptedOutputs;
   return nextBaton;
 }
 
