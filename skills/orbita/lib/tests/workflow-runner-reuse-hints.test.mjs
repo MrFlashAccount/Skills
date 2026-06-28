@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { bindAgent, continueRun, loadInstructions, next, writeOutput } from '../entrypoints/api/workflowRunner.mjs';
+import { WORKFLOW_RUNNER_COMMAND as workflowRunnerCommand } from '../entrypoints/api/runner/runner-command-builder.mjs';
 import { resolveRunPaths } from '../persistence/run-state/paths.mjs';
 import { readRunsIndex } from '../persistence/run-state/run-index.mjs';
 import { registerWorkflowRunAtRoot } from '../persistence/run-state/workflow-runs.mjs';
@@ -120,6 +121,7 @@ test('runner reuse hints: run_worker request exposes only approved reuse fields'
   const { runId, workflowPath, leaseToken, now } = await runCase('single-request', workflow);
 
   const response = await next({ runId, workflowPath, leaseToken, now });
+  const runsRoot = resolveRunPaths({ runId }).runsRoot;
 
   assert.equal(response.status, 'needs_host_actions');
   assert.deepEqual(requestsFromOrchestratorInstruction(response.orchestratorInstruction), response.requests);
@@ -133,9 +135,9 @@ test('runner reuse hints: run_worker request exposes only approved reuse fields'
     'stepId',
   ].sort());
   assert.equal(response.requests[0].preferredAgentId, null);
-  assert.equal(response.requests[0].loadInstructionsCommand, `node ./lib/entrypoints/cli/workflow-runner.mjs instructions --run-id '${runId}' --step-id 'prepare' --lease-token '${leaseToken}'`);
-  assert.equal(response.requests[0].loadFollowupInstructionsCommand, `node ./lib/entrypoints/cli/workflow-runner.mjs instructions --follow-up --run-id '${runId}' --step-id 'prepare' --lease-token '${leaseToken}'`);
-  assert.equal(response.requests[0].bindAgentCommand, `node ./lib/entrypoints/cli/workflow-runner.mjs bind-agent --run-id '${runId}' --step-id 'prepare' --agent-id <agent-id> --lease-token '${leaseToken}'`);
+  assert.equal(response.requests[0].loadInstructionsCommand, `${workflowRunnerCommand} instructions --run-id '${runId}' --step-id 'prepare' --runs-root '${runsRoot}' --lease-token '${leaseToken}'`);
+  assert.equal(response.requests[0].loadFollowupInstructionsCommand, `${workflowRunnerCommand} instructions --follow-up --run-id '${runId}' --step-id 'prepare' --runs-root '${runsRoot}' --lease-token '${leaseToken}'`);
+  assert.equal(response.requests[0].bindAgentCommand, `${workflowRunnerCommand} bind-agent --run-id '${runId}' --step-id 'prepare' --runs-root '${runsRoot}' --agent-id <agent-id> --lease-token '${leaseToken}'`);
 });
 
 test('runner reuse hints: follow-up instructions preserve validating output contract', async () => {
@@ -147,7 +149,7 @@ test('runner reuse hints: follow-up instructions preserve validating output cont
   const followUp = await loadInstructions({ runId, workflowPath, stepId: 'prepare', followUp: true, leaseToken, now });
 
   assert.equal(followUp, fresh);
-  assert.match(followUp, /workflow-runner\.mjs write-output --run-id/);
+  assert.match(followUp, /workflow-runner\.mjs' write-output --run-id/);
   assert.match(followUp, /--step-id 'prepare'/);
   assert.match(followUp, /--lease-token '[^']+'/);
   assert.doesNotMatch(followUp, /write-output[^\n]*--only-instructions/);

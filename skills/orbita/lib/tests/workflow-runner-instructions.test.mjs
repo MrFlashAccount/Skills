@@ -579,3 +579,33 @@ test('runner API propagates custom runsRoot through next, instructions, and cont
   assert.deepEqual(baton.workerBindings, { prepare: 'custom-root-worker' });
   assert.equal(existsSync(resolveRunPaths({ runId }).runDir), false);
 });
+
+test('runner API emits absolute runsRoot in portable commands for relative custom roots', async () => {
+  const runId = `workflow-runner-test-${process.pid}-relative-runs-root-command`;
+  const runsRoot = path.relative(process.cwd(), path.join(tempDir, 'relative-runs-root-command'));
+  const resolvedRunsRoot = path.resolve(runsRoot);
+  const otherCwd = path.join(tempDir, 'relative-runs-root-command-other-cwd');
+  const workflowPath = path.join(tempDir, 'relative-runs-root-command-workflow.json');
+  const leaseToken = `relative-runs-root-command-token-${process.pid}`;
+  writeJson(workflowPath, workflowDoc);
+  rmSync(resolvedRunsRoot, { recursive: true, force: true });
+  mkdirSync(otherCwd, { recursive: true });
+
+  const first = await runnerNext({ runId, workflowPath, runsRoot, leaseToken });
+
+  assert.equal(first.status, 'needs_host_actions');
+  assert.equal(first.requests[0].loadInstructionsCommand.includes(`--runs-root '${resolvedRunsRoot}'`), true);
+  assert.equal(first.requests[0].loadInstructionsCommand.includes(`--runs-root '${runsRoot}'`), false);
+  assert.equal(first.requests[0].loadFollowupInstructionsCommand.includes(`--runs-root '${resolvedRunsRoot}'`), true);
+  assert.equal(first.requests[0].bindAgentCommand.includes(`--runs-root '${resolvedRunsRoot}'`), true);
+  assert.equal(first.orchestratorInstruction.includes(`--runs-root '${resolvedRunsRoot}'`), true);
+
+  const loadedFromOtherCwd = spawnSync(first.requests[0].loadInstructionsCommand, {
+    cwd: otherCwd,
+    encoding: 'utf8',
+    shell: true,
+  });
+  assert.equal(loadedFromOtherCwd.status, 0, loadedFromOtherCwd.stderr);
+  assert.match(loadedFromOtherCwd.stdout, /# Prepare/);
+  assert.match(loadedFromOtherCwd.stdout, /Prepare branch\./);
+});

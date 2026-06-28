@@ -8,12 +8,13 @@ import { runNext } from '../../use-cases/RunNext.mjs';
 import { resolveStartupUserPrompt, startupUserPromptTarget } from '../../use-cases/user-prompt.mjs';
 import { loadWorkflowRuntime } from '../../persistence/workflow-resources/runtime-reader.mjs';
 import { writePersistedRunStateUpdate } from '../../persistence/run-state/PersistedRunStateWriter.mjs';
-import { assertSafeStepId, toHostResponse, writeOutputCommandForStep } from './runner/host-requests.mjs';
+import { toHostResponse } from './runner/host-requests.mjs';
+import { assertSafeStepId, writeOutputCommandForStep } from './runner/runner-command-builder.mjs';
 import { readText } from '../../persistence/run-state/atomic-file.mjs';
 import { assertFreshTokenAuthority, assertMatchingTokenAuthority, buildTokenLease, renewTokenLease } from '../../persistence/run-state/lease-authority.mjs';
 import { recoverDurableCommit } from '../../persistence/run-state/durable-commit.mjs';
 import { readPersistedRunState } from '../../persistence/run-state/PersistedRunStateReader.mjs';
-import { ensureRunFiles, pathExists, resolveRunPaths, workflowRunsRoot } from '../../persistence/run-state/paths.mjs';
+import { ensureRunFiles, pathExists, resolveRunPaths } from '../../persistence/run-state/paths.mjs';
 import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot, upsertRunIndexEntry } from '../../persistence/run-state/run-index.mjs';
 import { withRunStateLock } from '../../persistence/run-state/lock.mjs';
 import { publicErrorMessage } from '../cli/public-error.mjs';
@@ -41,7 +42,7 @@ async function runnerResponseForRendered(paths, rendered, { initialized, resumed
       workflow: workflowDoc,
       workflowPath: paths.workflowPath,
       repositoryRoot: paths.repositoryRoot,
-      runsRoot: paths.runsRoot === workflowRunsRoot ? undefined : paths.runsRoot,
+      runsRoot: paths.runsRoot,
       leaseToken,
       includeInlineInstructions,
     }),
@@ -127,7 +128,7 @@ function resourcesWithValidatingWriter(resources, paths, { leaseToken } = {}) {
   return {
     ...resources,
     validatingWriterCommandForStep: (stepId) => writeOutputCommandForStep(paths.runId, stepId, {
-      runsRoot: paths.runsRoot === workflowRunsRoot ? undefined : paths.runsRoot,
+      runsRoot: paths.runsRoot,
       leaseToken,
     }),
     artifactOutputDirForStep: (stepId) => {

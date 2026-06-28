@@ -168,9 +168,10 @@ export async function updateRunIndexEntry(paths, updater) {
 }
 
 export function runsIndexPathsForRoot(runsRoot) {
+  const resolvedRunsRoot = resolve(runsRoot);
   return {
-    runsRoot,
-    runsIndexPath: join(runsRoot, 'runs.json'),
-    runsIndexLockPath: join(runsRoot, '.runs.json.lock'),
+    runsRoot: resolvedRunsRoot,
+    runsIndexPath: join(resolvedRunsRoot, 'runs.json'),
+    runsIndexLockPath: join(resolvedRunsRoot, '.runs.json.lock'),
   };
 }
