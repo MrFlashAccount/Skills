@@ -250,10 +250,11 @@ test('runner fairness: private claim authority lets generated run-id-only comman
   const claim = await registerWorkflowRunAtRoot({ runId, workflowPath, workflowIdentity: 'fairness-private-authority', claim: true, owner: 'alice', harness: 'portable', sessionId: 'session-a', leaseMs: 60_000, now: new Date('2026-06-01T10:00:00.000Z') });
 
   const response = await runnerNext({ runId, leaseToken: claim.leaseToken, now: new Date('2026-06-01T10:00:01.000Z') });
+  const runsRoot = resolveRunPaths({ runId }).runsRoot;
 
   assert.equal(response.status, 'needs_host_actions');
   assert.equal('workflow' in response, false);
-  assert.equal(response.requests[0].loadInstructionsCommand, `${workflowRunnerCommand} instructions --run-id '${runId}' --step-id 'prepare' --lease-token '${claim.leaseToken}'`);
+  assert.equal(response.requests[0].loadInstructionsCommand, `${workflowRunnerCommand} instructions --run-id '${runId}' --step-id 'prepare' --runs-root '${runsRoot}' --lease-token '${claim.leaseToken}'`);
   assert.doesNotMatch(JSON.stringify(response), new RegExp('alice|session-a|portable'));
 });
 
