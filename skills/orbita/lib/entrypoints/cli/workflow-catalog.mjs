@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
@@ -42,6 +42,7 @@ function parseCliArgs(argv) {
 }
 
 function readWorkflowCatalog({ workflowsRoot = join(repoRoot(), 'workflows') } = {}) {
+  workflowsRoot = resolve(workflowsRoot);
   if (!existsSync(workflowsRoot)) fail(`workflows directory not found: ${workflowsRoot}`);
 
   const root = repoRoot();
@@ -66,7 +67,7 @@ function readWorkflowCatalog({ workflowsRoot = join(repoRoot(), 'workflows') } =
     workflows.push({
       name,
       description,
-      path: relative(root, workflowPath).replaceAll('\\', '/'),
+      path: resolve(workflowPath),
     });
   }
 
@@ -75,7 +76,7 @@ function readWorkflowCatalog({ workflowsRoot = join(repoRoot(), 'workflows') } =
 
 function formatHuman(workflows) {
   if (workflows.length === 0) return 'No workflows found.';
-  return workflows.map((workflow) => `${workflow.name} - ${workflow.description}\n  workflow: ${workflow.path}`).join('\n');
+  return workflows.map((workflow) => `${workflow.name} - ${workflow.description}\n  absolute workflow path for --workflow: ${workflow.path}`).join('\n');
 }
 
 function normalize(value) {
@@ -97,13 +98,11 @@ function scoreWorkflow(workflow, query) {
   if (!normalizedQuery) return 0;
 
   const normalizedName = normalize(workflow.name);
-  const normalizedPath = normalize(workflow.path.replace(/^workflows\//u, '').replace(/\/workflow$/u, ''));
   const normalizedDescription = normalize(workflow.description);
 
-  if (normalizedQuery === normalizedName || normalizedQuery === normalizedPath) return 100;
+  if (normalizedQuery === normalizedName) return 100;
   if (normalizedName.includes(normalizedQuery) || normalizedQuery.includes(normalizedName)) return 80;
-  if (normalizedPath.includes(normalizedQuery) || normalizedQuery.includes(normalizedPath)) return 70;
-  if (includesAllTokens(normalizedName, normalizedQuery) || includesAllTokens(normalizedPath, normalizedQuery)) return 60;
+  if (includesAllTokens(normalizedName, normalizedQuery)) return 60;
   if (normalizedDescription.includes(normalizedQuery)) return 30;
   if (includesAllTokens(normalizedDescription, normalizedQuery)) return 20;
   return 0;
@@ -130,9 +129,9 @@ function formatResolveHuman(result) {
   if (result.status === 'none') return `No workflow matched: ${result.query}`;
   if (result.status === 'single') {
     const workflow = result.candidates[0];
-    return `Matched workflow: ${workflow.name}\n  workflow: ${workflow.path}\n  description: ${workflow.description}`;
+    return `Matched workflow: ${workflow.name}\n  description: ${workflow.description}\n  absolute workflow path for --workflow: ${workflow.path}`;
   }
-  return `Multiple workflows matched: ${result.query}\n${result.candidates.map((workflow) => `- ${workflow.name}: ${workflow.path}`).join('\n')}`;
+  return `Multiple workflows matched: ${result.query}\n${result.candidates.map((workflow) => `- ${workflow.name}: ${workflow.description}`).join('\n')}`;
 }
 
 const { mode, values, positionals } = parseCliArgs(process.argv.slice(2));

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { createManagedDirectory } from '../../persistence/run-state/atomic-file.mjs';
@@ -88,9 +88,15 @@ async function assertOrCreateTokenAuthority(paths, token) {
   });
 }
 
+function workflowPathArg(value) {
+  if (value === undefined) return undefined;
+  if (!isAbsolute(value)) fail('workflow path must be absolute across the workflow-runner command boundary; resolve the workflow through workflow-catalog and pass the absolute catalog path');
+  return resolve(value);
+}
+
 const values = parseCliArgs(process.argv.slice(2));
 const runId = requireString(values['run-id'], '--run-id');
-const workflowPath = values.workflow === undefined ? undefined : resolve(values.workflow);
+const workflowPath = workflowPathArg(values.workflow);
 const paths = await resolveIndexedRunPaths({ runId, workflowPath });
 const leaseToken = values['lease-token'];
 

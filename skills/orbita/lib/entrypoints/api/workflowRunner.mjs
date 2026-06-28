@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { isAbsolute, join, resolve } from 'node:path';
 import { applyWorkflowOutput } from '../../use-cases/ApplyWorkflowOutput.mjs';
 import { validateAgainstOutputSchema } from '../../use-cases/runtime/output/output-schema-validation.mjs';
 import { workerOutputSchema } from '../../use-cases/runtime/output/worker-output-schema.mjs';
@@ -270,7 +270,17 @@ async function outputForCurrentState(paths) {
   return outputForAcceptedState(current.baton, requests, { isPreparedParallelContinuation });
 }
 
+function assertAbsoluteWorkflowPath(workflowPath) {
+  if (workflowPath === undefined) return undefined;
+  if (typeof workflowPath !== 'string' || workflowPath.length === 0) throw new Error('workflow path must be a non-empty absolute path');
+  if (!isAbsolute(workflowPath)) {
+    throw new Error('workflow path must be absolute across the workflow-runner command boundary; resolve the workflow through workflow-catalog and pass the absolute catalog path');
+  }
+  return workflowPath;
+}
+
 async function resolveIndexedRunPaths({ runId, workflowPath, runsRoot }) {
+  workflowPath = assertAbsoluteWorkflowPath(workflowPath);
   const defaultPaths = resolveRunPaths({ runId, runsRoot });
   const indexedWorkflowPath = await indexedWorkflowPathForRun(defaultPaths);
   if (typeof indexedWorkflowPath === 'string' && indexedWorkflowPath.length > 0) {

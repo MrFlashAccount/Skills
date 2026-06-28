@@ -36,7 +36,7 @@ Most Orbita branches overlap. Do not treat routing as durable modes. Classify on
 
 ## New-run workflow selection
 
-Resolve the workflow before creating a new run. Do not create/register a run until the exact catalog `path` is known.
+Resolve the workflow before creating a new run. Do not create/register a run until the exact catalog `path` is known; catalog JSON `path` is an absolute executable workflow path and is safe to pass to `--workflow`.
 
 List available workflows by calling the public catalog command from this skill root:
 
@@ -44,17 +44,17 @@ List available workflows by calling the public catalog command from this skill r
 node ./lib/entrypoints/cli/workflow-catalog.mjs list --json
 ```
 
-Use only the catalog output's workflow `name`, top-level `description`, and `path` for preflight routing. Do not manually walk `../../workflows`, read private runtime state, or inspect `steps.*.input.prompt` to choose a workflow.
+Use the catalog output's workflow `name` and top-level `description` for preflight routing. Use `path` only after selection/resolution as the absolute value to pass to `--workflow`. Do not manually walk `../../workflows`, read private runtime state, or inspect `steps.*.input.prompt` to choose a workflow.
 
-If the user gave an exact workflow path, use that path only after confirming it appears in the catalog. If the user gave a workflow name, alias, or fuzzy workflow name, resolve it through the public resolver command:
+If the user gave a workflow name, alias, or fuzzy workflow name, resolve it through the public resolver command:
 
 ```bash
-node ./lib/entrypoints/cli/workflow-catalog.mjs resolve '<workflow name or path>' --json
+node ./lib/entrypoints/cli/workflow-catalog.mjs resolve '<workflow name>' --json
 ```
 
 Use a single resolver match directly. If resolver returns multiple matches, ask the user to choose from those matches. If resolver returns no match, fall back to catalog-based task matching.
 
-When the user did not name a workflow, rank catalog candidates from the task and workflow descriptions, then ask one selection question with at most three best candidates. Use `request_user_input` when available. Each candidate must be shown as `name - short reason`; the user may pick one candidate, ask to show all workflows, or type a workflow name/path manually. If the user replies with a fuzzy or partial workflow name, run `node ./lib/entrypoints/cli/workflow-catalog.mjs resolve '<workflow name or path>' --json`; if it still matches several candidates, ask one narrower selection question.
+When the user did not name a workflow, rank catalog candidates from the task and workflow descriptions, then ask one selection question with at most three best candidates. Use `request_user_input` when available. Each candidate must be shown as `name - short reason`; the user may pick one candidate, ask to show all workflows, or type a workflow name/path manually. If the user replies with a fuzzy or partial workflow name, run `node ./lib/entrypoints/cli/workflow-catalog.mjs resolve '<workflow name>' --json`; if it still matches several candidates, ask one narrower selection question.
 
 When no candidate fits, say that no existing workflow fits and offer to list workflows or create/design a new workflow if such a workflow exists in the catalog.
 
@@ -75,8 +75,10 @@ Select an existing run only from public JSON fields such as `runId`, title, summ
 When no existing run fits, resolve the workflow through new-run workflow selection, then create/register one run identity:
 
 ```bash
-node ./lib/entrypoints/cli/workflow-runs.mjs create --workflow <workflow> --title '<title>' --summary '<summary>' --owner <owner> --harness <harness> --session-id <session-id>
+node ./lib/entrypoints/cli/workflow-runs.mjs create --workflow <absolute-catalog-workflow-path> --title '<title>' --summary '<summary>' --owner <owner> --harness <harness> --session-id <session-id>
 ```
+
+Never pass repo-relative workflow paths such as `workflows/.../workflow.json` into `workflow-runs create` or runner `--workflow` commands. If a relative workflow path error appears, rerun `workflow-catalog resolve`/`list` and use the returned absolute catalog `path`; do not guess cwd or repair the path manually.
 
 Claim the selected run before calling the runner:
 

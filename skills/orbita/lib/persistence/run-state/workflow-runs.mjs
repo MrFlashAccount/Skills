@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { resolve } from 'node:path';
+import { isAbsolute, resolve } from 'node:path';
 import { assertSafeRunId, defaultWorkflowPath, resolveRunPaths, workflowRunsRoot } from './paths.mjs';
 import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot, updateRunIndexEntry } from './run-index.mjs';
 import { assertMatchingTokenAuthority, buildTokenLease, generateLeaseToken, occupancyForLease, renewTokenLease } from './lease-authority.mjs';
@@ -51,8 +51,17 @@ function generatedRunId() {
   return assertSafeRunId(`run-${randomUUID()}`);
 }
 
+function assertAbsoluteWorkflowPath(workflowPath) {
+  if (workflowPath === undefined) return undefined;
+  if (typeof workflowPath !== 'string' || workflowPath.length === 0) throw new Error('workflow path must be a non-empty absolute path');
+  if (!isAbsolute(workflowPath)) {
+    throw new Error('workflow path must be absolute across the workflow-runner command boundary; resolve the workflow through workflow-catalog and pass the absolute catalog path');
+  }
+  return workflowPath;
+}
+
 function workflowPathForCreate(workflowPath) {
-  return workflowPath === undefined ? defaultWorkflowPath : resolve(workflowPath);
+  return workflowPath === undefined ? defaultWorkflowPath : resolve(assertAbsoluteWorkflowPath(workflowPath));
 }
 
 function assertExistingWorkflowBinding(existing, paths, { requestedWorkflowPath } = {}) {
