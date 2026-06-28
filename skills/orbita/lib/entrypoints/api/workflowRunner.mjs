@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { isAbsolute, join, resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { applyWorkflowOutput } from '../../use-cases/ApplyWorkflowOutput.mjs';
 import { validateAgainstOutputSchema } from '../../use-cases/runtime/output/output-schema-validation.mjs';
 import { workerOutputSchema } from '../../use-cases/runtime/output/worker-output-schema.mjs';
@@ -18,6 +18,7 @@ import { ensureRunFiles, pathExists, resolveRunPaths } from '../../persistence/r
 import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot, upsertRunIndexEntry } from '../../persistence/run-state/run-index.mjs';
 import { withRunStateLock } from '../../persistence/run-state/lock.mjs';
 import { publicErrorMessage } from '../cli/public-error.mjs';
+import { assertAbsoluteWorkflowPath } from '../../workflow-path-boundary.mjs';
 
 async function readJson(pathname, kind) {
   let content;
@@ -268,15 +269,6 @@ async function outputForCurrentState(paths) {
   const requests = response.requests ?? [];
   const isPreparedParallelContinuation = requests.some((request) => stepIdForRequest(request) !== current.baton?.cursor);
   return outputForAcceptedState(current.baton, requests, { isPreparedParallelContinuation });
-}
-
-function assertAbsoluteWorkflowPath(workflowPath) {
-  if (workflowPath === undefined) return undefined;
-  if (typeof workflowPath !== 'string' || workflowPath.length === 0) throw new Error('workflow path must be a non-empty absolute path');
-  if (!isAbsolute(workflowPath)) {
-    throw new Error('workflow path must be absolute across the workflow-runner command boundary; resolve the workflow through workflow-catalog and pass the absolute catalog path');
-  }
-  return workflowPath;
 }
 
 async function resolveIndexedRunPaths({ runId, workflowPath, runsRoot }) {

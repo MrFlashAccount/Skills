@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { readFile } from 'node:fs/promises';
-import { isAbsolute, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { assertBatonSchema } from '../../entities/Baton/schema/baton-schema.mjs';
 import { publicErrorMessage } from './public-error.mjs';
@@ -9,6 +9,7 @@ import { writePersistedRunStateUpdate } from '../../persistence/run-state/Persis
 import { assertFreshTokenAuthority } from '../../persistence/run-state/lease-authority.mjs';
 import { ensureRunFiles, resolveRunPaths } from '../../persistence/run-state/paths.mjs';
 import { readRunsIndex, runsIndexPathsForRoot, upsertRunIndexEntry } from '../../persistence/run-state/run-index.mjs';
+import { assertAbsoluteWorkflowPath } from '../../workflow-path-boundary.mjs';
 
 function fail(message) {
   console.error(`persist-run-state: ${publicErrorMessage(message)}`);
@@ -72,14 +73,13 @@ function compact(value) {
   return String(value).replace(/\s+/g, ' ').trim();
 }
 
-function assertAbsoluteWorkflowPath(workflowPath) {
-  if (workflowPath === undefined) return undefined;
-  if (!isAbsolute(workflowPath)) fail('workflow path must be absolute across the workflow-runner command boundary; resolve the workflow through workflow-catalog and pass the absolute catalog path');
-  return workflowPath;
+function cliWorkflowPath(value) {
+  try { return assertAbsoluteWorkflowPath(value); }
+  catch (error) { fail(error.message); }
 }
 
 async function resolveIndexedRunPaths({ runId, workflowPath }) {
-  workflowPath = assertAbsoluteWorkflowPath(workflowPath);
+  workflowPath = cliWorkflowPath(workflowPath);
   const paths = resolveRunPaths({ runId });
   const index = await readRunsIndex(runsIndexPathsForRoot(paths.runsRoot));
   const indexedWorkflowPath = index.runs[runId]?.workflow?.path;

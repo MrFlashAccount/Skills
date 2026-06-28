@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
-import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { createManagedDirectory } from '../../persistence/run-state/atomic-file.mjs';
@@ -8,6 +8,7 @@ import { publicErrorMessage } from './public-error.mjs';
 import { assertFreshTokenAuthority, buildTokenLease } from '../../persistence/run-state/lease-authority.mjs';
 import { ensureRunFiles, pathExists, resolveRunPaths } from '../../persistence/run-state/paths.mjs';
 import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot, upsertRunIndexEntry } from '../../persistence/run-state/run-index.mjs';
+import { resolveAbsoluteWorkflowPath } from '../../workflow-path-boundary.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(scriptDir, '../../../../..');
@@ -90,8 +91,8 @@ async function assertOrCreateTokenAuthority(paths, token) {
 
 function workflowPathArg(value) {
   if (value === undefined) return undefined;
-  if (!isAbsolute(value)) fail('workflow path must be absolute across the workflow-runner command boundary; resolve the workflow through workflow-catalog and pass the absolute catalog path');
-  return resolve(value);
+  try { return resolveAbsoluteWorkflowPath(value); }
+  catch (error) { fail(error.message); }
 }
 
 const values = parseCliArgs(process.argv.slice(2));
