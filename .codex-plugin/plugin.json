@@ -1,7 +1,7 @@
 {
   "name": "skills",
   "version": "0.1.0",
-  "description": "Local Codex plugin that packages the Skills repository skill catalog.",
+  "description": "Ultra Skills packages a sharper local Codex skill arsenal for workflows, reviews, docs, and role-driven execution.",
   "author": {
     "name": "MrFlashAccount"
   },
@@ -10,23 +10,30 @@
   "keywords": [
     "codex",
     "skills",
-    "workflow"
+    "ultra-skills",
+    "workflow",
+    "review",
+    "agents"
   ],
   "skills": "./skills/",
   "interface": {
-    "displayName": "Skills",
-    "shortDescription": "Personal Codex skill catalog.",
-    "longDescription": "Packages the Skills repository as a local Codex plugin so its skill folders can be installed and managed together.",
+    "displayName": "Ultra Skills",
+    "shortDescription": "A sharper Codex skill arsenal.",
+    "longDescription": "Ultra Skills packs this repo's skills, role lenses, and workflow harnesses into one local Codex plugin: terse by default, critical when needed, and built for real implementation and review loops.",
     "developerName": "MrFlashAccount",
     "category": "Productivity",
     "capabilities": [
-      "Skills"
+      "Skill routing",
+      "Workflow orchestration",
+      "Role-guided review"
     ],
     "defaultPrompt": [
-      "Use the right skill for this task.",
-      "Review this work with the skill catalog.",
-      "Create or improve a Codex skill."
+      "Pick the sharpest skill for this task.",
+      "Run a hard review with the right role lens.",
+      "Turn this rough workflow into a usable skill."
     ],
-    "brandColor": "#2563EB"
+    "brandColor": "#F80000",
+    "composerIcon": "./assets/ultraskill-icon.png",
+    "logo": "./assets/ultraskill-icon.png"
   }
 }

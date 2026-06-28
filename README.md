@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="assets/ultraskill-logo.png" alt="UltraSkill" width="680">
+  <img src="assets/ultraskill-logo.png" alt="Ultra Skills" width="680">
 </p>
 
-# Skills
+# Ultra Skills
 
 Editable source repo for OpenClaw skills, reusable roles, shared reference packages, and conventions.
 
