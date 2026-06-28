@@ -3,18 +3,13 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
-import { fileURLToPath } from 'node:url';
 import { bindAgent, continueRun, loadInstructions, next, writeOutput } from '../entrypoints/api/workflowRunner.mjs';
+import { WORKFLOW_RUNNER_COMMAND as workflowRunnerCommand } from '../entrypoints/api/runner/runner-command-builder.mjs';
 import { resolveRunPaths } from '../persistence/run-state/paths.mjs';
 import { readRunsIndex } from '../persistence/run-state/run-index.mjs';
 import { registerWorkflowRunAtRoot } from '../persistence/run-state/workflow-runs.mjs';
 
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-runner-reuse-hints-'));
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
-function shellQuote(value) {
-  return `'${String(value).replaceAll("'", "'\\''")}'`;
-}
-const workflowRunnerCommand = `node ${shellQuote(path.join(root, 'skills/orbita/lib/entrypoints/cli/workflow-runner.mjs'))}`;
 const testNow = new Date('2026-06-01T10:00:01.000Z');
 writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
 

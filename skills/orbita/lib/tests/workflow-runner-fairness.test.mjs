@@ -4,18 +4,13 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
-import { fileURLToPath } from 'node:url';
 import { continueRun as runnerContinue, loadInstructions as runnerLoadInstructions, next as runnerNext, writeOutput as runnerWriteOutput } from '../entrypoints/api/workflowRunner.mjs';
+import { WORKFLOW_RUNNER_COMMAND as workflowRunnerCommand } from '../entrypoints/api/runner/runner-command-builder.mjs';
 import { claimWorkflowRunAtRoot, registerWorkflowRunAtRoot } from '../persistence/run-state/workflow-runs.mjs';
 import { hashLeaseToken } from '../persistence/run-state/lease-authority.mjs';
 import { resolveRunPaths } from '../persistence/run-state/paths.mjs';
 
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-runner-fairness-'));
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
-function shellQuote(value) {
-  return `'${String(value).replaceAll("'", "'\\''")}'`;
-}
-const workflowRunnerCommand = `node ${shellQuote(path.join(root, 'skills/orbita/lib/entrypoints/cli/workflow-runner.mjs'))}`;
 writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
 
 const workflowDoc = {

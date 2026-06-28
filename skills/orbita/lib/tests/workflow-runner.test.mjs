@@ -7,13 +7,10 @@ import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { next as runnerNext } from '../entrypoints/api/workflowRunner.mjs';
+import { WORKFLOW_RUNNER_COMMAND as workflowRunnerCommand } from '../entrypoints/api/runner/runner-command-builder.mjs';
 import { resolveRunPaths } from '../persistence/run-state/paths.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
-function shellQuote(value) {
-  return `'${String(value).replaceAll("'", "'\\''")}'`;
-}
-const workflowRunnerCommand = `node ${shellQuote(path.join(root, 'skills/orbita/lib/entrypoints/cli/workflow-runner.mjs'))}`;
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-runner-check-'));
 writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
 const testLeaseToken = `workflow-runner-test-token-${process.pid}`;
@@ -263,6 +260,10 @@ test('runner: next returns a single host action request with load command only',
   assert.equal(response.requests[0].stepId, 'prepare');
   assert.equal(Object.hasOwn(response.requests[0], 'instructionRef'), false);
   assert.equal(response.requests[0].loadInstructionsCommand, `${workflowRunnerCommand} instructions --run-id '${runId}' --step-id 'prepare' --lease-token '${leaseToken}'`);
+  assert.equal(response.requests[0].loadInstructionsCommand.startsWith("node './"), false);
+  assert.equal(response.requests[0].loadFollowupInstructionsCommand.startsWith("node './"), false);
+  assert.equal(response.requests[0].bindAgentCommand.startsWith("node './"), false);
+  assert.equal(response.orchestratorInstruction.includes("node ./lib/entrypoints/cli/workflow-runner.mjs"), false);
   assert.equal(Object.hasOwn(response.requests[0], 'outputPath'), false);
 
   const loadedFromOtherCwd = spawnSync(response.requests[0].loadInstructionsCommand, {

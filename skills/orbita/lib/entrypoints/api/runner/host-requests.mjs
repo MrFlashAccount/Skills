@@ -1,103 +1,18 @@
 import { loadOutputSchema } from "../../../persistence/workflow-resources/output-schema-loader.mjs";
-import { fileURLToPath } from "node:url";
+import {
+  assertSafeStepId,
+  bindAgentCommandForStep,
+  continueInstructionCommandForRun,
+  loadFollowupInstructionsCommandForStep,
+  loadInstructionsCommandForStep,
+  writeOutputCommandForStep,
+} from "./runner-command-builder.mjs";
 
 const TERMINAL_ACTIONS = new Set(["stop_done", "stop_blocked"]);
-const SAFE_STEP_ID = /^[A-Za-z0-9_.-]+$/;
 const SUPERSEDES_STDOUT_INSTRUCTION =
   "Supersedes all previous workflow-runner stdout.";
 
-export function assertSafeStepId(stepId) {
-  if (
-    typeof stepId !== "string" ||
-    !SAFE_STEP_ID.test(stepId) ||
-    stepId === "." ||
-    stepId === ".."
-  ) {
-    throw new Error(`invalid workflow step id for runner storage: ${stepId}`);
-  }
-}
-
-function shellQuote(value) {
-  return `'${String(value).replaceAll("'", "'\\''")}'`;
-}
-
-const WORKFLOW_RUNNER_CLI_PATH = fileURLToPath(
-  new URL("../../cli/workflow-runner.mjs", import.meta.url),
-);
-const WORKFLOW_RUNNER_COMMAND = `node ${shellQuote(WORKFLOW_RUNNER_CLI_PATH)}`;
-
-export function loadInstructionsCommandForStep(
-  runId,
-  stepId,
-  { runsRoot, leaseToken } = {},
-) {
-  assertSafeStepId(stepId);
-  const runsRootArg = runsRoot ? ` --runs-root ${shellQuote(runsRoot)}` : "";
-  const token =
-    typeof leaseToken === "string" && leaseToken.length > 0
-      ? shellQuote(leaseToken)
-      : "<lease-token>";
-  return `${WORKFLOW_RUNNER_COMMAND} instructions --run-id ${shellQuote(runId)} --step-id ${shellQuote(stepId)}${runsRootArg} --lease-token ${token}`;
-}
-
-export function loadFollowupInstructionsCommandForStep(
-  runId,
-  stepId,
-  { runsRoot, leaseToken } = {},
-) {
-  assertSafeStepId(stepId);
-  const runsRootArg = runsRoot ? ` --runs-root ${shellQuote(runsRoot)}` : "";
-  const token =
-    typeof leaseToken === "string" && leaseToken.length > 0
-      ? shellQuote(leaseToken)
-      : "<lease-token>";
-  return `${WORKFLOW_RUNNER_COMMAND} instructions --follow-up --run-id ${shellQuote(runId)} --step-id ${shellQuote(stepId)}${runsRootArg} --lease-token ${token}`;
-}
-
-export function bindAgentCommandForStep(
-  runId,
-  stepId,
-  { runsRoot, leaseToken } = {},
-) {
-  assertSafeStepId(stepId);
-  const runsRootArg = runsRoot ? ` --runs-root ${shellQuote(runsRoot)}` : "";
-  const token =
-    typeof leaseToken === "string" && leaseToken.length > 0
-      ? shellQuote(leaseToken)
-      : "<lease-token>";
-  return `${WORKFLOW_RUNNER_COMMAND} bind-agent --run-id ${shellQuote(runId)} --step-id ${shellQuote(stepId)}${runsRootArg} --agent-id <agent-id> --lease-token ${token}`;
-}
-
-export function continueCommandForRun(runId, { runsRoot, leaseToken } = {}) {
-  const runsRootArg = runsRoot ? ` --runs-root ${shellQuote(runsRoot)}` : "";
-  const token =
-    typeof leaseToken === "string" && leaseToken.length > 0
-      ? shellQuote(leaseToken)
-      : "<lease-token>";
-  return `${WORKFLOW_RUNNER_COMMAND} continue --run-id ${shellQuote(runId)}${runsRootArg} --lease-token ${token}`;
-}
-
-export function continueInstructionCommandForRun(runId, options = {}) {
-  return `${continueCommandForRun(runId, options)} --only-instructions`;
-}
-
-export function writeOutputCommandForStep(
-  runId,
-  stepId,
-  { runsRoot, leaseToken } = {},
-) {
-  assertSafeStepId(stepId);
-  const runsRootArg = runsRoot ? ` --runs-root ${shellQuote(runsRoot)}` : "";
-  const token =
-    typeof leaseToken === "string" && leaseToken.length > 0
-      ? shellQuote(leaseToken)
-      : "<lease-token>";
-  return [
-    `${WORKFLOW_RUNNER_COMMAND} write-output --run-id ${shellQuote(runId)} --step-id ${shellQuote(stepId)}${runsRootArg} --lease-token ${token} <<'JSON'`,
-    "<paste strict JSON here>",
-    "JSON",
-  ].join("\n");
-}
+export { assertSafeStepId };
 
 export function responseStatusForInterpreterResponse(interpreterResponse) {
   const steps = interpreterResponse.steps ?? [];
