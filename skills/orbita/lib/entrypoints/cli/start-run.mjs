@@ -8,6 +8,7 @@ import { publicErrorMessage } from './public-error.mjs';
 import { assertFreshTokenAuthority, buildTokenLease } from '../../persistence/run-state/lease-authority.mjs';
 import { ensureRunFiles, pathExists, resolveRunPaths } from '../../persistence/run-state/paths.mjs';
 import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot, upsertRunIndexEntry } from '../../persistence/run-state/run-index.mjs';
+import { resolveAbsoluteWorkflowPath } from '../../workflow-path-boundary.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(scriptDir, '../../../../..');
@@ -88,9 +89,15 @@ async function assertOrCreateTokenAuthority(paths, token) {
   });
 }
 
+function workflowPathArg(value) {
+  if (value === undefined) return undefined;
+  try { return resolveAbsoluteWorkflowPath(value); }
+  catch (error) { fail(error.message); }
+}
+
 const values = parseCliArgs(process.argv.slice(2));
 const runId = requireString(values['run-id'], '--run-id');
-const workflowPath = values.workflow === undefined ? undefined : resolve(values.workflow);
+const workflowPath = workflowPathArg(values.workflow);
 const paths = await resolveIndexedRunPaths({ runId, workflowPath });
 const leaseToken = values['lease-token'];
 

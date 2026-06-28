@@ -109,26 +109,28 @@ function loadSchemas({ workflow, workflowPath, repositoryRoot }) {
   return outputSchemas;
 }
 
-function readRoleMaterialFile({ root, role, fileName }) {
+function readRoleMaterialFile({ root, displayRoot, role, fileName }) {
   const relative = workflowRoleMaterialPath(role, fileName);
   const candidate = path.join(root, relative);
+  const displayPath = path.resolve(displayRoot, relative);
   let resolvedPath;
   try {
     resolvedPath = realpathSync(candidate);
   } catch {
-    return { path: path.resolve(candidate) };
+    return { path: displayPath };
   }
   if (!isInside(resolvedPath, root)) {
     throw new WorkflowRuntimeError(`workflow prompt render failed: input.role material escapes repository root: ${relative}`);
   }
-  return { content: readFileSync(resolvedPath, 'utf8'), path: resolvedPath };
+  return { content: readFileSync(resolvedPath, 'utf8'), path: displayPath };
 }
 
 function loadRoleMaterials({ workflow, repositoryRoot }) {
   const root = realpathSync(repositoryRoot);
+  const displayRoot = path.resolve(repositoryRoot);
   const roleMaterials = {};
   for (const role of roleNames(workflow)) {
-    roleMaterials[role] = REQUIRED_WORKFLOW_ROLE_MATERIAL_FILES.map((fileName) => readRoleMaterialFile({ root, role, fileName }));
+    roleMaterials[role] = REQUIRED_WORKFLOW_ROLE_MATERIAL_FILES.map((fileName) => readRoleMaterialFile({ root, displayRoot, role, fileName }));
     // Missing role material content is reported by Template only when a rendered step needs it.
   }
   return roleMaterials;

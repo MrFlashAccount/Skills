@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import test, { after, beforeEach } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { listWorkflowRuns, summarizeWorkflowRuns } from '../entrypoints/api/workflowRuns.mjs';
@@ -108,6 +109,52 @@ test('workflow runs API creates accepted safe run id with public metadata only',
   assert.equal(listed[0].runId, runId);
   assert.equal('runDir' in listed[0], false);
   assert.equal('runsRoot' in listed[0], false);
+});
+
+test('workflow-runs create rejects relative workflow paths clearly', async () => {
+  await assert.rejects(
+    () => registerWorkflowRunAtRoot({
+      runsRoot,
+      runId: `${runPrefix}relative-workflow-api`,
+      workflowPath: 'workflows/dev-harness/workflow.json',
+    }),
+    /workflow path must be absolute.*workflow-catalog.*absolute catalog path/,
+  );
+
+  const helperPath = path.join(root, 'skills/orbita/lib/entrypoints/cli/workflow-runs.mjs');
+  const result = spawnSync(process.execPath, [
+    helperPath,
+    'create',
+    '--run-id',
+    `${runPrefix}relative-workflow-cli`,
+    '--workflow',
+    'workflows/dev-harness/workflow.json',
+  ], { cwd: root, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUNS_ROOT: cliRunsRoot } });
+
+  assert.equal(result.status, 1);
+  assert.equal(result.stdout, '');
+  assert.match(result.stderr, /workflow-runs: workflow path must be absolute/);
+  assert.match(result.stderr, /workflow-catalog/);
+});
+
+test('workflow-runs create accepts catalog absolute workflow path from a different cwd', () => {
+  const helperPath = path.join(root, 'skills/orbita/lib/entrypoints/cli/workflow-runs.mjs');
+  const runId = `${runPrefix}catalog-absolute-cwd`;
+  const result = spawnSync(process.execPath, [
+    helperPath,
+    'create',
+    '--run-id',
+    runId,
+    '--workflow',
+    defaultWorkflow,
+    '--workflow-identity',
+    'dev-harness',
+  ], { cwd: tempDir, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUNS_ROOT: cliRunsRoot } });
+
+  assert.equal(result.status, 0, result.stderr);
+  const response = JSON.parse(result.stdout);
+  assert.equal(response.runId, runId);
+  assert.deepEqual(response.workflow, { identity: 'dev-harness' });
 });
 
 test('workflow runs API generates a safe run id when omitted', async () => {

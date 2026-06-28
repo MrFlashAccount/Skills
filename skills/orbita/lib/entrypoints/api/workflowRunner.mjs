@@ -18,6 +18,7 @@ import { ensureRunFiles, pathExists, resolveRunPaths } from '../../persistence/r
 import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot, upsertRunIndexEntry } from '../../persistence/run-state/run-index.mjs';
 import { withRunStateLock } from '../../persistence/run-state/lock.mjs';
 import { publicErrorMessage } from '../cli/public-error.mjs';
+import { assertAbsoluteWorkflowPath } from '../../workflow-path-boundary.mjs';
 
 async function readJson(pathname, kind) {
   let content;
@@ -271,6 +272,7 @@ async function outputForCurrentState(paths) {
 }
 
 async function resolveIndexedRunPaths({ runId, workflowPath, runsRoot }) {
+  workflowPath = assertAbsoluteWorkflowPath(workflowPath);
   const defaultPaths = resolveRunPaths({ runId, runsRoot });
   const indexedWorkflowPath = await indexedWorkflowPathForRun(defaultPaths);
   if (typeof indexedWorkflowPath === 'string' && indexedWorkflowPath.length > 0) {

@@ -29,20 +29,22 @@ test('workflow catalog lists checked-in workflows from top-level descriptions', 
   assert.deepEqual(
     parsed.workflows.map((workflow) => workflow.path),
     [
-      'workflows/dev-harness/workflow.json',
-      'workflows/research-critic/workflow.json',
-      'workflows/workflow-authoring/workflow.json',
+      path.join(root, 'workflows/dev-harness/workflow.json'),
+      path.join(root, 'workflows/research-critic/workflow.json'),
+      path.join(root, 'workflows/workflow-authoring/workflow.json'),
     ],
   );
+  assert.equal(parsed.workflows.every((workflow) => path.isAbsolute(workflow.path)), true);
   assert.match(parsed.workflows.find((workflow) => workflow.name === 'workflow-authoring').description, /Create or materially update workflow-runner workflows/);
 });
 
-test('workflow catalog human output includes exact workflow paths', () => {
+test('workflow catalog human output prefers names and shows absolute workflow paths', () => {
   const result = runCatalog(['list', '--human']);
 
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /dev-harness - /);
-  assert.match(result.stdout, /workflow: workflows\/dev-harness\/workflow\.json/);
+  assert.match(result.stdout, new RegExp(`absolute workflow path for --workflow: ${path.join(root, 'workflows/dev-harness/workflow.json').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
+  assert.doesNotMatch(result.stdout, /workflow: workflows\/dev-harness\/workflow\.json/);
 });
 
 test('workflow catalog resolves exact and fuzzy workflow names', () => {
@@ -55,7 +57,7 @@ test('workflow catalog resolves exact and fuzzy workflow names', () => {
       {
         name: 'dev-harness',
         description: JSON.parse(readFileSync(path.join(root, 'workflows/dev-harness/workflow.json'), 'utf8')).description,
-        path: 'workflows/dev-harness/workflow.json',
+        path: path.join(root, 'workflows/dev-harness/workflow.json'),
       },
     ],
   });

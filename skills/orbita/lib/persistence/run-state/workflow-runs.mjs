@@ -4,6 +4,7 @@ import { assertSafeRunId, defaultWorkflowPath, resolveRunPaths, workflowRunsRoot
 import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot, updateRunIndexEntry } from './run-index.mjs';
 import { assertMatchingTokenAuthority, buildTokenLease, generateLeaseToken, occupancyForLease, renewTokenLease } from './lease-authority.mjs';
 import { withRunStateLock } from './lock.mjs';
+import { resolveAbsoluteWorkflowPath } from '../../workflow-path-boundary.mjs';
 
 function publicRun(entry, { now = new Date() } = {}) {
   const workflow = {
@@ -52,7 +53,7 @@ function generatedRunId() {
 }
 
 function workflowPathForCreate(workflowPath) {
-  return workflowPath === undefined ? defaultWorkflowPath : resolve(workflowPath);
+  return workflowPath === undefined ? defaultWorkflowPath : resolveAbsoluteWorkflowPath(workflowPath);
 }
 
 function assertExistingWorkflowBinding(existing, paths, { requestedWorkflowPath } = {}) {
