@@ -161,9 +161,13 @@ test('E2E fixture: long happy path loops through review revision and preserves l
   assert.equal(planned.requests[0].action, 'wait_for_approval');
   assert.equal(planned.baton.state.plan.artifacts[0].summary, 'plan v1');
   const approvalInstructions = instructions(run, 'approval_gate');
-  assert.match(approvalInstructions, /## Required reads/);
+  assert.match(approvalInstructions, /Attach these artifacts before asking the user/);
   assert.match(approvalInstructions, /Projected artifact 'plan' from 'plan' \(text\/markdown\):/);
   assert.match(approvalInstructions, /plan\/artifacts\/plan\.md/);
+  assert.match(approvalInstructions, /Render this message to the user as the final message/);
+  assert.match(approvalInstructions, /Approve the plan\./);
+  assert.doesNotMatch(approvalInstructions, /## Required reads/);
+  assert.doesNotMatch(approvalInstructions, /## Projected baton state/);
   assert.doesNotMatch(approvalInstructions, /Plan artifact content for approval\./);
 
   const approved = continueWith(run, workflow, output('approval-approved.json'), 'continue approval');

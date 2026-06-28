@@ -91,5 +91,5 @@ The JSON output remains authoritative for workflow branching, state projection, 
 ## Open questions
 
 - Should a later runtime derive local artifact paths from step id and artifact id instead of requiring workers to emit the current absolute `path`?
-- Should the runner provide a first-class artifact export helper for host/orchestrator file requests? Current fix keeps this prompt-level: workers and approval prompts must use existing baton/output artifact refs, and no runtime export helper is added here.
+- Should the runner provide a first-class artifact export helper for host/orchestrator file requests? Current fix keeps this context-level: worker prompts and approval protocols must use existing baton/output artifact refs, and no runtime export helper is added here.
 - Should the schema eventually enforce the current step artifact directory convention, or should that remain renderer/runtime guidance outside JSON Schema?

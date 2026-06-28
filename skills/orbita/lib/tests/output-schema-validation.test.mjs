@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { renderWorkflowPrompt } from '../entities/Template/index.mjs';
+import { renderWorkflowStep } from '../use-cases/runtime/renderers/workflow-renderer.mjs';
 import { SchemaValidationError } from '../../../../shared/scripts/schema-validation/schema-validation.mjs';
 import { validateAgainstOutputSchema } from '../use-cases/runtime/output/output-schema-validation.mjs';
 import { loadWorkflowResources } from '../persistence/workflow-resources/runtime-reader.mjs';
@@ -66,10 +66,14 @@ function runNode(args) {
 }
 
 function renderPromptWithResources(context) {
-  return renderWorkflowPrompt({
-    ...context,
+  return renderWorkflowStep({
+    workflow: context.workflow,
+    baton: context.batonDoc ?? context.baton,
+    entry: { id: context.stepId, step: context.step },
     resources: context.resources ?? loadWorkflowResources(context),
-  });
+    includeDiagnostics: context.includeDiagnostics,
+    userPrompt: context.userPrompt,
+  }).compiledPrompt;
 }
 
 function assertMarkersInOrder(value, markers) {
@@ -473,7 +477,7 @@ test('output.schema: invalid output retries with validation feedback then succee
   assert.deepEqual(response.baton.state.outputs.worker_step.payload, { ok: true });
 });
 
-test('output.schema: structured step output is projected by step id into downstream prompt', () => {
+test('output.schema: structured step output is projected by step id into downstream approval projection', () => {
   const doc = workflowWithSchema('structured-output-step-id-projection', structuredSchema);
   doc.steps.worker_step.next = { match: '${{ output.outcome }}', cases: { ready: 'consumer_step' } };
 
@@ -495,12 +499,10 @@ test('output.schema: structured step output is projected by step id into downstr
     batonPath,
   ]);
 
-  assert.match(renderResponse.steps[0].compiledPrompt.prompt, /## Projected baton state/);
-  assert.match(renderResponse.steps[0].compiledPrompt.prompt, /"worker_step"/);
-  assert.match(renderResponse.steps[0].compiledPrompt.prompt, /"payload"/);
-  assert.match(renderResponse.steps[0].compiledPrompt.prompt, /"ok": true/);
-  assert.doesNotMatch(renderResponse.steps[0].compiledPrompt.prompt, /Field notes for projected step outputs/);
-  assert.doesNotMatch(renderResponse.steps[0].compiledPrompt.prompt, /\[object Object\]/);
+  assert.equal(Object.hasOwn(renderResponse.steps[0], 'compiledPrompt'), false);
+  assert.deepEqual(renderResponse.steps[0].approvalPrompt.state.worker_step.payload, { ok: true });
+  assert.equal(renderResponse.steps[0].approvalPrompt.state.worker_step.artifacts[0].summary, 'structured projection artifact');
+  assert.equal(JSON.stringify(renderResponse.steps[0].approvalPrompt.state).includes('[object Object]'), false);
 });
 
 test('output.schema: projected structured output renders schema field notes before JSON', () => {
@@ -604,7 +606,7 @@ test('output.schema: absent schema preserves previous envelope behavior without 
   assert.equal(response.baton.state.results.at(-1).summary, 'generic worker-output envelope');
 });
 
-test('output.schema: non-structured worker output is projected by step id into downstream prompt', () => {
+test('output.schema: non-structured worker output is projected by step id into downstream approval projection', () => {
   const doc = structuredClone(workflowDoc);
   delete doc.steps.worker_step.output.schema;
   doc.steps.worker_step.next = 'consumer_step';
@@ -624,8 +626,8 @@ test('output.schema: non-structured worker output is projected by step id into d
     batonPath,
   ]);
 
-  assert.match(renderResponse.steps[0].compiledPrompt.prompt, /"worker_step"/);
-  assert.match(renderResponse.steps[0].compiledPrompt.prompt, /"plain markdown result body"/);
+  assert.equal(Object.hasOwn(renderResponse.steps[0], 'compiledPrompt'), false);
+  assert.equal(renderResponse.steps[0].approvalPrompt.state.worker_step.results[0].summary, 'plain markdown result body');
 });
 
 test('output.schema: central artifact contract accepts simplified shape and rejects legacy artifact fields', () => {

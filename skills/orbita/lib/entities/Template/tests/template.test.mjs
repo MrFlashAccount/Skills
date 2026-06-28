@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { renderWorkflowPrompt as renderCompiledWorkflowPrompt } from '../compiler/index.mjs';
-import { Template, renderWorkflowPrompt } from '../index.mjs';
+import { renderWorkflowStepProjection } from '../compiler/index.mjs';
+import { Template } from '../index.mjs';
+import { buildWorkflowStepProjection } from '../../../use-cases/runtime/renderers/workflow-renderer.mjs';
 
 const workflow = {
   name: 'template-fixture',
@@ -109,6 +110,39 @@ const baton = {
   },
 };
 
+function renderCompiledWorkflowProjection({
+  workflow,
+  baton,
+  stepId,
+  step,
+  resources,
+  projection,
+  requiredReads,
+  projectedArtifacts,
+  projectedSummaries,
+  roleMetadataPaths,
+  includeDiagnostics = false,
+  userPrompt,
+  userPromptInjected = false,
+} = {}) {
+  return renderWorkflowStepProjection(
+    buildWorkflowStepProjection({
+      workflow,
+      baton: baton ?? { state: {}, user_prompt_injected: userPromptInjected },
+      entry: { id: stepId, step },
+      resources,
+      projection,
+      requiredReads,
+      projectedArtifacts,
+      projectedSummaries,
+      roleMetadataPaths,
+      userPrompt,
+      userPromptInjected,
+    }),
+    { includeDiagnostics },
+  ).compiledPrompt;
+}
+
 test('Template renders inline content with userPrompt placeholder replacement', () => {
   const rendered = new Template({ content: 'Question: ${{ userPrompt }}' }).render({ userPrompt: 'ship it?' });
 
@@ -120,7 +154,7 @@ test('Template compiles workflow expressions through the entity API', () => {
 });
 
 test('template compiler renders already-resolved required read paths without resolving them', () => {
-  const rendered = renderCompiledWorkflowPrompt({
+  const rendered = renderCompiledWorkflowProjection({
     workflow,
     stepId: 'consumer',
     step: workflow.steps.consumer,
@@ -139,8 +173,8 @@ test('template compiler renders already-resolved required read paths without res
   assert.deepEqual(rendered.metadata.roleMaterial, ['/abs/project/roles/backend/ROLE.md']);
 });
 
-test('renderWorkflowPrompt assembles templates, required reads, output contract, projected state, and metadata', () => {
-  const rendered = renderWorkflowPrompt({
+test('renderWorkflowStepProjection assembles templates, required reads, output contract, projected state, and metadata', () => {
+  const rendered = renderCompiledWorkflowProjection({
     workflow,
     baton,
     stepId: 'consumer',
@@ -183,11 +217,18 @@ test('renderWorkflowPrompt assembles templates, required reads, output contract,
     outputSchema: 'consumer.schema.json',
     roleMaterial: ['/roles/backend/ROLE.md', '/roles/backend/RUBRIC.md'],
     projectedStateKeys: ['producer'],
+    projectedArtifacts: [{
+      id: 'research-packet',
+      label: "Projected artifact 'research-packet' from 'producer'",
+      path: '/tmp/workflow-runner-test/producer/artifacts/research-packet.md',
+      sourceStepId: 'producer',
+      contentType: 'text/markdown',
+    }],
   });
 });
 
-test('renderWorkflowPrompt injects provided validating writer command into output schema instructions', () => {
-  const rendered = renderWorkflowPrompt({
+test('renderWorkflowStepProjection injects provided validating writer command into output schema instructions', () => {
+  const rendered = renderCompiledWorkflowProjection({
     workflow,
     baton,
     stepId: 'consumer',
@@ -208,9 +249,9 @@ test('renderWorkflowPrompt injects provided validating writer command into outpu
   assert.doesNotMatch(rendered.prompt, /No validating writer command is provided/);
 });
 
-test('renderWorkflowPrompt reports unsupported prompt placeholders from explicit input templates', () => {
+test('renderWorkflowStepProjection reports unsupported prompt placeholders from explicit input templates', () => {
   assert.throws(
-    () => renderWorkflowPrompt({
+    () => renderCompiledWorkflowProjection({
       workflow,
       baton,
       stepId: 'consumer',
@@ -221,7 +262,7 @@ test('renderWorkflowPrompt reports unsupported prompt placeholders from explicit
   );
 });
 
-test('renderWorkflowPrompt fails clearly when schema-derived notes contain unresolved external refs', () => {
+test('renderWorkflowStepProjection fails clearly when schema-derived notes contain unresolved external refs', () => {
   const brokenResources = {
     ...resources,
     outputSchemas: new Map([
@@ -243,12 +284,12 @@ test('renderWorkflowPrompt fails clearly when schema-derived notes contain unres
   };
 
   assert.throws(
-    () => renderWorkflowPrompt({ workflow, baton, stepId: 'consumer', step: workflow.steps.consumer, resources: brokenResources }),
+    () => renderCompiledWorkflowProjection({ workflow, baton, stepId: 'consumer', step: workflow.steps.consumer, resources: brokenResources }),
     /schema field notes failed: unresolved schema \$ref 'https:\/\/example\.invalid\/schemas\/missing#\/\$defs\/artifact'/,
   );
 });
 
-test('renderWorkflowPrompt keeps local JSON pointer refs in schema-derived notes', () => {
+test('renderWorkflowStepProjection keeps local JSON pointer refs in schema-derived notes', () => {
   const localRefResources = {
     ...resources,
     outputSchemas: new Map([
@@ -278,7 +319,7 @@ test('renderWorkflowPrompt keeps local JSON pointer refs in schema-derived notes
     ]),
   };
 
-  const rendered = renderWorkflowPrompt({ workflow, baton, stepId: 'consumer', step: workflow.steps.consumer, resources: localRefResources });
+  const rendered = renderCompiledWorkflowProjection({ workflow, baton, stepId: 'consumer', step: workflow.steps.consumer, resources: localRefResources });
 
   assert.match(rendered.prompt, /artifacts\[\]\.content_type/);
   assert.match(rendered.prompt, /Fill: Local usage note\./);

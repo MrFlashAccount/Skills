@@ -7,7 +7,7 @@ import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { renderStepPrompts } from '../use-cases/runtime/parallel/render.mjs';
 import { projectState } from '../runtime/state-projection.mjs';
-import { renderWorkflowPrompt } from '../entities/Template/index.mjs';
+import { renderWorkflowStep } from '../use-cases/runtime/renderers/workflow-renderer.mjs';
 import { validateAgainstOutputSchema } from '../use-cases/runtime/output/output-schema-validation.mjs';
 import { loadWorkflowResources } from '../persistence/workflow-resources/runtime-reader.mjs';
 
@@ -143,10 +143,14 @@ function resourcesForRender({ workflow, workflowPath, repositoryRoot }) {
 }
 
 function renderPromptWithResources(context) {
-  return renderWorkflowPrompt({
-    ...context,
+  return renderWorkflowStep({
+    workflow: context.workflow,
+    baton: context.batonDoc ?? context.baton,
+    entry: { id: context.stepId, step: context.step },
     resources: context.resources ?? resourcesForRender(context),
-  });
+    includeDiagnostics: context.includeDiagnostics,
+    userPrompt: context.userPrompt,
+  }).compiledPrompt;
 }
 
 function renderStepsWithResources(context) {
@@ -648,8 +652,9 @@ test('prompt renderer: mixed current approval and worker gives user prompt only 
     repositoryRoot: tempDir,
   });
 
-  assert.doesNotMatch(rendered[0].compiledPrompt.prompt, /## User prompt/);
-  assert.equal(rendered[0].compiledPrompt.prompt.includes(rawPrompt), false);
+  assert.equal(Object.hasOwn(rendered[0], 'compiledPrompt'), false);
+  assert.equal(Object.hasOwn(rendered[0], 'approvalPrompt'), true);
+  assert.equal(JSON.stringify(rendered[0].approvalPrompt).includes(rawPrompt), false);
   assert.match(rendered[1].compiledPrompt.prompt, /## User prompt/);
   assert.equal(rendered[1].compiledPrompt.prompt.includes(rawPrompt), true);
 });
@@ -1204,8 +1209,10 @@ test('CLI render: fixture returns compiledPrompt and does not mutate baton', () 
 });
 
 test('CLI render: diagnostics are included only when explicitly requested', () => {
-  const workflowPath = writeJson('render-diagnostics-workflow.json', schemaWorkflowDoc);
-  const batonPath = writeJson('render-diagnostics-baton.json', baton({ cursor: 'approval_step' }));
+  const workflowDoc = structuredClone(schemaWorkflowDoc);
+  workflowDoc.steps.worker_step.input = { prompt: 'Run worker.' };
+  const workflowPath = writeJson('render-diagnostics-workflow.json', workflowDoc);
+  const batonPath = writeJson('render-diagnostics-baton.json', baton({ cursor: 'worker_step' }));
 
   const defaultResponse = expectCliResult(
     'render-diagnostics-default',

@@ -47,12 +47,44 @@ function resolvedArtifactPath({ artifactPath, resources }) {
   throw new Error(`workflow prompt render failed: projected artifact path must be absolute before template compilation: ${artifactPath}`);
 }
 
-function projectedArtifactReadItems(projection, resources) {
+function projectedArtifactItems(projection, resources) {
   return projectedArtifactRecords(projection).map(({ stepId, artifact }) => ({
+    id: artifact.id,
     label: `Projected artifact '${artifact.id}' from '${stepId}'`,
     path: resolvedArtifactPath({ artifactPath: artifact.path, resources }),
+    sourceStepId: stepId,
     contentType: artifact.content_type,
   }));
+}
+
+function projectedSummaryItems(projection) {
+  const items = [];
+  for (const stepId of projection.projectedKeys) {
+    const value = projection.value?.[stepId];
+    if (!value || typeof value !== 'object' || Array.isArray(value)) continue;
+
+    if (typeof value.approval === 'string' && value.approval.length > 0) {
+      items.push({ sourceStepId: stepId, kind: 'approval', summary: value.approval });
+    }
+
+    if (Array.isArray(value.results)) {
+      for (const result of value.results) {
+        if (typeof result?.summary === 'string' && result.summary.trim().length > 0) {
+          items.push({ sourceStepId: stepId, kind: 'result', summary: result.summary.trim() });
+        }
+      }
+    }
+
+    if (Array.isArray(value.artifacts)) {
+      for (const artifact of value.artifacts) {
+        if (typeof artifact?.summary === 'string' && artifact.summary.trim().length > 0) {
+          const id = typeof artifact.id === 'string' && artifact.id.length > 0 ? ` '${artifact.id}'` : '';
+          items.push({ sourceStepId: stepId, kind: 'artifact', summary: `Artifact${id}: ${artifact.summary.trim()}` });
+        }
+      }
+    }
+  }
+  return items;
 }
 
 export function prepareWorkflowPromptContext({ baton, stepId, step, resources } = {}) {
@@ -60,11 +92,14 @@ export function prepareWorkflowPromptContext({ baton, stepId, step, resources } 
   const selectors = input.state ?? [];
   const projection = projectState({ batonState: baton?.state ?? {}, selectors, stepId });
   const inputRole = readInputRole({ input, resources });
+  const projectedArtifacts = projectedArtifactItems(projection, resources);
   return {
     projection,
+    projectedArtifacts,
+    projectedSummaries: projectedSummaryItems(projection),
     requiredReads: [
       ...inputRole.readItems,
-      ...projectedArtifactReadItems(projection, resources),
+      ...projectedArtifacts,
     ],
     roleMetadataPaths: inputRole.metadataPaths,
   };

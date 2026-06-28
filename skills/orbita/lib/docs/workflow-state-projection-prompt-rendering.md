@@ -249,17 +249,25 @@ Serialization rules:
 
 If truncation/redaction becomes necessary later, make it a separate explicit projection policy. Do not hide it inside the dumb renderer.
 
-## `renderWorkflowPrompt` behavior
+## Workflow projection rendering behavior
 
-Proposed signature:
+Projection builder signature:
 
 ```js
-renderWorkflowPrompt({ workflowPath, workflow, baton, stepId, step, repositoryRoot, templateBaseDir, userPrompt }) -> compiledPrompt
+buildWorkflowStepProjection({ workflow, baton, entry, resources, userPrompt }) -> projectionDTO
+```
+
+Template compiler signature:
+
+```js
+renderWorkflowStepProjection(projectionDTO, { includeDiagnostics }) -> { compiledPrompt }
 ```
 
 ### Inputs
 
-The renderer receives already-validated workflow/baton/step data plus an optional render-time `userPrompt` string. The runner/runtime decides whether startup `baton.user_prompt` is eligible for the current worker and passes it in only then; approval/user-gate answers are different interactions and are not startup `userPrompt`. The template compiler also guards the section to worker steps, so direct approval/later-step callers cannot accidentally render it. The renderer may be called by `inspect`-adjacent code after `loadWorkflowAndBaton`, but it must not call `resolveTransition` or `applyOutputToBatonState`.
+The runtime projection builder receives already-validated workflow/baton/step data plus an optional render-time `userPrompt` string. The runner/runtime decides whether startup `baton.user_prompt` is eligible for the current worker and passes it in only then; approval/user-gate answers are different interactions and are not startup `userPrompt`.
+
+The Template compiler receives only the already-built projection DTO. It must not resolve workflow resources, read files, call runtime use cases, call `resolveTransition`, or call `applyOutputToBatonState`.
 
 ### Template resolution
 
@@ -407,14 +415,14 @@ Unit tests:
 - `projectState` skips selected step ids that are absent from the current baton state.
 - `projectState` rejects nested selectors.
 - `projectState` serializes stable fenced JSON.
-- `renderWorkflowPrompt` renders default prompt when no input template exists.
-- `renderWorkflowPrompt` emits default-prompt diagnostics only when requested.
-- `renderWorkflowPrompt` rejects unsupported placeholders in input templates.
-- `renderWorkflowPrompt` appends role/output/state/workflow-step/user-prompt/reminder sections in fixed order.
-- `renderWorkflowPrompt` keeps output contracts as static included contract text.
-- `renderWorkflowPrompt` includes shared output template content without treating it as schema.
-- `renderWorkflowPrompt` derives artifact producer notes from `output.schema` + central Baton artifact `$defs` metadata, without hardcoded DevHarness artifact prose in workflow prompts.
-- `renderWorkflowPrompt` derives projected artifact reader notes from producer schemas before projected JSON.
+- `renderWorkflowStepProjection` renders default prompt when no input template exists.
+- `renderWorkflowStepProjection` emits default-prompt diagnostics only when requested.
+- `renderWorkflowStepProjection` rejects unsupported placeholders in input templates.
+- `renderWorkflowStepProjection` appends role/output/state/workflow-step/user-prompt/reminder sections in fixed order.
+- `renderWorkflowStepProjection` keeps output contracts as static included contract text.
+- `renderWorkflowStepProjection` includes shared output template content without treating it as schema.
+- `buildWorkflowStepProjection` derives artifact producer notes from `output.schema` + central Baton artifact `$defs` metadata, without hardcoded DevHarness artifact prose in workflow prompts.
+- `buildWorkflowStepProjection` derives projected artifact reader notes from producer schemas before projected JSON.
 - path resolver rejects path escape and missing template references.
 
 CLI/smoke tests:

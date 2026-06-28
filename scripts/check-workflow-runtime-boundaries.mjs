@@ -42,6 +42,10 @@ function assertContains(text, pattern, message) {
   if (!pattern.test(text)) fail(message);
 }
 
+function assertNotContains(text, pattern, message) {
+  if (pattern.test(text)) fail(message);
+}
+
 const MODULE_SPECIFIER_PATTERN = /\b(?:import|export)\s+(?:[^'"`]*?\sfrom\s+)?['"]([^'"]+)['"]|\bimport\(\s*['"]([^'"]+)['"]\s*\)/g;
 
 function resolveRelativeModule(file, specifier) {
@@ -188,6 +192,7 @@ function checkBoundaries() {
 
   scan(walk(abs('skills/orbita/lib/entities')), /from ['"].*persistence\//, 'entities must not import persistence');
   scan(walk(abs('skills/orbita/lib/entities')), /from ['"].*entrypoints\//, 'entities must not import entrypoints');
+  scan(walk(abs('skills/orbita/lib/entities/Template/compiler')), /from ['"].*use-cases\//, 'Template compiler must render DTOs without importing runtime use-cases');
   scan(walk(abs('skills/orbita/lib/entities/Workflow')), /use-cases\/runtime\/output|entrypoints\/cli\/schema|persistence\/run-state\/schema|workflows\/dev-harness|dtos\//, 'Workflow owner imports forbidden external owner');
   scan(walk(abs('skills/orbita/lib/entities')).filter((file) => !rel(file).startsWith('skills/orbita/lib/entities/Baton/')), /from ['"].*Baton\/schema\//, 'entities outside Baton owner must not import Baton schema owner');
   assertNoCrossEntityImports();
@@ -202,7 +207,24 @@ function checkBoundaries() {
   assertContains(apiRunner, /response\.requests \?\? \[\]/, 'API runner must validate current rendered response.requests');
   assertContains(apiRunner, /assertNamedOutputRefsMatchRequests\(parsedOutputRefs, requests\)/, 'API runner must validate host outputs against current rendered requests before continue');
   assertContains(apiRunner, /currentRequestForStep\(response, stepId\)/, 'API runner must validate instruction and output step ids against current rendered requests');
-  assertContains(apiRunner, /missing compiled instructions for workflow step/, 'API runner must fail when compiled instructions are missing');
+  assertContains(apiRunner, /renderStepInstructionsForStep\(renderedStep/, 'API runner must delegate step instruction rendering');
+
+  const workerRenderer = readFileSync(abs('skills/orbita/lib/entrypoints/api/runner/host-instructions/worker-renderer.mjs'), 'utf8');
+  assertContains(workerRenderer, /missing compiled instructions for workflow step/, 'Worker renderer must fail when compiled instructions are missing');
+  assertAbsent('skills/orbita/lib/entrypoints/api/runner/host-instructions/registry.mjs');
+
+  const stepRenderPipeline = readFileSync(abs('skills/orbita/lib/use-cases/runtime/parallel/render.mjs'), 'utf8');
+  assertContains(stepRenderPipeline, /renderExecutableStep/, 'Runtime prompt rendering must delegate executable step rendering');
+  const stepRendererRegistry = readFileSync(abs('skills/orbita/lib/use-cases/runtime/renderers/registry.mjs'), 'utf8');
+  assertContains(stepRendererRegistry, /approvalStepRenderer/, 'Runtime step renderer registry must register approval renderer');
+  assertContains(stepRendererRegistry, /workflowStepRenderer/, 'Runtime step renderer registry must register workflow renderer');
+  const workflowRenderer = readFileSync(abs('skills/orbita/lib/use-cases/runtime/renderers/workflow-renderer.mjs'), 'utf8');
+  assertContains(workflowRenderer, /buildWorkflowStepProjection/, 'Workflow renderer must build an explicit step projection');
+  assertNotContains(workflowRenderer, /renderWorkflowPrompt/, 'Workflow renderer must not delegate back to the old Template prompt renderer');
+  const templateCompiler = readFileSync(abs('skills/orbita/lib/entities/Template/compiler/index.mjs'), 'utf8');
+  assertContains(templateCompiler, /renderWorkflowStepProjection/, 'Template compiler must expose workflow projection renderer');
+  assertContains(templateCompiler, /renderApprovalStepProjection/, 'Template compiler must expose approval projection renderer');
+  assertNotContains(templateCompiler, /approvalPromptLayer|approvalWorkflowInstruction|step\.kind === ['"]approval['"]/, 'Template compiler must not own approval host projection');
 }
 
 function runNegativeBoundaryCheck(setup, teardown) {

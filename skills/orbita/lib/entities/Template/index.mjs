@@ -1,10 +1,9 @@
 /**
  * Template entity owns prompt rendering and expression compilation mechanics.
- * It receives render context; file/resource loading stays in persistence/legacy adapters.
+ * It renders already-built projection DTOs; file/resource loading stays outside the entity.
  */
 import { parsePathExpression } from '../../runtime/expression.mjs';
-import { prepareWorkflowPromptContext } from '../../runtime/prompt-render-context.mjs';
-import { renderWorkflowPrompt as renderCompiledWorkflowPrompt } from './compiler/index.mjs';
+import { renderWorkflowStepProjection } from './compiler/index.mjs';
 
 function cloneBoundaryData(dto) {
   return typeof dto?.toJSON === 'function' ? dto.toJSON() : structuredClone(dto ?? {});
@@ -28,15 +27,6 @@ export class Template {
     if (typeof this.data.content === 'string') {
       return { prompt: this.data.content.replace(/\$\{\{\s*userPrompt\s*\}\}/g, context.userPrompt ?? '') };
     }
-    const promptContext = { ...this.data, ...context };
-    return renderCompiledWorkflowPrompt({
-      ...promptContext,
-      ...prepareWorkflowPromptContext(promptContext),
-      userPromptInjected: promptContext.baton?.user_prompt_injected === true,
-    });
+    return renderWorkflowStepProjection(this.data, context).compiledPrompt;
   }
-}
-
-export function renderWorkflowPrompt(context = {}) {
-  return new Template(context.templateData ?? {}).render(context);
 }

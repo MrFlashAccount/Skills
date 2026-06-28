@@ -9,6 +9,7 @@ import { resolveStartupUserPrompt, startupUserPromptTarget } from '../../use-cas
 import { loadWorkflowRuntime } from '../../persistence/workflow-resources/runtime-reader.mjs';
 import { writePersistedRunStateUpdate } from '../../persistence/run-state/PersistedRunStateWriter.mjs';
 import { toHostResponse } from './runner/host-requests.mjs';
+import { renderStepInstructionsForStep } from './runner/host-instructions/pipeline.mjs';
 import { assertSafeStepId, writeOutputCommandForStep } from './runner/runner-command-builder.mjs';
 import { readText } from '../../persistence/run-state/atomic-file.mjs';
 import { assertFreshTokenAuthority, assertMatchingTokenAuthority, buildTokenLease, renewTokenLease } from '../../persistence/run-state/lease-authority.mjs';
@@ -487,13 +488,19 @@ async function loadInstructionsInternal({ runId, workflowPath, stepId, followUp 
     const request = currentRequestForStep(response, stepId);
     if (!request) throw staleWorkflowCommandError(stepId, response);
     const renderedStep = (rendered.steps ?? []).find((step) => step.id === stepIdForRequest(request));
-    const prompt = renderedStep?.compiledPrompt?.prompt;
-    if (typeof prompt !== 'string' || prompt.trim().length === 0) {
-      throw new Error(`missing compiled instructions for workflow step '${stepIdForRequest(request)}'`);
+    if (!renderedStep) throw new Error(`missing rendered workflow step '${stepIdForRequest(request)}'`);
+    const instructions = renderStepInstructionsForStep(renderedStep, {
+      request,
+      runId: paths.runId,
+      runsRoot: paths.runsRoot,
+      leaseToken,
+    });
+    if (typeof instructions !== 'string' || instructions.trim().length === 0) {
+      throw new Error(`missing instructions for workflow step '${stepIdForRequest(request)}'`);
     }
     const workerLease = await renewedWorkerLeaseAuthority(paths, { leaseToken, now });
     await upsertRunIndexEntry(paths, { workflowPath: paths.workflowPath, workerLease });
-    return prompt;
+    return instructions;
   });
 }
 

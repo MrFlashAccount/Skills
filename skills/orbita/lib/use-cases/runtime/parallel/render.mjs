@@ -1,8 +1,8 @@
 import { applyOutputToBatonState } from '../../../runtime/baton-state.mjs';
-import { renderWorkflowPrompt } from '../../../entities/Template/index.mjs';
 import { invariant } from '../../../errors.mjs';
 import { responseFor } from '../output/response.mjs';
 import { assertStartupUserPromptTargetRenderable, markUserPromptInjectedForStep, selectedUserPromptStepId, validateSelectedStartupUserPromptTarget } from '../../user-prompt.mjs';
+import { renderExecutableStep } from '../renderers/registry.mjs';
 
 export function renderStepPrompts({ workflow, baton, steps, resources, includeDiagnostics = false } = {}) {
   assertStartupUserPromptTargetRenderable({ workflow, baton, steps });
@@ -15,11 +15,10 @@ export function renderStepPrompts({ workflow, baton, steps, resources, includeDi
     };
     return {
       ...entry,
-      compiledPrompt: renderWorkflowPrompt({
+      ...renderExecutableStep({
         workflow,
         baton,
-        stepId: entry.id,
-        step: entry.step,
+        entry,
         resources: stepResources,
         includeDiagnostics,
         userPrompt: userPromptStepId === entry.id ? baton.user_prompt : undefined,

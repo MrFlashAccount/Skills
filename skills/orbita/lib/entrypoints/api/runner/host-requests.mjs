@@ -5,8 +5,8 @@ import {
   continueInstructionCommandForRun,
   loadFollowupInstructionsCommandForStep,
   loadInstructionsCommandForStep,
-  writeOutputCommandForStep,
 } from "./runner-command-builder.mjs";
+import { renderHostDirectiveForStep } from "./host-instructions/pipeline.mjs";
 
 const TERMINAL_ACTIONS = new Set(["stop_done", "stop_blocked"]);
 const SUPERSEDES_STDOUT_INSTRUCTION =
@@ -44,41 +44,15 @@ function orchestratorInstructionForStatus(status, ctx) {
   return [SUPERSEDES_STDOUT_INSTRUCTION, instruction(ctx)].join("\n");
 }
 
-function inlineInstructionForStep(step, { runId, runsRoot, leaseToken } = {}) {
-  if (step.action !== "wait_for_approval") return "";
-  const prompt = step.compiledPrompt?.prompt;
-  if (typeof prompt !== "string" || prompt.trim().length === 0) {
-    throw new Error(`missing compiled approval instructions for workflow step '${step.id}'`);
-  }
-  const writeOutputCommand = typeof runId === "string" && runId.length > 0
-    ? writeOutputCommandForStep(runId, step.id, {
-        runsRoot,
-        leaseToken,
-      })
-    : "";
-  return [
-    `Approval request: ${step.id}`,
-    "",
-    "The orchestrator must execute this approval instruction itself.",
-    "Use the following compiled approval prompt as the complete source for the user-facing approval message.",
-    "When the compiled approval prompt lists required-read files or projected artifact paths, attach those artifact files through the host/platform approval mechanism before asking for a decision.",
-    "Do not replace artifact attachments with summaries or inline full artifact bodies. If the host cannot attach or link a listed artifact, state that capability gap explicitly in the approval message and include the path/reference that could not be attached.",
-    "Do not inspect workflow source, runner internals, schema files, or CLI help to reconstruct approval output.",
-    writeOutputCommand
-      ? [
-          "After the user decides, normalize the answer to strict JSON and submit it with this validating command:",
-          "",
-          writeOutputCommand,
-        ].join("\n")
-      : "If no validating write-output command is present, stop as blocked with a runner contract bug.",
-    "",
-    prompt.trimEnd(),
-  ].join("\n");
-}
-
 function inlineInstructionsForSteps(steps = [], options = {}) {
+  const requestsByStepId = new Map(
+    (options.requests ?? []).map((request) => [request.stepId ?? request.id, request]),
+  );
   return steps
-    .map((step) => inlineInstructionForStep(step, options))
+    .map((step) => renderHostDirectiveForStep(step, {
+      ...options,
+      request: requestsByStepId.get(step.id),
+    }))
     .filter(Boolean)
     .join("\n\n");
 }
@@ -172,6 +146,7 @@ export function toHostResponse(interpreterResponse, options) {
       requests,
       inlineInstructions: options.includeInlineInstructions
         ? inlineInstructionsForSteps(interpreterResponse.steps, {
+            requests,
             runId: options.runId,
             runsRoot: options.runsRoot,
             leaseToken: options.leaseToken,

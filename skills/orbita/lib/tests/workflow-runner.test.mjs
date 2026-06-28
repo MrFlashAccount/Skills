@@ -303,7 +303,7 @@ test('runner: --only-instructions prints only orchestrator instruction text', ()
   assert.match(result.stdout, /--only-instructions/);
 });
 
-test('runner: approval host instruction lists projected artifact content as required read', () => {
+test('runner: approval host instruction renders attach protocol without compiled prompt dump', () => {
   const { runId, runDir } = runCase('approval-inline-instructions');
   const workflowPath = path.join(tempDir, 'approval-inline-instructions-workflow.json');
   const schemaPath = path.join(tempDir, 'approval-inline-instructions.schema.json');
@@ -356,27 +356,110 @@ test('runner: approval host instruction lists projected artifact content as requ
   assert.equal(response.requests[0].action, 'wait_for_approval');
   assert.deepEqual(Object.keys(response.requests[0]).sort(), ['action', 'id', 'loadInstructionsCommand', 'outputSchema', 'resolvedOutputSchema', 'stepId'].sort());
   assert.match(response.orchestratorInstruction, /Approval request: approve/);
-  assert.match(response.orchestratorInstruction, /The orchestrator must execute this approval instruction itself\./);
-  assert.match(response.orchestratorInstruction, /Use the following compiled approval prompt as the complete source/);
-  assert.match(response.orchestratorInstruction, /When the compiled approval prompt lists required-read files or projected artifact paths, attach those artifact files through the host\/platform approval mechanism before asking for a decision\./);
-  assert.match(response.orchestratorInstruction, /Do not replace artifact attachments with summaries or inline full artifact bodies\./);
-  assert.match(response.orchestratorInstruction, /If the host cannot attach or link a listed artifact, state that capability gap explicitly in the approval message and include the path\/reference that could not be attached\./);
-  assert.match(response.orchestratorInstruction, /Do not inspect workflow source, runner internals, schema files, or CLI help to reconstruct approval output\./);
-  assert.match(response.orchestratorInstruction, /After the user decides, normalize the answer to strict JSON and submit it with this validating command:/);
-  assert.match(response.orchestratorInstruction, new RegExp(`workflow-runner\\.mjs' write-output --run-id '${runId}' --step-id 'approve' --runs-root '${resolveRunPaths({ runId }).runsRoot}' --lease-token '${leaseToken}' <<'JSON'`));
-  assert.match(response.orchestratorInstruction, /<paste strict JSON here>/);
-  assert.match(response.orchestratorInstruction, /# Approve research/);
-  assert.match(response.orchestratorInstruction, /## Required reads/);
+  assert.match(response.orchestratorInstruction, /Do exactly:/);
+  assert.match(response.orchestratorInstruction, /Attach these artifacts before asking the user:/);
   assert.match(response.orchestratorInstruction, /Projected artifact 'research-packet' from 'prepare' \(text\/markdown\):/);
   assert.match(response.orchestratorInstruction, /prepare\/artifacts\/research-packet\.md/);
-  assert.match(response.orchestratorInstruction, /## Output contract/);
-  assert.match(response.orchestratorInstruction, /## Projected baton state/);
+  assert.match(response.orchestratorInstruction, /If an artifact cannot be attached or linked, say so in the user message and include its path\./);
+  assert.match(response.orchestratorInstruction, /Render this message to the user as the final message:/);
+  assert.match(response.orchestratorInstruction, /<message>/);
+  assert.match(response.orchestratorInstruction, /\*\*Approve research\*\*/);
+  assert.match(response.orchestratorInstruction, /Present artifact `research-packet`/);
+  assert.match(response.orchestratorInstruction, /Choose one:/);
+  assert.match(response.orchestratorInstruction, /- approved/);
+  assert.match(response.orchestratorInstruction, /- rejected/);
+  assert.match(response.orchestratorInstruction, /- blocked/);
+  assert.match(response.orchestratorInstruction, /Normalize the user's answer to strict JSON that satisfies the output schema\./);
+  assert.match(response.orchestratorInstruction, /- approved -> \{"approval":"approved"\}/);
+  assert.match(response.orchestratorInstruction, /- rejected -> \{"approval":"rejected"\}/);
+  assert.match(response.orchestratorInstruction, /- blocked -> \{"approval":"blocked","blocker":\{"reason":"\.\.\."\}\}/);
+  assert.match(response.orchestratorInstruction, /Submit with:/);
+  assert.match(response.orchestratorInstruction, new RegExp(`workflow-runner\\.mjs' write-output --run-id '${runId}' --step-id 'approve' --runs-root '${resolveRunPaths({ runId }).runsRoot}' --lease-token '${leaseToken}' <<'JSON'`));
+  assert.match(response.orchestratorInstruction, /<paste strict JSON here>/);
+  assert.doesNotMatch(response.orchestratorInstruction, /Use the following compiled approval prompt as the complete source/);
+  assert.doesNotMatch(response.orchestratorInstruction, /## Required reads/);
+  assert.doesNotMatch(response.orchestratorInstruction, /## Output contract/);
+  assert.doesNotMatch(response.orchestratorInstruction, /## Projected baton state/);
   assert.doesNotMatch(response.orchestratorInstruction, /### Projected artifact content/);
   assert.doesNotMatch(response.orchestratorInstruction, /Full packet body for approval\./);
-  assert.match(response.orchestratorInstruction, /## Workflow step prompt/);
-  assert.match(response.orchestratorInstruction, /Present artifact `research-packet`/);
   assert.match(response.orchestratorInstruction, new RegExp(`--lease-token '${leaseToken}'`));
 
+});
+
+test('runner: approval host instruction renders free-form output schema when no choices exist', () => {
+  const { runId } = runCase('approval-free-form-schema');
+  const workflowPath = path.join(tempDir, 'approval-free-form-schema-workflow.json');
+  const schemaPath = path.join(tempDir, 'approval-free-form.schema.json');
+  writeJson(schemaPath, {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['answer'],
+    properties: {
+      answer: { type: 'string', description: 'Free-form user answer.' },
+    },
+    additionalProperties: false,
+  });
+  const approvalWorkflow = structuredClone(workflowDoc);
+  approvalWorkflow.start = 'capture_answer';
+  approvalWorkflow.steps = {
+    capture_answer: {
+      name: 'Capture Answer',
+      kind: 'approval',
+      input: { prompt: 'Ask the user for the rollout note.' },
+      output: { schema: path.basename(schemaPath) },
+      next: 'done',
+    },
+    done: approvalWorkflow.steps.done,
+    blocked: approvalWorkflow.steps.blocked,
+  };
+  writeJson(workflowPath, approvalWorkflow);
+
+  const response = expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next approval free-form schema');
+
+  assert.equal(response.status, 'needs_host_actions');
+  assert.equal(response.requests[0].action, 'wait_for_approval');
+  assert.match(response.orchestratorInstruction, /Provide the requested input\./);
+  assert.match(response.orchestratorInstruction, /Use the user's response to fill JSON matching this schema:/);
+  assert.match(response.orchestratorInstruction, /"answer"/);
+  assert.match(response.orchestratorInstruction, /Free-form user answer\./);
+  assert.doesNotMatch(response.orchestratorInstruction, /Choose one:/);
+  assert.doesNotMatch(response.orchestratorInstruction, /- approved/);
+  assert.doesNotMatch(response.orchestratorInstruction, /\{"approval":"approved"\}/);
+  assert.match(response.orchestratorInstruction, /write-output --run-id/);
+});
+
+test('runner: approval host instruction includes approval input template in user message', () => {
+  const { runId } = runCase('approval-input-template-message');
+  const workflowPath = path.join(tempDir, 'approval-input-template-message-workflow.json');
+  writeFileSync(path.join(tempDir, 'approval-message.md'), '# Approval Brief\n\nReview the risk note before deciding.\n');
+  const approvalWorkflow = structuredClone(workflowDoc);
+  approvalWorkflow.start = 'approve_brief';
+  approvalWorkflow.steps = {
+    approve_brief: {
+      name: 'Approve Brief',
+      kind: 'approval',
+      input: {
+        template: 'approval-message.md',
+        prompt: 'Make the final call.',
+      },
+      next: { match: '${{ output.approval }}', cases: { approved: 'done', blocked: 'blocked' } },
+    },
+    done: approvalWorkflow.steps.done,
+    blocked: approvalWorkflow.steps.blocked,
+  };
+  writeJson(workflowPath, approvalWorkflow);
+
+  const response = expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next approval input template message');
+
+  assert.equal(response.status, 'needs_host_actions');
+  assert.match(response.orchestratorInstruction, /Render this message to the user as the final message:/);
+  assert.match(response.orchestratorInstruction, /<message>/);
+  assert.match(response.orchestratorInstruction, /# Approval Brief/);
+  assert.match(response.orchestratorInstruction, /Review the risk note before deciding\./);
+  assert.match(response.orchestratorInstruction, /Make the final call\./);
+  assert.match(response.orchestratorInstruction, /Choose one:/);
+  assert.match(response.orchestratorInstruction, /- approved/);
+  assert.match(response.orchestratorInstruction, /- blocked/);
 });
 
 test('runner: continue rejects legacy --output path handoff', () => {

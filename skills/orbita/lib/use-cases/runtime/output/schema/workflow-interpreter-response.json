@@ -21,7 +21,8 @@
         "id": { "type": "string", "minLength": 1 },
         "action": { "enum": ["run_worker", "wait_for_approval", "stop_done", "stop_blocked"] },
         "step": { "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/workflow#/$defs/step" },
-        "compiledPrompt": { "$ref": "#/$defs/compiledPrompt" }
+        "compiledPrompt": { "$ref": "#/$defs/compiledPrompt" },
+        "approvalPrompt": { "$ref": "#/$defs/approvalPrompt" }
       },
       "additionalProperties": false
     },
@@ -44,6 +45,34 @@
               "type": "array",
               "items": { "type": "string", "minLength": 1 },
               "uniqueItems": true
+            },
+            "projectedArtifacts": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["label", "path"],
+                "properties": {
+                  "id": { "type": "string", "minLength": 1 },
+                  "label": { "type": "string", "minLength": 1 },
+                  "path": { "type": "string", "minLength": 1 },
+                  "sourceStepId": { "type": "string", "minLength": 1 },
+                  "contentType": { "type": "string", "minLength": 1 }
+                },
+                "additionalProperties": false
+              }
+            },
+            "projectedSummaries": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["sourceStepId", "kind", "summary"],
+                "properties": {
+                  "sourceStepId": { "type": "string", "minLength": 1 },
+                  "kind": { "enum": ["approval", "artifact", "result"] },
+                  "summary": { "type": "string", "minLength": 1 }
+                },
+                "additionalProperties": false
+              }
             }
           },
           "additionalProperties": false
@@ -58,6 +87,46 @@
               "severity": { "enum": ["info", "warning", "error"] },
               "code": { "type": "string", "minLength": 1 },
               "message": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "approvalPrompt": {
+      "type": "object",
+      "properties": {
+        "promptLayer": { "type": "string" },
+        "workflowInstruction": { "type": "string" },
+        "state": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["label", "path"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "label": { "type": "string", "minLength": 1 },
+              "path": { "type": "string", "minLength": 1 },
+              "sourceStepId": { "type": "string", "minLength": 1 },
+              "contentType": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        },
+        "summaries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["sourceStepId", "kind", "summary"],
+            "properties": {
+              "sourceStepId": { "type": "string", "minLength": 1 },
+              "kind": { "enum": ["approval", "artifact", "result"] },
+              "summary": { "type": "string", "minLength": 1 }
             },
             "additionalProperties": false
           }
