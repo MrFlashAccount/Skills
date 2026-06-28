@@ -8,7 +8,7 @@ import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { publicErrorMessage } from '../entrypoints/cli/public-error.mjs';
 import { next } from '../entrypoints/api/workflowRunner.mjs';
-import { resolveRunPaths } from '../persistence/run-state/paths.mjs';
+import { resolveRunPaths, workflowRunsRoot } from '../persistence/run-state/paths.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
 const tempRoots = [];
@@ -26,8 +26,8 @@ after(() => {
 });
 
 test('public error redaction hides workflow-runner private storage paths', () => {
-  const privateRunFile = path.join(root, 'skills/orbita/.workflow-runs/redact-me/.workflow-runner/durable-commit.json');
-  const privateIndex = path.join(root, 'skills/orbita/.workflow-runs/runs.json');
+  const privateRunFile = path.join(workflowRunsRoot, 'redact-me/.workflow-runner/durable-commit.json');
+  const privateIndex = path.join(workflowRunsRoot, 'runs.json');
 
   const redacted = publicErrorMessage(`cannot read ${privateRunFile}; cannot lock ${privateIndex}`);
 
