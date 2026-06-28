@@ -1,8 +1,8 @@
 import { loadOutputSchema } from "../../../persistence/workflow-resources/output-schema-loader.mjs";
+import { fileURLToPath } from "node:url";
 
 const TERMINAL_ACTIONS = new Set(["stop_done", "stop_blocked"]);
 const SAFE_STEP_ID = /^[A-Za-z0-9_.-]+$/;
-const WORKFLOW_RUNNER_COMMAND = "node ./lib/entrypoints/cli/workflow-runner.mjs";
 const SUPERSEDES_STDOUT_INSTRUCTION =
   "Supersedes all previous workflow-runner stdout.";
 
@@ -20,6 +20,11 @@ export function assertSafeStepId(stepId) {
 function shellQuote(value) {
   return `'${String(value).replaceAll("'", "'\\''")}'`;
 }
+
+const WORKFLOW_RUNNER_CLI_PATH = fileURLToPath(
+  new URL("../../cli/workflow-runner.mjs", import.meta.url),
+);
+const WORKFLOW_RUNNER_COMMAND = `node ${shellQuote(WORKFLOW_RUNNER_CLI_PATH)}`;
 
 export function loadInstructionsCommandForStep(
   runId,

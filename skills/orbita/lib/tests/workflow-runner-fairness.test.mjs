@@ -4,12 +4,18 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
+import { fileURLToPath } from 'node:url';
 import { continueRun as runnerContinue, loadInstructions as runnerLoadInstructions, next as runnerNext, writeOutput as runnerWriteOutput } from '../entrypoints/api/workflowRunner.mjs';
 import { claimWorkflowRunAtRoot, registerWorkflowRunAtRoot } from '../persistence/run-state/workflow-runs.mjs';
 import { hashLeaseToken } from '../persistence/run-state/lease-authority.mjs';
 import { resolveRunPaths } from '../persistence/run-state/paths.mjs';
 
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-runner-fairness-'));
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
+function shellQuote(value) {
+  return `'${String(value).replaceAll("'", "'\\''")}'`;
+}
+const workflowRunnerCommand = `node ${shellQuote(path.join(root, 'skills/orbita/lib/entrypoints/cli/workflow-runner.mjs'))}`;
 writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
 
 const workflowDoc = {
@@ -252,7 +258,7 @@ test('runner fairness: private claim authority lets generated run-id-only comman
 
   assert.equal(response.status, 'needs_host_actions');
   assert.equal('workflow' in response, false);
-  assert.equal(response.requests[0].loadInstructionsCommand, `node ./lib/entrypoints/cli/workflow-runner.mjs instructions --run-id '${runId}' --step-id 'prepare' --lease-token '${claim.leaseToken}'`);
+  assert.equal(response.requests[0].loadInstructionsCommand, `${workflowRunnerCommand} instructions --run-id '${runId}' --step-id 'prepare' --lease-token '${claim.leaseToken}'`);
   assert.doesNotMatch(JSON.stringify(response), new RegExp('alice|session-a|portable'));
 });
 

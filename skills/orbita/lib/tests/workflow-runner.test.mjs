@@ -10,6 +10,10 @@ import { next as runnerNext } from '../entrypoints/api/workflowRunner.mjs';
 import { resolveRunPaths } from '../persistence/run-state/paths.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
+function shellQuote(value) {
+  return `'${String(value).replaceAll("'", "'\\''")}'`;
+}
+const workflowRunnerCommand = `node ${shellQuote(path.join(root, 'skills/orbita/lib/entrypoints/cli/workflow-runner.mjs'))}`;
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-runner-check-'));
 writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
 const testLeaseToken = `workflow-runner-test-token-${process.pid}`;
@@ -245,8 +249,8 @@ test('runner: next returns a single host action request with load command only',
   assert.match(response.orchestratorInstruction, /Execute every host request in this JSON/);
   assert.doesNotMatch(response.orchestratorInstruction, /run_worker request, enforce this host watchdog/);
   assert.deepEqual(requestsFromOrchestratorInstruction(response.orchestratorInstruction), response.requests);
-  assert.match(response.orchestratorInstruction, new RegExp(`workflow-runner\\.mjs instructions --run-id '${runId}' --step-id 'prepare' --lease-token '${leaseToken}'`));
-  assert.match(response.orchestratorInstruction, new RegExp(`Then run:\\nnode ./lib/entrypoints/cli/workflow-runner\\.mjs continue --run-id '${runId}' --lease-token '${leaseToken}' --only-instructions`));
+  assert.match(response.orchestratorInstruction, new RegExp(`workflow-runner\\.mjs' instructions --run-id '${runId}' --step-id 'prepare' --lease-token '${leaseToken}'`));
+  assert.equal(response.orchestratorInstruction.includes(`Then run:\n${workflowRunnerCommand} continue --run-id '${runId}' --lease-token '${leaseToken}' --only-instructions`), true);
   assert.match(response.orchestratorInstruction, /Follow that stdout instruction exactly/);
   assert.doesNotMatch(response.orchestratorInstruction, /write-output/);
   assert.doesNotMatch(response.orchestratorInstruction, /Load instructions with:/);
@@ -258,8 +262,16 @@ test('runner: next returns a single host action request with load command only',
   assert.equal(Object.hasOwn(response.requests[0], 'compiledPrompt'), false);
   assert.equal(response.requests[0].stepId, 'prepare');
   assert.equal(Object.hasOwn(response.requests[0], 'instructionRef'), false);
-  assert.equal(response.requests[0].loadInstructionsCommand, `node ./lib/entrypoints/cli/workflow-runner.mjs instructions --run-id '${runId}' --step-id 'prepare' --lease-token '${leaseToken}'`);
+  assert.equal(response.requests[0].loadInstructionsCommand, `${workflowRunnerCommand} instructions --run-id '${runId}' --step-id 'prepare' --lease-token '${leaseToken}'`);
   assert.equal(Object.hasOwn(response.requests[0], 'outputPath'), false);
+
+  const loadedFromOtherCwd = spawnSync(response.requests[0].loadInstructionsCommand, {
+    cwd: tempDir,
+    encoding: 'utf8',
+    shell: true,
+  });
+  assert.equal(loadedFromOtherCwd.status, 0, loadedFromOtherCwd.stderr);
+  assert.match(loadedFromOtherCwd.stdout, /# Prepare/);
 
   const loaded = runRunner(['instructions', '--run-id', runId, '--step-id', 'prepare']);
   assert.equal(loaded.status, 0, loaded.stderr);
@@ -284,8 +296,8 @@ test('runner: --only-instructions prints only orchestrator instruction text', ()
   const instructionRequests = requestsFromOrchestratorInstruction(result.stdout);
   assert.deepEqual(instructionRequests.map((request) => [request.action, request.stepId]), [['run_worker', 'prepare']]);
   assert.doesNotMatch(result.stdout, /Load instructions with:/);
-  assert.match(result.stdout, /workflow-runner\.mjs instructions --run-id/);
-  assert.match(result.stdout, /workflow-runner\.mjs continue --run-id/);
+  assert.match(result.stdout, /workflow-runner\.mjs' instructions --run-id/);
+  assert.match(result.stdout, /workflow-runner\.mjs' continue --run-id/);
   assert.match(result.stdout, /--only-instructions/);
 });
 
@@ -346,7 +358,7 @@ test('runner: approval host instruction lists projected artifact content as requ
   assert.match(response.orchestratorInstruction, /Use the following compiled approval prompt as the complete source/);
   assert.match(response.orchestratorInstruction, /Do not inspect workflow source, runner internals, schema files, or CLI help to reconstruct approval output\./);
   assert.match(response.orchestratorInstruction, /After the user decides, normalize the answer to strict JSON and submit it with this validating command:/);
-  assert.match(response.orchestratorInstruction, new RegExp(`workflow-runner\\.mjs write-output --run-id '${runId}' --step-id 'approve' --lease-token '${leaseToken}' <<'JSON'`));
+  assert.match(response.orchestratorInstruction, new RegExp(`workflow-runner\\.mjs' write-output --run-id '${runId}' --step-id 'approve' --lease-token '${leaseToken}' <<'JSON'`));
   assert.match(response.orchestratorInstruction, /<paste strict JSON here>/);
   assert.match(response.orchestratorInstruction, /# Approve research/);
   assert.match(response.orchestratorInstruction, /## Required reads/);
@@ -845,7 +857,7 @@ test('runner: worker instructions include prefilled validating write-output comm
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next before loading writer instructions');
   const instructions = runRunner(['instructions', '--run-id', runId, '--step-id', 'prepare']);
   assert.equal(instructions.status, 0, instructions.stderr);
-  assert.match(instructions.stdout, /workflow-runner\.mjs write-output --run-id/);
+  assert.match(instructions.stdout, /workflow-runner\.mjs' write-output --run-id/);
   assert.match(instructions.stdout, /--step-id 'prepare'/);
   assert.match(instructions.stdout, /--lease-token '[^']+'/);
   assert.doesNotMatch(instructions.stdout, /write-output[^\n]*--only-instructions/);
