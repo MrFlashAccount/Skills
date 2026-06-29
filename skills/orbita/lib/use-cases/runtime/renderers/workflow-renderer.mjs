@@ -2,7 +2,7 @@ import { prepareWorkflowPromptContext } from '../../../runtime/prompt-render-con
 import { finalOutputReminder, outputContractSection, readOutputSchema, readOutputTemplate } from '../../../entities/Template/compiler/sections/output-contract.mjs';
 import { projectedStateBlock } from '../../../entities/Template/compiler/sections/projected-state.mjs';
 import { defaultPrompt, readInputTemplate } from '../../../entities/Template/compiler/sections/template.mjs';
-import { renderWorkflowStepProjection } from '../../../entities/Template/compiler/workflow-renderer.mjs';
+import { Template } from '../../../entities/Template/index.mjs';
 
 function firstNonEmptyString(candidates) {
   const value = candidates.find((candidate) => typeof candidate === 'string' && candidate.trim().length > 0);
@@ -80,8 +80,9 @@ export function buildWorkflowStepProjection({
 }
 
 export function renderWorkflowStep(context = {}) {
-  return renderWorkflowStepProjection(
+  return new Template().render(
     buildWorkflowStepProjection(context),
+    'worker',
     { includeDiagnostics: context.includeDiagnostics },
   );
 }
@@ -89,5 +90,4 @@ export function renderWorkflowStep(context = {}) {
 export const workflowStepRenderer = Object.freeze({
   kind: 'worker',
   project: buildWorkflowStepProjection,
-  render: renderWorkflowStepProjection,
 });

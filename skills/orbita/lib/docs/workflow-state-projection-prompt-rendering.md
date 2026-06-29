@@ -260,7 +260,9 @@ buildWorkflowStepProjection({ workflow, baton, entry, resources, userPrompt }) -
 Template compiler signature:
 
 ```js
-renderWorkflowStepProjection(projectionDTO, { includeDiagnostics }) -> { compiledPrompt }
+templateEntity.render(projectionDTO, "worker", { includeDiagnostics }) -> { compiledPrompt }
+templateEntity.render(projectionDTO, "approval") -> { approvalPrompt }
+templateEntity.render(projectionDTO, "workerInstruction" | "approvalInstruction") -> instructions
 ```
 
 ### Inputs

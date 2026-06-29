@@ -3,7 +3,19 @@
  * It renders already-built projection DTOs; file/resource loading stays outside the entity.
  */
 import { parsePathExpression } from '../../runtime/expression.mjs';
-import { renderWorkflowStepProjection } from './compiler/index.mjs';
+import {
+  renderApprovalInstructionProjection,
+  renderApprovalStepProjection,
+  renderWorkerInstructionProjection,
+  renderWorkflowStepProjection,
+} from './compiler/index.mjs';
+
+const TEMPLATE_RENDERERS = Object.freeze({
+  approval: renderApprovalStepProjection,
+  approvalInstruction: renderApprovalInstructionProjection,
+  worker: renderWorkflowStepProjection,
+  workerInstruction: renderWorkerInstructionProjection,
+});
 
 function cloneBoundaryData(dto) {
   return typeof dto?.toJSON === 'function' ? dto.toJSON() : structuredClone(dto ?? {});
@@ -23,10 +35,16 @@ export class Template {
     return parsePathExpression(expression);
   }
 
-  render(context = {}) {
-    if (typeof this.data.content === 'string') {
-      return { prompt: this.data.content.replace(/\$\{\{\s*userPrompt\s*\}\}/g, context.userPrompt ?? '') };
+  render(projectionOrContext = this.data, kindOrOptions = {}, maybeOptions = {}) {
+    if (typeof this.data.content === 'string' && typeof kindOrOptions !== 'string') {
+      return { prompt: this.data.content.replace(/\$\{\{\s*userPrompt\s*\}\}/g, projectionOrContext.userPrompt ?? '') };
     }
-    return renderWorkflowStepProjection(this.data, context).compiledPrompt;
+
+    const kind = typeof kindOrOptions === 'string' ? kindOrOptions : (kindOrOptions.kind ?? 'worker');
+    const projection = typeof kindOrOptions === 'string' ? projectionOrContext : this.data;
+    const options = typeof kindOrOptions === 'string' ? maybeOptions : kindOrOptions;
+    const renderer = TEMPLATE_RENDERERS[kind];
+    if (!renderer) throw new Error(`unknown template render kind: ${kind}`);
+    return renderer(projection, options);
   }
 }

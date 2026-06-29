@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { renderWorkflowStepProjection } from '../compiler/index.mjs';
 import { Template } from '../index.mjs';
 import { buildWorkflowStepProjection } from '../../../use-cases/runtime/renderers/workflow-renderer.mjs';
 
@@ -125,7 +124,7 @@ function renderCompiledWorkflowProjection({
   userPrompt,
   userPromptInjected = false,
 } = {}) {
-  return renderWorkflowStepProjection(
+  return new Template().render(
     buildWorkflowStepProjection({
       workflow,
       baton: baton ?? { state: {}, user_prompt_injected: userPromptInjected },
@@ -139,6 +138,7 @@ function renderCompiledWorkflowProjection({
       userPrompt,
       userPromptInjected,
     }),
+    'worker',
     { includeDiagnostics },
   ).compiledPrompt;
 }
@@ -151,6 +151,27 @@ test('Template renders inline content with userPrompt placeholder replacement', 
 
 test('Template compiles workflow expressions through the entity API', () => {
   assert.deepEqual(new Template().compileExpression('${{ input.producer.route }}').segments, ['input', 'producer', 'route']);
+});
+
+test('Template renders projection DTOs by explicit kind', () => {
+  const workerInstruction = new Template().render({ stepId: 'build', prompt: 'Build instructions.' }, 'workerInstruction');
+  const approvalInstruction = new Template().render({
+    stepId: 'approve',
+    title: 'Approve',
+    inputPrompt: 'Approve it.',
+    promptLayer: '',
+    workflowInstruction: '',
+    state: {},
+    artifacts: [],
+    summaries: [],
+    outputSchema: undefined,
+    choices: { property: 'approval', values: ['approved'] },
+    writeOutputCommand: 'workflow-runner write-output',
+  }, 'approvalInstruction');
+
+  assert.equal(workerInstruction, 'Build instructions.');
+  assert.match(approvalInstruction, /Approval request: approve/);
+  assert.match(approvalInstruction, /- approved -> \{"approval":"approved"\}/);
 });
 
 test('template compiler renders already-resolved required read paths without resolving them', () => {
@@ -173,7 +194,7 @@ test('template compiler renders already-resolved required read paths without res
   assert.deepEqual(rendered.metadata.roleMaterial, ['/abs/project/roles/backend/ROLE.md']);
 });
 
-test('renderWorkflowStepProjection assembles templates, required reads, output contract, projected state, and metadata', () => {
+test('Template workflow renderer assembles templates, required reads, output contract, projected state, and metadata', () => {
   const rendered = renderCompiledWorkflowProjection({
     workflow,
     baton,
@@ -227,7 +248,7 @@ test('renderWorkflowStepProjection assembles templates, required reads, output c
   });
 });
 
-test('renderWorkflowStepProjection injects provided validating writer command into output schema instructions', () => {
+test('Template workflow renderer injects provided validating writer command into output schema instructions', () => {
   const rendered = renderCompiledWorkflowProjection({
     workflow,
     baton,
@@ -249,7 +270,7 @@ test('renderWorkflowStepProjection injects provided validating writer command in
   assert.doesNotMatch(rendered.prompt, /No validating writer command is provided/);
 });
 
-test('renderWorkflowStepProjection reports unsupported prompt placeholders from explicit input templates', () => {
+test('Template workflow renderer reports unsupported prompt placeholders from explicit input templates', () => {
   assert.throws(
     () => renderCompiledWorkflowProjection({
       workflow,
@@ -262,7 +283,7 @@ test('renderWorkflowStepProjection reports unsupported prompt placeholders from 
   );
 });
 
-test('renderWorkflowStepProjection fails clearly when schema-derived notes contain unresolved external refs', () => {
+test('Template workflow renderer fails clearly when schema-derived notes contain unresolved external refs', () => {
   const brokenResources = {
     ...resources,
     outputSchemas: new Map([
@@ -289,7 +310,7 @@ test('renderWorkflowStepProjection fails clearly when schema-derived notes conta
   );
 });
 
-test('renderWorkflowStepProjection keeps local JSON pointer refs in schema-derived notes', () => {
+test('Template workflow renderer keeps local JSON pointer refs in schema-derived notes', () => {
   const localRefResources = {
     ...resources,
     outputSchemas: new Map([

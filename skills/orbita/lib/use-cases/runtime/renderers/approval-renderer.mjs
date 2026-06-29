@@ -1,7 +1,7 @@
 import { prepareWorkflowPromptContext } from '../../../runtime/prompt-render-context.mjs';
 import { assertNoUnsupportedPlaceholders, readInputTemplate } from '../../../entities/Template/compiler/sections/template.mjs';
 import { trimStable } from '../../../entities/Template/compiler/utils.mjs';
-import { renderApprovalStepProjection } from '../../../entities/Template/compiler/approval-renderer.mjs';
+import { Template } from '../../../entities/Template/index.mjs';
 
 function firstNonEmptyString(candidates) {
   const value = candidates.find((candidate) => typeof candidate === 'string' && candidate.trim().length > 0);
@@ -38,11 +38,10 @@ export function buildApprovalStepProjection({ workflow, baton, entry, resources 
 }
 
 export function renderApprovalStep(context = {}) {
-  return renderApprovalStepProjection(buildApprovalStepProjection(context));
+  return new Template().render(buildApprovalStepProjection(context), 'approval');
 }
 
 export const approvalStepRenderer = Object.freeze({
   kind: 'approval',
   project: buildApprovalStepProjection,
-  render: renderApprovalStepProjection,
 });

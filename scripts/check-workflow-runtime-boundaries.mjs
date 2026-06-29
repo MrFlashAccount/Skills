@@ -209,21 +209,33 @@ function checkBoundaries() {
   assertContains(apiRunner, /currentRequestForStep\(response, stepId\)/, 'API runner must validate instruction and output step ids against current rendered requests');
   assertContains(apiRunner, /renderStepInstructionsForStep\(renderedStep/, 'API runner must delegate step instruction rendering');
 
-  const workerRenderer = readFileSync(abs('skills/orbita/lib/entrypoints/api/runner/host-instructions/worker-renderer.mjs'), 'utf8');
-  assertContains(workerRenderer, /missing compiled instructions for workflow step/, 'Worker renderer must fail when compiled instructions are missing');
+  const workerInstructionRenderer = readFileSync(abs('skills/orbita/lib/entities/Template/compiler/worker-instruction-renderer.mjs'), 'utf8');
+  assertContains(workerInstructionRenderer, /missing compiled instructions for workflow step/, 'Template worker instruction renderer must fail when compiled instructions are missing');
   assertAbsent('skills/orbita/lib/entrypoints/api/runner/host-instructions/registry.mjs');
+  assertAbsent('skills/orbita/lib/entrypoints/api/runner/host-instructions/approval-projection.mjs');
+  assertAbsent('skills/orbita/lib/entrypoints/api/runner/host-instructions/approval-renderer.mjs');
+  assertAbsent('skills/orbita/lib/entrypoints/api/runner/host-instructions/worker-renderer.mjs');
 
   const stepRenderPipeline = readFileSync(abs('skills/orbita/lib/use-cases/runtime/parallel/render.mjs'), 'utf8');
   assertContains(stepRenderPipeline, /renderExecutableStep/, 'Runtime prompt rendering must delegate executable step rendering');
   const stepRendererRegistry = readFileSync(abs('skills/orbita/lib/use-cases/runtime/renderers/registry.mjs'), 'utf8');
   assertContains(stepRendererRegistry, /approvalStepRenderer/, 'Runtime step renderer registry must register approval renderer');
   assertContains(stepRendererRegistry, /workflowStepRenderer/, 'Runtime step renderer registry must register workflow renderer');
+  assertContains(stepRendererRegistry, /new Template\(\)\.render\(projection, renderer\.kind/, 'Runtime step rendering must route projection DTOs through Template.render(kind)');
+  const hostInstructionPipeline = readFileSync(abs('skills/orbita/lib/use-cases/runtime/host-instructions/pipeline.mjs'), 'utf8');
+  assertContains(hostInstructionPipeline, /new Template\(\)\.render\(projection, kind/, 'Host instruction use case must route projection DTOs through Template.render(kind)');
+  const apiHostInstructionPipeline = readFileSync(abs('skills/orbita/lib/entrypoints/api/runner/host-instructions/pipeline.mjs'), 'utf8');
+  assertContains(apiHostInstructionPipeline, /renderRuntimeStepInstructionsForStep/, 'API host-instruction adapter must delegate instruction rendering to runtime use case');
+  assertNotContains(apiHostInstructionPipeline, /renderApprovalInstructionProjection|renderWorkerStepInstructions/, 'API host-instruction adapter must not own concrete renderers');
+  scan(walk(abs('skills/orbita/lib/entrypoints/api/runner/host-instructions')), /new Template\(\)\.render|from ['"].*entities\/Template/, 'API host-instruction adapters must not render through Template directly');
   const workflowRenderer = readFileSync(abs('skills/orbita/lib/use-cases/runtime/renderers/workflow-renderer.mjs'), 'utf8');
   assertContains(workflowRenderer, /buildWorkflowStepProjection/, 'Workflow renderer must build an explicit step projection');
   assertNotContains(workflowRenderer, /renderWorkflowPrompt/, 'Workflow renderer must not delegate back to the old Template prompt renderer');
   const templateCompiler = readFileSync(abs('skills/orbita/lib/entities/Template/compiler/index.mjs'), 'utf8');
   assertContains(templateCompiler, /renderWorkflowStepProjection/, 'Template compiler must expose workflow projection renderer');
   assertContains(templateCompiler, /renderApprovalStepProjection/, 'Template compiler must expose approval projection renderer');
+  assertContains(templateCompiler, /renderApprovalInstructionProjection/, 'Template compiler must expose approval host-instruction renderer');
+  assertContains(templateCompiler, /renderWorkerInstructionProjection/, 'Template compiler must expose worker host-instruction renderer');
   assertNotContains(templateCompiler, /approvalPromptLayer|approvalWorkflowInstruction|step\.kind === ['"]approval['"]/, 'Template compiler must not own approval host projection');
 }
 

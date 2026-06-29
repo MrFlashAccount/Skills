@@ -28,10 +28,10 @@ const resources = {
   resolveRunArtifactPath: (artifactPath) => artifactPath,
 };
 
-test('step renderer registry exposes projection-first strategies', () => {
+test('step renderer registry exposes projection builders', () => {
   for (const renderer of Object.values(STEP_RENDERERS)) {
     assert.equal(typeof renderer.project, 'function');
-    assert.equal(typeof renderer.render, 'function');
+    assert.equal(Object.hasOwn(renderer, 'render'), false);
   }
 });
 

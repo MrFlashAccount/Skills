@@ -1,30 +1,29 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { renderApprovalInstruction } from './approval-renderer.mjs';
+import { renderStepInstructionsForStep } from './pipeline.mjs';
 
 test('approval instruction renderer emits exact artifact choice protocol', () => {
-  const actual = renderApprovalInstruction({
+  const actual = renderStepInstructionsForStep({
+    id: 'approve_design',
+    action: 'wait_for_approval',
     step: {
-      id: 'approve_design',
-      action: 'wait_for_approval',
-      step: {
-        name: 'Approve Workflow Design',
-        input: { prompt: 'Approve the proposed workflow design.' },
-        next: { match: '${{ output.approval }}', cases: { approved: 'done', rejected: 'revise', blocked: 'blocked' } },
-      },
-      approvalPrompt: {
-        artifacts: [
-          {
-            label: "Projected artifact 'proposal' from 'design'",
-            path: '/runs/design/artifacts/proposal.md',
-            contentType: 'text/markdown',
-          },
-        ],
-        summaries: [
-          { sourceStepId: 'critic', kind: 'result', summary: 'approved with one follow-up' },
-        ],
-      },
+      name: 'Approve Workflow Design',
+      input: { prompt: 'Approve the proposed workflow design.' },
+      next: { match: '${{ output.approval }}', cases: { approved: 'done', rejected: 'revise', blocked: 'blocked' } },
     },
+    approvalPrompt: {
+      artifacts: [
+        {
+          label: "Projected artifact 'proposal' from 'design'",
+          path: '/runs/design/artifacts/proposal.md',
+          contentType: 'text/markdown',
+        },
+      ],
+      summaries: [
+        { sourceStepId: 'critic', kind: 'result', summary: 'approved with one follow-up' },
+      ],
+    },
+  }, {
     request: {
       resolvedOutputSchema: {
         schema: {
@@ -79,17 +78,16 @@ JSON`);
 });
 
 test('approval instruction renderer emits exact free-form schema protocol', () => {
-  const actual = renderApprovalInstruction({
+  const actual = renderStepInstructionsForStep({
+    id: 'capture_answer',
+    action: 'wait_for_approval',
     step: {
-      id: 'capture_answer',
-      action: 'wait_for_approval',
-      step: {
-        name: 'Capture Answer',
-        input: { prompt: 'Ask the user for the rollout note.' },
-        next: 'done',
-      },
-      approvalPrompt: {},
+      name: 'Capture Answer',
+      input: { prompt: 'Ask the user for the rollout note.' },
+      next: 'done',
     },
+    approvalPrompt: {},
+  }, {
     request: {
       resolvedOutputSchema: {
         schema: {
@@ -147,17 +145,16 @@ JSON`);
 });
 
 test('approval instruction renderer prefers transition choices over incidental schema enums', () => {
-  const actual = renderApprovalInstruction({
+  const actual = renderStepInstructionsForStep({
+    id: 'approve_risk',
+    action: 'wait_for_approval',
     step: {
-      id: 'approve_risk',
-      action: 'wait_for_approval',
-      step: {
-        name: 'Approve Risk',
-        input: { prompt: 'Approve the risk decision.' },
-        next: { match: '${{ output.approval }}', cases: { approved: 'done', rejected: 'revise' } },
-      },
-      approvalPrompt: {},
+      name: 'Approve Risk',
+      input: { prompt: 'Approve the risk decision.' },
+      next: { match: '${{ output.approval }}', cases: { approved: 'done', rejected: 'revise' } },
     },
+    approvalPrompt: {},
+  }, {
     request: {
       resolvedOutputSchema: {
         schema: {
@@ -181,24 +178,22 @@ test('approval instruction renderer prefers transition choices over incidental s
 });
 
 test('approval instruction renderer emits exact template-backed user message', () => {
-  const actual = renderApprovalInstruction({
+  const actual = renderStepInstructionsForStep({
+    id: 'approve_brief',
+    action: 'wait_for_approval',
     step: {
-      id: 'approve_brief',
-      action: 'wait_for_approval',
-      step: {
-        name: 'Approve Brief',
-        input: {
-          template: 'approval-message.md',
-          prompt: 'Make the final call.',
-        },
-        next: { match: '${{ output.approval }}', cases: { approved: 'done', blocked: 'blocked' } },
+      name: 'Approve Brief',
+      input: {
+        template: 'approval-message.md',
+        prompt: 'Make the final call.',
       },
-      approvalPrompt: {
-        promptLayer: '# Approval Brief\n\nReview the risk note before deciding.',
-        workflowInstruction: 'Keep workflow-level context visible.',
-      },
+      next: { match: '${{ output.approval }}', cases: { approved: 'done', blocked: 'blocked' } },
     },
-    request: {},
+    approvalPrompt: {
+      promptLayer: '# Approval Brief\n\nReview the risk note before deciding.',
+      workflowInstruction: 'Keep workflow-level context visible.',
+    },
+  }, {
     commands: { writeOutputCommand: "node workflow-runner.mjs write-output --step-id approve_brief <<'JSON'\n<paste strict JSON here>\nJSON" },
   });
 
