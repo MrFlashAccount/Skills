@@ -625,6 +625,7 @@ test('runner API approval request message preserves host response compatibility 
   assert.doesNotMatch(approval.orchestratorInstruction, /ORBITA APPROVAL READABLE VIEW/);
   assert.match(approval.orchestratorInstruction, /Approval request: approve/);
   assert.match(approval.orchestratorInstruction, /Step: Approve plan \(approve\)/);
+  assert.match(approval.orchestratorInstruction, /Handle this approval request in the orchestrator; do not spawn a worker\./);
   assert.match(approval.orchestratorInstruction, /Show this approval request to the user\./);
   assert.match(approval.orchestratorInstruction, /Ask the user:\nApprove the prepared plan\./);
   assert.match(approval.orchestratorInstruction, /Show\/send these required artifacts or files to the user before asking for approval:/);
@@ -635,6 +636,10 @@ test('runner API approval request message preserves host response compatibility 
   assert.match(approval.orchestratorInstruction, new RegExp(`workflow-runner\\.mjs' write-output --run-id '${runId}' --step-id 'approve'.*--lease-token '${leaseToken}' <<'JSON'`));
   assert.match(approval.orchestratorInstruction, new RegExp(`workflow-runner\\.mjs' continue --run-id '${runId}'.*--lease-token '${leaseToken}'.*--only-instructions`));
   assert.match(approval.orchestratorInstruction, /Do not show the raw compiled approval context to the user by default\./);
+  assert.equal((approval.orchestratorInstruction.match(/write-output --run-id/g) ?? []).length, 1);
+  assert.doesNotMatch(approval.orchestratorInstruction, /Continuation command after all current request outputs are accepted:/);
+  assert.doesNotMatch(approval.orchestratorInstruction, /Read these files before acting/);
+  assert.doesNotMatch(approval.orchestratorInstruction, /Do not proceed until all required reads are complete/);
   assert.doesNotMatch(approval.orchestratorInstruction, /## Projected baton state/);
 });
 

@@ -56,32 +56,11 @@ function inlineInstructionForStep(step, { runId, runsRoot, leaseToken } = {}) {
         leaseToken,
       })
     : "";
-  const continueCommand = typeof runId === "string" && runId.length > 0
-    ? continueInstructionCommandForRun(runId, {
-        runsRoot,
-        leaseToken,
-      })
-    : "";
   return [
     approvalRequestMessageForStep(step, {
       prompt,
       writeOutputCommand,
-      continueCommand,
     }),
-    "",
-    "The orchestrator must execute this approval instruction itself.",
-    "Show the approval request above to the user and ask only for the requested decision/input.",
-    "Show/send every listed required artifact or file to the user before asking for approval.",
-    "Do not replace artifact attachments with summaries or inline full artifact bodies. If the host cannot attach or link a listed artifact, state that capability gap explicitly in the approval message and include the path/reference that could not be attached.",
-    "Do not show the raw compiled approval context to the user by default. Use request.loadInstructionsCommand only for diagnostics or when a listed artifact/reference is unclear.",
-    "Do not inspect workflow source, runner internals, schema files, or CLI help to reconstruct approval output.",
-    writeOutputCommand
-      ? [
-          "After the user decides, normalize the answer to strict JSON and submit it with this validating command:",
-          "",
-          writeOutputCommand,
-        ].join("\n")
-      : "If no validating write-output command is present, stop as blocked with a runner contract bug.",
   ].join("\n");
 }
 
@@ -105,6 +84,26 @@ function compactLines(value, { maxLines = 12 } = {}) {
   return [
     ...lines.slice(0, maxLines),
     `... ${lines.length - maxLines} more lines omitted; use request.loadInstructionsCommand only if the omitted lines are needed.`,
+  ];
+}
+
+function approvalRequiredReferenceLines(value) {
+  const lines = String(value)
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .filter((line) => {
+      const trimmed = line.trim();
+      return trimmed.length > 0
+        && !/^Read these files before acting, in order:?$/i.test(trimmed)
+        && !/^Do not proceed until all required reads are complete\.?$/i.test(trimmed);
+    });
+  if (lines.length === 0) {
+    return ["No required artifacts or files are listed for this approval request."];
+  }
+  if (lines.length <= 12) return lines;
+  return [
+    ...lines.slice(0, 12),
+    `... ${lines.length - 12} more lines omitted; use request.loadInstructionsCommand only if the omitted lines are needed.`,
   ];
 }
 
@@ -146,13 +145,14 @@ function approvalAnswerContractLines(step) {
   ];
 }
 
-function approvalRequestMessageForStep(step, { prompt, writeOutputCommand, continueCommand }) {
+function approvalRequestMessageForStep(step, { prompt, writeOutputCommand }) {
   const workflowStepPrompt = sectionBody(prompt, "Workflow step prompt");
   const requiredReads = sectionBody(prompt, "Required reads");
   const lines = [
     `Approval request: ${step.id}`,
     `Step: ${step.step?.name ?? step.id} (${step.id})`,
     "",
+    "Handle this approval request in the orchestrator; do not spawn a worker.",
     "Show this approval request to the user.",
     "",
     "Ask the user:",
@@ -162,9 +162,10 @@ function approvalRequestMessageForStep(step, { prompt, writeOutputCommand, conti
     "",
     "Show/send these required artifacts or files to the user before asking for approval:",
     ...(requiredReads
-      ? compactLines(requiredReads)
+      ? approvalRequiredReferenceLines(requiredReads)
       : ["No required artifacts or files are listed for this approval request."]),
     "If any listed artifact/file cannot be attached or linked, say that explicitly and include its path/reference.",
+    "Do not show the raw compiled approval context to the user by default. Use request.loadInstructionsCommand only for diagnostics or when a listed artifact/reference is unclear.",
     "",
     "Accepted answer JSON:",
     ...approvalAnswerContractLines(step),
@@ -173,9 +174,6 @@ function approvalRequestMessageForStep(step, { prompt, writeOutputCommand, conti
     ...(writeOutputCommand
       ? writeOutputCommand.split("\n")
       : ["Missing validating writer command; stop as blocked with a runner contract bug."]),
-    "",
-    "Continuation command after all current request outputs are accepted:",
-    continueCommand || "Missing continuation command; stop as blocked with a runner contract bug.",
   ];
   return lines.join("\n");
 }

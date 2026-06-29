@@ -169,6 +169,10 @@ test('E2E fixture: long happy path loops through review revision and preserves l
   assert.match(planned.orchestratorInstruction, /\{ "approval": "approved" \}/);
   assert.match(planned.orchestratorInstruction, /\{ "approval": "rejected" \}/);
   assert.doesNotMatch(planned.orchestratorInstruction, /Plan artifact content for approval\./);
+  assert.equal((planned.orchestratorInstruction.match(/write-output --run-id/g) ?? []).length, 1);
+  assert.doesNotMatch(planned.orchestratorInstruction, /Continuation command after all current request outputs are accepted:/);
+  assert.doesNotMatch(planned.orchestratorInstruction, /Read these files before acting/);
+  assert.doesNotMatch(planned.orchestratorInstruction, /Do not proceed until all required reads are complete/);
   assert.doesNotMatch(planned.orchestratorInstruction, /## Projected baton state/);
   const approvalInstructions = instructions(run, 'approval_gate');
   assert.match(approvalInstructions, /## Required reads/);
