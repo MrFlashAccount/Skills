@@ -11,8 +11,6 @@ import {
 const TERMINAL_ACTIONS = new Set(["stop_done", "stop_blocked"]);
 const SUPERSEDES_STDOUT_INSTRUCTION =
   "Supersedes all previous workflow-runner stdout.";
-const APPROVAL_READABLE_VIEW_START = "----- BEGIN ORBITA APPROVAL READABLE VIEW -----";
-const APPROVAL_READABLE_VIEW_END = "----- END ORBITA APPROVAL READABLE VIEW -----";
 
 export { assertSafeStepId };
 
@@ -65,18 +63,17 @@ function inlineInstructionForStep(step, { runId, runsRoot, leaseToken } = {}) {
       })
     : "";
   return [
-    approvalReadableViewForStep(step, {
+    approvalRequestMessageForStep(step, {
       prompt,
       writeOutputCommand,
       continueCommand,
     }),
     "",
-    `Approval request: ${step.id}`,
-    "",
     "The orchestrator must execute this approval instruction itself.",
-    "Use the following compiled approval prompt as the complete source for the user-facing approval message.",
-    "When the compiled approval prompt lists required-read files or projected artifact paths, attach those artifact files through the host/platform approval mechanism before asking for a decision.",
+    "Show the approval request above to the user and ask only for the requested decision/input.",
+    "Show/send every listed required artifact or file to the user before asking for approval.",
     "Do not replace artifact attachments with summaries or inline full artifact bodies. If the host cannot attach or link a listed artifact, state that capability gap explicitly in the approval message and include the path/reference that could not be attached.",
+    "Do not show the raw compiled approval context to the user by default. Use request.loadInstructionsCommand only for diagnostics or when a listed artifact/reference is unclear.",
     "Do not inspect workflow source, runner internals, schema files, or CLI help to reconstruct approval output.",
     writeOutputCommand
       ? [
@@ -85,8 +82,6 @@ function inlineInstructionForStep(step, { runId, runsRoot, leaseToken } = {}) {
           writeOutputCommand,
         ].join("\n")
       : "If no validating write-output command is present, stop as blocked with a runner contract bug.",
-    "",
-    prompt.trimEnd(),
   ].join("\n");
 }
 
@@ -109,7 +104,7 @@ function compactLines(value, { maxLines = 12 } = {}) {
   if (lines.length <= maxLines) return lines;
   return [
     ...lines.slice(0, maxLines),
-    `... ${lines.length - maxLines} more lines omitted; see the compiled approval prompt below.`,
+    `... ${lines.length - maxLines} more lines omitted; use request.loadInstructionsCommand only if the omitted lines are needed.`,
   ];
 }
 
@@ -127,7 +122,7 @@ function approvalAnswerContractLines(step) {
   if (typeof schemaRef === "string" && schemaRef.trim().length > 0) {
     return [
       `Schema-backed answer: normalize the user's decision to the declared output schema \`${schemaRef}\`.`,
-      "Use the schema details in the compiled approval prompt below; do not infer a different shape.",
+      "Use the resolved request schema when present; do not infer a different shape.",
     ];
   }
 
@@ -151,26 +146,27 @@ function approvalAnswerContractLines(step) {
   ];
 }
 
-function approvalReadableViewForStep(step, { prompt, writeOutputCommand, continueCommand }) {
+function approvalRequestMessageForStep(step, { prompt, writeOutputCommand, continueCommand }) {
   const workflowStepPrompt = sectionBody(prompt, "Workflow step prompt");
   const requiredReads = sectionBody(prompt, "Required reads");
   const lines = [
-    APPROVAL_READABLE_VIEW_START,
-    `Request id: ${step.id}`,
-    `Step id: ${step.id}`,
-    `Step name: ${step.step?.name ?? step.id}`,
+    `Approval request: ${step.id}`,
+    `Step: ${step.step?.name ?? step.id} (${step.id})`,
     "",
-    "Decision prompt summary:",
+    "Show this approval request to the user.",
+    "",
+    "Ask the user:",
     ...(workflowStepPrompt
       ? compactLines(workflowStepPrompt, { maxLines: 6 })
-      : ["Use the compiled approval prompt below."]),
+      : ["Ask for the approval decision requested by this workflow step."]),
     "",
-    "Required reads and artifact references:",
+    "Show/send these required artifacts or files to the user before asking for approval:",
     ...(requiredReads
       ? compactLines(requiredReads)
-      : ["No required reads or projected artifact references declared."]),
+      : ["No required artifacts or files are listed for this approval request."]),
+    "If any listed artifact/file cannot be attached or linked, say that explicitly and include its path/reference.",
     "",
-    "Approval answer contract:",
+    "Accepted answer JSON:",
     ...approvalAnswerContractLines(step),
     "",
     "Validating writer command:",
@@ -180,7 +176,6 @@ function approvalReadableViewForStep(step, { prompt, writeOutputCommand, continu
     "",
     "Continuation command after all current request outputs are accepted:",
     continueCommand || "Missing continuation command; stop as blocked with a runner contract bug.",
-    APPROVAL_READABLE_VIEW_END,
   ];
   return lines.join("\n");
 }

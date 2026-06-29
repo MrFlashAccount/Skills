@@ -587,10 +587,10 @@ test('runner API propagates custom runsRoot through next, instructions, and cont
   assert.equal(existsSync(resolveRunPaths({ runId }).runDir), false);
 });
 
-test('runner API approval readable view preserves host response compatibility surfaces', async () => {
-  const runId = `workflow-runner-test-${process.pid}-approval-readable-view`;
-  const workflowPath = path.join(tempDir, 'approval-readable-view-workflow.json');
-  const leaseToken = `approval-readable-view-token-${process.pid}`;
+test('runner API approval request message preserves host response compatibility surfaces', async () => {
+  const runId = `workflow-runner-test-${process.pid}-approval-request-message`;
+  const workflowPath = path.join(tempDir, 'approval-request-message-workflow.json');
+  const leaseToken = `approval-request-message-token-${process.pid}`;
   const approvalWorkflow = structuredClone(workflowDoc);
   approvalWorkflow.steps.prepare.next = 'approve';
   approvalWorkflow.steps.approve = {
@@ -606,7 +606,7 @@ test('runner API approval readable view preserves host response compatibility su
   rmSync(resolveRunPaths({ runId }).runDir, { recursive: true, force: true });
 
   await runnerNext({ runId, workflowPath, leaseToken });
-  const prepareOutputPath = path.join(tempDir, 'approval-readable-view-output.json');
+  const prepareOutputPath = path.join(tempDir, 'approval-request-message-output.json');
   writeJson(prepareOutputPath, workerOutput('prepared for approval'));
   await runnerWriteOutput({
     runId,
@@ -622,16 +622,20 @@ test('runner API approval readable view preserves host response compatibility su
   assert.deepEqual(Object.keys(approval.requests[0]).sort(), ['action', 'id', 'loadInstructionsCommand', 'stepId'].sort());
   const instructionRequests = requestsFromOrchestratorInstruction(approval.orchestratorInstruction);
   assert.deepEqual(instructionRequests.map((request) => [request.action, request.stepId]), [['wait_for_approval', 'approve']]);
-  assert.match(approval.orchestratorInstruction, /----- BEGIN ORBITA APPROVAL READABLE VIEW -----/);
-  assert.match(approval.orchestratorInstruction, /Request id: approve/);
-  assert.match(approval.orchestratorInstruction, /Step id: approve/);
-  assert.match(approval.orchestratorInstruction, /Decision prompt summary:\nApprove the prepared plan\./);
+  assert.doesNotMatch(approval.orchestratorInstruction, /ORBITA APPROVAL READABLE VIEW/);
+  assert.match(approval.orchestratorInstruction, /Approval request: approve/);
+  assert.match(approval.orchestratorInstruction, /Step: Approve plan \(approve\)/);
+  assert.match(approval.orchestratorInstruction, /Show this approval request to the user\./);
+  assert.match(approval.orchestratorInstruction, /Ask the user:\nApprove the prepared plan\./);
+  assert.match(approval.orchestratorInstruction, /Show\/send these required artifacts or files to the user before asking for approval:/);
+  assert.match(approval.orchestratorInstruction, /No required artifacts or files are listed for this approval request\./);
   assert.match(approval.orchestratorInstruction, /Schema-less answer: submit one minimal normalized JSON object\./);
   assert.match(approval.orchestratorInstruction, /\{ "approval": "approved" \}/);
   assert.match(approval.orchestratorInstruction, /\{ "approval": "rejected" \}/);
   assert.match(approval.orchestratorInstruction, new RegExp(`workflow-runner\\.mjs' write-output --run-id '${runId}' --step-id 'approve'.*--lease-token '${leaseToken}' <<'JSON'`));
   assert.match(approval.orchestratorInstruction, new RegExp(`workflow-runner\\.mjs' continue --run-id '${runId}'.*--lease-token '${leaseToken}'.*--only-instructions`));
-  assert.match(approval.orchestratorInstruction, /Approval request: approve/);
+  assert.match(approval.orchestratorInstruction, /Do not show the raw compiled approval context to the user by default\./);
+  assert.doesNotMatch(approval.orchestratorInstruction, /## Projected baton state/);
 });
 
 test('runner API emits absolute runsRoot in portable commands for relative custom roots', async () => {
