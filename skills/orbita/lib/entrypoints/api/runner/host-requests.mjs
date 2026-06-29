@@ -11,6 +11,8 @@ import {
 const TERMINAL_ACTIONS = new Set(["stop_done", "stop_blocked"]);
 const SUPERSEDES_STDOUT_INSTRUCTION =
   "Supersedes all previous workflow-runner stdout.";
+const APPROVAL_READABLE_VIEW_START = "----- BEGIN ORBITA APPROVAL READABLE VIEW -----";
+const APPROVAL_READABLE_VIEW_END = "----- END ORBITA APPROVAL READABLE VIEW -----";
 
 export { assertSafeStepId };
 
@@ -56,7 +58,19 @@ function inlineInstructionForStep(step, { runId, runsRoot, leaseToken } = {}) {
         leaseToken,
       })
     : "";
+  const continueCommand = typeof runId === "string" && runId.length > 0
+    ? continueInstructionCommandForRun(runId, {
+        runsRoot,
+        leaseToken,
+      })
+    : "";
   return [
+    approvalReadableViewForStep(step, {
+      prompt,
+      writeOutputCommand,
+      continueCommand,
+    }),
+    "",
     `Approval request: ${step.id}`,
     "",
     "The orchestrator must execute this approval instruction itself.",
@@ -74,6 +88,101 @@ function inlineInstructionForStep(step, { runId, runsRoot, leaseToken } = {}) {
     "",
     prompt.trimEnd(),
   ].join("\n");
+}
+
+function sectionBody(prompt, heading) {
+  const start = prompt.indexOf(`## ${heading}`);
+  if (start < 0) return "";
+  const bodyStart = prompt.indexOf("\n", start);
+  if (bodyStart < 0) return "";
+  const nextHeading = prompt.indexOf("\n## ", bodyStart + 1);
+  return prompt
+    .slice(bodyStart + 1, nextHeading < 0 ? undefined : nextHeading)
+    .trim();
+}
+
+function compactLines(value, { maxLines = 12 } = {}) {
+  const lines = String(value)
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .filter((line) => line.trim().length > 0);
+  if (lines.length <= maxLines) return lines;
+  return [
+    ...lines.slice(0, maxLines),
+    `... ${lines.length - maxLines} more lines omitted; see the compiled approval prompt below.`,
+  ];
+}
+
+function approvalCaseValues(step) {
+  const next = step.step?.next;
+  if (!next || typeof next !== "object" || Array.isArray(next)) return [];
+  if (next.match !== "${{ output.approval }}") return [];
+  const cases = next.cases;
+  if (!cases || typeof cases !== "object" || Array.isArray(cases)) return [];
+  return Object.keys(cases);
+}
+
+function approvalAnswerContractLines(step) {
+  const schemaRef = step.step?.output?.schema;
+  if (typeof schemaRef === "string" && schemaRef.trim().length > 0) {
+    return [
+      `Schema-backed answer: normalize the user's decision to the declared output schema \`${schemaRef}\`.`,
+      "Use the schema details in the compiled approval prompt below; do not infer a different shape.",
+    ];
+  }
+
+  const values = approvalCaseValues(step);
+  const examples = [];
+  if (values.length === 0 || values.includes("approved")) {
+    examples.push('{ "approval": "approved" }');
+  }
+  const changeValue = [
+    "rejected",
+    "request_changes",
+    "changes_requested",
+    "retry",
+    "blocked",
+  ].find((value) => values.includes(value));
+  if (changeValue) examples.push(`{ "approval": "${changeValue}" }`);
+
+  return [
+    "Schema-less answer: submit one minimal normalized JSON object.",
+    ...examples.map((example) => `Example: ${example}`),
+  ];
+}
+
+function approvalReadableViewForStep(step, { prompt, writeOutputCommand, continueCommand }) {
+  const workflowStepPrompt = sectionBody(prompt, "Workflow step prompt");
+  const requiredReads = sectionBody(prompt, "Required reads");
+  const lines = [
+    APPROVAL_READABLE_VIEW_START,
+    `Request id: ${step.id}`,
+    `Step id: ${step.id}`,
+    `Step name: ${step.step?.name ?? step.id}`,
+    "",
+    "Decision prompt summary:",
+    ...(workflowStepPrompt
+      ? compactLines(workflowStepPrompt, { maxLines: 6 })
+      : ["Use the compiled approval prompt below."]),
+    "",
+    "Required reads and artifact references:",
+    ...(requiredReads
+      ? compactLines(requiredReads)
+      : ["No required reads or projected artifact references declared."]),
+    "",
+    "Approval answer contract:",
+    ...approvalAnswerContractLines(step),
+    "",
+    "Validating writer command:",
+    ...(writeOutputCommand
+      ? writeOutputCommand.split("\n")
+      : ["Missing validating writer command; stop as blocked with a runner contract bug."]),
+    "",
+    "Continuation command after all current request outputs are accepted:",
+    continueCommand || "Missing continuation command; stop as blocked with a runner contract bug.",
+    APPROVAL_READABLE_VIEW_END,
+  ];
+  return lines.join("\n");
 }
 
 function inlineInstructionsForSteps(steps = [], options = {}) {

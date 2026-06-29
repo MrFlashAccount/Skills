@@ -160,6 +160,14 @@ test('E2E fixture: long happy path loops through review revision and preserves l
   assert.equal(planned.baton.cursor, 'approval_gate');
   assert.equal(planned.requests[0].action, 'wait_for_approval');
   assert.equal(planned.baton.state.plan.artifacts[0].summary, 'plan v1');
+  assert.match(planned.orchestratorInstruction, /----- BEGIN ORBITA APPROVAL READABLE VIEW -----/);
+  assert.match(planned.orchestratorInstruction, /Request id: approval_gate/);
+  assert.match(planned.orchestratorInstruction, /Step id: approval_gate/);
+  assert.match(planned.orchestratorInstruction, /Projected artifact 'plan' from 'plan' \(text\/markdown\):/);
+  assert.match(planned.orchestratorInstruction, /plan\/artifacts\/plan\.md/);
+  assert.match(planned.orchestratorInstruction, /\{ "approval": "approved" \}/);
+  assert.match(planned.orchestratorInstruction, /\{ "approval": "rejected" \}/);
+  assert.doesNotMatch(planned.orchestratorInstruction, /Plan artifact content for approval\./);
   const approvalInstructions = instructions(run, 'approval_gate');
   assert.match(approvalInstructions, /## Required reads/);
   assert.match(approvalInstructions, /Projected artifact 'plan' from 'plan' \(text\/markdown\):/);

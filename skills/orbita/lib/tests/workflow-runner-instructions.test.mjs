@@ -182,6 +182,13 @@ function workerOutput(summary) {
   return { outcome: 'ready', results: [{ type: 'check', summary }] };
 }
 
+function requestsFromOrchestratorInstruction(instruction) {
+  const prefix = 'Execute every host request in this JSON and wait until all requested actions finish: ';
+  const line = instruction.split('\n').find((candidate) => candidate.startsWith(prefix));
+  assert.ok(line, 'orchestrator instruction must include current request JSON directive');
+  return JSON.parse(line.slice(prefix.length));
+}
+
 after(() => rmSync(tempDir, { recursive: true, force: true }));
 
 test('runner: next resolves external workflow package shared resources from repo boundary', () => {
@@ -578,6 +585,53 @@ test('runner API propagates custom runsRoot through next, instructions, and cont
   const baton = JSON.parse(readFileSync(path.join(resolveRunPaths({ runId, runsRoot }).runDir, 'baton.json'), 'utf8'));
   assert.deepEqual(baton.workerBindings, { prepare: 'custom-root-worker' });
   assert.equal(existsSync(resolveRunPaths({ runId }).runDir), false);
+});
+
+test('runner API approval readable view preserves host response compatibility surfaces', async () => {
+  const runId = `workflow-runner-test-${process.pid}-approval-readable-view`;
+  const workflowPath = path.join(tempDir, 'approval-readable-view-workflow.json');
+  const leaseToken = `approval-readable-view-token-${process.pid}`;
+  const approvalWorkflow = structuredClone(workflowDoc);
+  approvalWorkflow.steps.prepare.next = 'approve';
+  approvalWorkflow.steps.approve = {
+    name: 'Approve plan',
+    kind: 'approval',
+    input: {
+      state: ['prepare'],
+      prompt: 'Approve the prepared plan.',
+    },
+    next: { match: '${{ output.approval }}', cases: { approved: 'done', rejected: 'prepare', blocked: 'blocked' } },
+  };
+  writeJson(workflowPath, approvalWorkflow);
+  rmSync(resolveRunPaths({ runId }).runDir, { recursive: true, force: true });
+
+  await runnerNext({ runId, workflowPath, leaseToken });
+  const prepareOutputPath = path.join(tempDir, 'approval-readable-view-output.json');
+  writeJson(prepareOutputPath, workerOutput('prepared for approval'));
+  await runnerWriteOutput({
+    runId,
+    workflowPath,
+    stepId: 'prepare',
+    json: readFileSync(prepareOutputPath, 'utf8'),
+    leaseToken,
+  });
+  const approval = await runnerContinueRun({ runId, workflowPath, leaseToken });
+
+  assert.equal(approval.status, 'needs_host_actions');
+  assert.equal(approval.requests[0].action, 'wait_for_approval');
+  assert.deepEqual(Object.keys(approval.requests[0]).sort(), ['action', 'id', 'loadInstructionsCommand', 'stepId'].sort());
+  const instructionRequests = requestsFromOrchestratorInstruction(approval.orchestratorInstruction);
+  assert.deepEqual(instructionRequests.map((request) => [request.action, request.stepId]), [['wait_for_approval', 'approve']]);
+  assert.match(approval.orchestratorInstruction, /----- BEGIN ORBITA APPROVAL READABLE VIEW -----/);
+  assert.match(approval.orchestratorInstruction, /Request id: approve/);
+  assert.match(approval.orchestratorInstruction, /Step id: approve/);
+  assert.match(approval.orchestratorInstruction, /Decision prompt summary:\nApprove the prepared plan\./);
+  assert.match(approval.orchestratorInstruction, /Schema-less answer: submit one minimal normalized JSON object\./);
+  assert.match(approval.orchestratorInstruction, /\{ "approval": "approved" \}/);
+  assert.match(approval.orchestratorInstruction, /\{ "approval": "rejected" \}/);
+  assert.match(approval.orchestratorInstruction, new RegExp(`workflow-runner\\.mjs' write-output --run-id '${runId}' --step-id 'approve'.*--lease-token '${leaseToken}' <<'JSON'`));
+  assert.match(approval.orchestratorInstruction, new RegExp(`workflow-runner\\.mjs' continue --run-id '${runId}'.*--lease-token '${leaseToken}'.*--only-instructions`));
+  assert.match(approval.orchestratorInstruction, /Approval request: approve/);
 });
 
 test('runner API emits absolute runsRoot in portable commands for relative custom roots', async () => {
