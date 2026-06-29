@@ -161,11 +161,10 @@ test('Template renders projection DTOs by explicit kind', () => {
     inputPrompt: 'Approve it.',
     promptLayer: '',
     workflowInstruction: '',
-    state: {},
     artifacts: [],
     summaries: [],
     outputSchema: undefined,
-    choices: { property: 'approval', values: ['approved'] },
+    choices: { path: ['approval'], values: ['approved'] },
     writeOutputCommand: 'workflow-runner write-output',
   }, 'approvalInstruction');
 

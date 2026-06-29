@@ -76,6 +76,7 @@ test('step renderer registry keeps approval projection out of compiledPrompt', (
         name: 'Approve',
         kind: 'approval',
         input: { template: 'approval.md', state: ['design'], prompt: 'Approve it.' },
+        next: { match: '${{ output.decision.choice }}', cases: { approved: 'done', rejected: 'blocked' } },
       },
     },
     resources,
@@ -83,14 +84,10 @@ test('step renderer registry keeps approval projection out of compiledPrompt', (
 
   assert.equal(Object.hasOwn(rendered, 'compiledPrompt'), false);
   assert.deepEqual(rendered.approvalPrompt, {
+    title: 'Approve',
+    inputPrompt: 'Approve it.',
     promptLayer: '# Approval Brief\n\nReview packet before deciding.',
     workflowInstruction: 'Keep workflow context visible.',
-    state: {
-      design: {
-        results: [{ summary: 'ready for approval' }],
-        artifacts: [{ id: 'packet', path: artifactPath, content_type: 'text/markdown', summary: 'approval packet' }],
-      },
-    },
     artifacts: [{
       id: 'packet',
       label: "Projected artifact 'packet' from 'design'",
@@ -102,5 +99,6 @@ test('step renderer registry keeps approval projection out of compiledPrompt', (
       { sourceStepId: 'design', kind: 'result', summary: 'ready for approval' },
       { sourceStepId: 'design', kind: 'artifact', summary: "Artifact 'packet': approval packet" },
     ],
+    choices: { path: ['decision', 'choice'], values: ['approved', 'rejected'] },
   });
 });

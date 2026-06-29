@@ -55,8 +55,6 @@ export function buildWorkflowStepProjection({
 
   return {
     stepId: entry.id,
-    step,
-    input,
     promptLayer: usesDefaultPrompt ? defaultPrompt({ step, input }) : inputTemplate.content,
     templatePath: inputTemplate.metadataPath,
     workflowInstruction: workflowInstruction({ workflow }),

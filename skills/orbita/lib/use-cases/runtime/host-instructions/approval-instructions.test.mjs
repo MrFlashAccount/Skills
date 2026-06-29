@@ -6,12 +6,10 @@ test('approval instruction renderer emits exact artifact choice protocol', () =>
   const actual = renderStepInstructionsForStep({
     id: 'approve_design',
     action: 'wait_for_approval',
-    step: {
-      name: 'Approve Workflow Design',
-      input: { prompt: 'Approve the proposed workflow design.' },
-      next: { match: '${{ output.approval }}', cases: { approved: 'done', rejected: 'revise', blocked: 'blocked' } },
-    },
     approvalPrompt: {
+      title: 'Approve Workflow Design',
+      inputPrompt: 'Approve the proposed workflow design.',
+      choices: { path: ['approval'], values: ['approved', 'rejected', 'blocked'] },
       artifacts: [
         {
           label: "Projected artifact 'proposal' from 'design'",
@@ -81,12 +79,10 @@ test('approval instruction renderer emits exact free-form schema protocol', () =
   const actual = renderStepInstructionsForStep({
     id: 'capture_answer',
     action: 'wait_for_approval',
-    step: {
-      name: 'Capture Answer',
-      input: { prompt: 'Ask the user for the rollout note.' },
-      next: 'done',
+    approvalPrompt: {
+      title: 'Capture Answer',
+      inputPrompt: 'Ask the user for the rollout note.',
     },
-    approvalPrompt: {},
   }, {
     request: {
       resolvedOutputSchema: {
@@ -144,16 +140,15 @@ node workflow-runner.mjs write-output --step-id capture_answer <<'JSON'
 JSON`);
 });
 
-test('approval instruction renderer prefers transition choices over incidental schema enums', () => {
+test('approval instruction renderer uses compiled transition choices over incidental schema enums', () => {
   const actual = renderStepInstructionsForStep({
     id: 'approve_risk',
     action: 'wait_for_approval',
-    step: {
-      name: 'Approve Risk',
-      input: { prompt: 'Approve the risk decision.' },
-      next: { match: '${{ output.approval }}', cases: { approved: 'done', rejected: 'revise' } },
+    approvalPrompt: {
+      title: 'Approve Risk',
+      inputPrompt: 'Approve the risk decision.',
+      choices: { path: ['approval'], values: ['approved', 'rejected'] },
     },
-    approvalPrompt: {},
   }, {
     request: {
       resolvedOutputSchema: {
@@ -181,15 +176,10 @@ test('approval instruction renderer emits exact template-backed user message', (
   const actual = renderStepInstructionsForStep({
     id: 'approve_brief',
     action: 'wait_for_approval',
-    step: {
-      name: 'Approve Brief',
-      input: {
-        template: 'approval-message.md',
-        prompt: 'Make the final call.',
-      },
-      next: { match: '${{ output.approval }}', cases: { approved: 'done', blocked: 'blocked' } },
-    },
     approvalPrompt: {
+      title: 'Approve Brief',
+      inputPrompt: 'Make the final call.',
+      choices: { path: ['approval'], values: ['approved', 'blocked'] },
       promptLayer: '# Approval Brief\n\nReview the risk note before deciding.',
       workflowInstruction: 'Keep workflow-level context visible.',
     },
@@ -231,4 +221,40 @@ Submit with:
 node workflow-runner.mjs write-output --step-id approve_brief <<'JSON'
 <paste strict JSON here>
 JSON`);
+});
+
+test('approval instruction renderer renders nested compiled choice paths', () => {
+  const actual = renderStepInstructionsForStep({
+    id: 'approve_nested',
+    action: 'wait_for_approval',
+    approvalPrompt: {
+      title: 'Approve Nested Route',
+      inputPrompt: 'Pick the route.',
+      choices: { path: ['decision', 'choice'], values: ['ship', 'revise'] },
+    },
+  }, {
+    request: {
+      resolvedOutputSchema: {
+        schema: {
+          type: 'object',
+          required: ['decision'],
+          properties: {
+            decision: {
+              type: 'object',
+              required: ['choice'],
+              properties: {
+                choice: { enum: ['ship', 'revise'] },
+              },
+              additionalProperties: false,
+            },
+          },
+          additionalProperties: false,
+        },
+      },
+    },
+    commands: { writeOutputCommand: "node workflow-runner.mjs write-output --step-id approve_nested <<'JSON'\n<paste strict JSON here>\nJSON" },
+  });
+
+  assert.match(actual, /- ship -> \{"decision":\{"choice":"ship"\}\}/);
+  assert.match(actual, /- revise -> \{"decision":\{"choice":"revise"\}\}/);
 });

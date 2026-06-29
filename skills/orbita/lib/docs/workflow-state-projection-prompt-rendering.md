@@ -265,6 +265,8 @@ templateEntity.render(projectionDTO, "approval") -> { approvalPrompt }
 templateEntity.render(projectionDTO, "workerInstruction" | "approvalInstruction") -> instructions
 ```
 
+Approval prompt DTOs are compiled runtime projections, not raw workflow steps. They may carry title, input prompt, projected artifact attachments, compact summaries, workflow context, and precompiled output choices such as `{ path: ["approval"], values: [...] }`. They must not carry the full projected baton state object, and host-instruction rendering must not parse `step.next` or expression syntax.
+
 ### Inputs
 
 The runtime projection builder receives already-validated workflow/baton/step data plus an optional render-time `userPrompt` string. The runner/runtime decides whether startup `baton.user_prompt` is eligible for the current worker and passes it in only then; approval/user-gate answers are different interactions and are not startup `userPrompt`.

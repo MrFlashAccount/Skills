@@ -224,6 +224,8 @@ function checkBoundaries() {
   assertContains(stepRendererRegistry, /new Template\(\)\.render\(projection, renderer\.kind/, 'Runtime step rendering must route projection DTOs through Template.render(kind)');
   const hostInstructionPipeline = readFileSync(abs('skills/orbita/lib/use-cases/runtime/host-instructions/pipeline.mjs'), 'utf8');
   assertContains(hostInstructionPipeline, /new Template\(\)\.render\(projection, kind/, 'Host instruction use case must route projection DTOs through Template.render(kind)');
+  const approvalInstructionProjection = readFileSync(abs('skills/orbita/lib/use-cases/runtime/host-instructions/approval-projection.mjs'), 'utf8');
+  assertNotContains(approvalInstructionProjection, /step\?\.step|\.step\.next|next\.match|normalizeTransitionNext|parsePathExpression/, 'Host approval instruction projection must consume compiled approvalPrompt data instead of parsing raw workflow steps');
   const apiHostInstructionPipeline = readFileSync(abs('skills/orbita/lib/entrypoints/api/runner/host-instructions/pipeline.mjs'), 'utf8');
   assertContains(apiHostInstructionPipeline, /renderRuntimeStepInstructionsForStep/, 'API host-instruction adapter must delegate instruction rendering to runtime use case');
   assertNotContains(apiHostInstructionPipeline, /renderApprovalInstructionProjection|renderWorkerStepInstructions/, 'API host-instruction adapter must not own concrete renderers');

@@ -31,15 +31,29 @@ function placeholderForSchema(schema) {
   }
 }
 
-function exampleForChoice({ property, value, schema }) {
+function setPathValue(target, path, value) {
+  if (!Array.isArray(path) || path.length === 0) return;
+  let current = target;
+  for (const segment of path.slice(0, -1)) {
+    if (!current[segment] || typeof current[segment] !== 'object' || Array.isArray(current[segment])) {
+      current[segment] = {};
+    }
+    current = current[segment];
+  }
+  current[path.at(-1)] = value;
+}
+
+function exampleForChoice({ path, value, schema }) {
+  const choicePath = Array.isArray(path) && path.length > 0 ? path : ['approval'];
   const properties = schema?.properties && typeof schema.properties === 'object' && !Array.isArray(schema.properties)
     ? schema.properties
     : {};
-  const example = {};
+  const example = schema?.type === 'object' ? placeholderForSchema(schema) : {};
+  if (!example || typeof example !== 'object' || Array.isArray(example)) return JSON.stringify({ [choicePath.at(-1)]: value });
   for (const key of schema?.required ?? []) {
-    example[key] = key === property ? value : placeholderForSchema(properties[key]);
+    if (!Object.hasOwn(example, key)) example[key] = placeholderForSchema(properties[key]);
   }
-  example[property] = value;
+  setPathValue(example, choicePath, value);
   if (value === 'blocked' && schema?.properties?.blocker && !Object.hasOwn(example, 'blocker')) example.blocker = { reason: '...' };
   return JSON.stringify(example);
 }
@@ -58,18 +72,7 @@ function attachArtifactsBlock(artifacts) {
   ].join('\n');
 }
 
-function projectedStateBlock(state) {
-  if (!state || typeof state !== 'object' || Array.isArray(state) || Object.keys(state).length === 0) return [];
-  return [
-    '',
-    'Projected state:',
-    '```json',
-    JSON.stringify(state, null, 2),
-    '```',
-  ];
-}
-
-function userMessageBlock({ title, inputPrompt, promptLayer, workflowInstruction, state, artifacts, summaries, choices }) {
+function userMessageBlock({ title, inputPrompt, promptLayer, workflowInstruction, artifacts, summaries, choices }) {
   const lines = [
     `**${title}**`,
     '',
@@ -81,7 +84,6 @@ function userMessageBlock({ title, inputPrompt, promptLayer, workflowInstruction
   if (artifacts.length > 0) {
     lines.push(...artifacts.map((artifact) => `- Attached artifact: ${artifact.label}`));
   }
-  lines.push(...projectedStateBlock(state));
   if (choices) {
     lines.push('', 'Choose one:', ...choices.values.map((value) => `- ${value}`));
   } else {
@@ -104,7 +106,7 @@ function normalizationBlock({ choices, outputSchema }) {
   return [
     "Normalize the user's answer to strict JSON that satisfies the output schema.",
     'Known choices:',
-    ...choices.values.map((value) => `- ${value} -> ${exampleForChoice({ property: choices.property, value, schema: outputSchema })}`),
+    ...choices.values.map((value) => `- ${value} -> ${exampleForChoice({ path: choices.path, value, schema: outputSchema })}`),
   ].join('\n');
 }
 

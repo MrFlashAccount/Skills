@@ -500,9 +500,12 @@ test('output.schema: structured step output is projected by step id into downstr
   ]);
 
   assert.equal(Object.hasOwn(renderResponse.steps[0], 'compiledPrompt'), false);
-  assert.deepEqual(renderResponse.steps[0].approvalPrompt.state.worker_step.payload, { ok: true });
-  assert.equal(renderResponse.steps[0].approvalPrompt.state.worker_step.artifacts[0].summary, 'structured projection artifact');
-  assert.equal(JSON.stringify(renderResponse.steps[0].approvalPrompt.state).includes('[object Object]'), false);
+  assert.equal(Object.hasOwn(renderResponse.steps[0].approvalPrompt, 'state'), false);
+  assert.equal(renderResponse.steps[0].approvalPrompt.artifacts[0].path, path.join(tempDir, 'worker_step', 'artifacts', 'packet.md'));
+  assert.deepEqual(renderResponse.steps[0].approvalPrompt.summaries, [
+    { sourceStepId: 'worker_step', kind: 'artifact', summary: "Artifact 'packet': structured projection artifact" },
+  ]);
+  assert.equal(JSON.stringify(renderResponse.steps[0].approvalPrompt).includes('[object Object]'), false);
 });
 
 test('output.schema: projected structured output renders schema field notes before JSON', () => {
@@ -627,7 +630,10 @@ test('output.schema: non-structured worker output is projected by step id into d
   ]);
 
   assert.equal(Object.hasOwn(renderResponse.steps[0], 'compiledPrompt'), false);
-  assert.equal(renderResponse.steps[0].approvalPrompt.state.worker_step.results[0].summary, 'plain markdown result body');
+  assert.equal(Object.hasOwn(renderResponse.steps[0].approvalPrompt, 'state'), false);
+  assert.deepEqual(renderResponse.steps[0].approvalPrompt.summaries, [
+    { sourceStepId: 'worker_step', kind: 'result', summary: 'plain markdown result body' },
+  ]);
 });
 
 test('output.schema: central artifact contract accepts simplified shape and rejects legacy artifact fields', () => {

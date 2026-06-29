@@ -1,9 +1,12 @@
 function titleForStep(step) {
-  return step?.step?.name ?? step?.id ?? 'Approval request';
+  const title = step?.approvalPrompt?.title;
+  return typeof title === 'string' && title.trim().length > 0
+    ? title.trim()
+    : step?.id ?? 'Approval request';
 }
 
 function inputPromptForStep(step) {
-  const prompt = step?.step?.input?.prompt;
+  const prompt = step?.approvalPrompt?.inputPrompt;
   return typeof prompt === 'string' && prompt.trim().length > 0
     ? prompt.trim()
     : 'Ask the user for this workflow approval decision.';
@@ -33,13 +36,6 @@ function workflowInstructionForStep(step) {
     : '';
 }
 
-function projectedStateForStep(step) {
-  const state = step?.approvalPrompt?.state;
-  return state && typeof state === 'object' && !Array.isArray(state)
-    ? state
-    : {};
-}
-
 export function outputSchemaForRequest(request) {
   const schema = request?.resolvedOutputSchema?.schema;
   return schema && typeof schema === 'object' && !Array.isArray(schema)
@@ -47,46 +43,15 @@ export function outputSchemaForRequest(request) {
     : undefined;
 }
 
-function enumChoicesFromOutputSchema(schema) {
-  const properties = schema?.properties;
-  if (!properties || typeof properties !== 'object' || Array.isArray(properties)) {
-    return undefined;
-  }
-  for (const [name, propertySchema] of Object.entries(properties)) {
-    const values = propertySchema?.enum;
-    if (Array.isArray(values) && values.every((value) => typeof value === 'string')) {
-      return { property: name, values };
-    }
-  }
-  return undefined;
-}
-
-function enumChoicesFromTransition(step) {
-  const next = step?.step?.next;
-  const cases = next?.cases;
-  if (!cases || typeof cases !== 'object' || Array.isArray(cases)) return undefined;
-  const match = next?.match;
-  const matched = typeof match === 'string'
-    ? match.match(/^\$\{\{\s*output\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}$/)
-    : null;
-  return {
-    property: matched?.[1] ?? 'approval',
-    values: Object.keys(cases),
-  };
-}
-
-function fallbackApprovalChoices() {
-  return {
-    property: 'approval',
-    values: ['approved', 'rejected', 'blocked'],
-  };
-}
-
-function approvalChoices({ step, request }) {
-  const schema = outputSchemaForRequest(request);
-  return enumChoicesFromTransition(step)
-    ?? enumChoicesFromOutputSchema(schema)
-    ?? (schema ? undefined : fallbackApprovalChoices());
+function approvalChoicesForStep(step) {
+  const choices = step?.approvalPrompt?.choices;
+  if (!choices || typeof choices !== 'object' || Array.isArray(choices)) return undefined;
+  const path = Array.isArray(choices.path) ? choices.path : undefined;
+  const values = Array.isArray(choices.values) ? choices.values : undefined;
+  if (!path || !values) return undefined;
+  if (!path.every((value) => typeof value === 'string' && value.length > 0)) return undefined;
+  if (!values.every((value) => typeof value === 'string')) return undefined;
+  return { path, values };
 }
 
 export function buildApprovalInstructionProjection({ step, request, commands = {} } = {}) {
@@ -96,11 +61,10 @@ export function buildApprovalInstructionProjection({ step, request, commands = {
     inputPrompt: inputPromptForStep(step),
     promptLayer: promptLayerForStep(step),
     workflowInstruction: workflowInstructionForStep(step),
-    state: projectedStateForStep(step),
     artifacts: projectedArtifactsForStep(step),
     summaries: projectedSummariesForStep(step),
     outputSchema: outputSchemaForRequest(request),
-    choices: approvalChoices({ step, request }),
+    choices: approvalChoicesForStep(step),
     writeOutputCommand: commands.writeOutputCommand ?? '',
   };
 }
