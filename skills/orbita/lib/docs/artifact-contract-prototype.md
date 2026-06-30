@@ -48,15 +48,15 @@ Artifact field semantics live with the schema using the existing metadata style 
 - `description`: neutral field meaning.
 - `x-usage`: producer/reader usage guidance rendered as schema-derived field notes.
 
-This keeps low-level mechanics out of reusable markdown templates and workflow prompts. A producer sees schema-derived fill notes; a reader sees schema-derived usage notes for projected values from the same central metadata.
+This keeps low-level mechanics out of reusable markdown templates and workflow prompts. A producer sees schema-derived fill notes; a reader sees schema-derived usage notes for prompt input values from the same central metadata.
 
 ## Prompt separation rule
 
 Workflow step prompts may say semantic things like:
 
 - create the human-facing research packet as a markdown artifact;
-- attack the projected research packet artifact as the approval source of truth;
-- show the projected research packet artifact and critic verdict to the user;
+- attack the prompt input research packet artifact as the approval source of truth;
+- show the prompt input research packet artifact and critic verdict to the user;
 - produce architecture decisions from the approved research packet.
 
 Workflow step prompts and markdown templates must not repeat low-level mechanics:
@@ -86,7 +86,7 @@ Those mechanics belong in schema definitions and renderer-generated field notes.
 4. `approve_research` presents artifact `research-packet` from `research_draft` plus `research_attack.verdict` and waits for explicit human approval.
 5. On approval, `architecture_draft` uses the approved/current `research-packet` artifact from `research_draft` as the research source of truth and produces the minimal architecture decision/structural contract required by that approved research. If architecture work is unnecessary, it records the explicit no-artifact decision in `architecture_contract`.
 
-The JSON output remains authoritative for workflow branching, state projection, and gates. The markdown artifact is the human-facing packet for review/approval. If the user asks the orchestrator for the packet/proposal as a file, the orchestrator must retrieve or export the existing run artifact referenced by projected baton/output artifacts; it must not ask a worker to recreate the packet in an arbitrary temp path.
+The JSON output remains authoritative for workflow branching, prompt input context, and gates. The markdown artifact is the human-facing packet for review/approval. If the user asks the orchestrator for the packet/proposal as a file, the orchestrator must retrieve or export the existing run artifact referenced by prompt input/output artifacts; it must not ask a worker to recreate the packet in an arbitrary temp path.
 
 ## Open questions
 

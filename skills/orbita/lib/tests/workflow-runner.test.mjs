@@ -303,7 +303,7 @@ test('runner: --only-instructions prints only orchestrator instruction text', ()
   assert.match(result.stdout, /--only-instructions/);
 });
 
-test('runner: approval host instruction lists projected artifact content as required read', () => {
+test('runner: approval host instruction lists prompt input artifact content as required read', () => {
   const { runId, runDir } = runCase('approval-inline-instructions');
   const workflowPath = path.join(tempDir, 'approval-inline-instructions-workflow.json');
   const schemaPath = path.join(tempDir, 'approval-inline-instructions.schema.json');
@@ -370,7 +370,7 @@ test('runner: approval host instruction lists projected artifact content as requ
   assert.match(response.orchestratorInstruction, /Approval request: approve/);
   assert.match(response.orchestratorInstruction, /The orchestrator must execute this approval instruction itself\./);
   assert.match(response.orchestratorInstruction, /Use the following compiled approval prompt as the complete source/);
-  assert.match(response.orchestratorInstruction, /When the compiled approval prompt lists required-read files or projected artifact paths, attach those artifact files through the host\/platform approval mechanism before asking for a decision\./);
+  assert.match(response.orchestratorInstruction, /When the compiled approval prompt lists required-read files or prompt input artifact paths, attach those artifact files through the host\/platform approval mechanism before asking for a decision\./);
   assert.match(response.orchestratorInstruction, /Do not replace artifact attachments with summaries or inline full artifact bodies\./);
   assert.match(response.orchestratorInstruction, /If the host cannot attach or link a listed artifact, state that capability gap explicitly in the approval message and include the path\/reference that could not be attached\./);
   assert.match(response.orchestratorInstruction, /Do not inspect workflow source, runner internals, schema files, or CLI help to reconstruct approval output\./);
@@ -379,11 +379,11 @@ test('runner: approval host instruction lists projected artifact content as requ
   assert.match(response.orchestratorInstruction, /<paste strict JSON here>/);
   assert.match(response.orchestratorInstruction, /# Approve research/);
   assert.match(response.orchestratorInstruction, /## Required reads/);
-  assert.match(response.orchestratorInstruction, /Projected artifact 'research-packet' from 'prepare' \(text\/markdown\):/);
+  assert.match(response.orchestratorInstruction, /Prompt input artifact 'research-packet' from 'prepare' \(text\/markdown\):/);
   assert.match(response.orchestratorInstruction, /prepare\/artifacts\/research-packet\.md/);
   assert.match(response.orchestratorInstruction, /## Output contract/);
-  assert.doesNotMatch(response.orchestratorInstruction, /## Projected baton state/);
-  assert.doesNotMatch(response.orchestratorInstruction, /### Projected artifact content/);
+  assert.doesNotMatch(response.orchestratorInstruction, /## Prompt input context/);
+  assert.doesNotMatch(response.orchestratorInstruction, /### Prompt input artifact content/);
   assert.doesNotMatch(response.orchestratorInstruction, /Full packet body for approval\./);
   assert.match(response.orchestratorInstruction, /## Workflow step prompt/);
   assert.match(response.orchestratorInstruction, /Present artifact `research-packet`/);

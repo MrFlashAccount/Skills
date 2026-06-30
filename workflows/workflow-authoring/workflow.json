@@ -12,7 +12,7 @@
       "input": {
         "role": "architect",
         "prompt": [
-          "Design the smallest useful workflow-runner workflow for the user's task. Inspect existing workflows and repo rules. Produce a workflow contract with name, path, top-level description, use/do-not-use boundaries, steps, roles, approval gates, output schemas, validation plan, and non-goals. When revising after workflow_design_attack feedback or approve_workflow_design rejection, read projected feedback and address it explicitly while preserving approved constraints. Return ready_for_attack when the contract is ready for critic review, or blocked when the workflow should not be created or required context is unavailable. Do not edit files in this step.",
+          "Design the smallest useful workflow-runner workflow for the user's task. Inspect existing workflows and repo rules. Produce a workflow contract with name, path, top-level description, use/do-not-use boundaries, steps, roles, approval gates, output schemas, validation plan, and non-goals. When revising after workflow_design_attack feedback or approve_workflow_design rejection, read prompt input feedback and address it explicitly while preserving approved constraints. Return ready_for_attack when the contract is ready for critic review, or blocked when the workflow should not be created or required context is unavailable. Do not edit files in this step.",
           "",
           "Input context:",
           "Previous workflow design draft:",
@@ -99,7 +99,7 @@
       "input": {
         "role": "architect",
         "prompt": [
-          "Implement exactly the approved workflow contract. Add or update workflow.json, schemas, and any minimal docs/tests needed for catalog and validation. Keep workflow routing in top-level description. When revising after workflow_implementation_attack feedback, read projected feedback and address it explicitly while preserving the approved workflow design. Run the narrow validation available for the changed workflow and report changed files plus validation results. Return implemented or blocked.",
+          "Implement exactly the approved workflow contract. Add or update workflow.json, schemas, and any minimal docs/tests needed for catalog and validation. Keep workflow routing in top-level description. When revising after workflow_implementation_attack feedback, read prompt input feedback and address it explicitly while preserving the approved workflow design. Run the narrow validation available for the changed workflow and report changed files plus validation results. Return implemented or blocked.",
           "",
           "Input context:",
           "Approved workflow contract:",

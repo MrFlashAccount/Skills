@@ -473,20 +473,20 @@ test('output.schema: invalid output retries with validation feedback then succee
   assert.deepEqual(response.baton.state.outputs.worker_step.payload, { ok: true });
 });
 
-test('output.schema: structured step output is projected by step id into downstream prompt', () => {
-  const doc = workflowWithSchema('structured-output-step-id-projection', structuredSchema);
+test('output.schema: structured step output is available by step id in downstream prompt', () => {
+  const doc = workflowWithSchema('structured-output-step-id-prompt-input', structuredSchema);
   doc.steps.worker_step.next = { match: '${{ output.outcome }}', cases: { ready: 'consumer_step' } };
   doc.steps.consumer_step.input.prompt = 'Use prior worker payload:\n${{ input.worker_step.payload }}';
 
   const applyResponse = runApply('output-schema-structured-project-apply', baton(), {
     outcome: 'ready',
-    artifacts: [{ id: 'packet', content_type: 'text/markdown', path: path.join(tempDir, 'worker_step', 'artifacts', 'packet.md'), summary: 'structured projection artifact' }],
+    artifacts: [{ id: 'packet', content_type: 'text/markdown', path: path.join(tempDir, 'worker_step', 'artifacts', 'packet.md'), summary: 'structured prompt input artifact' }],
     payload: { ok: true },
   }, true, doc);
 
   assert.equal(applyResponse.baton.cursor, 'consumer_step');
   mkdirSync(path.join(tempDir, 'worker_step', 'artifacts'), { recursive: true });
-  writeFileSync(path.join(tempDir, 'worker_step', 'artifacts', 'packet.md'), 'Structured projection artifact body.\n');
+  writeFileSync(path.join(tempDir, 'worker_step', 'artifacts', 'packet.md'), 'Structured prompt input artifact body.\n');
   const batonPath = writeJson('output-schema-structured-project-baton.json', applyResponse.baton);
   const workflowPath = writeJson('output-schema-structured-project-workflow.json', doc);
   const renderResponse = runWorkflowCommand('output-schema-structured-project-render', [
@@ -496,21 +496,21 @@ test('output.schema: structured step output is projected by step id into downstr
     batonPath,
   ]);
 
-  assert.doesNotMatch(renderResponse.steps[0].compiledPrompt.prompt, /## Projected baton state/);
+  assert.doesNotMatch(renderResponse.steps[0].compiledPrompt.prompt, /## Prompt input context/);
   assert.match(renderResponse.steps[0].compiledPrompt.prompt, /Use prior worker payload:/);
   assert.match(renderResponse.steps[0].compiledPrompt.prompt, /"ok": true/);
-  assert.doesNotMatch(renderResponse.steps[0].compiledPrompt.prompt, /Field notes for projected step outputs/);
+  assert.doesNotMatch(renderResponse.steps[0].compiledPrompt.prompt, /Field notes for prompt input step outputs/);
   assert.doesNotMatch(renderResponse.steps[0].compiledPrompt.prompt, /\[object Object\]/);
 });
 
-test('output.schema: inline projected structured output omits automatic schema field notes', () => {
+test('output.schema: inline prompt input structured output omits automatic schema field notes', () => {
   const schemaWithFieldNotes = structuredClone(structuredSchema);
   schemaWithFieldNotes.properties.payload.description = 'Validated payload from the worker step.';
   schemaWithFieldNotes.properties.payload['x-usage'] = 'Use this payload as the authoritative downstream input.';
   schemaWithFieldNotes.properties.artifacts.description = 'Artifacts emitted while preparing the payload.';
   const doc = workflowWithSchema('structured-output-field-notes', schemaWithFieldNotes);
   doc.steps.worker_step.next = { match: '${{ output.outcome }}', cases: { ready: 'consumer_step' } };
-  doc.steps.consumer_step.input.prompt = 'Use projected payload:\n${{ input.worker_step.payload }}';
+  doc.steps.consumer_step.input.prompt = 'Use prompt input payload:\n${{ input.worker_step.payload }}';
   const generationPromptDoc = structuredClone(doc);
   writeFileSync(path.join(tempDir, 'field-notes-output.md'), 'Return schema JSON.\n');
   generationPromptDoc.steps.worker_step.output.template = 'field-notes-output.md';
@@ -529,7 +529,7 @@ test('output.schema: inline projected structured output omits automatic schema f
 
   const applyResponse = runApply('output-schema-field-notes-apply', baton(), {
     outcome: 'ready',
-    artifacts: [{ id: 'packet', content_type: 'text/markdown', path: path.join(tempDir, 'worker_step', 'artifacts', 'packet.md'), summary: 'structured projection artifact' }],
+    artifacts: [{ id: 'packet', content_type: 'text/markdown', path: path.join(tempDir, 'worker_step', 'artifacts', 'packet.md'), summary: 'structured prompt input artifact' }],
     payload: { ok: true },
   }, true, doc);
   const workflowPath = writeJson('output-schema-field-notes-workflow.json', doc);
@@ -544,12 +544,12 @@ test('output.schema: inline projected structured output omits automatic schema f
 
   assertMarkersInOrder(renderResponse.prompt, [
     '## Workflow step prompt',
-    'Use projected payload:',
+    'Use prompt input payload:',
     '```json',
     '"ok": true',
   ]);
-  assert.doesNotMatch(renderResponse.prompt, /## Projected baton state/);
-  assert.doesNotMatch(renderResponse.prompt, /Field notes for projected step outputs/);
+  assert.doesNotMatch(renderResponse.prompt, /## Prompt input context/);
+  assert.doesNotMatch(renderResponse.prompt, /Field notes for prompt input step outputs/);
   assert.doesNotMatch(renderResponse.prompt, /Usage: Use this payload as the authoritative downstream input\./);
   assert.doesNotMatch(renderResponse.prompt, /\[object Object\]/);
 });

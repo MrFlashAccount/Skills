@@ -39,11 +39,6 @@
             "roleMaterial": {
               "type": "array",
               "items": { "type": "string", "minLength": 1 }
-            },
-            "projectedStateKeys": {
-              "type": "array",
-              "items": { "type": "string", "minLength": 1 },
-              "uniqueItems": true
             }
           },
           "additionalProperties": false

@@ -41,7 +41,7 @@ function assembleFixedPrompt({ promptLayer, templatePath, workflowInstructionBlo
   return `${parts.filter(Boolean).join('\n\n')}\n`;
 }
 
-export function renderWorkflowPrompt({ workflow, stepId, step, resources, projection = { value: {}, projectedKeys: [] }, requiredReads = [], roleMetadataPaths = [], includeDiagnostics = false, userPrompt, userPromptInjected = false } = {}) {
+export function renderWorkflowPrompt({ workflow, stepId, step, resources, promptInput = { value: {}, keys: [] }, requiredReads = [], roleMetadataPaths = [], includeDiagnostics = false, userPrompt, userPromptInjected = false } = {}) {
   const input = step.input ?? {};
   const inputTemplate = readInputTemplate({ input, resources });
   const outputTemplate = readOutputTemplate({ step, resources });
@@ -62,7 +62,7 @@ export function renderWorkflowPrompt({ workflow, stepId, step, resources, projec
     templatePath: inputTemplate.metadataPath,
     workflowInstructionBlock,
     requiredReads: requiredReadsSection,
-    inlinePrompt: interpolatePromptExpressions(normalizePromptText(input.prompt), { input: projection.value }),
+    inlinePrompt: interpolatePromptExpressions(normalizePromptText(input.prompt), { input: promptInput.value }),
     outputContract,
     userPrompt: step.kind === 'worker' && userPromptInjected !== true ? userPrompt : undefined,
     finalReminder,
@@ -82,7 +82,6 @@ export function renderWorkflowPrompt({ workflow, stepId, step, resources, projec
   if (step.output?.template) metadata.outputTemplate = step.output.template;
   if (step.output?.schema) metadata.outputSchema = step.output.schema;
   if (roleMetadataPaths.length > 0) metadata.roleMaterial = roleMetadataPaths;
-  if (projection.projectedKeys.length > 0) metadata.projectedStateKeys = projection.projectedKeys;
 
   const compiledPrompt = { prompt };
   if (Object.keys(metadata).length > 0) compiledPrompt.metadata = metadata;

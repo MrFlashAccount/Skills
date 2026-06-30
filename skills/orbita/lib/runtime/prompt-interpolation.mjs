@@ -1,6 +1,6 @@
 import { WorkflowRuntimeError } from '../errors.mjs';
 import { parsePathExpression } from './expression.mjs';
-import { fencedJson } from './state-projection.mjs';
+import { fencedJson } from './state-selection.mjs';
 
 const TOKEN_PATTERN = /\$\{\{[\s\S]*?\}\}/g;
 const TOKEN_INNER_PATTERN = /^\$\{\{\s*([\s\S]*?)\s*\}\}$/;

@@ -55,7 +55,7 @@
       },
       "patternProperties": {
         "^[A-Za-z_][A-Za-z0-9_-]*$": {
-          "description": "Per-step worker output keyed by workflow step id for downstream prompt/transition input projection."
+          "description": "Per-step worker output keyed by workflow step id for downstream prompt and transition input context."
         }
       },
       "propertyNames": {
@@ -114,7 +114,7 @@
           "type": "string",
           "minLength": 1,
           "description": "Artifact id unique within the producer step.",
-          "x-usage": "Use with the projected producer step id to identify the artifact. Emit a stable id unique within the producer step; do not add producer_step_id, type, kind, ref, version, replaces, or aliases."
+          "x-usage": "Use with the producer step id to identify the artifact. Emit a stable id unique within the producer step; do not add producer_step_id, type, kind, ref, version, replaces, or aliases."
         },
         "content_type": {
           "type": "string",

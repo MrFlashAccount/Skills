@@ -307,7 +307,7 @@ test('runner: wait_for_approval request accepts request-specific host output JSO
     done: approvalWorkflow.steps.done,
     blocked: approvalWorkflow.steps.blocked,
   };
-  approvalWorkflow.steps.join.input.prompt = 'Join without projected branch state.';
+  approvalWorkflow.steps.join.input.prompt = 'Join without branch prompt input.';
   approvalWorkflow.steps.join.next = 'done';
   writeJson(workflowPath, approvalWorkflow);
 
@@ -340,7 +340,7 @@ test('runner: single approval request applies output by current stepId', () => {
     done: approvalWorkflow.steps.done,
     blocked: approvalWorkflow.steps.blocked,
   };
-  approvalWorkflow.steps.join.input.prompt = 'Join without projected branch state.';
+  approvalWorkflow.steps.join.input.prompt = 'Join without branch prompt input.';
   approvalWorkflow.steps.join.next = 'done';
   writeJson(workflowPath, approvalWorkflow);
 

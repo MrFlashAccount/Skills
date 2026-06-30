@@ -254,29 +254,29 @@ test('research critic saved packet output requires artifacts and results payload
   const workflowPath = path.join(REPO_ROOT, 'workflows/research-critic/workflow.json');
   const step = researchCriticWorkflowDoc.steps.save_research_packet;
 
-  const missingProjection = validateAgainstOutputSchema({
+  const missingAggregates = validateAgainstOutputSchema({
     workflow: researchCriticWorkflowDoc,
     workflowPath,
     schemaRef: step.output.schema,
     repositoryRoot: REPO_ROOT,
     output: { outcome: 'saved', saved: { summary: 'Saved.' } },
   });
-  assert.equal(missingProjection.ok, false);
-  assert.match(missingProjection.errors, /artifacts/);
-  assert.match(missingProjection.errors, /results/);
+  assert.equal(missingAggregates.ok, false);
+  assert.match(missingAggregates.errors, /artifacts/);
+  assert.match(missingAggregates.errors, /results/);
 
-  const emptyProjection = validateAgainstOutputSchema({
+  const emptyAggregates = validateAgainstOutputSchema({
     workflow: researchCriticWorkflowDoc,
     workflowPath,
     schemaRef: step.output.schema,
     repositoryRoot: REPO_ROOT,
     output: { outcome: 'saved', saved: { summary: 'Saved.' }, artifacts: [], results: [] },
   });
-  assert.equal(emptyProjection.ok, false);
-  assert.match(emptyProjection.errors, /artifacts/);
-  assert.match(emptyProjection.errors, /results/);
+  assert.equal(emptyAggregates.ok, false);
+  assert.match(emptyAggregates.errors, /artifacts/);
+  assert.match(emptyAggregates.errors, /results/);
 
-  const withProjection = validateAgainstOutputSchema({
+  const withAggregates = validateAgainstOutputSchema({
     workflow: researchCriticWorkflowDoc,
     workflowPath,
     schemaRef: step.output.schema,
@@ -288,7 +288,7 @@ test('research critic saved packet output requires artifacts and results payload
       results: [{ summary: 'Saved packet.' }],
     },
   });
-  assert.equal(withProjection.ok, true);
+  assert.equal(withAggregates.ok, true);
 });
 
 test('research critic save packet output keeps saved and blocked branches exclusive', () => {
@@ -301,7 +301,7 @@ test('research critic save packet output keeps saved and blocked branches exclus
     repositoryRoot: REPO_ROOT,
   };
 
-  const blockedWithProjection = validateAgainstOutputSchema({
+  const blockedWithAggregates = validateAgainstOutputSchema({
     ...schemaContext,
     output: {
       outcome: 'blocked',
@@ -311,7 +311,7 @@ test('research critic save packet output keeps saved and blocked branches exclus
       results: [{ summary: 'Should not aggregate.' }],
     },
   });
-  assert.equal(blockedWithProjection.ok, false);
+  assert.equal(blockedWithAggregates.ok, false);
 
   const savedWithBlocker = validateAgainstOutputSchema({
     ...schemaContext,

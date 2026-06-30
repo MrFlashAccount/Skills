@@ -172,8 +172,8 @@ test('runner reuse hints: bind-agent stores and overwrites top-level worker bind
   assert.deepEqual(readBaton(runDir).workerBindings, { prepare: 'worker-1' });
   assert.equal(readBaton(runDir).state.workerBindings, undefined);
 
-  const projected = await next({ runId, workflowPath, leaseToken, now });
-  assert.equal(projected.requests[0].preferredAgentId, 'worker-1');
+  const response = await next({ runId, workflowPath, leaseToken, now });
+  assert.equal(response.requests[0].preferredAgentId, 'worker-1');
 
   await bindAgent({ runId, workflowPath, stepId: 'prepare', agentId: 'worker-2', leaseToken, now });
   assert.deepEqual(readBaton(runDir).workerBindings, { prepare: 'worker-2' });
@@ -229,8 +229,8 @@ test('runner reuse hints: bind-agent keeps parallel step bindings separated', as
     branch_b: 'worker-b',
   });
 
-  const projected = await next({ runId, workflowPath, leaseToken, now });
-  assert.deepEqual(projected.requests.map((request) => [request.stepId, request.preferredAgentId]), [
+  const response = await next({ runId, workflowPath, leaseToken, now });
+  assert.deepEqual(response.requests.map((request) => [request.stepId, request.preferredAgentId]), [
     ['branch_a', 'worker-a'],
     ['branch_b', 'worker-b'],
   ]);

@@ -162,7 +162,7 @@ test('E2E fixture: long happy path loops through review revision and preserves l
   assert.equal(planned.baton.state.plan.artifacts[0].summary, 'plan v1');
   const approvalInstructions = instructions(run, 'approval_gate');
   assert.match(approvalInstructions, /## Required reads/);
-  assert.match(approvalInstructions, /Projected artifact 'plan' from 'plan' \(text\/markdown\):/);
+  assert.match(approvalInstructions, /Prompt input artifact 'plan' from 'plan' \(text\/markdown\):/);
   assert.match(approvalInstructions, /plan\/artifacts\/plan\.md/);
   assert.doesNotMatch(approvalInstructions, /Plan artifact content for approval\./);
 
@@ -208,7 +208,7 @@ test('E2E fixture: DevHarness-style artifact path is required-read context for d
   assert.equal(reviewRequest.baton.cursor, 'review');
   const reviewInstructions = instructions(run, 'review');
   assert.match(reviewInstructions, /## Required reads/);
-  assert.match(reviewInstructions, /Projected artifact 'packet' from 'implement' \(text\/markdown\):/);
+  assert.match(reviewInstructions, /Prompt input artifact 'packet' from 'implement' \(text\/markdown\):/);
   assert.match(reviewInstructions, /implement\/artifacts\/packet\.md/);
   assert.doesNotMatch(reviewInstructions, /Concrete implementation artifact content for reviewer\./);
 });

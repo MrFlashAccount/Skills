@@ -188,7 +188,7 @@ test('dynamic output array prepares and executes parallel steps like static arra
   assert.deepEqual(joined.baton.state.results.map((result) => result.summary), ['a', 'b']);
 });
 
-test('dynamic input projected state path routes correctly', () => {
+test('dynamic input state path routes correctly', () => {
   const response = runApply('input-path', baton(), { outcome: 'ready' }, true, workflow('${{ input.planning_draft.selected_reviewers }}'));
   assert.deepEqual(response.steps.map((step) => step.id), ['review_a', 'review_b']);
 });

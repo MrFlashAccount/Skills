@@ -1,11 +1,11 @@
 /**
- * Step entity owns step-level input projection, transition descriptors,
+ * Step entity owns step-level transition input context, transition descriptors,
  * concrete transition resolution, and output application intent.
  */
 import { readPath } from './expressions/index.mjs';
 import { invariant } from '../../errors.mjs';
 import { applyOutputToBatonState } from '../../runtime/baton-state.mjs';
-import { projectState } from '../../runtime/state-projection.mjs';
+import { selectState } from '../../runtime/state-selection.mjs';
 import { statusForStep } from '../../runtime/step-status.mjs';
 import { assertParallelTargets, assertTransitionTarget } from '../../runtime/transition-targets.mjs';
 import {
@@ -75,7 +75,7 @@ function transitionInputSelectors(descriptor) {
 }
 
 function contextInputForStep(baton, selectors, stepId) {
-  return projectState({ batonState: baton.state ?? {}, selectors, stepId }).value;
+  return selectState({ batonState: baton.state ?? {}, selectors, stepId }).value;
 }
 
 function assertResolvedTransitionTargets(workflow, stepId, resolved, fieldPath = 'next') {
