@@ -434,7 +434,6 @@ test('runner: typed approval retry preserves validation feedback in instructions
   assert.equal(response.requests[0].resolvedOutputSchema.ref, path.basename(schemaPath));
   assert.equal(Object.hasOwn(response.requests[0].resolvedOutputSchema, 'path'), false);
   assert.deepEqual(response.requests[0].resolvedOutputSchema.schema.required, ['choice']);
-  assert.equal(Object.hasOwn(JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8')).state, 'outputs'), false);
 
   const loaded = runRunner(['instructions', '--run-id', runId, '--step-id', 'choose_path']);
   assert.equal(loaded.status, 0, loaded.stderr);
@@ -485,7 +484,6 @@ test('runner: typed approval static parallel next preserves approval output in s
   assert.equal(response.status, 'needs_host_actions');
   assert.deepEqual(response.requests.map((request) => request.id), ['branch_a', 'branch_b']);
   assert.deepEqual(response.baton.state.choose_path, approvalOutput);
-  assert.deepEqual(response.baton.state.outputs.choose_path, approvalOutput);
 
   const branchAInstructions = runRunner(['instructions', '--run-id', runId, '--step-id', 'branch_a']);
   assert.equal(branchAInstructions.status, 0, branchAInstructions.stderr);

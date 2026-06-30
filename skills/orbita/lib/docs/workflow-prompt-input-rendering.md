@@ -31,7 +31,7 @@ Prompt validation runs with workflow semantic validation:
 - the referenced step must declare an `output.schema`;
 - the referenced path must be covered by that output schema;
 - prompt paths may be optional at schema level when the prompt expression has a fallback or when runtime absence is acceptable;
-- aggregate runtime keys such as `artifacts`, `results`, `outputs`, and `attempts` are not workflow step ids and cannot be addressed as `input.<key>`.
+- aggregate runtime keys such as `artifacts`, `results`, and `attempts` are not workflow step ids and cannot be addressed as `input.<key>`.
 
 Dynamic `next` expressions use the same `input.<step>.<field>` syntax, but transition validation is stricter: routing expressions must reference required schema paths and must resolve to closed target schemas.
 

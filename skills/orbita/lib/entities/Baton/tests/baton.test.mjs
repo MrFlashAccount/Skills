@@ -50,7 +50,7 @@ test('Baton semantic validation accepts cursor/status consistency and rejects mi
   assert.throws(() => new Baton(baton({ cursor: 'missing' })).validateAgainst(workflow), /baton cursor not found in workflow: missing/);
 });
 
-test('Baton applies output by merging artifacts, appending results, storing attempts, and mirroring schema outputs', () => {
+test('Baton applies output by merging artifacts, appending results, storing attempts, and storing step output', () => {
   const entity = new Baton(baton({ state: { artifacts: [{ producerStepId: 'worker', artifact: { id: 'a', content_type: 'text/plain', path: '/runs/worker/artifacts/a.txt', summary: 'old' } }], results: [{ id: 'r1' }] } }));
 
   const applied = entity.withAppliedOutput(
@@ -64,7 +64,6 @@ test('Baton applies output by merging artifacts, appending results, storing atte
       results: [{ id: 'r2' }],
     },
     { worker: 2 },
-    { mirrorToOutputs: true },
   );
 
   assert.deepEqual(applied.state.artifacts, [
@@ -73,7 +72,6 @@ test('Baton applies output by merging artifacts, appending results, storing atte
   ]);
   assert.deepEqual(applied.state.results, [{ id: 'r1' }, { id: 'r2' }]);
   assert.deepEqual(applied.state.worker.outcome, 'ok');
-  assert.deepEqual(applied.state.outputs.worker.outcome, 'ok');
   assert.deepEqual(applied.state.attempts, { worker: 2 });
 });
 

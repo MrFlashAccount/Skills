@@ -166,7 +166,7 @@ test('dynamic output path can read a top-level steps object as ordinary worker o
 test('dynamic output array prepares and executes parallel steps like static array next', () => {
   const prepared = runApply('output-array-prepare', baton(), { outcome: 'ready', selected_steps: ['review_a', 'review_b'] }, true, workflow('${{ output.selected_steps }}'));
   assert.deepEqual(prepared.steps.map((step) => step.id), ['review_a', 'review_b']);
-  assert.equal(prepared.baton.cursor, 'selector');
+  assert.deepEqual(prepared.baton.cursor, ['review_a', 'review_b']);
   assert.deepEqual(
     runInspect('output-array-inspect-prepared', prepared.baton, true, workflow('${{ output.selected_steps }}')).steps.map((step) => step.id),
     ['review_a', 'review_b'],

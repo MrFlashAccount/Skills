@@ -325,7 +325,6 @@ test('output.schema: valid structured output passes and is stored by step id', (
 
   assert.equal(response.baton.cursor, 'done');
   assert.deepEqual(response.baton.state.worker_step.payload, { ok: true });
-  assert.deepEqual(response.baton.state.outputs.worker_step.payload, { ok: true });
   assert.equal(response.baton.state.artifacts.at(-1).artifact.summary, 'structured');
 });
 
@@ -354,7 +353,6 @@ test('output.schema: approval output validates normalized user answer and is sto
 
   assert.equal(response.baton.cursor, 'done');
   assert.deepEqual(response.baton.state.consumer_step, { choice: 'ship', note: 'Approved by user.' });
-  assert.deepEqual(response.baton.state.outputs.consumer_step, { choice: 'ship', note: 'Approved by user.' });
 });
 
 test('output.schema: invalid approval output retries the approval step with schema feedback', () => {
@@ -431,7 +429,7 @@ test('output.schema: reserved aggregate fields must keep array envelope shape', 
 });
 
 
-test('output.schema: schema-declared outputs still must be object envelopes', () => {
+test('output.schema: schema-declared output still must be an object envelope', () => {
   const doc = workflowWithSchema('root-envelope-object', {
     $schema: 'https://json-schema.org/draft/2020-12/schema',
     type: 'object',
@@ -470,7 +468,6 @@ test('output.schema: invalid output retries with validation feedback then succee
   const response = runApply('output-schema-retry-success', retry.baton, { outcome: 'ready', payload: { ok: true } }, true, doc);
   assert.equal(response.baton.cursor, 'done');
   assert.deepEqual(response.baton.state.worker_step.payload, { ok: true });
-  assert.deepEqual(response.baton.state.outputs.worker_step.payload, { ok: true });
 });
 
 test('output.schema: structured step output is available by step id in downstream prompt', () => {
@@ -573,7 +570,6 @@ test('output.schema: legitimate x-usage data property is preserved during valida
 
   assert.equal(response.baton.cursor, 'done');
   assert.equal(response.baton.state.worker_step['x-usage'], 'ordinary data field');
-  assert.equal(response.baton.state.outputs.worker_step['x-usage'], 'ordinary data field');
 });
 
 
@@ -586,7 +582,7 @@ test('output.schema: invalid output exhausts retry limit deterministically', () 
   assert.match(result.stderr, /output schema validation failed for step 'worker_step' after 3 attempts/);
 });
 
-test('output.schema: absent schema preserves previous envelope behavior without storing outputs mirror', () => {
+test('output.schema: absent schema preserves generic worker-output envelope behavior', () => {
   const doc = structuredClone(workflowDoc);
   delete doc.steps.worker_step.output.schema;
   doc.steps.worker_step.next = 'done';
@@ -596,7 +592,6 @@ test('output.schema: absent schema preserves previous envelope behavior without 
   }, true, doc);
 
   assert.equal(response.baton.cursor, 'done');
-  assert.equal(Object.hasOwn(response.baton.state, 'outputs'), false);
   assert.equal(response.baton.state.worker_step.results.at(-1).summary, 'generic worker-output envelope');
   assert.equal(response.baton.state.results.at(-1).summary, 'generic worker-output envelope');
 });

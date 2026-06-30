@@ -67,9 +67,7 @@ export function applyParallelOutputs({ workflow, baton, cursorStep, allOutput, t
     });
     invariant(!retryResponse, `parallel step '${stepId}' output failed schema validation and cannot be retried inside a parallel group`);
     validateOutputKindForParallel(step, workerOutput, stepId);
-    updatedBaton.state = applyOutputToBatonState(updatedBaton, workerOutput, undefined, ['worker', 'approval'].includes(step.kind) ? stepId : undefined, {
-      mirrorToOutputs: Boolean(step.output?.schema),
-    });
+    updatedBaton.state = applyOutputToBatonState(updatedBaton, workerOutput, undefined, ['worker', 'approval'].includes(step.kind) ? stepId : undefined);
     if (workerOutput.blocker) updatedBaton.blocker = workerOutput.blocker;
   }
 

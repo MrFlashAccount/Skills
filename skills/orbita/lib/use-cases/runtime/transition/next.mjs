@@ -1,27 +1,28 @@
 import { Step } from '../../../entities/Step/index.mjs';
-import { prepareParallelBranch } from '../parallel/render.mjs';
-import { responseFor } from '../output/response.mjs';
+import { cursorForStepIds } from '../../../runtime/cursor.mjs';
+import { responseFor, responseForCursor } from '../output/response.mjs';
 import { markUserPromptInjectedForStep, validateSelectedStartupUserPromptTarget } from '../../user-prompt.mjs';
 
-export function applyNextTransition({ workflow, baton, cursorStep, workerOutput }) {
-  const cursor = new Step({ id: baton.cursor, step: cursorStep });
+export function applyNextTransition({ workflow, baton, cursorStep, workerOutput, stepId = baton.cursor }) {
+  const cursor = new Step({ id: stepId, step: cursorStep });
   const batonWithPromptMarker = markUserPromptInjectedForStep({
     workflow,
     baton,
-    stepId: baton.cursor,
+    stepId,
   });
   const applied = cursor.applyOutput({ workflow, baton: batonWithPromptMarker, output: workerOutput });
   if (applied.targetStepIds) {
-    return prepareParallelBranch({
+    const targetSteps = applied.targetStepIds.map((targetStepId) => ({ id: targetStepId, step: workflow.steps[targetStepId] }));
+    const updatedBaton = validateSelectedStartupUserPromptTarget({
       workflow,
-      baton,
-      stepId: baton.cursor,
-      step: cursorStep,
-      output: workerOutput,
-      attempts: applied.attempts,
-      targets: applied.targetStepIds,
-      storeStepOutput: true,
+      baton: {
+        ...applied.baton,
+        cursor: cursorForStepIds(applied.targetStepIds),
+        status: 'running',
+      },
+      steps: targetSteps,
     });
+    return responseForCursor(updatedBaton, workflow);
   }
 
   const updatedBaton = validateSelectedStartupUserPromptTarget({

@@ -160,10 +160,10 @@ test('applyOutputToBatonState rejects artifact output when producer step id is m
   );
 });
 
-test('Baton.withAppliedOutput mirrors schema-backed step output into state.outputs when requested', () => {
-  const next = new Baton(batonDoc()).withAppliedOutput('producer', { outcome: 'ok', artifacts: [], results: [] }, undefined, { mirrorToOutputs: true });
+test('Baton.withAppliedOutput stores step output by step id', () => {
+  const next = new Baton(batonDoc()).withAppliedOutput('producer', { outcome: 'ok', artifacts: [], results: [] });
 
-  assert.deepEqual(next.state.outputs.producer, { outcome: 'ok', artifacts: [], results: [] });
+  assert.deepEqual(next.state.producer, { outcome: 'ok', artifacts: [], results: [] });
 });
 
 test('normalizeTransitionNext classifies static arrays as static parallel transitions', () => {
@@ -342,7 +342,7 @@ test('inspectWorkflow exposes the cursor step when no parallel output has been p
 test('applyWorkflowOutput prepares dynamic parallel branches from a JSON string output', () => {
   const response = applyWorkflowOutput({ workflowDoc: workflowDoc(), batonDoc: batonDoc(), resources: { outputSchemas }, outputContent: JSON.stringify({ outcome: 'ok', route: 'split', targets: ['branch_a', 'branch_b'] }) });
 
-  assert.equal(response.baton.cursor, 'producer');
+  assert.deepEqual(response.baton.cursor, ['branch_a', 'branch_b']);
   assert.deepEqual(response.baton.state.producer.targets, ['branch_a', 'branch_b']);
   assert.deepEqual(response.steps.map((step) => step.id), ['branch_a', 'branch_b']);
 });
@@ -350,7 +350,7 @@ test('applyWorkflowOutput prepares dynamic parallel branches from a JSON string 
 test('inspectWorkflow resolves stored dynamic parallel output into branch step responses', () => {
   const response = inspectWorkflow({
     workflowDoc: workflowDoc(),
-    batonDoc: batonDoc({ state: { artifacts: [], results: [], producer: { outcome: 'ok', route: 'split', targets: ['branch_a', 'branch_b'] } } }),
+    batonDoc: batonDoc({ cursor: ['branch_a', 'branch_b'], state: { artifacts: [], results: [], producer: { outcome: 'ok', route: 'split', targets: ['branch_a', 'branch_b'] } } }),
     resources: { outputSchemas },
   });
 
@@ -358,25 +358,25 @@ test('inspectWorkflow resolves stored dynamic parallel output into branch step r
 });
 
 test('applyWorkflowOutput rejects prepared parallel applications without the steps envelope', () => {
-  const baton = batonDoc({ state: { artifacts: [], results: [], producer: { outcome: 'ok', route: 'split', targets: ['branch_a', 'branch_b'] } } });
+  const baton = batonDoc({ cursor: ['branch_a', 'branch_b'], state: { artifacts: [], results: [], producer: { outcome: 'ok', route: 'split', targets: ['branch_a', 'branch_b'] } } });
 
   assert.throws(() => applyWorkflowOutput({ workflowDoc: workflowDoc(), batonDoc: baton, resources: { outputSchemas }, outputValue: { branch_a: { outcome: 'ok' } } }), /parallel output must include object steps/);
 });
 
 test('applyWorkflowOutput rejects prepared parallel output that omits one selected target', () => {
-  const baton = batonDoc({ state: { artifacts: [], results: [], producer: { outcome: 'ok', route: 'split', targets: ['branch_a', 'branch_b'] } } });
+  const baton = batonDoc({ cursor: ['branch_a', 'branch_b'], state: { artifacts: [], results: [], producer: { outcome: 'ok', route: 'split', targets: ['branch_a', 'branch_b'] } } });
 
   assert.throws(() => applyWorkflowOutput({ workflowDoc: workflowDoc(), batonDoc: baton, resources: { outputSchemas }, outputValue: { steps: { branch_a: { outcome: 'ok' } } } }), /parallel output missing step 'branch_b'/);
 });
 
 test('applyWorkflowOutput rejects prepared parallel output that includes an unexpected branch', () => {
-  const baton = batonDoc({ state: { artifacts: [], results: [], producer: { outcome: 'ok', route: 'split', targets: ['branch_a', 'branch_b'] } } });
+  const baton = batonDoc({ cursor: ['branch_a', 'branch_b'], state: { artifacts: [], results: [], producer: { outcome: 'ok', route: 'split', targets: ['branch_a', 'branch_b'] } } });
 
   assert.throws(() => applyWorkflowOutput({ workflowDoc: workflowDoc(), batonDoc: baton, resources: { outputSchemas }, outputValue: { steps: { branch_a: { outcome: 'ok' }, branch_b: { outcome: 'ok' }, extra: { outcome: 'ok' } } } }), /parallel output included unexpected step 'extra'/);
 });
 
 test('applyWorkflowOutput applies all prepared parallel outputs and advances to the shared join step', () => {
-  const baton = batonDoc({ state: { artifacts: [], results: [], producer: { outcome: 'ok', route: 'split', targets: ['branch_a', 'branch_b'] } } });
+  const baton = batonDoc({ cursor: ['branch_a', 'branch_b'], state: { artifacts: [], results: [], producer: { outcome: 'ok', route: 'split', targets: ['branch_a', 'branch_b'] } } });
   const response = applyWorkflowOutput({ workflowDoc: workflowDoc(), batonDoc: baton, resources: { outputSchemas }, outputValue: { steps: { branch_a: { outcome: 'ok' }, branch_b: { outcome: 'ok' } } } });
 
   assert.equal(response.baton.cursor, 'join');

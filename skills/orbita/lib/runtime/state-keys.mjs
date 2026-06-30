@@ -1,6 +1,6 @@
 import { WorkflowRuntimeError } from '../errors.mjs';
 
-export const RESERVED_STATE_KEYS = Object.freeze(['artifacts', 'results', 'outputs', 'attempts']);
+export const RESERVED_STATE_KEYS = Object.freeze(['artifacts', 'results', 'attempts']);
 export const DANGEROUS_OBJECT_KEYS = Object.freeze(['__proto__', 'prototype', 'constructor']);
 export const RESERVED_STEP_IDS = [...RESERVED_STATE_KEYS, ...DANGEROUS_OBJECT_KEYS];
 export const TOP_LEVEL_STATE_SELECTOR = /^[A-Za-z_][A-Za-z0-9_-]*$/;

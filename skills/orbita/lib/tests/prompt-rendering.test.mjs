@@ -221,7 +221,7 @@ test('state selection: nested selectors are rejected', () => {
 });
 
 test('state selection: reserved runtime aggregate selectors are rejected even when present in baton state', () => {
-  for (const selector of ['artifacts', 'results', 'outputs', 'attempts']) {
+  for (const selector of ['artifacts', 'results', 'attempts']) {
     assert.throws(
       () => selectState({ stepId: 'research', batonState: { [selector]: [{ type: 'packet', summary: 'leaked' }] }, selectors: [selector] }),
       new RegExp(`reserved state selector '${selector}'.*runtime aggregate state`),

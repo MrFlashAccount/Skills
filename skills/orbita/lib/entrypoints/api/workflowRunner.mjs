@@ -200,10 +200,8 @@ function stepIdForRequest(request) {
 }
 
 function acceptedOutputForRequest(baton, request) {
-  const outputs = baton?.state?.outputs;
-  if (!outputs || typeof outputs !== 'object' || Array.isArray(outputs)) return undefined;
   for (const alias of requestAliases(request)) {
-    if (Object.hasOwn(outputs, alias)) return structuredClone(outputs[alias]);
+    if (Object.hasOwn(baton?.state ?? {}, alias)) return structuredClone(baton.state[alias]);
   }
   return undefined;
 }
@@ -220,10 +218,8 @@ function acceptedOutputsForRequests(baton, requests) {
 }
 
 function parsedOutputRefsForAcceptedState(baton, requests) {
-  const outputs = baton?.state?.outputs;
-  if (!outputs || typeof outputs !== 'object' || Array.isArray(outputs)) return [];
   const currentAliases = new Set(requests.flatMap(requestAliases));
-  return Object.keys(outputs)
+  return Object.keys(baton?.state ?? {})
     .filter((stepId) => currentAliases.has(stepId))
     .map((stepId) => ({ stepId }));
 }
@@ -260,7 +256,6 @@ function outputForAcceptedState(currentBaton, requests, { isPreparedParallelCont
   return { outputValue: { steps }, historyOutput: historyOutput.join(', '), currentBaton };
 }
 
-
 async function outputForCurrentState(paths) {
   await recoverDurableCommit(paths);
   const current = await readPersistedRunState(paths);
@@ -268,7 +263,7 @@ async function outputForCurrentState(paths) {
   if (response.status !== 'needs_host_actions') throw new Error(`current runner response is '${response.status}', not needs_host_actions`);
 
   const requests = response.requests ?? [];
-  const isPreparedParallelContinuation = requests.some((request) => stepIdForRequest(request) !== current.baton?.cursor);
+  const isPreparedParallelContinuation = Array.isArray(current.baton?.cursor) || requests.some((request) => stepIdForRequest(request) !== current.baton?.cursor);
   return outputForAcceptedState(current.baton, requests, { isPreparedParallelContinuation });
 }
 
@@ -372,10 +367,7 @@ function batonWithAcceptedOutput(baton, stepId, output) {
   const nextBaton = structuredClone(baton);
   nextBaton.state = {
     ...nextBaton.state,
-    outputs: {
-      ...(nextBaton.state?.outputs ?? {}),
-      [stepId]: structuredClone(output),
-    },
+    [stepId]: structuredClone(output),
   };
   return nextBaton;
 }

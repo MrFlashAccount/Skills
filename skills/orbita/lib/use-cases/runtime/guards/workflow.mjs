@@ -7,6 +7,8 @@ export function assertLoadedWorkflowAndBaton(workflowDoc, batonDoc, options = {}
   workflow.validate(workflowSemanticValidationOptions(options));
   const baton = new Baton(batonDoc);
   baton.validateAgainst(workflow);
-  const { id: _cursorStepId, ...cursorStep } = workflow.inferStep(baton);
-  return { workflow: workflow.toJSON(), baton: baton.toJSON(), cursorStep };
+  const batonData = baton.toJSON();
+  const cursorStepId = Array.isArray(batonData.cursor) ? batonData.cursor[0] : batonData.cursor;
+  const { id: _cursorStepId, ...cursorStep } = workflow.getStep(cursorStepId);
+  return { workflow: workflow.toJSON(), baton: batonData, cursorStep };
 }

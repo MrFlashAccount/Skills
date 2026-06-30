@@ -78,7 +78,7 @@ function aggregateArray(output, fieldName) {
   return value;
 }
 
-export function applyOutputToBatonState(baton, output, attempts, stepId, { mirrorToOutputs = false } = {}) {
+export function applyOutputToBatonState(baton, output, attempts, stepId) {
   const batonData = cloneBoundaryData(baton);
   const state = {
     ...batonData.state,
@@ -88,12 +88,6 @@ export function applyOutputToBatonState(baton, output, attempts, stepId, { mirro
 
   if (stepId) {
     state[stepId] = structuredClone(output);
-    if (mirrorToOutputs) {
-      state.outputs = {
-        ...(batonData.state?.outputs ?? {}),
-        [stepId]: structuredClone(output),
-      };
-    }
   }
 
   if (attempts) state.attempts = attempts;

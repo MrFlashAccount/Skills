@@ -221,9 +221,7 @@ export class Step {
     const outputStepId = storeStepOutput ? this.id : undefined;
     const withOutput = {
       ...batonData,
-      state: applyOutputToBatonState(batonData, output, attempts ?? transition.attempts, outputStepId, {
-        mirrorToOutputs: Boolean(this.data.output?.schema),
-      }),
+      state: applyOutputToBatonState(batonData, output, attempts ?? transition.attempts, outputStepId),
     };
 
     if (transition.targetStepIds) {
