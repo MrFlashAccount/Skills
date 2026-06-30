@@ -177,6 +177,23 @@ test('DevHarness proposal handoff prompts use baton artifacts instead of temp fi
   assert.match(workflowDoc.steps.approve_plan.input.prompt, /retrieve\/export the existing artifact referenced by projected baton\/output artifacts/);
 });
 
+test('DevHarness worker and approval prompts expose explicit projected input templates', () => {
+  const routedSteps = Object.entries(workflowDoc.steps).filter(([, step]) => ['worker', 'approval'].includes(step.kind));
+  for (const [stepId, step] of routedSteps) {
+    assert.match(step.input.prompt, /\n\nExplicit projected inputs:\n/, `${stepId} should have an explicit projected input section`);
+    assert.match(step.input.prompt, /\$\{\{ input\./, `${stepId} should interpolate projected input fields`);
+  }
+
+  assert.match(workflowDoc.steps.research_draft.input.prompt, /\$\{\{ input\.research_attack\.verdict \| default:/);
+  assert.match(workflowDoc.steps.research_draft.input.prompt, /\$\{\{ input\.approve_research \| default:/);
+  assert.match(workflowDoc.steps.approve_research.input.prompt, /\$\{\{ input\.research_draft\.research_packet \}\}/);
+  assert.match(workflowDoc.steps.approve_research.input.prompt, /\$\{\{ input\.research_attack\.verdict \}\}/);
+  assert.match(workflowDoc.steps.approve_architecture.input.prompt, /\$\{\{ input\.architecture_draft\.architecture_contract \}\}/);
+  assert.match(workflowDoc.steps.approve_plan.input.prompt, /\$\{\{ input\.planning_draft\.implementation_plan \}\}/);
+  assert.match(workflowDoc.steps.backend_implementation.input.prompt, /\$\{\{ input\.review_join\.verdict \| default:/);
+  assert.match(workflowDoc.steps.review_join.input.prompt, /\$\{\{ input\.backend_review\.verdict \| default:/);
+});
+
 test('workflow semantic validation rejects wrapped workflow documents', () => {
   const flat = syntheticWorkflow();
   const wrapped = { workflow: structuredClone(flat) };
