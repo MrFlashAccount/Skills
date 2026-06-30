@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -82,6 +82,98 @@ test('workflow-runner CLI exposes runId and rejects runDir', () => {
     assert.match(bad.stderr, /Unknown option '--run-dir'/);
   } finally {
     cleanup(id);
+  }
+});
+
+test('installed plugin layout starts a catalog-created run from the skill cwd', () => {
+  const pluginRoot = mkdtempSync(path.join(tmpdir(), 'workflow-installed-layout-'));
+  const skillRoot = path.join(pluginRoot, 'skills/orbita');
+  const workflowsRoot = path.join(pluginRoot, 'workflows/dev-harness');
+  const runsRoot = path.join(pluginRoot, '.workflow-runs');
+  const id = runId('installed-layout');
+
+  try {
+    cpSync(path.join(root, 'skills/orbita/lib'), path.join(skillRoot, 'lib'), { recursive: true });
+    cpSync(path.join(root, 'shared'), path.join(pluginRoot, 'shared'), { recursive: true });
+    mkdirSync(workflowsRoot, { recursive: true });
+    writeFileSync(path.join(workflowsRoot, 'workflow.json'), `${JSON.stringify({
+      name: 'dev-harness',
+      description: 'Minimal installed-layout workflow fixture.',
+      version: 1,
+      start: 'prepare',
+      done: 'done',
+      blocked: 'blocked',
+      steps: {
+        prepare: {
+          name: 'Prepare',
+          kind: 'worker',
+          input: {
+            prompt: 'Prepare the installed-layout answer.',
+          },
+          output: {
+            template: 'runid-output.md',
+          },
+          next: 'done',
+        },
+        done: {
+          name: 'Done',
+          kind: 'done',
+          input: { prompt: 'Finished.' },
+        },
+        blocked: {
+          name: 'Blocked',
+          kind: 'blocked',
+          input: { prompt: 'Blocked.' },
+        },
+      },
+    }, null, 2)}\n`);
+    writeFileSync(path.join(workflowsRoot, 'runid-output.md'), 'Return strict JSON.\n');
+
+    const catalog = spawnSync(process.execPath, ['./lib/entrypoints/cli/workflow-catalog.mjs', 'list', '--json'], {
+      cwd: skillRoot,
+      encoding: 'utf8',
+    });
+    assert.equal(catalog.status, 0, catalog.stderr);
+    const workflowPath = JSON.parse(catalog.stdout).workflows.find((workflow) => workflow.name === 'dev-harness')?.path;
+    assert.equal(realpathSync(workflowPath), realpathSync(path.join(pluginRoot, 'workflows/dev-harness/workflow.json')));
+
+    const create = spawnSync(process.execPath, [
+      './lib/entrypoints/cli/workflow-runs.mjs',
+      'create',
+      '--run-id',
+      id,
+      '--workflow',
+      workflowPath,
+      '--workflow-identity',
+      'dev-harness',
+    ], { cwd: skillRoot, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUNS_ROOT: runsRoot } });
+    assert.equal(create.status, 0, create.stderr);
+
+    const claim = spawnSync(process.execPath, [
+      './lib/entrypoints/cli/workflow-runs.mjs',
+      'claim',
+      '--run-id',
+      id,
+      '--print-lease-token',
+    ], { cwd: skillRoot, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUNS_ROOT: runsRoot } });
+    assert.equal(claim.status, 0, claim.stderr);
+    const leaseToken = claim.stdout.trim();
+    assert.match(leaseToken, /\S/);
+
+    const nextResult = spawnSync(process.execPath, [
+      './lib/entrypoints/cli/workflow-runner.mjs',
+      'next',
+      '--run-id',
+      id,
+      '--lease-token',
+      leaseToken,
+    ], { cwd: skillRoot, encoding: 'utf8', env: { ...process.env, WORKFLOW_RUNS_ROOT: runsRoot } });
+    assert.equal(nextResult.status, 0, nextResult.stderr);
+    const response = JSON.parse(nextResult.stdout);
+    assert.equal(response.status, 'needs_host_actions');
+    assert.equal(response.runId, id);
+  } finally {
+    rmSync(pluginRoot, { recursive: true, force: true });
   }
 });
 
