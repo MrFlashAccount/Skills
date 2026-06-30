@@ -1,7 +1,7 @@
 {
   "name": "research-critic",
   "version": 1,
-  "description": "Pre-implementation Researcher -> Critic workflow for closing task context before downstream planning or implementation. Use when a task needs evidence gathering, assumption pressure, ambiguity cleanup, readiness judgment, or a reusable research packet. Do not use when the task is already approved for direct implementation, needs PR/code review, or should be executed through a larger planning/development workflow.",
+  "description": "Pre-implementation Researcher draft -> Researcher attack workflow for closing task context before downstream planning or implementation. Use when a task needs evidence gathering, assumption pressure, ambiguity cleanup, readiness judgment, or a reusable research packet. Do not use when the task is already approved for direct implementation, needs PR/code review, or should be executed through a larger planning/development workflow.",
   "start": "research_draft",
   "done": "done",
   "blocked": "blocked",
@@ -12,8 +12,8 @@
       "input": {
         "role": "researcher",
         "prompt": [
-          "Normalize the task input, inspect available evidence, and produce a research packet. Return ready_for_attack when the packet is ready for critic review, needs_input when user answers are required, or blocked when progress is unsafe without external input. If revising after critic feedback or user answers, preserve answered decisions and close only evidence-backed questions.",
-          "Loop continuity across workflow loop iterations is prompt based: rely only on explicit input.prompt context and prior step outputs; do not assume persistent draft/critic worker reuse across iterations. If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
+          "Normalize the task input, inspect available evidence, and produce a research packet. Return ready_for_attack when the packet is ready for researcher attack, needs_input when user answers are required, or blocked when progress is unsafe without external input. If revising after attack feedback or user answers, preserve answered decisions and close only evidence-backed questions.",
+          "Loop continuity across workflow loop iterations is prompt based: rely only on explicit input.prompt context and prior step outputs; do not assume persistent draft/attack worker reuse across iterations. If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
           "",
           "Input context:",
           "Previous research draft:",
@@ -77,8 +77,8 @@
       "input": {
         "role": "researcher",
         "prompt": [
-          "Revise the research packet using the approved user answers from ask_research_questions and any critic feedback if present. Preserve answered decisions and close only evidence-backed questions. Return ready_for_attack when the packet is ready for critic review, needs_input when more user answers are required, or blocked when progress is unsafe without external input.",
-          "Loop continuity across workflow loop iterations is prompt based: rely only on explicit input.prompt context and prior step outputs; do not assume persistent draft/critic worker reuse across iterations. If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
+          "Revise the research packet using the approved user answers from ask_research_questions and any attack feedback if present. Preserve answered decisions and close only evidence-backed questions. Return ready_for_attack when the packet is ready for researcher attack, needs_input when more user answers are required, or blocked when progress is unsafe without external input.",
+          "Loop continuity across workflow loop iterations is prompt based: rely only on explicit input.prompt context and prior step outputs; do not assume persistent draft/attack worker reuse across iterations. If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
           "",
           "Input context:",
           "User answers:",
@@ -114,10 +114,11 @@
       "name": "Research attack",
       "kind": "worker",
       "input": {
-        "role": "critic",
+        "role": "researcher",
         "prompt": [
+          "Start from a hostile prior: assume the change, proposal, draft, or packet is wrong, incomplete, overcomplicated, or under-evidenced until the artifact proves otherwise. Do not give credit for intent, author confidence, green self-reports, or plausible-sounding structure. PASS is allowed only after serious attack finds no evidence-backed blocker or important finding. Do not invent bugs. Any FAIL must be evidence-backed with file/function/line or equivalent precise location, and explain why existing tests/checks did not catch it. Prefer small, evidence-backed blockers over broad commentary.",
           "Attack the latest available research packet for weak evidence, unsafe assumptions, missing user input, misclassified blockers, and over-broad candidate approaches. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Return approved only when the packet is ready for downstream handoff, needs_revision when a bounded revision should loop through a fresh draft-producing output, needs_input when user answers are required, or blocked for an unsafe stop.",
-          "Loop continuity across workflow loop iterations is prompt based: rely only on explicit input.prompt context and prior step outputs; do not assume persistent draft/critic worker reuse across iterations. If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
+          "Loop continuity across workflow loop iterations is prompt based: rely only on explicit input.prompt context and prior step outputs; do not assume persistent draft/attack worker reuse across iterations. If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
           "",
           "Input context:",
           "Research revision packet:",
@@ -150,8 +151,8 @@
       "input": {
         "role": "researcher",
         "prompt": [
-          "Revise the latest available research packet using the latest research_attack verdict and any approved user answers. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Preserve answered decisions, address each bounded critic finding, and return ready_for_attack when the packet is ready for another critic review, needs_input when user answers are required, or blocked when progress is unsafe without external input.",
-          "Loop continuity across workflow loop iterations is prompt based: rely only on explicit input.prompt context and prior step outputs; do not assume persistent draft/critic worker reuse across iterations. If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
+          "Revise the latest available research packet using the latest research_attack verdict and any approved user answers. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Preserve answered decisions, address each bounded attack finding, and return ready_for_attack when the packet is ready for another researcher attack, needs_input when user answers are required, or blocked when progress is unsafe without external input.",
+          "Loop continuity across workflow loop iterations is prompt based: rely only on explicit input.prompt context and prior step outputs; do not assume persistent draft/attack worker reuse across iterations. If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
           "",
           "Input context:",
           "Latest research revision packet:",
@@ -190,7 +191,7 @@
         "role": "researcher",
         "prompt": [
           "Finalize persistence metadata for the approved research packet using the latest approved research packet and latest research_attack verdict. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Return saved after emitting artifact/result references to the saved packet, or blocked if the packet cannot be safely saved.",
-          "Loop continuity across workflow loop iterations is prompt based: rely only on explicit input.prompt context and prior step outputs; do not assume persistent draft/critic worker reuse across iterations. If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
+          "Loop continuity across workflow loop iterations is prompt based: rely only on explicit input.prompt context and prior step outputs; do not assume persistent draft/attack worker reuse across iterations. If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
           "",
           "Input context:",
           "Research revision packet:",

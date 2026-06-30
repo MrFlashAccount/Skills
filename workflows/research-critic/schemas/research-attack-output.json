@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/research-critic/research-attack-output",
-  "title": "Research Critic Attack Output",
-  "description": "Neutral reusable output contract for critic review of a research draft.",
+  "title": "Research Attack Output",
+  "description": "Neutral reusable output contract for researcher attack of a research draft.",
   "type": "object",
   "required": [
     "outcome"
@@ -15,7 +15,7 @@
         "needs_input",
         "blocked"
       ],
-      "description": "Authoritative routing state for the critic attack."
+      "description": "Authoritative routing state for the researcher attack."
     },
     "verdict": {
       "type": "object",

@@ -402,7 +402,7 @@ test('workflow authoring design output requires branch payloads', () => {
 
 test('revision loop continuity separates prompt context from clarification-session continuation', () => {
   const loopIterationContinuityPrompt = /Loop continuity across workflow loop iterations is prompt based/;
-  const noPersistentDraftCriticReuse = /do not assume persistent draft\/critic worker reuse across iterations/;
+  const noPersistentDraftAttackReuse = /do not assume persistent draft\/attack worker reuse across iterations/;
   const clarificationContinuation = /If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening/;
   const contradictorySameSessionWording = /not same-session memory|hidden same-session memory|ask, pause/;
   const devHarnessResearchPrompt = promptText(workflowDoc.steps.research_draft);
@@ -420,7 +420,7 @@ test('revision loop continuity separates prompt context from clarification-sessi
   for (const stepId of ['research_draft', 'architecture_draft', 'planning_draft', 'backend_implementation', 'frontend_implementation', 'architecture_artifact_update']) {
     const prompt = promptText(workflowDoc.steps[stepId]);
     assert.match(prompt, loopIterationContinuityPrompt);
-    assert.match(prompt, noPersistentDraftCriticReuse);
+    assert.match(prompt, noPersistentDraftAttackReuse);
     assert.match(prompt, clarificationContinuation);
     assert.doesNotMatch(prompt, contradictorySameSessionWording);
   }
@@ -428,16 +428,32 @@ test('revision loop continuity separates prompt context from clarification-sessi
   for (const stepId of ['research_draft', 'research_answered_draft', 'research_attack', 'research_revision', 'save_research_packet']) {
     const prompt = promptText(researchCriticWorkflowDoc.steps[stepId]);
     assert.match(prompt, loopIterationContinuityPrompt);
-    assert.match(prompt, noPersistentDraftCriticReuse);
+    assert.match(prompt, noPersistentDraftAttackReuse);
     assert.match(prompt, clarificationContinuation);
     assert.doesNotMatch(prompt, contradictorySameSessionWording);
   }
 
   assert.match(
     promptText(researchCriticWorkflowDoc.steps.research_draft),
-    /Return ready_for_attack when the packet is ready for critic review, needs_input when user answers are required, or blocked when progress is unsafe without external input\./,
+    /Return ready_for_attack when the packet is ready for researcher attack, needs_input when user answers are required, or blocked when progress is unsafe without external input\./,
   );
   assert.equal(researchCriticWorkflowDoc.steps.research_draft.next.cases.needs_input, 'ask_research_questions');
+});
+
+test('workflow attack gates keep draft role ownership and hostile prior', () => {
+  const hostilePrior = /Start from a hostile prior: assume the change, proposal, draft, or packet is wrong, incomplete, overcomplicated, or under-evidenced until the artifact proves otherwise\./;
+
+  assert.equal(workflowDoc.steps.research_draft.input.role, 'researcher');
+  assert.equal(workflowDoc.steps.research_attack.input.role, 'researcher');
+  assert.match(promptText(workflowDoc.steps.research_attack), hostilePrior);
+
+  assert.equal(workflowDoc.steps.architecture_draft.input.role, 'architect');
+  assert.equal(workflowDoc.steps.architecture_attack.input.role, 'architect');
+  assert.match(promptText(workflowDoc.steps.architecture_attack), hostilePrior);
+
+  assert.equal(researchCriticWorkflowDoc.steps.research_draft.input.role, 'researcher');
+  assert.equal(researchCriticWorkflowDoc.steps.research_attack.input.role, 'researcher');
+  assert.match(promptText(researchCriticWorkflowDoc.steps.research_attack), hostilePrior);
 });
 
 
