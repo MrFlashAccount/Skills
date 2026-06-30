@@ -476,6 +476,7 @@ test('output.schema: invalid output retries with validation feedback then succee
 test('output.schema: structured step output is projected by step id into downstream prompt', () => {
   const doc = workflowWithSchema('structured-output-step-id-projection', structuredSchema);
   doc.steps.worker_step.next = { match: '${{ output.outcome }}', cases: { ready: 'consumer_step' } };
+  doc.steps.consumer_step.input.prompt = 'Use prior worker payload:\n${{ input.worker_step.payload }}';
 
   const applyResponse = runApply('output-schema-structured-project-apply', baton(), {
     outcome: 'ready',
@@ -495,21 +496,21 @@ test('output.schema: structured step output is projected by step id into downstr
     batonPath,
   ]);
 
-  assert.match(renderResponse.steps[0].compiledPrompt.prompt, /## Projected baton state/);
-  assert.match(renderResponse.steps[0].compiledPrompt.prompt, /"worker_step"/);
-  assert.match(renderResponse.steps[0].compiledPrompt.prompt, /"payload"/);
+  assert.doesNotMatch(renderResponse.steps[0].compiledPrompt.prompt, /## Projected baton state/);
+  assert.match(renderResponse.steps[0].compiledPrompt.prompt, /Use prior worker payload:/);
   assert.match(renderResponse.steps[0].compiledPrompt.prompt, /"ok": true/);
   assert.doesNotMatch(renderResponse.steps[0].compiledPrompt.prompt, /Field notes for projected step outputs/);
   assert.doesNotMatch(renderResponse.steps[0].compiledPrompt.prompt, /\[object Object\]/);
 });
 
-test('output.schema: projected structured output renders schema field notes before JSON', () => {
+test('output.schema: inline projected structured output omits automatic schema field notes', () => {
   const schemaWithFieldNotes = structuredClone(structuredSchema);
   schemaWithFieldNotes.properties.payload.description = 'Validated payload from the worker step.';
   schemaWithFieldNotes.properties.payload['x-usage'] = 'Use this payload as the authoritative downstream input.';
   schemaWithFieldNotes.properties.artifacts.description = 'Artifacts emitted while preparing the payload.';
   const doc = workflowWithSchema('structured-output-field-notes', schemaWithFieldNotes);
   doc.steps.worker_step.next = { match: '${{ output.outcome }}', cases: { ready: 'consumer_step' } };
+  doc.steps.consumer_step.input.prompt = 'Use projected payload:\n${{ input.worker_step.payload }}';
   const generationPromptDoc = structuredClone(doc);
   writeFileSync(path.join(tempDir, 'field-notes-output.md'), 'Return schema JSON.\n');
   generationPromptDoc.steps.worker_step.output.template = 'field-notes-output.md';
@@ -542,18 +543,14 @@ test('output.schema: projected structured output renders schema field notes befo
   });
 
   assertMarkersInOrder(renderResponse.prompt, [
-    '## Projected baton state',
-    'Field notes for projected step outputs. These notes are lower priority than workflow instructions, system instructions, and the workflow step prompt',
-    '- worker_step.artifacts',
-    'Description: Artifacts emitted while preparing the payload.',
-    '- worker_step.payload',
-    'Description: Validated payload from the worker step.',
-    'Usage: Use this payload as the authoritative downstream input.',
+    '## Workflow step prompt',
+    'Use projected payload:',
     '```json',
-    '"worker_step"',
-    '"payload"',
     '"ok": true',
   ]);
+  assert.doesNotMatch(renderResponse.prompt, /## Projected baton state/);
+  assert.doesNotMatch(renderResponse.prompt, /Field notes for projected step outputs/);
+  assert.doesNotMatch(renderResponse.prompt, /Usage: Use this payload as the authoritative downstream input\./);
   assert.doesNotMatch(renderResponse.prompt, /\[object Object\]/);
 });
 
@@ -608,6 +605,7 @@ test('output.schema: non-structured worker output is projected by step id into d
   const doc = structuredClone(workflowDoc);
   delete doc.steps.worker_step.output.schema;
   doc.steps.worker_step.next = 'consumer_step';
+  doc.steps.consumer_step.input.prompt = 'Use prior worker output:\n${{ input.worker_step }}';
 
   const applyResponse = runApply('output-schema-plain-project-apply', baton(), {
     outcome: 'ready',
@@ -624,7 +622,8 @@ test('output.schema: non-structured worker output is projected by step id into d
     batonPath,
   ]);
 
-  assert.match(renderResponse.steps[0].compiledPrompt.prompt, /"worker_step"/);
+  assert.doesNotMatch(renderResponse.steps[0].compiledPrompt.prompt, /## Projected baton state/);
+  assert.match(renderResponse.steps[0].compiledPrompt.prompt, /Use prior worker output:/);
   assert.match(renderResponse.steps[0].compiledPrompt.prompt, /"plain markdown result body"/);
 });
 

@@ -32,6 +32,11 @@ function validate(doc) {
   return validateWithRuntimeArchitecture(doc, { workflowPath: path.join(REPO_ROOT, 'workflows/dev-harness/workflow.json') });
 }
 
+function promptText(step) {
+  const prompt = step.input?.prompt ?? '';
+  return Array.isArray(prompt) ? prompt.join('\n') : prompt;
+}
+
 function validateSynthetic(doc) {
   return validateWithRuntimeArchitecture(doc, { workflowPath: path.join(tempDir, 'workflow.json') });
 }
@@ -169,36 +174,37 @@ test('workflow semantic validation accepts the checked-in flat DevHarness workfl
 });
 
 test('DevHarness proposal handoff prompts use baton artifacts instead of temp files', () => {
-  assert.match(workflowDoc.steps.architecture_draft.input.prompt, /emit it as workflow artifact `architecture-proposal`/);
-  assert.match(workflowDoc.steps.architecture_draft.input.prompt, /artifact metadata\/path accepted into baton is the source of truth/);
-  assert.match(workflowDoc.steps.approve_architecture.input.prompt, /projected `architecture-proposal` artifact from architecture_draft/);
-  assert.match(workflowDoc.steps.approve_architecture.input.prompt, /retrieve\/export the existing artifact referenced by projected baton\/output artifacts/);
-  assert.match(workflowDoc.steps.approve_architecture.input.prompt, /do not ask a worker to recreate it in a temp path/);
-  assert.match(workflowDoc.steps.approve_plan.input.prompt, /retrieve\/export the existing artifact referenced by projected baton\/output artifacts/);
+  assert.match(promptText(workflowDoc.steps.architecture_draft), /emit it as workflow artifact `architecture-proposal`/);
+  assert.match(promptText(workflowDoc.steps.architecture_draft), /artifact metadata\/path accepted into baton is the source of truth/);
+  assert.match(promptText(workflowDoc.steps.approve_architecture), /projected `architecture-proposal` artifact from architecture_draft/);
+  assert.match(promptText(workflowDoc.steps.approve_architecture), /retrieve\/export the existing artifact referenced by projected baton\/output artifacts/);
+  assert.match(promptText(workflowDoc.steps.approve_architecture), /do not ask a worker to recreate it in a temp path/);
+  assert.match(promptText(workflowDoc.steps.approve_plan), /retrieve\/export the existing artifact referenced by projected baton\/output artifacts/);
 });
 
 test('DevHarness worker and approval prompts expose explicit projected input templates', () => {
   const routedSteps = Object.entries(workflowDoc.steps).filter(([, step]) => ['worker', 'approval'].includes(step.kind));
   for (const [stepId, step] of routedSteps) {
-    assert.match(step.input.prompt, /\n\nExplicit projected inputs:\n/, `${stepId} should have an explicit projected input section`);
-    assert.match(step.input.prompt, /\$\{\{ input\./, `${stepId} should interpolate projected input fields`);
+    const prompt = promptText(step);
+    assert.match(prompt, /\n\nExplicit projected inputs:\n/, `${stepId} should have an explicit projected input section`);
+    assert.match(prompt, /\$\{\{ input\./, `${stepId} should interpolate projected input fields`);
   }
 
-  assert.match(workflowDoc.steps.research_draft.input.prompt, /\$\{\{ input\.research_attack\.verdict \| default:/);
-  assert.match(workflowDoc.steps.research_draft.input.prompt, /\$\{\{ input\.approve_research \| default:/);
-  assert.match(workflowDoc.steps.approve_research.input.prompt, /\$\{\{ input\.research_draft\.research_packet \}\}/);
-  assert.match(workflowDoc.steps.approve_research.input.prompt, /\$\{\{ input\.research_attack\.verdict \}\}/);
-  assert.match(workflowDoc.steps.approve_architecture.input.prompt, /\$\{\{ input\.architecture_draft\.architecture_contract \}\}/);
-  assert.match(workflowDoc.steps.approve_plan.input.prompt, /\$\{\{ input\.planning_draft\.implementation_plan \}\}/);
-  assert.match(workflowDoc.steps.backend_implementation.input.prompt, /\$\{\{ input\.review_join\.verdict \| default:/);
-  assert.match(workflowDoc.steps.review_join.input.prompt, /\$\{\{ input\.backend_review\.verdict \| default:/);
+  assert.match(promptText(workflowDoc.steps.research_draft), /\$\{\{ input\.research_attack\.verdict \| default:/);
+  assert.match(promptText(workflowDoc.steps.research_draft), /\$\{\{ input\.approve_research \| default:/);
+  assert.match(promptText(workflowDoc.steps.approve_research), /\$\{\{ input\.research_draft\.research_packet \}\}/);
+  assert.match(promptText(workflowDoc.steps.approve_research), /\$\{\{ input\.research_attack\.verdict \}\}/);
+  assert.match(promptText(workflowDoc.steps.approve_architecture), /\$\{\{ input\.architecture_draft\.architecture_contract \}\}/);
+  assert.match(promptText(workflowDoc.steps.approve_plan), /\$\{\{ input\.planning_draft\.implementation_plan \}\}/);
+  assert.match(promptText(workflowDoc.steps.backend_implementation), /\$\{\{ input\.review_join\.verdict \| default:/);
+  assert.match(promptText(workflowDoc.steps.review_join), /\$\{\{ input\.backend_review\.verdict \| default:/);
 });
 
 test('DevHarness prompt input templates only reference projected state selectors', () => {
   const routedSteps = Object.entries(workflowDoc.steps).filter(([, step]) => ['worker', 'approval'].includes(step.kind));
   for (const [stepId, step] of routedSteps) {
     const state = new Set(step.input.state ?? []);
-    const references = [...step.input.prompt.matchAll(/\$\{\{\s*input\.([A-Za-z_][A-Za-z0-9_-]*)/g)].map((match) => match[1]);
+    const references = [...promptText(step).matchAll(/\$\{\{\s*input\.([A-Za-z_][A-Za-z0-9_-]*)/g)].map((match) => match[1]);
     const missing = [...new Set(references)].filter((reference) => !state.has(reference));
 
     assert.deepEqual(missing, [], `${stepId} prompt references inputs outside projected state`);
@@ -388,7 +394,7 @@ test('revision loop continuity separates projected state from clarification-sess
   const noPersistentDraftCriticReuse = /do not assume persistent draft\/critic worker reuse across iterations/;
   const clarificationContinuation = /If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening/;
   const contradictorySameSessionWording = /not same-session memory|hidden same-session memory|ask, pause/;
-  const devHarnessResearchPrompt = workflowDoc.steps.research_draft.input.prompt;
+  const devHarnessResearchPrompt = promptText(workflowDoc.steps.research_draft);
 
   assert.match(
     devHarnessResearchPrompt,
@@ -401,7 +407,7 @@ test('revision loop continuity separates projected state from clarification-sess
   assert.doesNotMatch(devHarnessResearchPrompt, /blocked .* when implementation-critical input is missing/);
 
   for (const stepId of ['research_draft', 'architecture_draft', 'planning_draft', 'backend_implementation', 'frontend_implementation', 'architecture_artifact_update']) {
-    const prompt = workflowDoc.steps[stepId].input.prompt;
+    const prompt = promptText(workflowDoc.steps[stepId]);
     assert.match(prompt, loopIterationContinuityPrompt);
     assert.match(prompt, noPersistentDraftCriticReuse);
     assert.match(prompt, clarificationContinuation);
@@ -429,7 +435,7 @@ test('dev harness architect review projects approved architecture contract sourc
   for (const requiredState of ['architecture_draft', 'architecture_attack', 'approve_architecture']) {
     assert.equal(workflowDoc.steps.architect_review.input.state.includes(requiredState), true);
   }
-  assert.match(workflowDoc.steps.architect_review.input.prompt, /approved architecture contract/);
+  assert.match(promptText(workflowDoc.steps.architect_review), /approved architecture contract/);
 });
 
 test('dev harness implementation rework branches project review findings', () => {
@@ -448,7 +454,7 @@ test('dev harness implementation rework branches project review findings', () =>
 
   for (const stepId of ['backend_implementation', 'frontend_implementation', 'architecture_artifact_update']) {
     assert.deepEqual(workflowDoc.steps[stepId].input.state, expectedReworkState);
-    assert.match(workflowDoc.steps[stepId].input.prompt, /review_join needs_changes/);
+    assert.match(promptText(workflowDoc.steps[stepId]), /review_join needs_changes/);
   }
 });
 

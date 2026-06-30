@@ -254,7 +254,7 @@ function renderFixture(overrides = {}) {
   });
 }
 
-test('prompt renderer: default prompt includes task projected state and deterministic newline formatting without diagnostics by default', () => {
+test('prompt renderer: default prompt omits projected state dump and keeps deterministic newline formatting without diagnostics by default', () => {
   const step = { name: 'Approval step', kind: 'approval', input: { state: ['worker_step'], prompt: 'Approve.' }, next: 'done' };
   const compiled = renderFixture({ label: 'render-default', step, batonDoc: baton({ cursor: 'approval_step', state: { artifacts: [], results: [], worker_step: [{ id: 'a' }], approval_step: [] } }) });
 
@@ -264,10 +264,10 @@ test('prompt renderer: default prompt includes task projected state and determin
   assert.equal(Object.hasOwn(compiled, 'name'), false);
   assert.match(compiled.prompt, /^# Approval step\n/);
   assertMarkersInOrder(compiled.prompt, [
-    '## Projected baton state\n\n```json\n{\n  "worker_step": [',
     '## Workflow step prompt',
     'Approve.',
   ]);
+  assert.doesNotMatch(compiled.prompt, /## Projected baton state/);
   assert.equal(Object.hasOwn(compiled, 'diagnostics'), false);
   assert.equal(compiled.prompt.endsWith('\n'), true);
 });
@@ -299,6 +299,45 @@ test('prompt renderer: interpolates projected input expressions in workflow step
 
   const compiled = renderFixture({
     label: 'render-prompt-interpolation',
+    stepId: 'worker_step',
+    step,
+    batonDoc: baton({
+      state: {
+        artifacts: [],
+        results: [],
+        worker_step: { outcome: 'ready', summary: 'drafted' },
+        critic_step: { outcome: 'needs_revision', verdict: { findings: ['tighten scope'] } },
+      },
+    }),
+  });
+
+  assertMarkersInOrder(compiled.prompt, [
+    '## Workflow step prompt',
+    'Previous summary: drafted',
+    'Critic findings:',
+    '```json\n[\n  "tighten scope"\n]',
+  ]);
+});
+
+test('prompt renderer: joins prompt arrays before interpolation', () => {
+  const step = {
+    name: 'Worker step',
+    kind: 'worker',
+    input: {
+      state: ['worker_step', 'critic_step'],
+      prompt: [
+        'Previous summary: ${{ input.worker_step.summary }}',
+        '',
+        'Critic findings:',
+        '${{ input.critic_step.verdict.findings }}',
+      ],
+    },
+    output: { template: 'output.md' },
+    next: 'done',
+  };
+
+  const compiled = renderFixture({
+    label: 'render-prompt-array-interpolation',
     stepId: 'worker_step',
     step,
     batonDoc: baton({
@@ -421,7 +460,7 @@ test('prompt renderer: rejects input template placeholders as unsupported', () =
   );
 });
 
-test('prompt renderer: appends required reads, output, and state sections in fixed compiled layer order', () => {
+test('prompt renderer: appends required reads, output, and workflow prompt in fixed compiled layer order', () => {
   writeRoleMaterial('backend');
   writeFileSync(path.join(tempDir, 'minimal-template.md'), '# Worker step\n');
   writeFileSync(path.join(tempDir, 'minimal-output.md'), '## Required return\nUse this contract.\n');
@@ -454,13 +493,12 @@ test('prompt renderer: appends required reads, output, and state sections in fix
     '## Output contract',
     '<!-- output template: minimal-output.md -->',
     '## Required return\nUse this contract.',
-    '## Projected baton state',
-    '```json',
     '## Workflow step prompt',
     'Do the task.',
     '## Final reminder',
     'Return exactly according to the output contract above.',
   ]);
+  assert.doesNotMatch(compiled.prompt, /## Projected baton state/);
 });
 
 test('prompt renderer: runtime layer resolves role and artifact required-read paths before compilation', () => {
@@ -1275,6 +1313,21 @@ test('prompt renderer: path resolver rejects missing templates without fallback'
   assert.throws(() => renderFixture({ label: 'render-missing', stepId: 'worker_step', step: missingStep }), /missing input template 'missing-template\.md'/);
 });
 
+test('prompt renderer: validation feedback appends to prompt arrays', () => {
+  const workflowDoc = structuredClone(schemaWorkflowDoc);
+  workflowDoc.steps.worker_step.input = { prompt: ['Run worker.', '', 'Use strict output.'] };
+  workflowDoc.steps.worker_step.output = { template: 'output.md', schema: 'worker-output.schema.json' };
+  const workflowPath = writeJson('prompt-array-feedback-workflow.json', workflowDoc);
+  const batonPath = writeJson('prompt-array-feedback-baton.json', baton());
+  const outputPath = writeJson('prompt-array-feedback-output.json', { outcome: 'invalid' });
+
+  const result = runNode(['skills/orbita/lib/entrypoints/cli/workflow-interpreter.mjs', 'apply', workflowPath, batonPath, outputPath]);
+  const response = expectCliResult('prompt-array-feedback', result, true);
+
+  assert.equal(response.steps[0].step.input.prompt.includes('Run worker.\n\nUse strict output.'), true);
+  assert.match(response.steps[0].step.input.prompt, /Previous output failed output\.schema validation/);
+});
+
 test('CLI render: runtime guard rejects reserved aggregate state selectors', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
   workflowDoc.steps.approval_step.input.state = ['artifacts'];
@@ -1315,12 +1368,12 @@ test('CLI render: fixture returns compiledPrompt and does not mutate baton', () 
     '## Output contract',
     `<!-- output template: ${outputTemplateRef} -->`,
     '## Required return\nUse this contract.',
-    '## Projected baton state',
     '## Workflow step prompt',
     'Run worker.',
     '## Final reminder',
     'Return exactly according to the output contract above.',
   ]);
+  assert.doesNotMatch(response.steps[0].compiledPrompt.prompt, /## Projected baton state/);
 });
 
 test('CLI render: diagnostics are included only when explicitly requested', () => {

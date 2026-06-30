@@ -1,6 +1,6 @@
 import { finalOutputReminder, outputContractSection, readOutputSchema, readOutputTemplate } from './sections/output-contract.mjs';
 import { interpolatePromptExpressions } from './sections/prompt-interpolation.mjs';
-import { projectedStateBlock } from './sections/projected-state.mjs';
+import { normalizePromptText } from '../../../runtime/prompt-text.mjs';
 import { section, trimStable } from './utils.mjs';
 import { assertNoUnsupportedPlaceholders, defaultPrompt, readInputTemplate } from './sections/template.mjs';
 
@@ -27,14 +27,13 @@ function requiredReadsBlock(items = []) {
   return lines.join('\n');
 }
 
-function assembleFixedPrompt({ promptLayer, templatePath, workflowInstructionBlock, requiredReads, inlinePrompt, stateBlock, outputContract, userPrompt, finalReminder }) {
+function assembleFixedPrompt({ promptLayer, templatePath, workflowInstructionBlock, requiredReads, inlinePrompt, outputContract, userPrompt, finalReminder }) {
   assertNoUnsupportedPlaceholders(promptLayer, templatePath);
   const parts = [trimStable(promptLayer)];
 
   if (workflowInstructionBlock) parts.push(section('Workflow instruction', workflowInstructionBlock).trimEnd());
   if (requiredReads) parts.push(section('Required reads', requiredReads).trimEnd());
   if (outputContract) parts.push(outputContract.trimEnd());
-  if (stateBlock) parts.push(section('Projected baton state', stateBlock).trimEnd());
   if (inlinePrompt) parts.push(section('Workflow step prompt', inlinePrompt.trim()));
   if (typeof userPrompt === 'string' && userPrompt.trim().length > 0) parts.push(section('User prompt', userPrompt));
   if (finalReminder) parts.push(finalReminder.trimEnd());
@@ -44,7 +43,6 @@ function assembleFixedPrompt({ promptLayer, templatePath, workflowInstructionBlo
 
 export function renderWorkflowPrompt({ workflow, stepId, step, resources, projection = { value: {}, projectedKeys: [] }, requiredReads = [], roleMetadataPaths = [], includeDiagnostics = false, userPrompt, userPromptInjected = false } = {}) {
   const input = step.input ?? {};
-  const stateBlock = projectedStateBlock({ workflow, projection, resources, readOutputSchema });
   const inputTemplate = readInputTemplate({ input, resources });
   const outputTemplate = readOutputTemplate({ step, resources });
   const outputSchema = readOutputSchema({ workflow, step, resources });
@@ -64,8 +62,7 @@ export function renderWorkflowPrompt({ workflow, stepId, step, resources, projec
     templatePath: inputTemplate.metadataPath,
     workflowInstructionBlock,
     requiredReads: requiredReadsSection,
-    inlinePrompt: interpolatePromptExpressions(input.prompt ?? '', { input: projection.value }),
-    stateBlock,
+    inlinePrompt: interpolatePromptExpressions(normalizePromptText(input.prompt), { input: projection.value }),
     outputContract,
     userPrompt: step.kind === 'worker' && userPromptInjected !== true ? userPrompt : undefined,
     finalReminder,

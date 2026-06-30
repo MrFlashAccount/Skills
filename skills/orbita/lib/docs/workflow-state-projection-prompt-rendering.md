@@ -15,7 +15,7 @@ Prompt rendering is deterministic runtime behavior, not an orchestrator shortcut
 
 - the current workflow `step`;
 - optional step `input.template` and inline `input.prompt`;
-- explicitly allowed baton state from `input.state`;
+- explicitly allowed baton state from `input.state`, available to inline `input.prompt` interpolation;
 - required-read references for `input.role` when present, resolved from `roles/<name>/ROLE.md` and `roles/<name>/RUBRIC.md`;
 - worker output instructions from `output.template` when present;
 - optional JSON response constraints from `output.schema` when present.
@@ -90,8 +90,8 @@ Renderer-relevant fields:
 | `step.name` | all step kinds | Human label available to prompt templates and default prompt text. |
 | `step.kind` | all step kinds | Determines directive action outside the renderer and remains available to prompt templates. |
 | `input.template` | all step kinds, optional | Markdown input prompt template to load and render from the workflow package directory, or from `shared/...` when explicitly referenced; omitted steps use renderer-owned prompt layering. |
-| `input.prompt` | all step kinds | Inline task instruction appended or substituted by the renderer. |
-| `input.state` | all step kinds | Explicit list of workflow step ids whose state may be projected. |
+| `input.prompt` | all step kinds | Inline task instruction appended or substituted by the renderer; may explicitly interpolate projected input values with `${{ input... }}` expressions. |
+| `input.state` | all step kinds | Explicit list of workflow step ids whose state may be projected into the interpolation input and required-read discovery. |
 | `input.role` | worker | Role name resolved from `roles/<name>/`; renderer inlines `ROLE.md` and `RUBRIC.md` into prompt context. |
 | `output.template` | worker | Markdown output contract template resolved from the workflow package directory, or from `shared/...` when explicitly referenced, and included as strict return-shape instructions. |
 | `output.schema` | worker, optional | JSON schema file to inject near the output contract as concise valid-JSON/self-check instructions. Plain refs are workflow-package-local; `shared/...` refs are explicit shared resources. |
@@ -101,7 +101,7 @@ Renderer-relevant fields:
 
 ### `input.state`
 
-`input.state` is an allow-list, not a hint. Entries reference workflow step ids whose state may be projected. If `input.state` is absent or empty, no baton state is included.
+`input.state` is an allow-list, not a prompt section. Entries reference workflow step ids whose state may be made available to inline `input.prompt` interpolation and projected artifact required-read discovery. If `input.state` is absent or empty, no baton state is available through `${{ input... }}`.
 
 V1 selectors are top-level workflow step ids only:
 
@@ -218,36 +218,22 @@ workflow prompt render failed: step 'research' uses unsupported state selector '
 
 ### Serialization
 
-State projection inserted into prompts should be serialized as fenced JSON:
+Projected state is not automatically serialized into the compiled prompt. The renderer only serializes projected values when an inline `input.prompt` expression explicitly references them:
 
-````markdown
-## Projected baton state
-
-```json
-{
-  "research_draft": { "summary": "..." },
-  "implementation_plan": { "status": "ready" }
-}
+```markdown
+Previous research packet:
+${{ input.research_draft }}
 ```
-````
 
-Projected field notes:
+Serialization rules for explicit interpolation:
 
-- before the fenced JSON, the renderer may print `Field notes for projected step outputs` for fields present in projected step outputs;
-- field notes come from the producer step `output.schema`, resolving local `$ref` and the central Baton artifact `$defs` reference;
-- `description` explains field meaning;
-- `x-usage` provides downstream reader guidance using the same existing metadata style as producer notes;
-- notes are explanatory only and lower priority than system/workflow/step instructions.
+- objects and arrays render as fenced JSON using `JSON.stringify(value, null, 2)`;
+- strings render as text;
+- numbers, booleans, and `null` render as scalar text;
+- preserve selected object key order and array order from baton state;
+- do not redact, summarize, truncate, or normalize in v1.
 
-Serialization rules:
-
-- use `JSON.stringify(value, null, 2)`;
-- preserve selected key order in the object insertion order;
-- preserve array order from baton state;
-- do not redact, summarize, truncate, or normalize in v1;
-- add a trailing newline after the fenced block for stable snapshots.
-
-If truncation/redaction becomes necessary later, make it a separate explicit projection policy. Do not hide it inside the dumb renderer.
+If truncation/redaction becomes necessary later, make it a separate explicit interpolation policy. Do not hide it inside the dumb renderer.
 
 ## `renderWorkflowPrompt` behavior
 
@@ -304,10 +290,9 @@ After that top layer, the renderer always concatenates fixed sections in this or
 1. `## Workflow instruction` from workflow-level instruction text;
 2. `## Required reads` if `input.role` or projected artifact files exist;
 3. `## Output contract` if `output.template` or `output.schema` exists;
-4. `## Projected baton state` if `input.state` selected anything;
-5. `## Workflow step prompt` if `input.prompt` exists;
-6. `## User prompt` from the optional render-time `userPrompt` value, only when the runner/runtime has selected this worker as the one startup prompt recipient and that selected worker output has not yet set `baton.user_prompt_injected`; repeated renders before completion preserve the section for the same worker;
-7. final reminder when an output contract exists.
+4. `## Workflow step prompt` if `input.prompt` exists after interpolation;
+5. `## User prompt` from the optional render-time `userPrompt` value, only when the runner/runtime has selected this worker as the one startup prompt recipient and that selected worker output has not yet set `baton.user_prompt_injected`; repeated renders before completion preserve the section for the same worker;
+6. final reminder when an output contract exists.
 
 This keeps the output contract high for primacy, places context before the executable step/user request, and keeps a short output-contract reminder at the bottom for recency. It intentionally does not preserve compatibility with older placeholder templates.
 
@@ -327,7 +312,7 @@ Return output that satisfies the workflow worker-output envelope and follows thi
 
 When an `output.schema` exists, the same section appends generated schema-derived notes and the strict JSON schema. Artifact producer mechanics come from schema `description`/`x-usage` metadata, not workflow prompt prose or markdown templates. The envelope remains the existing worker/approval output JSON contract (`outcome` or `approval`, optional `artifacts`, `results`, `blocker`). The markdown template describes artifact content expected from the child, not a JSON schema.
 
-Projected baton state may also prepend schema-derived reader notes from projected producer schemas. Artifact consumer mechanics come from schema `description`/`x-usage` metadata; the projected JSON value remains authoritative.
+Projected producer schemas do not create automatic reader notes for projected state. Artifact consumer mechanics should be expressed in the step prompt or in the producing artifact schema metadata that the explicit prompt chooses to surface.
 
 ### Unsupported placeholder policy
 

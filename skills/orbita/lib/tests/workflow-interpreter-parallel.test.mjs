@@ -205,7 +205,10 @@ test('e2e: wrapper can render parallel branch prompts, collect branch outputs, a
   const workflowDoc = structuredClone(parallelWorkflowDoc);
   workflowDoc.name = 'parallel-render-spec';
   workflowDoc.steps.branch_a.input.state = ['prepare'];
+  workflowDoc.steps.branch_a.input.prompt = 'Run branch A from prepare:\n${{ input.prepare }}';
   workflowDoc.steps.branch_b.input.state = ['prepare'];
+  workflowDoc.steps.branch_b.input.prompt = 'Run branch B from prepare:\n${{ input.prepare }}';
+  workflowDoc.steps.join.input.prompt = 'Read branch states and decide:\nbranch_a:\n${{ input.branch_a }}\nbranch_b:\n${{ input.branch_b }}';
 
   const pending = runApply('parallel-e2e-start', baton({ cursor: 'prepare' }), output({
     outcome: 'ready',
@@ -231,9 +234,9 @@ test('e2e: wrapper can render parallel branch prompts, collect branch outputs, a
   const joinRender = runRender('parallel-e2e-render-join', joined, true, workflowDoc);
   assert.equal(joinRender.steps[0].id, 'join');
   assert.equal(joinRender.steps[0].action, 'run_worker');
-  assert.match(joinRender.steps[0].compiledPrompt.prompt, /"branch_a"/);
+  assert.match(joinRender.steps[0].compiledPrompt.prompt, /branch_a:/);
   assert.match(joinRender.steps[0].compiledPrompt.prompt, /A says go/);
-  assert.match(joinRender.steps[0].compiledPrompt.prompt, /"branch_b"/);
+  assert.match(joinRender.steps[0].compiledPrompt.prompt, /branch_b:/);
   assert.match(joinRender.steps[0].compiledPrompt.prompt, /B says go/);
 });
 

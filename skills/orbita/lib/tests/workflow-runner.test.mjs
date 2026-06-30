@@ -370,7 +370,7 @@ test('runner: approval host instruction lists projected artifact content as requ
   assert.match(response.orchestratorInstruction, /Projected artifact 'research-packet' from 'prepare' \(text\/markdown\):/);
   assert.match(response.orchestratorInstruction, /prepare\/artifacts\/research-packet\.md/);
   assert.match(response.orchestratorInstruction, /## Output contract/);
-  assert.match(response.orchestratorInstruction, /## Projected baton state/);
+  assert.doesNotMatch(response.orchestratorInstruction, /## Projected baton state/);
   assert.doesNotMatch(response.orchestratorInstruction, /### Projected artifact content/);
   assert.doesNotMatch(response.orchestratorInstruction, /Full packet body for approval\./);
   assert.match(response.orchestratorInstruction, /## Workflow step prompt/);

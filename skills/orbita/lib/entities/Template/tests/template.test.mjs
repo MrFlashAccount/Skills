@@ -139,7 +139,7 @@ test('template compiler renders already-resolved required read paths without res
   assert.deepEqual(rendered.metadata.roleMaterial, ['/abs/project/roles/backend/ROLE.md']);
 });
 
-test('renderWorkflowPrompt assembles templates, required reads, output contract, projected state, and metadata', () => {
+test('renderWorkflowPrompt assembles templates, required reads, output contract, workflow prompt, and metadata', () => {
   const rendered = renderWorkflowPrompt({
     workflow,
     baton,
@@ -168,11 +168,9 @@ test('renderWorkflowPrompt assembles templates, required reads, output contract,
   assert.match(rendered.prompt, /artifacts\[\]\.content_type/);
   assert.match(rendered.prompt, /Fill: Use to render or parse the artifact content/);
   assert.match(rendered.prompt, /Fill: When producing an artifact file, write it inside the step's artifact output directory and emit the full absolute filesystem path here/);
-  assert.match(rendered.prompt, /Field notes for projected step outputs/);
-  assert.match(rendered.prompt, /Description: Producer outcome\./);
-  assert.match(rendered.prompt, /Usage: Selects the next route\./);
-  assert.match(rendered.prompt, /Usage: Use to render or parse the artifact content/);
-  assert.match(rendered.prompt, /"route": "review"/);
+  assert.doesNotMatch(rendered.prompt, /Field notes for projected step outputs/);
+  assert.doesNotMatch(rendered.prompt, /"route": "review"/);
+  assert.doesNotMatch(rendered.prompt, /## Projected baton state/);
   assert.match(rendered.prompt, /## Workflow step prompt\n\nUse projected producer output\./);
   assert.match(rendered.prompt, /## User prompt\n\nextra operator context/);
   assert.match(rendered.prompt, /## Final reminder/);

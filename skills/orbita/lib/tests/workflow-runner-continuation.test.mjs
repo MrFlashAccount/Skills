@@ -370,6 +370,7 @@ test('runner: continue recovers from post-render durable commit failure without 
     const singleWorkflow = structuredClone(workflowDoc);
     singleWorkflow.steps.prepare.next = 'join';
     singleWorkflow.steps.join.input.state = ['prepare'];
+    singleWorkflow.steps.join.input.prompt = 'Join branch output:\n${{ input.prepare }}';
     writeJson(workflowPath, singleWorkflow);
 
     expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], `next durable commit ${failurePoint} failure setup`);
