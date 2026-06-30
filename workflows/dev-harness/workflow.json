@@ -80,6 +80,7 @@
         "state": [
           "research_draft",
           "research_attack",
+          "approve_research",
           "architecture_draft",
           "architecture_attack",
           "approve_architecture"

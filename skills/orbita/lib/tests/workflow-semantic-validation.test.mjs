@@ -194,6 +194,17 @@ test('DevHarness worker and approval prompts expose explicit projected input tem
   assert.match(workflowDoc.steps.review_join.input.prompt, /\$\{\{ input\.backend_review\.verdict \| default:/);
 });
 
+test('DevHarness prompt input templates only reference projected state selectors', () => {
+  const routedSteps = Object.entries(workflowDoc.steps).filter(([, step]) => ['worker', 'approval'].includes(step.kind));
+  for (const [stepId, step] of routedSteps) {
+    const state = new Set(step.input.state ?? []);
+    const references = [...step.input.prompt.matchAll(/\$\{\{\s*input\.([A-Za-z_][A-Za-z0-9_-]*)/g)].map((match) => match[1]);
+    const missing = [...new Set(references)].filter((reference) => !state.has(reference));
+
+    assert.deepEqual(missing, [], `${stepId} prompt references inputs outside projected state`);
+  }
+});
+
 test('workflow semantic validation rejects wrapped workflow documents', () => {
   const flat = syntheticWorkflow();
   const wrapped = { workflow: structuredClone(flat) };
@@ -313,6 +324,7 @@ test('dev harness revision loops project the feedback that caused revision', () 
   assert.deepEqual(workflowDoc.steps.architecture_draft.input.state, [
     'research_draft',
     'research_attack',
+    'approve_research',
     'architecture_draft',
     'architecture_attack',
     'approve_architecture',
