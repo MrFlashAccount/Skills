@@ -7,22 +7,16 @@ description: Use Orbita for workflow-runner host-adapter jobs when the user says
 
 ## Core contract
 
-Orbita is the router-entrypoint for `workflow-runner`: route the user's request to catalog display, workflow resolution, new-run bootstrap, existing-run resume, or runner-directed host actions. After a run starts, the runner controls execution.
+Orbita is the host adapter for `workflow-runner`: route catalog display, workflow resolution, new-run bootstrap, existing-run resume, and runner-directed host actions. After a run starts, the runner controls execution through `workflow-runner next` / `continue --only-instructions` stdout.
 
-The orchestrator invokes public `workflow-runner` CLI commands with `--only-instructions` when the command supports it, then follows stdout text exactly.
+Hard rules:
 
-The runner controls the agent by returning the next textual instruction or prompt from `workflow-runner next` and `workflow-runner continue`. Treat that instruction as authoritative. `workflow-runner write-output` only accepts or rejects one host request output; it is not a navigation command.
-
-Treat runner stdout as a disposable active directive. Keep only the latest `workflow-runner next` or `workflow-runner continue --only-instructions` stdout as authoritative. Each new runner stdout replaces the previous active directive. Earlier runner stdout is stale context and must not be followed, merged, or used to decide the next action.
-
-Never inspect or mutate private runtime files to decide what to do. Use only public run and runner commands from the skill root.
-
-Orbita is a host adapter, not the task implementer. After a runner-directed host request exists:
-
-- Execute only the current runner stdout and the exact commands embedded in it.
-- Do not inspect task repository source, workflow source, runner `lib/**`, schemas, or CLI help to infer protocol or continue logic.
-- Do not do independent research, implementation, or review for the user task while a worker owns the requested step.
-- Do not reconstruct missing `write-output`, `continue`, or approval JSON from source code. If the latest stdout does not provide enough executable instruction to finish the host request, stop as blocked and report a runner contract bug.
+- Latest runner stdout is the only active directive; each `next` or `continue --only-instructions` stdout supersedes all older runner stdout.
+- Invoke public `workflow-runner` commands with `--only-instructions` when supported, then follow stdout exactly.
+- `workflow-runner write-output` accepts or rejects one host request output only; it is not navigation.
+- Use only public run/runner commands from the skill root. Do not inspect or mutate private runtime files, task repository source, workflow source, runner `lib/**`, schemas, or CLI help to infer protocol.
+- Orbita is not the task implementer. While a worker owns a step, do not do independent research, implementation, review, or tests for that task.
+- Execute only the current stdout and its embedded commands. Do not reconstruct missing `write-output`, `continue`, or approval JSON from source. If stdout lacks enough executable instruction, stop as blocked and report a runner contract bug.
 - After spawning a worker, wait for that worker's accepted output or blocker before continuing the run.
 
 ## Routing model
@@ -36,43 +30,43 @@ Most Orbita branches overlap. Do not treat routing as durable modes. Classify on
 
 ## New-run workflow selection
 
-Resolve the workflow before creating a new run. Do not create/register a run until the exact catalog `path` is known; catalog JSON `path` is an absolute executable workflow path and is safe to pass to `--workflow`.
+Resolve the workflow before creating/registering a run. The only executable workflow path is an absolute catalog `path` returned by public catalog output.
 
-List available workflows by calling the public catalog command from this skill root:
+List workflows:
 
 ```bash
 node ./lib/entrypoints/cli/workflow-catalog.mjs list --json
 ```
 
-Use the catalog output's workflow `name` and top-level `description` for preflight routing. Use `path` only after selection/resolution as the absolute value to pass to `--workflow`. Do not manually walk `../../workflows`, read private runtime state, or inspect `steps.*.input.prompt` to choose a workflow.
-
-If the user gave a workflow name, alias, or fuzzy workflow name, resolve it through the public resolver command:
+Resolve a named, aliased, or fuzzy workflow:
 
 ```bash
 node ./lib/entrypoints/cli/workflow-catalog.mjs resolve '<workflow name>' --json
 ```
 
-Use a single resolver match directly. If resolver returns multiple matches, ask the user to choose from those matches. If resolver returns no match, fall back to catalog-based task matching.
+Use workflow `name` and top-level `description` for routing; use `path` only after selection/resolution as `--workflow`. Do not walk `../../workflows`, read private runtime state, or inspect `steps.*.input.prompt` to choose.
 
-When the user did not name a workflow, rank catalog candidates from the task and workflow descriptions, then ask one selection question with at most three best candidates. Use `request_user_input` when available. Each candidate must be shown as `name - short reason`; the user may pick one candidate, ask to show all workflows, or type a workflow name or alias manually. If the user replies with a fuzzy or partial workflow name, run `node ./lib/entrypoints/cli/workflow-catalog.mjs resolve '<workflow name>' --json`; if it still matches several candidates, ask one narrower selection question. Only a `path` returned by the public catalog output is valid for run creation; do not accept user-typed workflow paths as executable paths.
+Branch closure:
 
-When no candidate fits, say that no existing workflow fits and offer to list workflows or create/design a new workflow if such a workflow exists in the catalog.
-
-Catalog/list requests stop after showing catalog output unless the user also asked to run a workflow. Use `node ./lib/entrypoints/cli/workflow-catalog.mjs list --human` only when presenting the workflow list directly to the user.
+- Single resolver match: use it.
+- Multiple resolver matches: ask the user to choose from those matches.
+- No resolver match: rank catalog candidates from task and workflow descriptions.
+- No named workflow: ask one selection question with at most three `name - short reason` candidates; use `request_user_input` when available. The user may pick one, ask for all workflows, or type a workflow name/alias. Resolve fuzzy replies again.
+- No candidate fits: say so and offer to list workflows or create/design a workflow if that exists in the catalog.
+- List-only requests stop after `node ./lib/entrypoints/cli/workflow-catalog.mjs list --human` unless the user also asked to run a workflow.
+- Never accept user-typed workflow paths as executable paths.
 
 ## Bootstrap
 
-Prepare a compact title, summary, owner, harness, session id, and dense user prompt in plain text.
-
-List public run identities:
+Prepare compact title, summary, owner, harness, session id, and dense user prompt. List public run identities:
 
 ```bash
 node ./lib/entrypoints/cli/workflow-runs.mjs list
 ```
 
-Select an existing run only from public JSON fields such as `runId`, title, summary, workflow identity/path, status, timestamps, task key/fingerprint, and occupancy state. If exactly one candidate is clear, use its exact `runId`. If several are plausible, ask the user to choose by human-readable summaries. If a candidate is occupied, ask whether to wait, choose another run, or explicitly resolve the lease.
+Select an existing run only from public fields: `runId`, title, summary, workflow identity/path, status, timestamps, task key/fingerprint, and occupancy. If exactly one candidate fits, use its exact `runId`; if several fit, ask by human-readable summary; if occupied, ask whether to wait, choose another run, or explicitly resolve the lease.
 
-When no existing run fits, resolve the workflow through new-run workflow selection, then create/register one run identity:
+If no run fits, resolve the workflow, then create/register one run identity:
 
 ```bash
 node ./lib/entrypoints/cli/workflow-runs.mjs create --workflow <absolute-catalog-workflow-path> --title '<title>' --summary '<summary>' --owner <owner> --harness <harness> --session-id <session-id>
@@ -86,7 +80,7 @@ Claim the selected run before calling the runner:
 lease_token=$(node ./lib/entrypoints/cli/workflow-runs.mjs claim --run-id <run-id> --owner <owner> --harness <harness> --session-id <session-id> --print-lease-token)
 ```
 
-Extract and preserve the exact `runId` and exact `lease_token`. Never invent, shorten, or retype the token from memory. If the token is missing, claim again or stop with a blocker.
+Extract and preserve exact `runId` and `lease_token`; never invent, shorten, or retype the token from memory. If missing, claim again or stop blocked.
 
 Start by asking the runner for the first instruction:
 
@@ -98,44 +92,24 @@ Follow stdout text exactly.
 
 ## Command-driven execution
 
-After each runner command that uses `--only-instructions`, follow stdout text exactly. `instructions` prints loaded instruction text and does not accept `--only-instructions`.
+After each `--only-instructions` runner command, follow stdout exactly. `instructions` prints loaded instruction text and never accepts `--only-instructions`.
 
-Terminal statuses:
+- `done`: stop and report the completed result from terminal stdout JSON, extracting workflow-specific result from included baton/projection, not a presumed `result` field.
+- `blocked`: stop and report blocker details from terminal stdout JSON, extracting from included baton/projection, not a presumed `blocker` field.
+- `needs_host_actions`: complete every current inline JSON request through Host actions, wait until each requested action has accepted output, then run the exact embedded `continue` command.
 
-- `done`: stop and report the completed result from the terminal response JSON in stdout, extracting the workflow-specific result from the included baton/projection rather than assuming a separate `result` field exists.
-- `blocked`: stop and report the blocker from the terminal response JSON in stdout, extracting blocker details from the included baton/projection rather than assuming a separate `blocker` field exists.
-
-Non-terminal host work:
-
-- `needs_host_actions`: complete every current host request from the inline JSON request array in stdout text through the host actions below, wait until each requested action has accepted output, then run the exact `continue` command embedded in the stdout instruction.
-
-Call `workflow-runner continue` only by running the exact command embedded in the latest stdout instruction.
-
-Do not call `next` as a substitute for applying accepted request results. Do not report an intermediate cursor, next instruction, pending request, accepted output, or `needs_host_actions` as final completion.
+Call `workflow-runner continue` only from the latest stdout command. Do not call `next` as a substitute, and never report cursor, next instruction, pending request, accepted output, or `needs_host_actions` as final completion.
 
 ## Host actions
 
-A host action is work requested by the runner in stdout instruction text. Complete every current request unless one is impossible; if any required request cannot be completed, stop as blocked.
+Complete every current stdout request unless impossible; if any required request cannot be completed, stop blocked. Known actions: `run_worker`, `wait_for_approval`. Unknown action means blocked.
 
-Known request actions:
-
-- `run_worker`: run the requested worker as a subagent.
-- `wait_for_approval`: collect the requested approval, option choice, or free-form user input.
-
-If a request action is unknown, stop as blocked.
-
-For `run_worker`, choose the request instruction command before spawning or continuing the worker:
+For `run_worker`:
 
 - Use `loadFollowupInstructionsCommand` only when the host can continue or restore the opaque `preferredAgentId`.
 - Otherwise use `loadInstructionsCommand` for a fresh worker.
-- After the actual worker id is known, run `bindAgentCommand` after replacing only the literal `<agent-id>` placeholder with the shell-quoted actual worker id.
-- Treat `preferredAgentId` and `baton.workerBindings[stepId]` as advisory reuse hints only. Do not create attempt ids, agent objects, lifecycle/session registries, transcripts, or output state through this path.
-
-Before spawning the worker, take the selected request instruction command. If it contains the literal `<lease-token>` placeholder, replace only that placeholder with the current exact lease token. Do not otherwise rewrite, shorten, shell-normalize, quote-normalize, explain, or enrich the command.
-
-Spawn the worker with exactly this bootstrap prompt and nothing else. Do not prepend or append user prompt text, task context, hostile priors, role hints, workflow summaries, output-format reminders, metadata, watchdog text, or any other instructions.
-
-The worker prompt must be exactly:
+- Before spawning, take the selected command. If it contains literal `<lease-token>`, replace only that placeholder with the exact current lease token. Do not otherwise rewrite, shorten, shell-normalize, quote-normalize, explain, or enrich it.
+- Spawn the worker with exactly this prompt and no added user prompt, task context, role hints, output rules, metadata, watchdog text, or other instructions:
 
 ```text
 Load the step instructions by running:
@@ -149,9 +123,14 @@ Do not add any behavior, role, output format, or constraints beyond the loaded i
 If the instructions cannot be loaded, stop with an error and do not continue.
 ```
 
-Only the selected request instruction command may be substituted. The final spawned worker prompt must contain no other text.
+- Only the selected request instruction command may be substituted. The final worker prompt must contain no other text.
+- After the actual worker id is known, run `bindAgentCommand` after replacing only literal `<agent-id>` with the shell-quoted actual worker id.
+- Treat `preferredAgentId` and `baton.workerBindings[stepId]` as advisory reuse hints only; do not create attempt ids, agent objects, lifecycle/session registries, transcripts, or output state.
+- Workers use the validating `write-output` command from loaded instructions. `write-output` returns acceptance JSON or validation errors only; workers never call `continue`.
+- If a worker needs user input before validated output, ask the focused question and forward the answer into the same worker session. Do not replace that worker or let workers treat themselves as direct user-facing agents.
+- Do not run task-repository discovery, code reads, tests, implementation, or review commands in the parent while a worker request is outstanding unless stdout explicitly requests that exact host action.
 
-Enforce the host watchdog for every `run_worker` request:
+`run_worker` watchdog:
 
 - Wait at most 10 minutes for the worker to return accepted output or a blocker.
 - If the worker is still running, interrupt that same worker with a focused status request asking it to immediately run validating `write-output` or report the exact blocker.
@@ -160,12 +139,10 @@ Enforce the host watchdog for every `run_worker` request:
 - If the retry also gives no accepted output or blocker within the same 10 minute plus 2 minute watchdog window, stop as blocked and report the hung worker/request ids.
 - Do not use heartbeat as a substitute for this watchdog; worker bootstrap hangs must be detected before waiting out the run lease.
 
-Workers use the validating `write-output` command from their loaded instructions. `write-output` returns only acceptance JSON or validation errors; it does not drive the orchestrator. Workers never call `continue`; the latest `next`/`continue` stdout instruction tells the orchestrator what to do next after current host requests finish.
+For `wait_for_approval`, the orchestrator handles the request directly from the latest stdout compiled approval prompt. Treat that prompt as the complete user-facing source: workflow prompt, required-read files, prompt input context, output contract, and validating `write-output` command.
 
-If a worker needs user input before validated output, ask the user's focused question and forward the answer back into the same worker session. Do not create a replacement worker for that continuation, and do not let workers treat themselves as direct user-facing agents.
+Before asking for a decision, read and show required approval context/artifacts and attach required-read files or prompt input artifact paths through the host/platform approval mechanism. In Codex/Codex Desktop, attach each listed local artifact as a Markdown file link with an absolute target, for example `[research-packet.md](/absolute/path/research-packet.md)`; a plain path, artifact id, or summary is not an attachment. Do not replace attachments with summaries, plain paths, or inline full artifact bodies. If attachment/link rendering is unavailable, state that capability gap and name the affected path/reference.
 
-Do not run task-repository discovery, code reads, tests, implementation commands, or review commands in the parent session while a worker request is outstanding unless the current runner stdout explicitly requests that exact host action.
-
-For `wait_for_approval`, the orchestrator handles the request directly. Follow the approval instruction in the latest runner stdout: it inlines the compiled approval prompt for the current request. Treat that compiled prompt as the complete source for the user-facing approval message, including workflow prompt, required-read files, prompt input context, output contract, and validating `write-output` command. Attach any required-read files or prompt input artifact paths named by the compiled prompt through the host/platform approval mechanism before asking for a decision. In Codex/Codex Desktop, attaching means rendering each listed local artifact as a Markdown file link with an absolute target, for example `[research-packet.md](/absolute/path/research-packet.md)`; a plain text path, artifact id, or summary is not an attachment. Do not replace artifact attachments with summaries, plain paths, or inline full artifact bodies. If the host cannot attach or render a file link for a listed artifact, state that capability gap explicitly in the approval message and include the path/reference that could not be attached. Read and show any required approval context/artifacts before asking for a decision. Do not reduce the gate to a summary-only question. When user approval or input blocks the next step, put the full approval/request message in final, not commentary, and do not send a separate short final after it. Normalize the user's answer to strict JSON and run the validating `write-output` command from the compiled prompt. Treat accepted output as completion of that host request, then continue following the latest `next`/`continue` stdout instruction.
+Do not reduce approval to a summary-only question. When user approval/input blocks the next step, put the full approval/request message in final, not commentary, and do not send a separate short final. Normalize the user's answer to strict JSON, run the validating `write-output` command from the compiled prompt, treat accepted output as request completion, then continue from the latest stdout instruction.
 
 Final answer only when stdout instruction explicitly says to stop and report `done` or `blocked`; use the terminal response JSON embedded in that stdout as the source of final result or blocker details.
