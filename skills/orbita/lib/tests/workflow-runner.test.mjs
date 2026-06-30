@@ -370,9 +370,12 @@ test('runner: approval host instruction lists prompt input artifact content as r
   assert.match(response.orchestratorInstruction, /Approval request: approve/);
   assert.match(response.orchestratorInstruction, /The orchestrator must execute this approval instruction itself\./);
   assert.match(response.orchestratorInstruction, /Use the following compiled approval prompt as the complete source/);
-  assert.match(response.orchestratorInstruction, /When the compiled approval prompt lists required-read files or prompt input artifact paths, attach those artifact files through the host\/platform approval mechanism before asking for a decision\./);
-  assert.match(response.orchestratorInstruction, /Do not replace artifact attachments with summaries or inline full artifact bodies\./);
-  assert.match(response.orchestratorInstruction, /If the host cannot attach or link a listed artifact, state that capability gap explicitly in the approval message and include the path\/reference that could not be attached\./);
+  assert.match(response.orchestratorInstruction, /When the compiled approval prompt lists required-read files or prompt input artifact paths, attach those files through the host\/platform approval mechanism before asking for a decision\./);
+  assert.match(response.orchestratorInstruction, /In Codex\/Codex Desktop, attaching means rendering each listed local artifact as a Markdown file link with an absolute target/);
+  assert.match(response.orchestratorInstruction, /\[research-packet\.md\]\(\/absolute\/path\/research-packet\.md\)/);
+  assert.match(response.orchestratorInstruction, /A plain text path, artifact id, or summary is not an attachment\./);
+  assert.match(response.orchestratorInstruction, /Do not replace artifact attachments with summaries, plain paths, or inline full artifact bodies\./);
+  assert.match(response.orchestratorInstruction, /If the host cannot attach or render a file link for a listed artifact, state that capability gap explicitly in the approval message and include the path\/reference that could not be attached\./);
   assert.match(response.orchestratorInstruction, /Do not inspect workflow source, runner internals, schema files, or CLI help to reconstruct approval output\./);
   assert.match(response.orchestratorInstruction, /After the user decides, normalize the answer to strict JSON and submit it with this validating command:/);
   assert.match(response.orchestratorInstruction, new RegExp(`workflow-runner\\.mjs' write-output --run-id '${runId}' --step-id 'approve' --runs-root '${resolveRunPaths({ runId }).runsRoot}' --lease-token '${leaseToken}' <<'JSON'`));
