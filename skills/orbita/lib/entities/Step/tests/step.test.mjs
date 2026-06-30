@@ -67,7 +67,7 @@ test('Step resolves dynamic transition input and concrete targets', () => {
   assert.deepEqual(dynamicStep.resolveConcreteTargets(baton, workflow, { outcome: 'ok' }), { targetStepId: 'done' });
 });
 
-test('Step.applyOutput updates cursor/status and mirrors schema-backed outputs', () => {
+test('Step.applyOutput updates cursor/status and stores step output by step id', () => {
   const step = new Step({ id: 'producer', step: workflow.steps.producer });
   const result = step.applyOutput({ baton, workflow, output: { outcome: 'ok', route: 'direct' }, attempts: { producer: 1 } });
 
@@ -75,7 +75,6 @@ test('Step.applyOutput updates cursor/status and mirrors schema-backed outputs',
   assert.equal(result.baton.cursor, 'done');
   assert.equal(result.baton.status, 'done');
   assert.deepEqual(result.baton.state.producer, { outcome: 'ok', route: 'direct' });
-  assert.deepEqual(result.baton.state.outputs.producer, { outcome: 'ok', route: 'direct' });
   assert.deepEqual(result.baton.state.attempts, { producer: 1 });
 });
 

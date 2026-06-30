@@ -172,7 +172,7 @@ test('runtime: sequential string next still advances to one target', () => {
 test('runtime: next array returns multiple branch steps without pending branch state', () => {
   const response = runApply('parallel-start', baton({ cursor: 'prepare' }), output({ outcome: 'ready' }));
 
-  assert.equal(response.baton.cursor, 'prepare');
+  assert.deepEqual(response.baton.cursor, ['branch_a', 'branch_b']);
   assert.deepEqual(response.steps.map((step) => step.id), ['branch_a', 'branch_b']);
   assert.deepEqual(response.steps.map((step) => step.action), ['run_worker', 'run_worker']);
   assert.equal(Object.hasOwn(response.baton, 'parallel'), false);

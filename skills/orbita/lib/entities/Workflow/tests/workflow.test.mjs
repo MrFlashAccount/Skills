@@ -153,7 +153,6 @@ test('Workflow state-key and role-ref helpers define safe selector and role cont
   assert.equal(isReservedStateKey('artifacts'), true);
   assert.equal(isDangerousObjectKey('__proto__'), true);
   assert.doesNotThrow(() => assertProjectableStateSelector('review_step-2', { stepId: 'consumer' }));
-  assert.throws(() => assertProjectableStateSelector('outputs', { stepId: 'consumer' }), /reserved state selector 'outputs'/);
 
   assert.equal(isRoleDirectoryName('backend_2'), true);
   assert.equal(isRoleDirectoryName('../backend'), false);

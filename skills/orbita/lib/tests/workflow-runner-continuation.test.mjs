@@ -250,7 +250,7 @@ test('runner: dynamic parallel with one branch still applies branch output as pa
   writeJson(prepareOutput, { outcome: 'ready', selected_steps: ['branch_a'] });
   const branch = continueWithOutputs({ runId, runDir, workflowPath, refs: prepareOutput, label: 'continue dynamic prepare to one branch' });
   assert.deepEqual(branch.requests.map((request) => request.id), ['branch_a']);
-  assert.equal(branch.baton.cursor, 'prepare');
+  assert.equal(branch.baton.cursor, 'branch_a');
 
   const branchOutput = path.join(runDir, 'branch-a-output.json');
   writeJson(branchOutput, workerOutput('single branch complete'));
@@ -276,7 +276,7 @@ test('runner: static parallel with one branch still applies branch output as par
   writeJson(prepareOutput, workerOutput('prepared'));
   const branch = continueWithOutputs({ runId, runDir, workflowPath, refs: prepareOutput, label: 'continue static prepare to one branch' });
   assert.deepEqual(branch.requests.map((request) => request.id), ['branch_a']);
-  assert.equal(branch.baton.cursor, 'prepare');
+  assert.equal(branch.baton.cursor, 'branch_a');
 
   const branchOutput = path.join(runDir, 'branch-a-output.json');
   writeJson(branchOutput, workerOutput('static single branch complete'));
@@ -336,8 +336,8 @@ test('runner: continue does not persist applied output when next render fails', 
 
   const baton = JSON.parse(batonBefore);
   assert.equal(baton.cursor, 'prepare');
-  assert.equal(Object.hasOwn(baton.state, 'prepare'), false);
-  assert.equal(baton.state.outputs.prepare.results[0].summary, 'prepared but should not persist');
+  assert.equal(Object.hasOwn(baton.state, 'prepare'), true);
+  assert.equal(baton.state.prepare.results[0].summary, 'prepared but should not persist');
 });
 
 test('runner: parallel continue does not create durable envelope when next render fails', () => {

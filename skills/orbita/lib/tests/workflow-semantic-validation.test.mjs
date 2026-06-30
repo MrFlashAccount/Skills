@@ -660,7 +660,7 @@ test('workflow semantic validation rejects invalid worker roles in generic workf
 });
 
 test('workflow semantic validation rejects step ids reserved for baton state bookkeeping', () => {
-  for (const reservedStepId of ['artifacts', 'results', 'outputs', 'attempts']) {
+  for (const reservedStepId of ['artifacts', 'results', 'attempts']) {
     const doc = genericWorkflowWithWorkerRole('backend');
     doc.start = reservedStepId;
     doc.steps[reservedStepId] = {
@@ -930,7 +930,7 @@ test('workflow semantic validation rejects prompt input expressions that do not 
 });
 
 test('workflow semantic validation rejects declared step ids reserved for aggregate runtime state', () => {
-  for (const reservedStepId of ['artifacts', 'results', 'outputs', 'attempts']) {
+  for (const reservedStepId of ['artifacts', 'results', 'attempts']) {
     assertSemanticFailure(
       syntheticWorkflow((draft) => {
         draft.steps[reservedStepId] = {
@@ -969,10 +969,10 @@ test('workflow semantic validation rejects input expressions with unknown schema
 test('workflow semantic validation rejects aggregate runtime state expressions in input transitions', () => {
   assertSemanticFailure(
     syntheticWorkflow((draft) => {
-      draft.steps.consumer.next = { match: '${{ input.outputs.producer.route }}', cases: { review: 'done', blocked: 'blocked' } };
+      draft.steps.consumer.next = { match: '${{ input.results.producer.route }}', cases: { review: 'done', blocked: 'blocked' } };
       return draft;
     }),
-    /consumer.*input\.outputs\.producer\.route.*input step 'outputs' is not a declared workflow step/,
+    /consumer.*input\.results\.producer\.route.*input step 'results' is not a declared workflow step/,
   );
 });
 

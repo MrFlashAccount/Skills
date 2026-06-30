@@ -1,11 +1,8 @@
 /** ApplyWorkflowOutput use-case applies host/worker output through Step/Baton-owned runtime behavior. */
-import { resolveTransition } from '../entities/Step/index.mjs';
-import { isDynamicTransitionNext, isStaticParallelNext } from '../runtime/transition-next.mjs';
 import { assertLoadedWorkflowAndBaton } from './runtime/guards/workflow.mjs';
 import { applyNextTransition } from './runtime/transition/next.mjs';
-import { prepareParallelBranch } from './runtime/parallel/render.mjs';
 import { applyParallelOutputs } from './runtime/parallel/apply.mjs';
-import { hasAppliedOutputForStep } from './runtime/output/response.mjs';
+import { normalizeCursor } from '../runtime/cursor.mjs';
 import { assertOutputSchemaIfDeclared, isParallelOutputEnvelope, readWorkerOutputForStep } from './runtime/output/worker-output.mjs';
 
 function parseCandidateOutput({ outputContent, outputValue }) {
@@ -19,58 +16,38 @@ function parseCandidateOutput({ outputContent, outputValue }) {
 
 export function applyWorkflowOutput({ workflowDoc, batonDoc, outputContent, outputValue, resources } = {}) {
   const { workflow, baton, cursorStep } = assertLoadedWorkflowAndBaton(workflowDoc, batonDoc, { allowedRoles: resources?.allowedRoles, outputSchemas: resources?.outputSchemas });
-  const staticParallelNext = isStaticParallelNext(cursorStep.next);
-  const dynamicNext = isDynamicTransitionNext(cursorStep.next);
-  const hasAppliedCursorOutput = hasAppliedOutputForStep(baton, baton.cursor);
-  let preparedParallelTargets;
-  if (hasAppliedCursorOutput && staticParallelNext) preparedParallelTargets = cursorStep.next;
-  if (hasAppliedCursorOutput && dynamicNext) {
-    const priorOutput = baton.state?.[baton.cursor];
-    const resolved = resolveTransition({ workflow, baton, stepId: baton.cursor, step: cursorStep, output: priorOutput });
-    preparedParallelTargets = resolved.targetStepIds;
-  }
-  const canApplyPreparedParallelOutput = Boolean(preparedParallelTargets);
+  const cursorStepIds = normalizeCursor(baton.cursor);
+  const hasParallelCursor = cursorStepIds.length > 1;
   const parsed = parseCandidateOutput({ outputContent, outputValue });
   const candidateOutput = parsed.value;
-  if (canApplyPreparedParallelOutput && !isParallelOutputEnvelope(candidateOutput)) {
+  if (hasParallelCursor && !isParallelOutputEnvelope(candidateOutput)) {
     throw new Error('parallel output must include object steps');
   }
 
-  if (canApplyPreparedParallelOutput) {
+  if (hasParallelCursor) {
     return applyParallelOutputs({
       workflow,
       baton,
-      cursorStep,
+      cursorStep: { next: cursorStepIds },
       allOutput: candidateOutput,
-      targets: dynamicNext ? preparedParallelTargets : undefined,
+      targets: cursorStepIds,
       resources,
     });
   }
 
-  const readResult = readWorkerOutputForStep({ baton, stepId: baton.cursor, step: cursorStep, allOutput: candidateOutput, outputParseError: parsed.error });
+  const stepId = cursorStepIds[0];
+  const readResult = readWorkerOutputForStep({ baton, stepId, step: cursorStep, allOutput: candidateOutput, outputParseError: parsed.error });
   if (readResult.retryResponse) return readResult.retryResponse;
   const { workerOutput, retryResponse } = assertOutputSchemaIfDeclared({
     baton,
-    stepId: baton.cursor,
+    stepId,
     step: cursorStep,
     workerOutput: readResult.workerOutput,
     resources,
   });
   if (retryResponse) return retryResponse;
 
-  if (staticParallelNext) {
-    return prepareParallelBranch({
-      workflow,
-      baton,
-      stepId: baton.cursor,
-      step: cursorStep,
-      output: workerOutput,
-      attempts: undefined,
-      storeStepOutput: cursorStep.kind === 'approval',
-    });
-  }
-
-  return applyNextTransition({ workflow, baton, cursorStep, workerOutput });
+  return applyNextTransition({ workflow, baton, cursorStep, workerOutput, stepId });
 }
 
 export const ApplyWorkflowOutput = { execute: applyWorkflowOutput };

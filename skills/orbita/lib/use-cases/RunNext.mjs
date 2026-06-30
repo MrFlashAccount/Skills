@@ -1,25 +1,12 @@
 /** RunNext use-case coordinates Workflow/Baton/Step/Template for the next rendered runtime response. */
 import { assertResponseSchema } from './runtime/output/response-schema.mjs';
-import { resolveTransition } from '../entities/Step/index.mjs';
-import { isDynamicTransitionNext, isStaticParallelNext } from '../runtime/transition-next.mjs';
 import { assertLoadedWorkflowAndBaton } from './runtime/guards/workflow.mjs';
-import { hasAppliedOutputForStep, responseFor } from './runtime/output/response.mjs';
+import { responseForCursor } from './runtime/output/response.mjs';
 import { renderStepPrompts } from './runtime/parallel/render.mjs';
 
-function preparedParallelStep({ workflow, baton, cursorStep }) {
-  if (!hasAppliedOutputForStep(baton, baton.cursor)) return { step: cursorStep, parallelTargets: false };
-  if (isStaticParallelNext(cursorStep.next)) return { step: cursorStep, parallelTargets: true };
-  if (!isDynamicTransitionNext(cursorStep.next)) return { step: cursorStep, parallelTargets: false };
-
-  const resolved = resolveTransition({ workflow, baton, stepId: baton.cursor, step: cursorStep, output: baton.state[baton.cursor] });
-  if (!resolved.targetStepIds) return { step: cursorStep, parallelTargets: false };
-  return { step: { ...cursorStep, next: resolved.targetStepIds }, parallelTargets: true };
-}
-
 export function runNext({ workflowDoc, batonDoc, resources, includeDiagnostics = false, followUp = false } = {}) {
-  const { workflow, baton, cursorStep } = assertLoadedWorkflowAndBaton(workflowDoc, batonDoc, { allowedRoles: resources?.allowedRoles, outputSchemas: resources?.outputSchemas });
-  const prepared = preparedParallelStep({ workflow, baton, cursorStep });
-  const response = responseFor(baton, baton.cursor, prepared.step, workflow, { parallelTargets: prepared.parallelTargets });
+  const { workflow, baton } = assertLoadedWorkflowAndBaton(workflowDoc, batonDoc, { allowedRoles: resources?.allowedRoles, outputSchemas: resources?.outputSchemas });
+  const response = responseForCursor(baton, workflow);
   const rendered = {
     ...response,
     steps: renderStepPrompts({

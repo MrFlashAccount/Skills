@@ -4,6 +4,7 @@
 import { WorkflowRuntimeError } from '../../errors.mjs';
 import { assertCentralArtifactMetadata } from './artifact-contract.mjs';
 import { applyOutputToBatonState } from '../../runtime/baton-state.mjs';
+import { normalizeCursor } from '../../runtime/cursor.mjs';
 import { statusForStep } from '../../runtime/step-status.mjs';
 
 function cloneBoundaryData(dto) {
@@ -52,13 +53,24 @@ export class Baton {
 
   validateAgainst(workflowInput) {
     const workflow = workflowData(workflowInput);
-    if (typeof this.data.cursor !== 'string' || typeof this.data.status !== 'string' || !this.data.state || typeof this.data.state !== 'object' || Array.isArray(this.data.state)) {
+    if (typeof this.data.status !== 'string' || !this.data.state || typeof this.data.state !== 'object' || Array.isArray(this.data.state)) {
       throw new WorkflowRuntimeError('baton semantic validation failed: baton requires cursor, status, and object state');
     }
     validateAggregateArtifacts(this.data.state);
-    const cursorStep = workflow.steps?.[this.data.cursor];
-    if (!cursorStep) throw new WorkflowRuntimeError(`baton cursor not found in workflow: ${this.data.cursor}`);
-    const expectedStatus = statusForStep(workflow, this.data.cursor, cursorStep);
+    const cursorStepIds = normalizeCursor(this.data.cursor);
+    if (cursorStepIds.length > 1 && this.data.status !== 'running') {
+      throw new WorkflowRuntimeError(`baton status '${this.data.status}' is inconsistent with parallel cursor; expected 'running'`);
+    }
+    let expectedStatus = 'running';
+    for (const stepId of cursorStepIds) {
+      const cursorStep = workflow.steps?.[stepId];
+      if (!cursorStep) throw new WorkflowRuntimeError(`baton cursor not found in workflow: ${stepId}`);
+      const stepStatus = statusForStep(workflow, stepId, cursorStep);
+      if (cursorStepIds.length > 1 && stepStatus !== 'running') {
+        throw new WorkflowRuntimeError(`baton parallel cursor cannot include terminal step '${stepId}'`);
+      }
+      if (cursorStepIds.length === 1) expectedStatus = stepStatus;
+    }
     if (this.data.status !== expectedStatus) {
       throw new WorkflowRuntimeError(`baton status '${this.data.status}' is inconsistent with cursor '${this.data.cursor}'; expected '${expectedStatus}'`);
     }
@@ -85,9 +97,9 @@ export class Baton {
     return this.data.requests ?? [];
   }
 
-  withAppliedOutput(stepId, output, attempts, { mirrorToOutputs = false } = {}) {
+  withAppliedOutput(stepId, output, attempts) {
     const baton = this.toJSON();
-    const state = applyOutputToBatonState(baton, output, attempts, stepId, { mirrorToOutputs });
+    const state = applyOutputToBatonState(baton, output, attempts, stepId);
     return { ...baton, state };
   }
 }

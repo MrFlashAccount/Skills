@@ -245,7 +245,7 @@ test('E2E fixture: mixed static and match fanout requires named branch outputs a
   next(run, workflow);
   const branched = continueWith(run, workflow, output('parallel-prepare-ready.json'), 'continue prepare fanout');
   assert.equal(branched.status, 'needs_host_actions');
-  assert.equal(branched.baton.cursor, 'prepare');
+  assert.deepEqual(branched.baton.cursor, ['lint', 'build']);
   assert.deepEqual(branched.requests.map((request) => request.id), ['lint', 'build']);
   assert.equal(branched.baton.state.prepare.results[0].summary, 'fanout ready');
   assert.match(instructions(run, 'lint'), /fanout ready/);
@@ -276,7 +276,6 @@ test('E2E fixture: output schema rejects invalid write-output and valid output a
   });
   assert.notEqual(invalid.status, 0);
   assert.match(invalid.stderr, /output schema validation failed for step 'schema_worker'/);
-  assert.equal(readBaton(run).state.outputs, undefined);
 
   const valid = continueWith(run, workflow, output('schema-valid.json'), 'continue valid schema');
   assert.equal(valid.status, 'done');
@@ -302,6 +301,7 @@ test('E2E fixture: approval-first workflow preserves startup prompt for first wo
 
   const fanout = continueWith(run, workflow, output('parallel-prepare-ready.json'), 'continue prepare to fanout');
   assert.equal(fanout.baton.user_prompt_injected, true);
+  assert.deepEqual(fanout.baton.cursor, ['branch_a', 'branch_b']);
   assert.deepEqual(fanout.requests.map((request) => request.id), ['branch_a', 'branch_b']);
   assert.doesNotMatch(instructions(run, 'branch_a'), /Original startup request/);
   assert.doesNotMatch(instructions(run, 'branch_b'), /Original startup request/);

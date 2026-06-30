@@ -255,7 +255,6 @@ test('runner reuse hints: write-output rejects binding metadata and preserves wo
     /output schema validation failed/,
   );
   assert.deepEqual(readBaton(runDir).workerBindings, { prepare: 'worker-before-output' });
-  assert.equal(readBaton(runDir).state.outputs, undefined);
 
   await writeOutput({
     runId,
@@ -266,5 +265,5 @@ test('runner reuse hints: write-output rejects binding metadata and preserves wo
     now,
   });
   assert.deepEqual(readBaton(runDir).workerBindings, { prepare: 'worker-before-output' });
-  assert.equal(readBaton(runDir).state.outputs.prepare.results[0].summary, 'accepted without binding mutation');
+  assert.equal(readBaton(runDir).state.prepare.results[0].summary, 'accepted without binding mutation');
 });

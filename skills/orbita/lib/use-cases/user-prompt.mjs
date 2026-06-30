@@ -118,7 +118,9 @@ export function validateSelectedStartupUserPromptTarget({ workflow, baton, steps
 }
 
 export function shouldMarkUserPromptInjectedForStep({ workflow, baton, stepId }) {
-  return selectedUserPromptStepId({ workflow, baton }) === stepId;
+  if (typeof baton?.user_prompt !== 'string' || baton.user_prompt.trim().length === 0) return false;
+  if (baton.user_prompt_injected === true) return false;
+  return baton.user_prompt_target === stepId;
 }
 
 export function markUserPromptInjectedForStep({ workflow, baton, stepId }) {

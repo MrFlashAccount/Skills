@@ -60,17 +60,17 @@ test('applyWorkflowOutput applies a direct worker output through Step/Baton enti
   assert.deepEqual(response.steps.map((step) => step.id), ['done']);
 });
 
-test('applyWorkflowOutput prepares dynamic parallel branch steps without advancing cursor', () => {
+test('applyWorkflowOutput advances dynamic parallel branches into cursor array', () => {
   const response = applyWorkflowOutput({ workflowDoc, batonDoc: baton(), resources, outputContent: JSON.stringify({ outcome: 'ok', route: 'split' }) });
 
-  assert.equal(response.baton.cursor, 'producer');
+  assert.deepEqual(response.baton.cursor, ['branch_a', 'branch_b']);
   assert.equal(response.baton.status, 'running');
   assert.deepEqual(response.baton.state.producer, { outcome: 'ok', route: 'split' });
   assert.deepEqual(response.steps.map((step) => step.id), ['branch_a', 'branch_b']);
 });
 
-test('inspectWorkflow exposes prepared dynamic parallel branches from stored cursor output', () => {
-  const response = inspectWorkflow({ workflowDoc, batonDoc: baton({ state: { artifacts: [], results: [], producer: { outcome: 'ok', route: 'split' } } }), resources });
+test('inspectWorkflow exposes active parallel branches from cursor array', () => {
+  const response = inspectWorkflow({ workflowDoc, batonDoc: baton({ cursor: ['branch_a', 'branch_b'], state: { artifacts: [], results: [], producer: { outcome: 'ok', route: 'split' } } }), resources });
 
   assert.deepEqual(response.steps.map((step) => step.id), ['branch_a', 'branch_b']);
 });
