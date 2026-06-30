@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Workflow Authoring Implementation Output",
+  "title": "Workflow Authoring Analyzer Findings Output",
   "type": "object",
   "required": [
     "outcome"
@@ -8,80 +8,69 @@
   "properties": {
     "outcome": {
       "enum": [
-        "implemented",
+        "ready_for_review",
+        "no_changes",
         "blocked"
-      ]
+      ],
+      "description": "Analyzer recommendation state. Findings cannot authorize edits directly."
     },
-    "changed_files": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "validation": {
+    "findings": {
       "type": "array",
       "items": {
         "type": "object",
         "required": [
-          "command",
-          "result"
+          "evidence_path",
+          "affected_contract_surface",
+          "severity",
+          "next_action",
+          "edit_authorized"
         ],
         "properties": {
-          "command": {
+          "evidence_path": {
             "type": "string",
             "minLength": 1
           },
-          "result": {
+          "affected_contract_surface": {
             "type": "string",
             "minLength": 1
           },
-          "isolated_workflow_runs_root": {
+          "severity": {
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low",
+              "info"
+            ]
+          },
+          "next_action": {
             "type": "string",
             "minLength": 1
           },
-          "source_tree_artifact_leak_check": {
-            "type": "string",
-            "minLength": 1
+          "edit_authorized": {
+            "const": false,
+            "description": "Analyzer findings are evidence-backed recommendations only; edits require approve_reviewed_improvement."
           }
         },
         "additionalProperties": true
       }
     },
-    "validation_evidence": {
+    "blocker": {
       "type": "object",
       "required": [
-        "workflow_validate",
-        "smoke_or_fixture_check",
-        "isolated_workflow_runs_root",
-        "cleanup",
-        "source_tree_artifact_leak_check"
+        "summary"
       ],
       "properties": {
-        "workflow_validate": {
+        "summary": {
           "type": "string",
           "minLength": 1
         },
-        "smoke_or_fixture_check": {
-          "type": "string",
-          "minLength": 1
-        },
-        "isolated_workflow_runs_root": {
-          "type": "string",
-          "minLength": 1
-        },
-        "cleanup": {
-          "type": "string",
-          "minLength": 1
-        },
-        "source_tree_artifact_leak_check": {
+        "needed": {
           "type": "string",
           "minLength": 1
         }
       },
       "additionalProperties": true
-    },
-    "blocker": {
-      "type": "object"
     }
   },
   "additionalProperties": true,
@@ -90,7 +79,10 @@
       "if": {
         "properties": {
           "outcome": {
-            "const": "implemented"
+            "enum": [
+              "ready_for_review",
+              "no_changes"
+            ]
           }
         },
         "required": [
@@ -99,9 +91,7 @@
       },
       "then": {
         "required": [
-          "changed_files",
-          "validation",
-          "validation_evidence"
+          "findings"
         ]
       }
     },
