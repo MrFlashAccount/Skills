@@ -108,8 +108,8 @@ For `run_worker`:
 
 - Use `loadFollowupInstructionsCommand` only when the host can continue or restore the opaque `preferredAgentId`.
 - Otherwise use `loadInstructionsCommand` for a fresh worker.
-- Before spawning, take the selected command. If it contains literal `<lease-token>`, replace only that placeholder with the exact current lease token. Do not otherwise rewrite, shorten, shell-normalize, quote-normalize, explain, or enrich it.
-- Spawn the worker with exactly this prompt and no added user prompt, task context, role hints, output rules, metadata, watchdog text, or other instructions:
+- Before dispatching to the worker, take the selected command. If it contains literal `<lease-token>`, replace only that placeholder with the exact current lease token. Do not otherwise rewrite, shorten, shell-normalize, quote-normalize, explain, or enrich it.
+- Dispatch to the selected worker: continue/restore `preferredAgentId` when using `loadFollowupInstructionsCommand`; otherwise spawn a fresh worker. Send exactly this prompt and no added user prompt, task context, role hints, output rules, metadata, watchdog text, or other instructions:
 
 ```text
 Load the step instructions by running:
