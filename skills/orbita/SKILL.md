@@ -1,6 +1,6 @@
 ---
 name: orbita
-description: Use Orbita for workflow-runner jobs when the user says /orbita, orbita, workflow-runner, run workflow, continue workflow, resume run, host actions, worker handoff, approval gate, asks to pick the right workflow, list available workflows, create/design a workflow, or drive a repository workflow through the runner CLI.
+description: Use Orbita for workflow-runner host-adapter jobs when the user says /orbita, orbita, workflow-runner, run/continue/resume a workflow-runner run, follow runner stdout, handle workflow-runner host actions, worker handoff, approval gate, list workflow-runner workflows, create/design a workflow-runner workflow, or drive a run through the runner CLI.
 ---
 
 # Orbita
@@ -54,7 +54,7 @@ node ./lib/entrypoints/cli/workflow-catalog.mjs resolve '<workflow name>' --json
 
 Use a single resolver match directly. If resolver returns multiple matches, ask the user to choose from those matches. If resolver returns no match, fall back to catalog-based task matching.
 
-When the user did not name a workflow, rank catalog candidates from the task and workflow descriptions, then ask one selection question with at most three best candidates. Use `request_user_input` when available. Each candidate must be shown as `name - short reason`; the user may pick one candidate, ask to show all workflows, or type a workflow name/path manually. If the user replies with a fuzzy or partial workflow name, run `node ./lib/entrypoints/cli/workflow-catalog.mjs resolve '<workflow name>' --json`; if it still matches several candidates, ask one narrower selection question.
+When the user did not name a workflow, rank catalog candidates from the task and workflow descriptions, then ask one selection question with at most three best candidates. Use `request_user_input` when available. Each candidate must be shown as `name - short reason`; the user may pick one candidate, ask to show all workflows, or type a workflow name or alias manually. If the user replies with a fuzzy or partial workflow name, run `node ./lib/entrypoints/cli/workflow-catalog.mjs resolve '<workflow name>' --json`; if it still matches several candidates, ask one narrower selection question. Only a `path` returned by the public catalog output is valid for run creation; do not accept user-typed workflow paths as executable paths.
 
 When no candidate fits, say that no existing workflow fits and offer to list workflows or create/design a new workflow if such a workflow exists in the catalog.
 
@@ -62,7 +62,7 @@ Catalog/list requests stop after showing catalog output unless the user also ask
 
 ## Bootstrap
 
-Prepare a compact title, summary, owner, harness, session id, workflow identity, and dense user prompt in plain text.
+Prepare a compact title, summary, owner, harness, session id, and dense user prompt in plain text.
 
 List public run identities:
 
@@ -102,8 +102,8 @@ After each runner command that uses `--only-instructions`, follow stdout text ex
 
 Terminal statuses:
 
-- `done`: stop and report the completed result from the terminal response JSON in stdout.
-- `blocked`: stop and report the blocker from the terminal response JSON in stdout.
+- `done`: stop and report the completed result from the terminal response JSON in stdout, extracting the workflow-specific result from the included baton/projection rather than assuming a separate `result` field exists.
+- `blocked`: stop and report the blocker from the terminal response JSON in stdout, extracting blocker details from the included baton/projection rather than assuming a separate `blocker` field exists.
 
 Non-terminal host work:
 
@@ -149,7 +149,7 @@ Do not add any behavior, role, output format, or constraints beyond the loaded i
 If the instructions cannot be loaded, stop with an error and do not continue.
 ```
 
-Only `<request.loadInstructionsCommand>` may be substituted. The final spawned worker prompt must contain no other text.
+Only the selected request instruction command may be substituted. The final spawned worker prompt must contain no other text.
 
 Enforce the host watchdog for every `run_worker` request:
 
