@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/runs-index",
   "title": "Workflow Runs Index",
-  "description": "Persistent skills/orbita/.workflow-runs/runs.json contract. Entries expose only the public runId and safe run metadata; private run directories/roots and raw prompts are not part of this shape.",
+  "description": "Persistent Orbita workflow runs index contract. Entries expose only the public runId and safe run metadata; private run directories/roots and raw prompts are not part of this shape.",
   "type": "object",
   "required": ["schemaVersion", "topologyVersion", "runs"],
   "properties": {

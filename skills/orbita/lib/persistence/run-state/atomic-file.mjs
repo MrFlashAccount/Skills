@@ -15,7 +15,7 @@ export async function assertManagedDirectory(path, name = 'workflow run-state di
 
 export async function createManagedDirectory(path, name = 'workflow run-state directory') {
   await assertManagedDirectory(path, name);
-  await mkdir(path, { recursive: true });
+  await mkdir(path, { recursive: true, mode: 0o700 });
   await assertManagedDirectory(path, name);
 }
 

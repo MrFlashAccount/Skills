@@ -46,7 +46,7 @@ When host work is needed, the runner returns:
 ```json
 {
   "status": "needs_host_actions",
-  "orchestratorInstruction": "Supersedes all previous workflow-runner stdout.\nExecute every host request in this JSON and wait until all requested actions finish: [{\"id\":\"step_id\",\"stepId\":\"step_id\",\"action\":\"run_worker\",\"preferredAgentId\":null,\"loadInstructionsCommand\":\"node '/absolute/path/to/skills/orbita/lib/entrypoints/cli/workflow-runner.mjs' instructions --run-id 'run_id' --step-id 'step_id' --runs-root '/absolute/path/to/.workflow-runs' --lease-token <lease-token>\",\"loadFollowupInstructionsCommand\":\"node '/absolute/path/to/skills/orbita/lib/entrypoints/cli/workflow-runner.mjs' instructions --follow-up --run-id 'run_id' --step-id 'step_id' --runs-root '/absolute/path/to/.workflow-runs' --lease-token <lease-token>\",\"bindAgentCommand\":\"node '/absolute/path/to/skills/orbita/lib/entrypoints/cli/workflow-runner.mjs' bind-agent --run-id 'run_id' --step-id 'step_id' --runs-root '/absolute/path/to/.workflow-runs' --agent-id <agent-id> --lease-token <lease-token>\"}]\nThen run:\nnode '/absolute/path/to/skills/orbita/lib/entrypoints/cli/workflow-runner.mjs' continue --run-id 'run_id' --runs-root '/absolute/path/to/.workflow-runs' --lease-token <lease-token> --only-instructions\nFollow that stdout instruction exactly.",
+  "orchestratorInstruction": "Supersedes all previous workflow-runner stdout.\nExecute every host request in this JSON and wait until all requested actions finish: [{\"id\":\"step_id\",\"stepId\":\"step_id\",\"action\":\"run_worker\",\"preferredAgentId\":null,\"loadInstructionsCommand\":\"node '/absolute/path/to/skills/orbita/lib/entrypoints/cli/workflow-runner.mjs' instructions --run-id 'run_id' --step-id 'step_id' --runs-root '/home/user/.orbita/workflow-runs/v1' --lease-token <lease-token>\",\"loadFollowupInstructionsCommand\":\"node '/absolute/path/to/skills/orbita/lib/entrypoints/cli/workflow-runner.mjs' instructions --follow-up --run-id 'run_id' --step-id 'step_id' --runs-root '/home/user/.orbita/workflow-runs/v1' --lease-token <lease-token>\",\"bindAgentCommand\":\"node '/absolute/path/to/skills/orbita/lib/entrypoints/cli/workflow-runner.mjs' bind-agent --run-id 'run_id' --step-id 'step_id' --runs-root '/home/user/.orbita/workflow-runs/v1' --agent-id <agent-id> --lease-token <lease-token>\"}]\nThen run:\nnode '/absolute/path/to/skills/orbita/lib/entrypoints/cli/workflow-runner.mjs' continue --run-id 'run_id' --runs-root '/home/user/.orbita/workflow-runs/v1' --lease-token <lease-token> --only-instructions\nFollow that stdout instruction exactly.",
   "baton": {},
   "requests": [
     {
@@ -54,9 +54,9 @@ When host work is needed, the runner returns:
       "stepId": "step_id",
       "action": "run_worker",
       "preferredAgentId": null,
-      "loadInstructionsCommand": "node '/absolute/path/to/skills/orbita/lib/entrypoints/cli/workflow-runner.mjs' instructions --run-id 'run_id' --step-id 'step_id' --runs-root '/absolute/path/to/.workflow-runs' --lease-token <lease-token>",
-      "loadFollowupInstructionsCommand": "node '/absolute/path/to/skills/orbita/lib/entrypoints/cli/workflow-runner.mjs' instructions --follow-up --run-id 'run_id' --step-id 'step_id' --runs-root '/absolute/path/to/.workflow-runs' --lease-token <lease-token>",
-      "bindAgentCommand": "node '/absolute/path/to/skills/orbita/lib/entrypoints/cli/workflow-runner.mjs' bind-agent --run-id 'run_id' --step-id 'step_id' --runs-root '/absolute/path/to/.workflow-runs' --agent-id <agent-id> --lease-token <lease-token>"
+      "loadInstructionsCommand": "node '/absolute/path/to/skills/orbita/lib/entrypoints/cli/workflow-runner.mjs' instructions --run-id 'run_id' --step-id 'step_id' --runs-root '/home/user/.orbita/workflow-runs/v1' --lease-token <lease-token>",
+      "loadFollowupInstructionsCommand": "node '/absolute/path/to/skills/orbita/lib/entrypoints/cli/workflow-runner.mjs' instructions --follow-up --run-id 'run_id' --step-id 'step_id' --runs-root '/home/user/.orbita/workflow-runs/v1' --lease-token <lease-token>",
+      "bindAgentCommand": "node '/absolute/path/to/skills/orbita/lib/entrypoints/cli/workflow-runner.mjs' bind-agent --run-id 'run_id' --step-id 'step_id' --runs-root '/home/user/.orbita/workflow-runs/v1' --agent-id <agent-id> --lease-token <lease-token>"
     }
   ]
 }

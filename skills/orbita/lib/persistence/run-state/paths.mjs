@@ -1,5 +1,6 @@
 import { constants } from 'node:fs';
-import { access, open, writeFile } from 'node:fs/promises';
+import { access, cp, mkdir, open, readdir, rename, rm, writeFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import { basename, dirname, isAbsolute, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defaultRepositoryRootForWorkflow } from '../workflow-resources/resource-resolver.mjs';
@@ -9,7 +10,10 @@ import { runsIndexPathsForRoot } from './run-index.mjs';
 const runnerDir = dirname(fileURLToPath(import.meta.url));
 export const repositoryRoot = resolve(runnerDir, '../../../../..');
 export const defaultWorkflowPath = join(repositoryRoot, 'workflows/dev-harness/workflow.json');
-export const workflowRunsRoot = resolve(process.env.WORKFLOW_RUNS_ROOT ?? join(repositoryRoot, 'skills/orbita/.workflow-runs'));
+export const legacyWorkflowRunsRoot = join(repositoryRoot, 'skills/orbita/.workflow-runs');
+export const orbitaHome = resolve(process.env.ORBITA_HOME ?? join(homedir(), '.orbita'));
+export const defaultWorkflowRunsRoot = join(orbitaHome, 'workflow-runs/v1');
+export const workflowRunsRoot = resolve(process.env.WORKFLOW_RUNS_ROOT ?? defaultWorkflowRunsRoot);
 
 const SAFE_RUN_ID = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/;
 
@@ -56,6 +60,38 @@ async function exists(path) {
 }
 
 export async function pathExists(path) { return exists(path); }
+
+async function directoryEntries(path) {
+  try { return await readdir(path); }
+  catch (error) {
+    if (error?.code === 'ENOENT') return [];
+    throw error;
+  }
+}
+
+async function isDirectoryEmptyOrMissing(path) {
+  return (await directoryEntries(path)).length === 0;
+}
+
+export async function migrateLegacyWorkflowRunsRootIfNeeded(runsRoot = workflowRunsRoot) {
+  if (process.env.WORKFLOW_RUNS_ROOT) return false;
+  if (resolve(runsRoot) !== workflowRunsRoot) return false;
+  if (!(await exists(legacyWorkflowRunsRoot))) return false;
+  if (!(await isDirectoryEmptyOrMissing(workflowRunsRoot))) {
+    throw new Error('legacy skill-local workflow runs exist, but the default Orbita workflow runs root is not empty; set WORKFLOW_RUNS_ROOT to the legacy root or migrate the runs manually');
+  }
+
+  await createManagedDirectory(dirname(workflowRunsRoot), 'Orbita workflow runs parent directory');
+  try {
+    await rename(legacyWorkflowRunsRoot, workflowRunsRoot);
+  } catch (error) {
+    if (error?.code !== 'EXDEV') throw error;
+    await cp(legacyWorkflowRunsRoot, workflowRunsRoot, { recursive: true, errorOnExist: true });
+    await rm(legacyWorkflowRunsRoot, { recursive: true, force: true });
+  }
+  await createManagedDirectory(workflowRunsRoot, 'workflow runs root');
+  return true;
+}
 
 async function readJson(path, name) {
   const { readFile } = await import('node:fs/promises');

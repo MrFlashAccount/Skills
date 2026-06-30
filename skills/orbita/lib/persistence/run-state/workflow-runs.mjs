@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
-import { assertSafeRunId, defaultWorkflowPath, resolveRunPaths, workflowRunsRoot } from './paths.mjs';
+import { assertSafeRunId, defaultWorkflowPath, migrateLegacyWorkflowRunsRootIfNeeded, resolveRunPaths, workflowRunsRoot } from './paths.mjs';
 import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot, updateRunIndexEntry } from './run-index.mjs';
 import { assertMatchingTokenAuthority, buildTokenLease, generateLeaseToken, occupancyForLease, renewTokenLease } from './lease-authority.mjs';
 import { withRunStateLock } from './lock.mjs';
@@ -32,6 +32,7 @@ function sortByUpdatedAtDesc(left, right) {
 }
 
 export async function listWorkflowRunsAtRoot({ runsRoot = workflowRunsRoot, now = new Date() } = {}) {
+  await migrateLegacyWorkflowRunsRootIfNeeded(runsRoot);
   const index = await readRunsIndex(runsIndexPathsForRoot(runsRoot));
   return Object.values(index.runs).map((entry) => publicRun(entry, { now })).sort(sortByUpdatedAtDesc);
 }
@@ -65,6 +66,7 @@ function assertExistingWorkflowBinding(existing, paths, { requestedWorkflowPath 
 }
 
 export async function registerWorkflowRunAtRoot({ runId, title, summary, workflowPath, workflowIdentity, status = 'running', taskKey, taskFingerprint, runsRoot = workflowRunsRoot, claim = false, owner, harness, sessionId, workerId, leaseMs, now = new Date() } = {}) {
+  await migrateLegacyWorkflowRunsRootIfNeeded(runsRoot);
   const safeRunId = runId === undefined ? generatedRunId() : assertSafeRunId(runId);
   const paths = resolveRunPaths({ runId: safeRunId, workflowPath: workflowPathForCreate(workflowPath), runsRoot });
   const leaseToken = claim ? generateLeaseToken() : undefined;
@@ -87,6 +89,7 @@ export async function registerWorkflowRunAtRoot({ runId, title, summary, workflo
 }
 
 export async function claimWorkflowRunAtRoot({ runId, workflowPath, runsRoot = workflowRunsRoot, owner, harness, sessionId, workerId, leaseMs, leaseToken, takeover = false, now = new Date() } = {}) {
+  await migrateLegacyWorkflowRunsRootIfNeeded(runsRoot);
   const safeRunId = assertSafeRunId(runId);
   const paths = resolveRunPaths({ runId: safeRunId, workflowPath: workflowPathForCreate(workflowPath), runsRoot });
   const issuedLeaseToken = leaseToken || generateLeaseToken();

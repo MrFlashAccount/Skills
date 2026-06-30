@@ -14,7 +14,7 @@ import { readText } from '../../persistence/run-state/atomic-file.mjs';
 import { assertFreshTokenAuthority, assertMatchingTokenAuthority, buildTokenLease, renewTokenLease } from '../../persistence/run-state/lease-authority.mjs';
 import { recoverDurableCommit } from '../../persistence/run-state/durable-commit.mjs';
 import { readPersistedRunState } from '../../persistence/run-state/PersistedRunStateReader.mjs';
-import { ensureRunFiles, pathExists, resolveRunPaths } from '../../persistence/run-state/paths.mjs';
+import { ensureRunFiles, migrateLegacyWorkflowRunsRootIfNeeded, pathExists, resolveRunPaths } from '../../persistence/run-state/paths.mjs';
 import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot, upsertRunIndexEntry } from '../../persistence/run-state/run-index.mjs';
 import { withRunStateLock } from '../../persistence/run-state/lock.mjs';
 import { publicErrorMessage } from '../cli/public-error.mjs';
@@ -153,6 +153,7 @@ async function renderCurrentHostResponse(paths, baton, { leaseToken, includeDiag
 }
 
 async function nextInternal({ runId, workflowPath, includeDiagnostics = false, userPrompt, userPromptFile, taskKey, taskFingerprint, leaseToken, now = new Date(), runsRoot } = {}) {
+  await migrateLegacyWorkflowRunsRootIfNeeded(runsRoot);
   const lockPaths = resolveRunPaths({ runId, runsRoot });
   await assertPreLockWorkerLeaseAuthority(lockPaths, { leaseToken, now, allowUnclaimed: true });
   return withRunStateLock(lockPaths, async () => {
@@ -293,6 +294,7 @@ export async function next(options = {}) {
 }
 
 async function continueRunInternal({ runId, workflowPath, output, includeDiagnostics = false, leaseToken, now = new Date(), runsRoot } = {}) {
+  await migrateLegacyWorkflowRunsRootIfNeeded(runsRoot);
   if (output !== undefined && (!Array.isArray(output) || output.length > 0)) {
     throw new Error('workflow-runner continue no longer accepts --output; run workflow-runner write-output for each current request, then continue without --output');
   }
@@ -398,6 +400,7 @@ function batonWithWorkerBinding(baton, stepId, agentId) {
 }
 
 async function writeOutputInternal({ runId, workflowPath, stepId, json, leaseToken, now = new Date(), runsRoot } = {}) {
+  await migrateLegacyWorkflowRunsRootIfNeeded(runsRoot);
   assertSafeStepId(stepId);
   const output = parseOutputJson(json);
   const lockPaths = resolveRunPaths({ runId, runsRoot });
@@ -436,6 +439,7 @@ export async function writeOutput(options = {}) {
 }
 
 async function bindAgentInternal({ runId, workflowPath, stepId, agentId, leaseToken, now = new Date(), runsRoot } = {}) {
+  await migrateLegacyWorkflowRunsRootIfNeeded(runsRoot);
   assertSafeStepId(stepId);
   assertAgentId(agentId);
   const lockPaths = resolveRunPaths({ runId, runsRoot });
@@ -473,6 +477,7 @@ export async function bindAgent(options = {}) {
 }
 
 async function loadInstructionsInternal({ runId, workflowPath, stepId, followUp = false, leaseToken, now = new Date(), runsRoot } = {}) {
+  await migrateLegacyWorkflowRunsRootIfNeeded(runsRoot);
   assertSafeStepId(stepId);
   if (followUp !== true && followUp !== false) throw new Error('followUp must be a boolean');
   const lockPaths = resolveRunPaths({ runId, runsRoot });
