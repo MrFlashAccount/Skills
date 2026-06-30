@@ -27,6 +27,11 @@ function requiredReadsBlock(items = []) {
   return lines.join('\n');
 }
 
+function requiredReadsForRender(items, { followUp = false } = {}) {
+  if (followUp !== true) return items;
+  return items.filter((item) => item?.source !== 'role-material');
+}
+
 function assembleFixedPrompt({ promptLayer, templatePath, workflowInstructionBlock, requiredReads, inlinePrompt, outputContract, userPrompt, finalReminder }) {
   assertNoUnsupportedPlaceholders(promptLayer, templatePath);
   const parts = [trimStable(promptLayer)];
@@ -41,7 +46,7 @@ function assembleFixedPrompt({ promptLayer, templatePath, workflowInstructionBlo
   return `${parts.filter(Boolean).join('\n\n')}\n`;
 }
 
-export function renderWorkflowPrompt({ workflow, stepId, step, resources, promptInput = { value: {}, keys: [] }, requiredReads = [], roleMetadataPaths = [], includeDiagnostics = false, userPrompt, userPromptInjected = false } = {}) {
+export function renderWorkflowPrompt({ workflow, stepId, step, resources, promptInput = { value: {}, keys: [] }, requiredReads = [], roleMetadataPaths = [], includeDiagnostics = false, userPrompt, userPromptInjected = false, followUp = false } = {}) {
   const input = step.input ?? {};
   const inputTemplate = readInputTemplate({ input, resources });
   const outputTemplate = readOutputTemplate({ step, resources });
@@ -56,7 +61,7 @@ export function renderWorkflowPrompt({ workflow, stepId, step, resources, prompt
 
   const usesDefaultPrompt = inputTemplate.content === undefined;
   const promptLayer = usesDefaultPrompt ? defaultPrompt({ step, input }) : inputTemplate.content;
-  const requiredReadsSection = requiredReadsBlock(requiredReads);
+  const requiredReadsSection = requiredReadsBlock(requiredReadsForRender(requiredReads, { followUp }));
   const prompt = assembleFixedPrompt({
     promptLayer,
     templatePath: inputTemplate.metadataPath,

@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
-import { continueRun, next as runnerNext, writeOutput } from '../entrypoints/api/workflowRunner.mjs';
+import { continueRun, loadInstructions, next as runnerNext, writeOutput } from '../entrypoints/api/workflowRunner.mjs';
 import { claimWorkflowRun, registerWorkflowRun } from '../entrypoints/api/workflowRuns.mjs';
 
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-runner-binding-'));
@@ -35,11 +35,40 @@ function workflowDoc(name, prompt = 'Prepare branch.') {
   };
 }
 
+function roleWorkflowDoc(name) {
+  const base = workflowDoc(name, 'Prepare branch with role material.');
+  return {
+    ...base,
+    steps: {
+      ...base.steps,
+      prepare: {
+        ...base.steps.prepare,
+        input: { role: 'backend', prompt: 'Prepare branch with role material.' },
+      },
+    },
+  };
+}
+
+function writeRoleMaterial(role) {
+  const roleDir = path.join(tempDir, 'roles', role);
+  mkdirSync(roleDir, { recursive: true });
+  writeFileSync(path.join(roleDir, 'ROLE.md'), `# ${role} role\n`);
+  writeFileSync(path.join(roleDir, 'RUBRIC.md'), `# ${role} rubric\n`);
+}
+
 
 function workflowPath(label, prompt) {
   const filePath = path.join(tempDir, `${label}.json`);
   writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
   writeJson(filePath, workflowDoc(label, prompt));
+  return filePath;
+}
+
+function roleWorkflowPath(label) {
+  const filePath = path.join(tempDir, `${label}.json`);
+  writeRoleMaterial('backend');
+  writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
+  writeJson(filePath, roleWorkflowDoc(label));
   return filePath;
 }
 
@@ -86,4 +115,32 @@ test('runner binding: runId alone resumes the indexed workflow without path fall
 
   const resumed = await runnerNext({ runId, leaseToken: registered.leaseToken });
   assert.equal(resumed.status, 'needs_host_actions');
+});
+
+test('runner binding: follow-up instructions omit role material required reads', async () => {
+  const runId = `binding-${process.pid}-followup-role-material`;
+  const workflow = roleWorkflowPath('followup-role-material');
+  const registered = await registerWorkflowRun({ runId, workflowPath: workflow, claim: true });
+
+  const first = await runnerNext({ runId, workflowPath: workflow, leaseToken: registered.leaseToken });
+  assert.equal(first.status, 'needs_host_actions');
+
+  const initialInstructions = await loadInstructions({
+    runId,
+    stepId: 'prepare',
+    leaseToken: registered.leaseToken,
+  });
+  assert.match(initialInstructions, /Role material for 'backend': `.*roles\/backend\/ROLE\.md`/);
+  assert.match(initialInstructions, /Role material for 'backend': `.*roles\/backend\/RUBRIC\.md`/);
+
+  const followUpInstructions = await loadInstructions({
+    runId,
+    stepId: 'prepare',
+    followUp: true,
+    leaseToken: registered.leaseToken,
+  });
+  assert.doesNotMatch(followUpInstructions, /Role material for 'backend'/);
+  assert.doesNotMatch(followUpInstructions, /roles\/backend\/ROLE\.md/);
+  assert.doesNotMatch(followUpInstructions, /roles\/backend\/RUBRIC\.md/);
+  assert.match(followUpInstructions, /Prepare branch with role material\./);
 });

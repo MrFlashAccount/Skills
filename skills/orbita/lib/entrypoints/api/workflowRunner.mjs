@@ -139,10 +139,10 @@ function resourcesWithValidatingWriter(resources, paths, { leaseToken } = {}) {
   };
 }
 
-async function renderCurrentHostResponse(paths, baton, { leaseToken, includeDiagnostics = false, includeInlineInstructions = false } = {}) {
+async function renderCurrentHostResponse(paths, baton, { leaseToken, includeDiagnostics = false, includeInlineInstructions = false, followUp = false } = {}) {
   const runtime = loadWorkflowRuntime({ workflowPath: paths.workflowPath, batonPath: paths.batonPath, baton });
   const renderResources = resourcesWithValidatingWriter(runtime.resources, paths, { leaseToken });
-  const rendered = runNext({ workflowDoc: runtime.workflow, batonDoc: runtime.baton, resources: renderResources, includeDiagnostics });
+  const rendered = runNext({ workflowDoc: runtime.workflow, batonDoc: runtime.baton, resources: renderResources, includeDiagnostics, followUp });
   const response = await runnerResponseForRendered(paths, rendered, {
     initialized: false,
     resumed: true,
@@ -482,7 +482,7 @@ async function loadInstructionsInternal({ runId, workflowPath, stepId, followUp 
     await assertWorkerLeaseAuthority(paths, { leaseToken, now });
     await recoverDurableCommit(paths);
     const current = await readPersistedRunState(paths);
-    const { rendered, response } = await renderCurrentHostResponse(paths, current.baton, { leaseToken });
+    const { rendered, response } = await renderCurrentHostResponse(paths, current.baton, { leaseToken, followUp });
     if (response.status !== 'needs_host_actions') throw staleWorkflowCommandError(stepId, response);
     const request = currentRequestForStep(response, stepId);
     if (!request) throw staleWorkflowCommandError(stepId, response);

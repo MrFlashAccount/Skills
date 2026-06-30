@@ -26,6 +26,7 @@ function readInputRole({ input, resources }) {
     readItems: records.map((record) => ({
       label: `Role material for '${role}'`,
       path: record.path,
+      source: 'role-material',
     })),
     metadataPaths: records.map((record) => record.path),
   };
