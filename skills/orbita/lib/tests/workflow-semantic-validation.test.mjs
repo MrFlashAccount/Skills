@@ -176,18 +176,18 @@ test('workflow semantic validation accepts the checked-in flat DevHarness workfl
 test('DevHarness proposal handoff prompts use baton artifacts instead of temp files', () => {
   assert.match(promptText(workflowDoc.steps.architecture_draft), /emit it as workflow artifact `architecture-proposal`/);
   assert.match(promptText(workflowDoc.steps.architecture_draft), /artifact metadata\/path accepted into baton is the source of truth/);
-  assert.match(promptText(workflowDoc.steps.approve_architecture), /projected `architecture-proposal` artifact from architecture_draft/);
-  assert.match(promptText(workflowDoc.steps.approve_architecture), /retrieve\/export the existing artifact referenced by projected baton\/output artifacts/);
+  assert.match(promptText(workflowDoc.steps.approve_architecture), /`architecture-proposal` artifact from architecture_draft/);
+  assert.match(promptText(workflowDoc.steps.approve_architecture), /retrieve\/export the existing artifact referenced by baton\/output artifacts/);
   assert.match(promptText(workflowDoc.steps.approve_architecture), /do not ask a worker to recreate it in a temp path/);
-  assert.match(promptText(workflowDoc.steps.approve_plan), /retrieve\/export the existing artifact referenced by projected baton\/output artifacts/);
+  assert.match(promptText(workflowDoc.steps.approve_plan), /retrieve\/export the existing artifact referenced by baton\/output artifacts/);
 });
 
-test('DevHarness worker and approval prompts expose explicit projected input templates', () => {
+test('DevHarness worker and approval prompts expose explicit input context templates', () => {
   const routedSteps = Object.entries(workflowDoc.steps).filter(([, step]) => ['worker', 'approval'].includes(step.kind));
   for (const [stepId, step] of routedSteps) {
     const prompt = promptText(step);
-    assert.match(prompt, /\n\nExplicit projected inputs:\n/, `${stepId} should have an explicit projected input section`);
-    assert.match(prompt, /\$\{\{ input\./, `${stepId} should interpolate projected input fields`);
+    assert.match(prompt, /\n\nInput context:\n/, `${stepId} should have an explicit input context section`);
+    assert.match(prompt, /\$\{\{ input\./, `${stepId} should interpolate input fields`);
   }
 
   assert.match(promptText(workflowDoc.steps.research_draft), /\$\{\{ input\.research_attack\.verdict \| default:/);
@@ -200,14 +200,14 @@ test('DevHarness worker and approval prompts expose explicit projected input tem
   assert.match(promptText(workflowDoc.steps.review_join), /\$\{\{ input\.backend_review\.verdict \| default:/);
 });
 
-test('DevHarness prompt input templates only reference projected state selectors', () => {
+test('DevHarness prompt input templates only reference declared input.state selectors', () => {
   const routedSteps = Object.entries(workflowDoc.steps).filter(([, step]) => ['worker', 'approval'].includes(step.kind));
   for (const [stepId, step] of routedSteps) {
     const state = new Set(step.input.state ?? []);
     const references = [...promptText(step).matchAll(/\$\{\{\s*input\.([A-Za-z_][A-Za-z0-9_-]*)/g)].map((match) => match[1]);
     const missing = [...new Set(references)].filter((reference) => !state.has(reference));
 
-    assert.deepEqual(missing, [], `${stepId} prompt references inputs outside projected state`);
+    assert.deepEqual(missing, [], `${stepId} prompt references inputs outside declared input.state`);
   }
 });
 
@@ -239,7 +239,7 @@ test('research critic save step uses persistence metadata template matching its 
   });
 });
 
-test('research critic saved packet output requires projected artifacts and results', () => {
+test('research critic saved packet output requires artifacts and results payloads', () => {
   const workflowPath = path.join(REPO_ROOT, 'workflows/research-critic/workflow.json');
   const step = researchCriticWorkflowDoc.steps.save_research_packet;
 
@@ -389,7 +389,7 @@ test('workflow authoring design output requires branch payloads', () => {
   assert.equal(withBlocker.ok, true);
 });
 
-test('revision loop continuity separates projected state from clarification-session continuation', () => {
+test('revision loop continuity separates input state from clarification-session continuation', () => {
   const loopIterationContinuityPrompt = /Loop continuity across workflow loop iterations is prompt\/state based/;
   const noPersistentDraftCriticReuse = /do not assume persistent draft\/critic worker reuse across iterations/;
   const clarificationContinuation = /If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening/;
@@ -863,7 +863,7 @@ test('workflow semantic validation rejects optional input paths used for match r
   );
 });
 
-test('workflow semantic validation accepts input expressions against projected input.state selectors', () => {
+test('workflow semantic validation accepts input expressions against declared input.state selectors', () => {
   const doc = syntheticWorkflow((draft) => {
     draft.steps.consumer.input = { state: ['producer', 'branch_a'] };
     draft.steps.consumer.next = { match: '${{ input.branch_a.outcome }}', cases: { ready: 'done', blocked: 'blocked' } };
@@ -929,7 +929,7 @@ test('workflow semantic validation rejects unsupported nested input.state select
   );
 });
 
-test('workflow semantic validation rejects projected input expressions with unknown schema fields', () => {
+test('workflow semantic validation rejects input expressions with unknown schema fields', () => {
   assertSemanticFailure(
     syntheticWorkflow((draft) => {
       draft.steps.consumer.next = { match: '${{ input.producer.missing_route }}', cases: { review: 'done', blocked: 'blocked' } };

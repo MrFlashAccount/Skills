@@ -169,7 +169,9 @@ test('E2E fixture: long happy path loops through review revision and preserves l
   const approved = continueWith(run, workflow, output('approval-approved.json'), 'continue approval');
   assert.equal(approved.baton.cursor, 'implement');
   assert.equal(approved.baton.state.approval_gate.approval, 'approved');
-  assert.match(instructions(run, 'implement'), /"approval_gate"/);
+  const implementInstructions = instructions(run, 'implement');
+  assert.match(implementInstructions, /Approval decision:/);
+  assert.match(implementInstructions, /"approval": "approved"/);
 
   assert.equal(continueWith(run, workflow, output('implement-v1.json'), 'continue implementation v1').baton.cursor, 'review');
   const revision = continueWith(run, workflow, output('review-retry.json'), 'continue review retry');

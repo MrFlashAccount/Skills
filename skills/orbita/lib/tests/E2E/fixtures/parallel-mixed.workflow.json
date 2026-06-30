@@ -32,7 +32,12 @@
         "state": [
           "prepare"
         ],
-        "prompt": "Run lint branch."
+        "prompt": [
+          "Run lint branch.",
+          "",
+          "Prepare result:",
+          "${{ input.prepare.results }}"
+        ]
       },
       "output": {
         "template": "output.md"
@@ -46,7 +51,12 @@
         "state": [
           "prepare"
         ],
-        "prompt": "Run build branch."
+        "prompt": [
+          "Run build branch.",
+          "",
+          "Prepare result:",
+          "${{ input.prepare.results }}"
+        ]
       },
       "output": {
         "template": "output.md"
@@ -61,7 +71,15 @@
           "lint",
           "build"
         ],
-        "prompt": "Synthesize branch outputs."
+        "prompt": [
+          "Synthesize branch outputs.",
+          "",
+          "Lint result:",
+          "${{ input.lint.results }}",
+          "",
+          "Build result:",
+          "${{ input.build.results }}"
+        ]
       },
       "output": {
         "template": "output.md"

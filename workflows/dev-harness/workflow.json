@@ -18,12 +18,12 @@
           "Return outcome ready_for_attack when the research_packet is ready.",
           "When missing implementation-critical input is answerable by the user, do not return blocked; return a focused user-facing request for the orchestrator to relay.",
           "Return blocked with blocker.source_step_id = research_draft only when progress is unsafe or impossible, or when the missing input is external/non-user-answerable.",
-          "When revising after research_attack feedback or approve_research rejection, read projected feedback from input.research_attack and input.approve_research and address it explicitly while preserving approved constraints.",
-          "Loop continuity across workflow loop iterations is prompt/state based: rely only on workflow-projected input and prior step outputs; do not assume persistent draft/critic worker reuse across iterations.",
+          "When revising after research_attack feedback or approve_research rejection, read feedback from input.research_attack and input.approve_research and address it explicitly while preserving approved constraints.",
+          "Loop continuity across workflow loop iterations is prompt/state based: rely only on workflow input context and prior step outputs; do not assume persistent draft/critic worker reuse across iterations.",
           "If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
           "",
-          "Explicit projected inputs:",
-          "- Previous research packet: ${{ input.research_draft.research_packet | default: \"No previous research draft in projected state.\" }}",
+          "Input context:",
+          "- Previous research packet: ${{ input.research_draft.research_packet | default: \"No previous research draft in input context.\" }}",
           "- Research attack feedback to address: ${{ input.research_attack.verdict | default: \"No prior research_attack feedback.\" }}",
           "- Human research gate feedback to address: ${{ input.approve_research | default: \"No prior approve_research decision or feedback.\" }}"
         ],
@@ -59,9 +59,9 @@
           "Return approved, needs_revision, or blocked.",
           "If blocked, set blocker.source_step_id = research_attack.",
           "",
-          "Explicit projected inputs:",
+          "Input context:",
           "- Research packet under review: ${{ input.research_draft.research_packet }}",
-          "- Research artifacts: ${{ input.research_draft.artifacts | default: \"No research artifacts were projected.\" }}"
+          "- Research artifacts: ${{ input.research_draft.artifacts | default: \"No research artifacts are available in input context.\" }}"
         ]
       },
       "output": {
@@ -87,14 +87,14 @@
         ],
         "prompt": [
           "Present artifact `research-packet` from `research_draft` and research_attack.verdict to the user for human approval.",
-          "If the user asks for a packet/proposal file, retrieve/export the existing artifact referenced by projected baton/output artifacts; do not ask a worker to recreate it in a temp path.",
+          "If the user asks for a packet/proposal file, retrieve/export the existing artifact referenced by baton/output artifacts; do not ask a worker to recreate it in a temp path.",
           "Continue only after explicit approval.",
           "Return approval approved to continue to architecture_draft, rejected to revise research_draft, or blocked with a blocker.",
           "",
-          "Explicit projected inputs:",
+          "Input context:",
           "- Research packet for approval: ${{ input.research_draft.research_packet }}",
           "- Research attack verdict: ${{ input.research_attack.verdict }}",
-          "- Research artifacts: ${{ input.research_draft.artifacts | default: \"No research artifacts were projected.\" }}"
+          "- Research artifacts: ${{ input.research_draft.artifacts | default: \"No research artifacts are available in input context.\" }}"
         ]
       },
       "next": {
@@ -125,15 +125,15 @@
           "When the structural contract is human-facing, emit it as workflow artifact `architecture-proposal`; do not create arbitrary temp/export files for handoff; the artifact metadata/path accepted into baton is the source of truth.",
           "If architecture work is not needed, record the explicit no-artifact decision in architecture_contract.",
           "Return ready_for_attack or blocked with blocker.source_step_id = architecture_draft.",
-          "When revising after architecture_attack feedback or approve_architecture rejection, read projected feedback from input.architecture_attack and input.approve_architecture and address it explicitly while preserving approved research constraints.",
-          "Loop continuity across workflow loop iterations is prompt/state based: rely only on workflow-projected input and prior step outputs; do not assume persistent draft/critic worker reuse across iterations.",
+          "When revising after architecture_attack feedback or approve_architecture rejection, read feedback from input.architecture_attack and input.approve_architecture and address it explicitly while preserving approved research constraints.",
+          "Loop continuity across workflow loop iterations is prompt/state based: rely only on workflow input context and prior step outputs; do not assume persistent draft/critic worker reuse across iterations.",
           "If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
           "",
-          "Explicit projected inputs:",
+          "Input context:",
           "- Approved research packet: ${{ input.research_draft.research_packet }}",
           "- Research attack verdict: ${{ input.research_attack.verdict }}",
           "- Human research approval: ${{ input.approve_research }}",
-          "- Previous architecture contract: ${{ input.architecture_draft.architecture_contract | default: \"No previous architecture_draft contract in projected state.\" }}",
+          "- Previous architecture contract: ${{ input.architecture_draft.architecture_contract | default: \"No previous architecture_draft contract in input context.\" }}",
           "- Architecture attack feedback to address: ${{ input.architecture_attack.verdict | default: \"No prior architecture_attack feedback.\" }}",
           "- Human architecture gate feedback to address: ${{ input.approve_architecture | default: \"No prior approve_architecture decision or feedback.\" }}"
         ]
@@ -164,10 +164,10 @@
           "Return approved, needs_revision, or blocked.",
           "If blocked, set blocker.source_step_id = architecture_attack.",
           "",
-          "Explicit projected inputs:",
+          "Input context:",
           "- Approved research packet: ${{ input.research_draft.research_packet }}",
           "- Architecture contract under review: ${{ input.architecture_draft.architecture_contract }}",
-          "- Architecture artifacts: ${{ input.architecture_draft.artifacts | default: \"No architecture artifacts were projected.\" }}"
+          "- Architecture artifacts: ${{ input.architecture_draft.artifacts | default: \"No architecture artifacts are available in input context.\" }}"
         ]
       },
       "output": {
@@ -192,15 +192,15 @@
           "architecture_attack"
         ],
         "prompt": [
-          "Show architecture_draft.architecture_contract, the projected `architecture-proposal` artifact from architecture_draft when present, and architecture_attack.verdict to the user.",
-          "If the user asks for a proposal file, retrieve/export the existing artifact referenced by projected baton/output artifacts; do not ask a worker to recreate it in a temp path.",
+          "Show architecture_draft.architecture_contract, the `architecture-proposal` artifact from architecture_draft when present, and architecture_attack.verdict to the user.",
+          "If the user asks for a proposal file, retrieve/export the existing artifact referenced by baton/output artifacts; do not ask a worker to recreate it in a temp path.",
           "Continue only after explicit approval when the slice is non-trivial or architecture-sensitive.",
           "Return approval approved to continue to planning_draft, rejected to revise architecture_draft, or blocked with a blocker.",
           "",
-          "Explicit projected inputs:",
+          "Input context:",
           "- Architecture contract for approval: ${{ input.architecture_draft.architecture_contract }}",
           "- Architecture attack verdict: ${{ input.architecture_attack.verdict }}",
-          "- Architecture artifacts: ${{ input.architecture_draft.artifacts | default: \"No architecture artifacts were projected.\" }}"
+          "- Architecture artifacts: ${{ input.architecture_draft.artifacts | default: \"No architecture artifacts are available in input context.\" }}"
         ]
       },
       "next": {
@@ -232,15 +232,15 @@
           "If duplicate same-role work cannot be safely collapsed, return blocked with blocker.source_step_id = planning_draft. selected_review_steps must explicitly contain the unique reviewers that must run after implementation; implementation_join must not invent or recompute reviewers.",
           "Keep review_plan.reviewers aligned with selected_review_steps.",
           "Return ready_for_attack or blocked with blocker.source_step_id = planning_draft.",
-          "When revising after planning_attack feedback or approve_plan rejection, read projected feedback from input.planning_attack and input.approve_plan and address it explicitly while preserving approved research and architecture constraints.",
-          "Loop continuity across workflow loop iterations is prompt/state based: rely only on workflow-projected input and prior step outputs; do not assume persistent draft/critic worker reuse across iterations.",
+          "When revising after planning_attack feedback or approve_plan rejection, read feedback from input.planning_attack and input.approve_plan and address it explicitly while preserving approved research and architecture constraints.",
+          "Loop continuity across workflow loop iterations is prompt/state based: rely only on workflow input context and prior step outputs; do not assume persistent draft/critic worker reuse across iterations.",
           "If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
           "",
-          "Explicit projected inputs:",
+          "Input context:",
           "- Approved research packet: ${{ input.research_draft.research_packet }}",
           "- Approved architecture contract: ${{ input.architecture_draft.architecture_contract }}",
           "- Architecture attack verdict: ${{ input.architecture_attack.verdict }}",
-          "- Previous implementation plan: ${{ input.planning_draft.implementation_plan | default: \"No previous planning_draft implementation plan in projected state.\" }}",
+          "- Previous implementation plan: ${{ input.planning_draft.implementation_plan | default: \"No previous planning_draft implementation plan in input context.\" }}",
           "- Planning attack feedback to address: ${{ input.planning_attack.verdict | default: \"No prior planning_attack feedback.\" }}",
           "- Human plan gate feedback to address: ${{ input.approve_plan | default: \"No prior approve_plan decision or feedback.\" }}"
         ]
@@ -270,7 +270,7 @@
           "Return approved, needs_revision, or blocked.",
           "If selected tasks contain duplicate/overlapping same-role work that cannot collapse to one canonical step, or if reviewers are missing/recomputed outside planning, return blocked with blocker.source_step_id = planning_attack.",
           "",
-          "Explicit projected inputs:",
+          "Input context:",
           "- Implementation plan under review: ${{ input.planning_draft.implementation_plan }}",
           "- Selected implementation steps: ${{ input.planning_draft.selected_implementation_steps }}",
           "- Implementation route: ${{ input.planning_draft.implementation_route }}",
@@ -301,12 +301,12 @@
         ],
         "prompt": [
           "Show one cleaned execution plan contract to the user and stop until explicit implementation approval.",
-          "If the user asks for a plan/proposal file, retrieve/export the existing artifact referenced by projected baton/output artifacts; do not ask a worker to recreate it in a temp path.",
+          "If the user asks for a plan/proposal file, retrieve/export the existing artifact referenced by baton/output artifacts; do not ask a worker to recreate it in a temp path.",
           "Return approval approved only for explicit approval, rejected for requested plan changes, or blocked with a blocker.",
           "After approval, planning_draft is the final approved plan contract.",
           "Do not encode selected implementation roles or reviewers in approval; selected work and reviewers are planning_draft.selected_implementation_steps, planning_draft.implementation_route, and planning_draft.selected_review_steps.",
           "",
-          "Explicit projected inputs:",
+          "Input context:",
           "- Implementation plan for approval: ${{ input.planning_draft.implementation_plan }}",
           "- Selected implementation steps: ${{ input.planning_draft.selected_implementation_steps }}",
           "- Implementation route: ${{ input.planning_draft.implementation_route }}",
@@ -336,7 +336,7 @@
           "If valid, return outcome equal to planning_draft.implementation_route.",
           "If invalid or impossible to collapse safely, return outcome blocked with blocker.source_step_id = implementation_dispatch.",
           "",
-          "Explicit projected inputs:",
+          "Input context:",
           "- Approved selected implementation steps: ${{ input.planning_draft.selected_implementation_steps }}",
           "- Approved implementation route: ${{ input.planning_draft.implementation_route }}",
           "- Approved selected review steps: ${{ input.planning_draft.selected_review_steps }}"
@@ -399,26 +399,26 @@
         "prompt": [
           "Implement only the backend slice selected in the approved plan contract planning_draft.selected_implementation_steps.",
           "This workflow supports at most one backend_implementation worker; handle all backend work for the approved plan here and do not spawn duplicate backend workers.",
-          "Read prior step outputs from projected input.<step_id> fields only; do not rely on artifacts/results globals.",
+          "Read prior step outputs from input.<step_id> fields only; do not rely on artifacts/results globals.",
           "Preserve frozen research, architecture, execution plan, and user constraints.",
           "Return implemented or blocked with blocker.source_step_id = backend_implementation.",
-          "When rerun from review_join needs_changes, read projected input.review_join and reviewer outputs, apply only the required changes for this step, and preserve all approved contracts.",
-          "Loop continuity across workflow loop iterations is prompt/state based: rely only on workflow-projected input and prior step outputs; do not assume persistent draft/critic worker reuse across iterations.",
+          "When rerun from review_join needs_changes, read input.review_join and reviewer outputs, apply only the required changes for this step, and preserve all approved contracts.",
+          "Loop continuity across workflow loop iterations is prompt/state based: rely only on workflow input context and prior step outputs; do not assume persistent draft/critic worker reuse across iterations.",
           "If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
           "",
-          "Explicit projected inputs:",
+          "Input context:",
           "- Approved implementation plan: ${{ input.planning_draft.implementation_plan }}",
           "- Approved selected implementation steps: ${{ input.planning_draft.selected_implementation_steps }}",
           "- Approved selected review steps: ${{ input.planning_draft.selected_review_steps }}",
           "- Dispatch route outcome: ${{ input.implementation_dispatch.outcome }}",
-          "- Joined review decision requiring rework: ${{ input.review_join.verdict | default: \"No review_join rework decision in projected state.\" }}",
-          "- Architect review feedback: ${{ input.architect_review.verdict | default: \"No architect_review feedback in projected state.\" }}",
-          "- Backend review feedback: ${{ input.backend_review.verdict | default: \"No backend_review feedback in projected state.\" }}",
-          "- Frontend review feedback: ${{ input.frontend_review.verdict | default: \"No frontend_review feedback in projected state.\" }}",
-          "- Frontend taste review feedback: ${{ input.frontend_taste_review.verdict | default: \"No frontend_taste_review feedback in projected state.\" }}",
-          "- Security review feedback: ${{ input.security_review.verdict | default: \"No security_review feedback in projected state.\" }}",
-          "- Privacy review feedback: ${{ input.privacy_review.verdict | default: \"No privacy_review feedback in projected state.\" }}",
-          "- QA review feedback: ${{ input.qa_review.verdict | default: \"No qa_review feedback in projected state.\" }}"
+          "- Joined review decision requiring rework: ${{ input.review_join.verdict | default: \"No review_join rework decision in input context.\" }}",
+          "- Architect review feedback: ${{ input.architect_review.verdict | default: \"No architect_review feedback in input context.\" }}",
+          "- Backend review feedback: ${{ input.backend_review.verdict | default: \"No backend_review feedback in input context.\" }}",
+          "- Frontend review feedback: ${{ input.frontend_review.verdict | default: \"No frontend_review feedback in input context.\" }}",
+          "- Frontend taste review feedback: ${{ input.frontend_taste_review.verdict | default: \"No frontend_taste_review feedback in input context.\" }}",
+          "- Security review feedback: ${{ input.security_review.verdict | default: \"No security_review feedback in input context.\" }}",
+          "- Privacy review feedback: ${{ input.privacy_review.verdict | default: \"No privacy_review feedback in input context.\" }}",
+          "- QA review feedback: ${{ input.qa_review.verdict | default: \"No qa_review feedback in input context.\" }}"
         ]
       },
       "output": {
@@ -447,26 +447,26 @@
         "prompt": [
           "Implement only the frontend slice selected in the approved plan contract planning_draft.selected_implementation_steps.",
           "This workflow supports at most one frontend_implementation worker; handle all frontend work for the approved plan here and do not spawn duplicate frontend workers.",
-          "Read prior step outputs from projected input.<step_id> fields only; do not rely on artifacts/results globals.",
+          "Read prior step outputs from input.<step_id> fields only; do not rely on artifacts/results globals.",
           "Preserve frozen research, architecture, execution plan, and user constraints.",
           "Return implemented or blocked with blocker.source_step_id = frontend_implementation.",
-          "When rerun from review_join needs_changes, read projected input.review_join and reviewer outputs, apply only the required changes for this step, and preserve all approved contracts.",
-          "Loop continuity across workflow loop iterations is prompt/state based: rely only on workflow-projected input and prior step outputs; do not assume persistent draft/critic worker reuse across iterations.",
+          "When rerun from review_join needs_changes, read input.review_join and reviewer outputs, apply only the required changes for this step, and preserve all approved contracts.",
+          "Loop continuity across workflow loop iterations is prompt/state based: rely only on workflow input context and prior step outputs; do not assume persistent draft/critic worker reuse across iterations.",
           "If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
           "",
-          "Explicit projected inputs:",
+          "Input context:",
           "- Approved implementation plan: ${{ input.planning_draft.implementation_plan }}",
           "- Approved selected implementation steps: ${{ input.planning_draft.selected_implementation_steps }}",
           "- Approved selected review steps: ${{ input.planning_draft.selected_review_steps }}",
           "- Dispatch route outcome: ${{ input.implementation_dispatch.outcome }}",
-          "- Joined review decision requiring rework: ${{ input.review_join.verdict | default: \"No review_join rework decision in projected state.\" }}",
-          "- Architect review feedback: ${{ input.architect_review.verdict | default: \"No architect_review feedback in projected state.\" }}",
-          "- Backend review feedback: ${{ input.backend_review.verdict | default: \"No backend_review feedback in projected state.\" }}",
-          "- Frontend review feedback: ${{ input.frontend_review.verdict | default: \"No frontend_review feedback in projected state.\" }}",
-          "- Frontend taste review feedback: ${{ input.frontend_taste_review.verdict | default: \"No frontend_taste_review feedback in projected state.\" }}",
-          "- Security review feedback: ${{ input.security_review.verdict | default: \"No security_review feedback in projected state.\" }}",
-          "- Privacy review feedback: ${{ input.privacy_review.verdict | default: \"No privacy_review feedback in projected state.\" }}",
-          "- QA review feedback: ${{ input.qa_review.verdict | default: \"No qa_review feedback in projected state.\" }}"
+          "- Joined review decision requiring rework: ${{ input.review_join.verdict | default: \"No review_join rework decision in input context.\" }}",
+          "- Architect review feedback: ${{ input.architect_review.verdict | default: \"No architect_review feedback in input context.\" }}",
+          "- Backend review feedback: ${{ input.backend_review.verdict | default: \"No backend_review feedback in input context.\" }}",
+          "- Frontend review feedback: ${{ input.frontend_review.verdict | default: \"No frontend_review feedback in input context.\" }}",
+          "- Frontend taste review feedback: ${{ input.frontend_taste_review.verdict | default: \"No frontend_taste_review feedback in input context.\" }}",
+          "- Security review feedback: ${{ input.security_review.verdict | default: \"No security_review feedback in input context.\" }}",
+          "- Privacy review feedback: ${{ input.privacy_review.verdict | default: \"No privacy_review feedback in input context.\" }}",
+          "- QA review feedback: ${{ input.qa_review.verdict | default: \"No qa_review feedback in input context.\" }}"
         ]
       },
       "output": {
@@ -496,25 +496,25 @@
           "Update only approved architecture artifacts or architecture handoff notes selected in the approved plan contract planning_draft.selected_implementation_steps.",
           "This workflow supports at most one architecture_artifact_update worker; collapse all approved architecture artifact work into this step.",
           "Do not redesign.",
-          "Read prior step outputs from projected input.<step_id> fields only.",
+          "Read prior step outputs from input.<step_id> fields only.",
           "Return implemented or blocked with blocker.source_step_id = architecture_artifact_update.",
-          "When rerun from review_join needs_changes, read projected input.review_join and reviewer outputs, apply only the required changes for this step, and preserve all approved contracts.",
-          "Loop continuity across workflow loop iterations is prompt/state based: rely only on workflow-projected input and prior step outputs; do not assume persistent draft/critic worker reuse across iterations.",
+          "When rerun from review_join needs_changes, read input.review_join and reviewer outputs, apply only the required changes for this step, and preserve all approved contracts.",
+          "Loop continuity across workflow loop iterations is prompt/state based: rely only on workflow input context and prior step outputs; do not assume persistent draft/critic worker reuse across iterations.",
           "If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
           "",
-          "Explicit projected inputs:",
+          "Input context:",
           "- Approved implementation plan: ${{ input.planning_draft.implementation_plan }}",
           "- Approved selected implementation steps: ${{ input.planning_draft.selected_implementation_steps }}",
           "- Approved selected review steps: ${{ input.planning_draft.selected_review_steps }}",
           "- Dispatch route outcome: ${{ input.implementation_dispatch.outcome }}",
-          "- Joined review decision requiring rework: ${{ input.review_join.verdict | default: \"No review_join rework decision in projected state.\" }}",
-          "- Architect review feedback: ${{ input.architect_review.verdict | default: \"No architect_review feedback in projected state.\" }}",
-          "- Backend review feedback: ${{ input.backend_review.verdict | default: \"No backend_review feedback in projected state.\" }}",
-          "- Frontend review feedback: ${{ input.frontend_review.verdict | default: \"No frontend_review feedback in projected state.\" }}",
-          "- Frontend taste review feedback: ${{ input.frontend_taste_review.verdict | default: \"No frontend_taste_review feedback in projected state.\" }}",
-          "- Security review feedback: ${{ input.security_review.verdict | default: \"No security_review feedback in projected state.\" }}",
-          "- Privacy review feedback: ${{ input.privacy_review.verdict | default: \"No privacy_review feedback in projected state.\" }}",
-          "- QA review feedback: ${{ input.qa_review.verdict | default: \"No qa_review feedback in projected state.\" }}"
+          "- Joined review decision requiring rework: ${{ input.review_join.verdict | default: \"No review_join rework decision in input context.\" }}",
+          "- Architect review feedback: ${{ input.architect_review.verdict | default: \"No architect_review feedback in input context.\" }}",
+          "- Backend review feedback: ${{ input.backend_review.verdict | default: \"No backend_review feedback in input context.\" }}",
+          "- Frontend review feedback: ${{ input.frontend_review.verdict | default: \"No frontend_review feedback in input context.\" }}",
+          "- Frontend taste review feedback: ${{ input.frontend_taste_review.verdict | default: \"No frontend_taste_review feedback in input context.\" }}",
+          "- Security review feedback: ${{ input.security_review.verdict | default: \"No security_review feedback in input context.\" }}",
+          "- Privacy review feedback: ${{ input.privacy_review.verdict | default: \"No privacy_review feedback in input context.\" }}",
+          "- QA review feedback: ${{ input.qa_review.verdict | default: \"No qa_review feedback in input context.\" }}"
         ]
       },
       "output": {
@@ -534,13 +534,13 @@
           "architecture_artifact_update"
         ],
         "prompt": [
-          "Join exactly the implementation outputs named by the approved plan contract planning_draft.selected_implementation_steps from projected input.<step_id> fields.",
+          "Join exactly the implementation outputs named by the approved plan contract planning_draft.selected_implementation_steps from input.<step_id> fields.",
           "Confirm each selected branch completed, verification evidence exists, and no branch widened scope.",
           "Do not choose, invent, or recompute reviewers; reviewers are fixed by planning_draft.selected_review_steps.",
           "If complete, return outcome ready_for_review with reviewer_handoff.selected_review_steps copied from planning_draft.selected_review_steps.",
           "If incomplete, return outcome blocked with blocker.source_step_id = implementation_join.",
           "",
-          "Explicit projected inputs:",
+          "Input context:",
           "- Approved selected implementation steps: ${{ input.planning_draft.selected_implementation_steps }}",
           "- Approved selected review steps: ${{ input.planning_draft.selected_review_steps }}",
           "- Backend implementation output: ${{ input.backend_implementation.implementation_handoff | default: \"backend_implementation was not selected or has not produced output.\" }}",
@@ -573,7 +573,7 @@
           "Do not infer reviewers from implementation_join output.",
           "Return outcome ready_for_review and copy planning_draft.selected_review_steps into verdict.selected_review_steps; next is resolved from input.planning_draft.selected_review_steps.",
           "",
-          "Explicit projected inputs:",
+          "Input context:",
           "- Approved selected review steps: ${{ input.planning_draft.selected_review_steps }}",
           "- Implementation reviewer handoff: ${{ input.implementation_join.reviewer_handoff }}"
         ]
@@ -603,9 +603,9 @@
         "prompt": [
           "Review implementation against approved architecture decision, ownership seams, dependency direction, compatibility surfaces, and artifact obligations.",
           "Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = architect_review.",
-          "Read projected architecture_draft, architecture_attack, and approve_architecture when present; fail on drift between the approved architecture contract and implementation/review evidence.",
+          "Read architecture_draft, architecture_attack, and approve_architecture when present; fail on drift between the approved architecture contract and implementation/review evidence.",
           "",
-          "Explicit projected inputs:",
+          "Input context:",
           "- Approved architecture contract: ${{ input.architecture_draft.architecture_contract }}",
           "- Architecture attack verdict: ${{ input.architecture_attack.verdict }}",
           "- Human architecture approval: ${{ input.approve_architecture }}",
@@ -614,11 +614,11 @@
           "- Implementation reviewer handoff: ${{ input.implementation_join.reviewer_handoff }}",
           "- Review dispatch selection: ${{ input.review_dispatch.verdict }}",
           "- Backend implementation evidence: ${{ input.backend_implementation.implementation_handoff | default: \"backend_implementation was not selected or has not produced output.\" }}",
-          "- Backend changed files: ${{ input.backend_implementation.changed_files | default: \"backend_implementation changed files are not projected.\" }}",
+          "- Backend changed files: ${{ input.backend_implementation.changed_files | default: \"backend_implementation changed files are not available in input context.\" }}",
           "- Frontend implementation evidence: ${{ input.frontend_implementation.implementation_handoff | default: \"frontend_implementation was not selected or has not produced output.\" }}",
-          "- Frontend changed files: ${{ input.frontend_implementation.changed_files | default: \"frontend_implementation changed files are not projected.\" }}",
+          "- Frontend changed files: ${{ input.frontend_implementation.changed_files | default: \"frontend_implementation changed files are not available in input context.\" }}",
           "- Architecture artifact update evidence: ${{ input.architecture_artifact_update.implementation_handoff | default: \"architecture_artifact_update was not selected or has not produced output.\" }}",
-          "- Architecture artifact changed files: ${{ input.architecture_artifact_update.changed_files | default: \"architecture_artifact_update changed files are not projected.\" }}"
+          "- Architecture artifact changed files: ${{ input.architecture_artifact_update.changed_files | default: \"architecture_artifact_update changed files are not available in input context.\" }}"
         ]
       },
       "output": {
@@ -644,17 +644,17 @@
           "Review backend correctness, contracts, data flow, validation, failure handling, permissions, rollout safety, observability, and tests for the slice selected by the approved plan contract.",
           "Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = backend_review.",
           "",
-          "Explicit projected inputs:",
+          "Input context:",
           "- Approved implementation plan: ${{ input.planning_draft.implementation_plan }}",
           "- Approved selected review steps: ${{ input.planning_draft.selected_review_steps }}",
           "- Implementation reviewer handoff: ${{ input.implementation_join.reviewer_handoff }}",
           "- Review dispatch selection: ${{ input.review_dispatch.verdict }}",
           "- Backend implementation evidence: ${{ input.backend_implementation.implementation_handoff | default: \"backend_implementation was not selected or has not produced output.\" }}",
-          "- Backend changed files: ${{ input.backend_implementation.changed_files | default: \"backend_implementation changed files are not projected.\" }}",
+          "- Backend changed files: ${{ input.backend_implementation.changed_files | default: \"backend_implementation changed files are not available in input context.\" }}",
           "- Frontend implementation evidence: ${{ input.frontend_implementation.implementation_handoff | default: \"frontend_implementation was not selected or has not produced output.\" }}",
-          "- Frontend changed files: ${{ input.frontend_implementation.changed_files | default: \"frontend_implementation changed files are not projected.\" }}",
+          "- Frontend changed files: ${{ input.frontend_implementation.changed_files | default: \"frontend_implementation changed files are not available in input context.\" }}",
           "- Architecture artifact update evidence: ${{ input.architecture_artifact_update.implementation_handoff | default: \"architecture_artifact_update was not selected or has not produced output.\" }}",
-          "- Architecture artifact changed files: ${{ input.architecture_artifact_update.changed_files | default: \"architecture_artifact_update changed files are not projected.\" }}"
+          "- Architecture artifact changed files: ${{ input.architecture_artifact_update.changed_files | default: \"architecture_artifact_update changed files are not available in input context.\" }}"
         ]
       },
       "output": {
@@ -680,17 +680,17 @@
           "Review frontend correctness, data flow, state handling, accessibility-relevant behavior, and tests for the slice selected by the approved plan contract.",
           "Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = frontend_review.",
           "",
-          "Explicit projected inputs:",
+          "Input context:",
           "- Approved implementation plan: ${{ input.planning_draft.implementation_plan }}",
           "- Approved selected review steps: ${{ input.planning_draft.selected_review_steps }}",
           "- Implementation reviewer handoff: ${{ input.implementation_join.reviewer_handoff }}",
           "- Review dispatch selection: ${{ input.review_dispatch.verdict }}",
           "- Backend implementation evidence: ${{ input.backend_implementation.implementation_handoff | default: \"backend_implementation was not selected or has not produced output.\" }}",
-          "- Backend changed files: ${{ input.backend_implementation.changed_files | default: \"backend_implementation changed files are not projected.\" }}",
+          "- Backend changed files: ${{ input.backend_implementation.changed_files | default: \"backend_implementation changed files are not available in input context.\" }}",
           "- Frontend implementation evidence: ${{ input.frontend_implementation.implementation_handoff | default: \"frontend_implementation was not selected or has not produced output.\" }}",
-          "- Frontend changed files: ${{ input.frontend_implementation.changed_files | default: \"frontend_implementation changed files are not projected.\" }}",
+          "- Frontend changed files: ${{ input.frontend_implementation.changed_files | default: \"frontend_implementation changed files are not available in input context.\" }}",
           "- Architecture artifact update evidence: ${{ input.architecture_artifact_update.implementation_handoff | default: \"architecture_artifact_update was not selected or has not produced output.\" }}",
-          "- Architecture artifact changed files: ${{ input.architecture_artifact_update.changed_files | default: \"architecture_artifact_update changed files are not projected.\" }}"
+          "- Architecture artifact changed files: ${{ input.architecture_artifact_update.changed_files | default: \"architecture_artifact_update changed files are not available in input context.\" }}"
         ]
       },
       "output": {
@@ -716,17 +716,17 @@
           "Review visual/product taste, copy fit, interaction polish, and user-facing coherence for frontend-relevant changes.",
           "Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = frontend_taste_review.",
           "",
-          "Explicit projected inputs:",
+          "Input context:",
           "- Approved implementation plan: ${{ input.planning_draft.implementation_plan }}",
           "- Approved selected review steps: ${{ input.planning_draft.selected_review_steps }}",
           "- Implementation reviewer handoff: ${{ input.implementation_join.reviewer_handoff }}",
           "- Review dispatch selection: ${{ input.review_dispatch.verdict }}",
           "- Backend implementation evidence: ${{ input.backend_implementation.implementation_handoff | default: \"backend_implementation was not selected or has not produced output.\" }}",
-          "- Backend changed files: ${{ input.backend_implementation.changed_files | default: \"backend_implementation changed files are not projected.\" }}",
+          "- Backend changed files: ${{ input.backend_implementation.changed_files | default: \"backend_implementation changed files are not available in input context.\" }}",
           "- Frontend implementation evidence: ${{ input.frontend_implementation.implementation_handoff | default: \"frontend_implementation was not selected or has not produced output.\" }}",
-          "- Frontend changed files: ${{ input.frontend_implementation.changed_files | default: \"frontend_implementation changed files are not projected.\" }}",
+          "- Frontend changed files: ${{ input.frontend_implementation.changed_files | default: \"frontend_implementation changed files are not available in input context.\" }}",
           "- Architecture artifact update evidence: ${{ input.architecture_artifact_update.implementation_handoff | default: \"architecture_artifact_update was not selected or has not produced output.\" }}",
-          "- Architecture artifact changed files: ${{ input.architecture_artifact_update.changed_files | default: \"architecture_artifact_update changed files are not projected.\" }}"
+          "- Architecture artifact changed files: ${{ input.architecture_artifact_update.changed_files | default: \"architecture_artifact_update changed files are not available in input context.\" }}"
         ]
       },
       "output": {
@@ -752,17 +752,17 @@
           "Review trust boundaries, injection surfaces, secret handling, permission assumptions, and unsafe automation paths for the slice selected by the approved plan contract.",
           "Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = security_review.",
           "",
-          "Explicit projected inputs:",
+          "Input context:",
           "- Approved implementation plan: ${{ input.planning_draft.implementation_plan }}",
           "- Approved selected review steps: ${{ input.planning_draft.selected_review_steps }}",
           "- Implementation reviewer handoff: ${{ input.implementation_join.reviewer_handoff }}",
           "- Review dispatch selection: ${{ input.review_dispatch.verdict }}",
           "- Backend implementation evidence: ${{ input.backend_implementation.implementation_handoff | default: \"backend_implementation was not selected or has not produced output.\" }}",
-          "- Backend changed files: ${{ input.backend_implementation.changed_files | default: \"backend_implementation changed files are not projected.\" }}",
+          "- Backend changed files: ${{ input.backend_implementation.changed_files | default: \"backend_implementation changed files are not available in input context.\" }}",
           "- Frontend implementation evidence: ${{ input.frontend_implementation.implementation_handoff | default: \"frontend_implementation was not selected or has not produced output.\" }}",
-          "- Frontend changed files: ${{ input.frontend_implementation.changed_files | default: \"frontend_implementation changed files are not projected.\" }}",
+          "- Frontend changed files: ${{ input.frontend_implementation.changed_files | default: \"frontend_implementation changed files are not available in input context.\" }}",
           "- Architecture artifact update evidence: ${{ input.architecture_artifact_update.implementation_handoff | default: \"architecture_artifact_update was not selected or has not produced output.\" }}",
-          "- Architecture artifact changed files: ${{ input.architecture_artifact_update.changed_files | default: \"architecture_artifact_update changed files are not projected.\" }}"
+          "- Architecture artifact changed files: ${{ input.architecture_artifact_update.changed_files | default: \"architecture_artifact_update changed files are not available in input context.\" }}"
         ]
       },
       "output": {
@@ -788,17 +788,17 @@
           "Review data minimization, sensitive content exposure, durable memory/logging risk, and user-context handling for the slice selected by the approved plan contract.",
           "Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = privacy_review.",
           "",
-          "Explicit projected inputs:",
+          "Input context:",
           "- Approved implementation plan: ${{ input.planning_draft.implementation_plan }}",
           "- Approved selected review steps: ${{ input.planning_draft.selected_review_steps }}",
           "- Implementation reviewer handoff: ${{ input.implementation_join.reviewer_handoff }}",
           "- Review dispatch selection: ${{ input.review_dispatch.verdict }}",
           "- Backend implementation evidence: ${{ input.backend_implementation.implementation_handoff | default: \"backend_implementation was not selected or has not produced output.\" }}",
-          "- Backend changed files: ${{ input.backend_implementation.changed_files | default: \"backend_implementation changed files are not projected.\" }}",
+          "- Backend changed files: ${{ input.backend_implementation.changed_files | default: \"backend_implementation changed files are not available in input context.\" }}",
           "- Frontend implementation evidence: ${{ input.frontend_implementation.implementation_handoff | default: \"frontend_implementation was not selected or has not produced output.\" }}",
-          "- Frontend changed files: ${{ input.frontend_implementation.changed_files | default: \"frontend_implementation changed files are not projected.\" }}",
+          "- Frontend changed files: ${{ input.frontend_implementation.changed_files | default: \"frontend_implementation changed files are not available in input context.\" }}",
           "- Architecture artifact update evidence: ${{ input.architecture_artifact_update.implementation_handoff | default: \"architecture_artifact_update was not selected or has not produced output.\" }}",
-          "- Architecture artifact changed files: ${{ input.architecture_artifact_update.changed_files | default: \"architecture_artifact_update changed files are not projected.\" }}"
+          "- Architecture artifact changed files: ${{ input.architecture_artifact_update.changed_files | default: \"architecture_artifact_update changed files are not available in input context.\" }}"
         ]
       },
       "output": {
@@ -824,17 +824,17 @@
           "Review verification depth, regression risk, edge cases, deterministic runtime behavior, and handoff quality for the slice selected by the approved plan contract.",
           "Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = qa_review.",
           "",
-          "Explicit projected inputs:",
+          "Input context:",
           "- Approved implementation plan: ${{ input.planning_draft.implementation_plan }}",
           "- Approved selected review steps: ${{ input.planning_draft.selected_review_steps }}",
           "- Implementation reviewer handoff: ${{ input.implementation_join.reviewer_handoff }}",
           "- Review dispatch selection: ${{ input.review_dispatch.verdict }}",
           "- Backend implementation evidence: ${{ input.backend_implementation.implementation_handoff | default: \"backend_implementation was not selected or has not produced output.\" }}",
-          "- Backend changed files: ${{ input.backend_implementation.changed_files | default: \"backend_implementation changed files are not projected.\" }}",
+          "- Backend changed files: ${{ input.backend_implementation.changed_files | default: \"backend_implementation changed files are not available in input context.\" }}",
           "- Frontend implementation evidence: ${{ input.frontend_implementation.implementation_handoff | default: \"frontend_implementation was not selected or has not produced output.\" }}",
-          "- Frontend changed files: ${{ input.frontend_implementation.changed_files | default: \"frontend_implementation changed files are not projected.\" }}",
+          "- Frontend changed files: ${{ input.frontend_implementation.changed_files | default: \"frontend_implementation changed files are not available in input context.\" }}",
           "- Architecture artifact update evidence: ${{ input.architecture_artifact_update.implementation_handoff | default: \"architecture_artifact_update was not selected or has not produced output.\" }}",
-          "- Architecture artifact changed files: ${{ input.architecture_artifact_update.changed_files | default: \"architecture_artifact_update changed files are not projected.\" }}"
+          "- Architecture artifact changed files: ${{ input.architecture_artifact_update.changed_files | default: \"architecture_artifact_update changed files are not available in input context.\" }}"
         ]
       },
       "output": {
@@ -859,13 +859,13 @@
           "qa_review"
         ],
         "prompt": [
-          "Aggregate exactly the review outputs named by the approved plan contract planning_draft.selected_review_steps from projected input.<step_id> fields.",
+          "Aggregate exactly the review outputs named by the approved plan contract planning_draft.selected_review_steps from input.<step_id> fields.",
           "This is a join/decision step, not a critique pass.",
           "If every selected reviewer passed, return outcome passed and next done.",
           "If changes are needed, return outcome needs_changes and next equal to the relevant implementation step ids from reviewer required_implementation_steps, not every implementation branch.",
           "If review cannot finish safely, return outcome blocked, next blocked, and blocker.source_step_id = review_join.",
           "",
-          "Explicit projected inputs:",
+          "Input context:",
           "- Approved selected review steps: ${{ input.planning_draft.selected_review_steps }}",
           "- Implementation reviewer handoff: ${{ input.implementation_join.reviewer_handoff }}",
           "- Architect review verdict: ${{ input.architect_review.verdict | default: \"architect_review was not selected or has not produced output.\" }}",
@@ -894,7 +894,7 @@
           "Workflow completed.",
           "Project review_join.verdict as the final result; do not summarize artifacts/results globals.",
           "",
-          "Explicit projected inputs:",
+          "Input context:",
           "- Final review join verdict: ${{ input.review_join.verdict }}",
           "- Final next target: ${{ input.review_join.next }}"
         ]
@@ -928,30 +928,30 @@
         ],
         "prompt": [
           "Workflow blocked.",
-          "Use the blocker embedded in the exact projected step output; blocker.source_step_id identifies the producing step.",
+          "Use the blocker embedded in the exact input step output; blocker.source_step_id identifies the producing step.",
           "Return the blocker, evidence, risk, and exact next decision or missing input; do not summarize artifacts/results globals.",
           "",
-          "Explicit projected inputs:",
-          "- Research draft blocker: ${{ input.research_draft.blocker | default: \"No research_draft blocker projected.\" }}",
-          "- Research attack blocker: ${{ input.research_attack.blocker | default: \"No research_attack blocker projected.\" }}",
-          "- Architecture draft blocker: ${{ input.architecture_draft.blocker | default: \"No architecture_draft blocker projected.\" }}",
-          "- Architecture attack blocker: ${{ input.architecture_attack.blocker | default: \"No architecture_attack blocker projected.\" }}",
-          "- Planning draft blocker: ${{ input.planning_draft.blocker | default: \"No planning_draft blocker projected.\" }}",
-          "- Planning attack blocker: ${{ input.planning_attack.blocker | default: \"No planning_attack blocker projected.\" }}",
-          "- Implementation dispatch blocker: ${{ input.implementation_dispatch.blocker | default: \"No implementation_dispatch blocker projected.\" }}",
-          "- Backend implementation blocker: ${{ input.backend_implementation.blocker | default: \"No backend_implementation blocker projected.\" }}",
-          "- Frontend implementation blocker: ${{ input.frontend_implementation.blocker | default: \"No frontend_implementation blocker projected.\" }}",
-          "- Architecture artifact update blocker: ${{ input.architecture_artifact_update.blocker | default: \"No architecture_artifact_update blocker projected.\" }}",
-          "- Implementation join blocker: ${{ input.implementation_join.blocker | default: \"No implementation_join blocker projected.\" }}",
-          "- Review dispatch blocker: ${{ input.review_dispatch.blocker | default: \"No review_dispatch blocker projected.\" }}",
-          "- Architect review blocker: ${{ input.architect_review.blocker | default: \"No architect_review blocker projected.\" }}",
-          "- Backend review blocker: ${{ input.backend_review.blocker | default: \"No backend_review blocker projected.\" }}",
-          "- Frontend review blocker: ${{ input.frontend_review.blocker | default: \"No frontend_review blocker projected.\" }}",
-          "- Frontend taste review blocker: ${{ input.frontend_taste_review.blocker | default: \"No frontend_taste_review blocker projected.\" }}",
-          "- Security review blocker: ${{ input.security_review.blocker | default: \"No security_review blocker projected.\" }}",
-          "- Privacy review blocker: ${{ input.privacy_review.blocker | default: \"No privacy_review blocker projected.\" }}",
-          "- QA review blocker: ${{ input.qa_review.blocker | default: \"No qa_review blocker projected.\" }}",
-          "- Review join blocker: ${{ input.review_join.blocker | default: \"No review_join blocker projected.\" }}"
+          "Input context:",
+          "- Research draft blocker: ${{ input.research_draft.blocker | default: \"No research_draft blocker available in input context.\" }}",
+          "- Research attack blocker: ${{ input.research_attack.blocker | default: \"No research_attack blocker available in input context.\" }}",
+          "- Architecture draft blocker: ${{ input.architecture_draft.blocker | default: \"No architecture_draft blocker available in input context.\" }}",
+          "- Architecture attack blocker: ${{ input.architecture_attack.blocker | default: \"No architecture_attack blocker available in input context.\" }}",
+          "- Planning draft blocker: ${{ input.planning_draft.blocker | default: \"No planning_draft blocker available in input context.\" }}",
+          "- Planning attack blocker: ${{ input.planning_attack.blocker | default: \"No planning_attack blocker available in input context.\" }}",
+          "- Implementation dispatch blocker: ${{ input.implementation_dispatch.blocker | default: \"No implementation_dispatch blocker available in input context.\" }}",
+          "- Backend implementation blocker: ${{ input.backend_implementation.blocker | default: \"No backend_implementation blocker available in input context.\" }}",
+          "- Frontend implementation blocker: ${{ input.frontend_implementation.blocker | default: \"No frontend_implementation blocker available in input context.\" }}",
+          "- Architecture artifact update blocker: ${{ input.architecture_artifact_update.blocker | default: \"No architecture_artifact_update blocker available in input context.\" }}",
+          "- Implementation join blocker: ${{ input.implementation_join.blocker | default: \"No implementation_join blocker available in input context.\" }}",
+          "- Review dispatch blocker: ${{ input.review_dispatch.blocker | default: \"No review_dispatch blocker available in input context.\" }}",
+          "- Architect review blocker: ${{ input.architect_review.blocker | default: \"No architect_review blocker available in input context.\" }}",
+          "- Backend review blocker: ${{ input.backend_review.blocker | default: \"No backend_review blocker available in input context.\" }}",
+          "- Frontend review blocker: ${{ input.frontend_review.blocker | default: \"No frontend_review blocker available in input context.\" }}",
+          "- Frontend taste review blocker: ${{ input.frontend_taste_review.blocker | default: \"No frontend_taste_review blocker available in input context.\" }}",
+          "- Security review blocker: ${{ input.security_review.blocker | default: \"No security_review blocker available in input context.\" }}",
+          "- Privacy review blocker: ${{ input.privacy_review.blocker | default: \"No privacy_review blocker available in input context.\" }}",
+          "- QA review blocker: ${{ input.qa_review.blocker | default: \"No qa_review blocker available in input context.\" }}",
+          "- Review join blocker: ${{ input.review_join.blocker | default: \"No review_join blocker available in input context.\" }}"
         ]
       }
     }

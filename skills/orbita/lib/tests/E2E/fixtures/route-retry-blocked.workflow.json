@@ -31,7 +31,12 @@
         "state": [
           "triage"
         ],
-        "prompt": "Resolve ready request."
+        "prompt": [
+          "Resolve ready request.",
+          "",
+          "Triage result:",
+          "${{ input.triage.results }}"
+        ]
       },
       "output": {
         "template": "output.md"

@@ -21,28 +21,63 @@
     "branch_a": {
       "name": "Branch A",
       "kind": "worker",
-      "input": { "state": ["prepare"], "prompt": "Do branch A." },
+      "input": {
+        "state": ["prepare"],
+        "prompt": [
+          "Do branch A.",
+          "",
+          "Prepare result:",
+          "${{ input.prepare.results }}"
+        ]
+      },
       "output": { "template": "output.md" },
       "next": "join"
     },
     "branch_b": {
       "name": "Branch B",
       "kind": "worker",
-      "input": { "state": ["prepare"], "prompt": "Do branch B." },
+      "input": {
+        "state": ["prepare"],
+        "prompt": [
+          "Do branch B.",
+          "",
+          "Prepare result:",
+          "${{ input.prepare.results }}"
+        ]
+      },
       "output": { "template": "output.md" },
       "next": "join"
     },
     "join": {
       "name": "Join",
       "kind": "worker",
-      "input": { "state": ["branch_a", "branch_b"], "prompt": "Join branch results." },
+      "input": {
+        "state": ["branch_a", "branch_b"],
+        "prompt": [
+          "Join branch results.",
+          "",
+          "Branch A result:",
+          "${{ input.branch_a.results }}",
+          "",
+          "Branch B result:",
+          "${{ input.branch_b.results }}"
+        ]
+      },
       "output": { "template": "output.md" },
       "next": "final_approval"
     },
     "final_approval": {
       "name": "Final Approval",
       "kind": "approval",
-      "input": { "state": ["join"], "prompt": "Approve final result." },
+      "input": {
+        "state": ["join"],
+        "prompt": [
+          "Approve final result.",
+          "",
+          "Join result:",
+          "${{ input.join.results }}"
+        ]
+      },
       "next": { "match": "${{ output.approval }}", "cases": { "approved": "done", "blocked": "blocked" } }
     },
     "done": { "name": "Done", "kind": "done", "input": { "prompt": "Finished." } },

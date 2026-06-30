@@ -23,7 +23,12 @@
         "state": [
           "plan"
         ],
-        "prompt": "Approve the plan."
+        "prompt": [
+          "Approve the plan.",
+          "",
+          "Plan result:",
+          "${{ input.plan.results }}"
+        ]
       },
       "next": {
         "match": "${{ output.approval }}",
@@ -40,9 +45,21 @@
       "input": {
         "state": [
           "plan",
-          "approval_gate"
+          "approval_gate",
+          "review"
         ],
-        "prompt": "Implement the approved plan."
+        "prompt": [
+          "Implement the approved plan.",
+          "",
+          "Plan result:",
+          "${{ input.plan.results }}",
+          "",
+          "Approval decision:",
+          "${{ input.approval_gate }}",
+          "",
+          "Review feedback to address:",
+          "${{ input.review.results | default: \"No review feedback yet.\" }}"
+        ]
       },
       "output": {
         "template": "output.md"
@@ -56,7 +73,12 @@
         "state": [
           "implement"
         ],
-        "prompt": "Review implementation."
+        "prompt": [
+          "Review implementation.",
+          "",
+          "Implementation result:",
+          "${{ input.implement.results }}"
+        ]
       },
       "output": {
         "template": "output.md",
