@@ -370,10 +370,16 @@ test('workflow authoring implementation revision inlines review findings', () =>
     'workflow_design_draft',
     'workflow_design_attack',
     'approve_workflow_design',
+    'smoke_evidence',
+    'analyzer_findings',
+    'approve_reviewed_improvement',
+    'reviewed_edit_intent',
+    'rerun_comparison',
     'workflow_implementation',
     'workflow_implementation_attack',
   ]);
-  assert.match(promptText(workflowAuthoringWorkflowDoc.steps.workflow_implementation), /When revising after workflow_implementation_attack feedback/);
+  assert.match(promptText(workflowAuthoringWorkflowDoc.steps.workflow_implementation), /On later passes after reviewed_edit_intent/);
+  assert.match(promptText(workflowAuthoringWorkflowDoc.steps.workflow_implementation), /When revising after workflow_implementation_attack feedback or rerun_comparison needs_revision feedback/);
 });
 
 test('workflow authoring design output requires branch payloads', () => {

@@ -1,0 +1,173 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Workflow Authoring Rerun Comparison Output",
+  "type": "object",
+  "required": [
+    "outcome"
+  ],
+  "properties": {
+    "outcome": {
+      "enum": [
+        "compared",
+        "needs_revision",
+        "blocked"
+      ]
+    },
+    "rerun_comparison": {
+      "type": "object",
+      "required": [
+        "same_smoke_scenario",
+        "before",
+        "after",
+        "outcome_delta",
+        "isolated_workflow_runs_root",
+        "source_tree_artifact_leak_check"
+      ],
+      "properties": {
+        "same_smoke_scenario": {
+          "type": "string",
+          "minLength": 1
+        },
+        "before": {
+          "$ref": "#/$defs/smoke_run"
+        },
+        "after": {
+          "$ref": "#/$defs/smoke_run"
+        },
+        "outcome_delta": {
+          "type": "string",
+          "minLength": 1
+        },
+        "isolated_workflow_runs_root": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_tree_artifact_leak_check": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "blocker": {
+      "type": "object",
+      "required": [
+        "summary"
+      ],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "needed": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "enum": [
+              "compared",
+              "needs_revision"
+            ]
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "rerun_comparison"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "blocked"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "blocker"
+        ]
+      }
+    }
+  ],
+  "$defs": {
+    "artifact_ref": {
+      "type": "object",
+      "required": [
+        "id",
+        "path"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "summary": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "smoke_run": {
+      "type": "object",
+      "required": [
+        "run_id",
+        "history_path",
+        "artifact_refs",
+        "expected_behavior",
+        "actual_outcome",
+        "failure_summary"
+      ],
+      "properties": {
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "history_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "artifact_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/artifact_ref"
+          }
+        },
+        "expected_behavior": {
+          "type": "string",
+          "minLength": 1
+        },
+        "actual_outcome": {
+          "type": "string",
+          "minLength": 1
+        },
+        "failure_summary": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

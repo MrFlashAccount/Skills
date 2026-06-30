@@ -1,0 +1,189 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Workflow Authoring Smoke Evidence Output",
+  "type": "object",
+  "required": [
+    "outcome"
+  ],
+  "properties": {
+    "outcome": {
+      "enum": [
+        "baseline_collected",
+        "rerun_collected",
+        "blocked"
+      ],
+      "description": "Whether this smoke evidence is the baseline before reviewed edits, the rerun after reviewed edits, or a blocker."
+    },
+    "smoke_evidence": {
+      "$ref": "#/$defs/smoke_evidence",
+      "description": "Baseline smoke evidence for baseline_collected outputs."
+    },
+    "baseline_smoke_evidence": {
+      "$ref": "#/$defs/smoke_evidence",
+      "description": "Preserved before-run evidence required for rerun_collected outputs."
+    },
+    "rerun_smoke_evidence": {
+      "$ref": "#/$defs/smoke_evidence",
+      "description": "After-run evidence required for rerun_collected outputs."
+    },
+    "blocker": {
+      "type": "object",
+      "required": [
+        "summary"
+      ],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "needed": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "enum": [
+              "baseline_collected"
+            ]
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "smoke_evidence"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "rerun_collected"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "baseline_smoke_evidence",
+          "rerun_smoke_evidence"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "blocked"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "blocker"
+        ]
+      }
+    }
+  ],
+  "$defs": {
+    "artifact_ref": {
+      "type": "object",
+      "required": [
+        "id",
+        "path"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "summary": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "smoke_evidence": {
+      "type": "object",
+      "required": [
+        "run_id",
+        "history_path",
+        "artifact_refs",
+        "expected_behavior",
+        "actual_outcome",
+        "failure_summary",
+        "isolated_workflow_runs_root",
+        "cleanup",
+        "source_tree_artifact_leak_check"
+      ],
+      "properties": {
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "history_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "artifact_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/artifact_ref"
+          }
+        },
+        "expected_behavior": {
+          "type": "string",
+          "minLength": 1
+        },
+        "actual_outcome": {
+          "type": "string",
+          "minLength": 1
+        },
+        "failure_summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "isolated_workflow_runs_root": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cleanup": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_tree_artifact_leak_check": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}
