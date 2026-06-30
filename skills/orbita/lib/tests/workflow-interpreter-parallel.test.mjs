@@ -23,7 +23,7 @@ writeFileSync(path.join(tempDir, 'loop-output.schema.json'), `${JSON.stringify({
 const renderWorkflowPaths = [];
 
 function outputContract() {
-  return { template: 'output.md' };
+  return { template: 'output.md', schema: 'loop-output.schema.json' };
 }
 
 const emptyState = { artifacts: [], results: [] };
@@ -59,7 +59,7 @@ const parallelWorkflowDoc = {
       join: {
         name: 'Join',
         kind: 'worker',
-        input: { state: ['branch_a', 'branch_b'], prompt: 'Read branch states and decide.' },
+        input: { prompt: 'Read branch states and decide.' },
         output: outputContract(),
         next: 'done',
       },
@@ -204,9 +204,7 @@ test('runtime: parallel step outputs write separate state and advance to explici
 test('e2e: wrapper can render parallel branch prompts, collect branch outputs, and render join state', () => {
   const workflowDoc = structuredClone(parallelWorkflowDoc);
   workflowDoc.name = 'parallel-render-spec';
-  workflowDoc.steps.branch_a.input.state = ['prepare'];
   workflowDoc.steps.branch_a.input.prompt = 'Run branch A from prepare:\n${{ input.prepare }}';
-  workflowDoc.steps.branch_b.input.state = ['prepare'];
   workflowDoc.steps.branch_b.input.prompt = 'Run branch B from prepare:\n${{ input.prepare }}';
   workflowDoc.steps.join.input.prompt = 'Read branch states and decide:\nbranch_a:\n${{ input.branch_a }}\nbranch_b:\n${{ input.branch_b }}';
 

@@ -3,8 +3,10 @@
  * It accepts boundary DTO data and never reads files or parses CLI arguments.
  */
 import { WorkflowRuntimeError } from '../../errors.mjs';
+import { normalizePromptText } from '../../runtime/prompt-text.mjs';
+import { extractPromptInterpolations } from '../../runtime/prompt-interpolation.mjs';
 import { assertRoleDirectoryName } from '../../runtime/role-ref.mjs';
-import { RESERVED_STATE_KEYS, DANGEROUS_OBJECT_KEYS, assertProjectableStateSelector, isDangerousObjectKey, isReservedStateKey } from '../../runtime/state-keys.mjs';
+import { RESERVED_STATE_KEYS, DANGEROUS_OBJECT_KEYS, isDangerousObjectKey, isReservedStateKey } from '../../runtime/state-keys.mjs';
 import { statusForStep } from '../../runtime/step-status.mjs';
 import { assertTransitionDescriptorTargets, normalizeTransitionNext } from '../../runtime/transition-next.mjs';
 import { compileWorkflowOutputSchema } from './schema-ref-validation.mjs';
@@ -53,26 +55,6 @@ function assertWorkflowStepIds(workflow) {
     }
     if (isDangerousObjectKey(stepId)) {
       fail(`workflow step id '${stepId}' is reserved because it is unsafe as a JavaScript object key; reserved ids: ${DANGEROUS_OBJECT_KEYS.join(', ')}`);
-    }
-  }
-}
-
-function assertWorkflowInputStateSelectors(workflow) {
-  for (const [stepId, step] of Object.entries(workflow.steps)) {
-    for (const selector of step.input?.state ?? []) {
-      try {
-        assertProjectableStateSelector(selector, { stepId, errorPrefix: 'workflow semantic validation failed' });
-      } catch (error) {
-        if (!(error instanceof WorkflowRuntimeError)) throw error;
-        if (!/top-level workflow step ids only/.test(error.message)) {
-          if (isDangerousObjectKey(selector)) fail(`step '${stepId}' input.state selector '${selector}' is unsafe as a JavaScript object key and cannot reference workflow steps; reserved state selector '${selector}' is unsafe`);
-          fail(`step '${stepId}' input.state selector '${selector}' uses reserved state selector '${selector}'; selector is reserved for runtime aggregate state and cannot reference workflow steps`);
-        }
-        fail(`step '${stepId}' input.state selector '${selector}' is invalid; v1 supports top-level workflow step ids only`);
-      }
-      if (!Object.hasOwn(workflow.steps, selector)) {
-        fail(`step '${stepId}' input.state selector '${selector}' does not reference a declared workflow step`);
-      }
     }
   }
 }
@@ -221,7 +203,8 @@ function normalizeStepOutputSchemas({ workflow, outputSchemas = new Map(), warni
 }
 
 function schemaRequiresPath(schema, pathSegments) {
-  if (!schema || typeof schema !== 'object' || Array.isArray(schema) || pathSegments.length === 0) return false;
+  if (!schema || typeof schema !== 'object' || Array.isArray(schema)) return false;
+  if (pathSegments.length === 0) return true;
   const [segment, ...rest] = pathSegments;
 
   const directRequired = Array.isArray(schema.required)
@@ -407,12 +390,9 @@ function schemaForExpression({ workflow, schemasByStep, stepId, step, expression
   }
 
   const [stateKey, ...rest] = expression.path;
-  const projectedState = step.input?.state ?? [];
-  if (!projectedState.includes(stateKey)) {
-    return { schema: undefined, reason: `step '${stepId}' does not project input state '${stateKey}' for ${expression.source}` };
-  }
+  if (!Object.hasOwn(workflow.steps, stateKey)) return { schema: undefined, reason: `input step '${stateKey}' is not a declared workflow step for ${expression.source}` };
   const producerSchema = schemasByStep.get(stateKey);
-  if (!producerSchema) return { schema: undefined, reason: `projected input '${stateKey}' has no output.schema for ${expression.source}` };
+  if (!producerSchema) return { schema: undefined, reason: `input step '${stateKey}' has no output.schema for ${expression.source}` };
   return { schema: schemaForPath(producerSchema, rest), rootSchema: producerSchema, requiredPath: rest, reason: undefined };
 }
 
@@ -562,11 +542,35 @@ function assertTransitionSemantics(workflow, schemasByStep, { requireSchemaCover
   }
 }
 
+function assertPromptExpressionSemantics(workflow, schemasByStep, { requireSchemaCoverage = true } = {}) {
+  for (const [stepId, step] of Object.entries(workflow.steps)) {
+    const prompt = normalizePromptText(step.input?.prompt, { fieldName: `steps.${stepId}.input.prompt` });
+    let interpolations;
+    try {
+      interpolations = extractPromptInterpolations(prompt);
+    } catch (error) {
+      if (error instanceof WorkflowRuntimeError) fail(`step '${stepId}' input.prompt ${error.message}`);
+      throw error;
+    }
+
+    for (const interpolation of interpolations) {
+      assertExpressionSchemaAvailable({
+        workflow,
+        schemasByStep,
+        stepId,
+        step,
+        expression: interpolation.expression,
+        field: 'input.prompt',
+        requireSchemaCoverage,
+      });
+    }
+  }
+}
+
 function validateWorkflowDocument(workflow, options = {}) {
   assertWorkflowIdentity(workflow);
   assertWorkflowStepIds(workflow);
   assertWorkflowRootTargets(workflow);
-  assertWorkflowInputStateSelectors(workflow);
   assertWorkflowStepRoles(workflow, options.allowedRoles);
   const warnings = [];
   const schemasByStep = normalizeStepOutputSchemas({
@@ -582,6 +586,9 @@ function validateWorkflowDocument(workflow, options = {}) {
     requireExpressionRequiredPaths: options.requireExpressionRequiredPaths ?? true,
     allowUnreachableCases: options.allowUnreachableCases ?? false,
     allowOpenTransitionSchemas: options.allowOpenTransitionSchemas ?? false,
+  });
+  assertPromptExpressionSemantics(workflow, schemasByStep, {
+    requireSchemaCoverage: options.requireSchemaCoverage ?? true,
   });
   const result = { ok: true, workflow: workflow.name, steps: Object.keys(workflow.steps).length };
   if (warnings.length > 0) result.warnings = warnings;

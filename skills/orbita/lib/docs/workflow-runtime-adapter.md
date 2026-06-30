@@ -134,7 +134,7 @@ For parallel branch requests, call `write-output` once per requested `stepId`; `
 OpenClaw is one possible host adapter:
 
 - `run_worker` maps to spawning a fresh subagent/ACP session or continuing/restoring the opaque `preferredAgentId` when the host can do so.
-- Level 1 loop continuity across workflow iterations is prompt/state-only: draft/critic/revision workers must rely on workflow-projected input and prior accepted step outputs, not persistent worker lifecycle machinery. A concise clarification is an allowed same-session continuation: the subagent asks, pauses, receives the routed user reply in that same clarification session, and continues from existing context without restart or context widening. Worker reuse hints only choose between `loadInstructionsCommand` and `loadFollowupInstructionsCommand`; they do not create lifecycle/session semantics.
+- Level 1 loop continuity across workflow iterations is prompt-only: draft/critic/revision workers must rely on explicit prompt input and prior accepted step outputs, not persistent worker lifecycle machinery. A concise clarification is an allowed same-session continuation: the subagent asks, pauses, receives the routed user reply in that same clarification session, and continues from existing context without restart or context widening. Worker reuse hints only choose between `loadInstructionsCommand` and `loadFollowupInstructionsCommand`; they do not create lifecycle/session semantics.
 - The bootstrap must use this shape and substitute `<command>` with either `loadFollowupInstructionsCommand` for a restored preferred worker or `loadInstructionsCommand` for a fresh worker:
 
   ```text

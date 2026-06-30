@@ -64,7 +64,7 @@ test('Workflow validates parallel branches converge directly into one join step'
   assert.deepEqual(new Workflow(valid).validateStaticTransitions(), { ok: true });
 
   const missingProjection = structuredClone(valid);
-  missingProjection.steps.join.input = { state: ['branch_a'] };
+  missingProjection.steps.join.input = { prompt: 'Join branch results.' };
 
   assert.deepEqual(new Workflow(missingProjection).validateStaticTransitions(), { ok: true });
 

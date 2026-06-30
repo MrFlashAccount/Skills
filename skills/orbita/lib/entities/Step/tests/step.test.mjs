@@ -14,16 +14,16 @@ const workflow = {
     producer: {
       name: 'Producer',
       kind: 'worker',
-      input: { state: ['seed'] },
+      input: {},
       output: { schema: 'producer.schema.json' },
       next: { match: '${{ output.route }}', cases: { direct: 'done', split: ['branch_a', 'branch_b'], blocked: 'blocked' } },
     },
-    dynamic: { name: 'Dynamic', kind: 'worker', input: { state: ['seed'] }, next: '${{ input.seed.next }}' },
+    dynamic: { name: 'Dynamic', kind: 'worker', input: {}, next: '${{ input.seed.next }}' },
     mixed_parallel: { name: 'Mixed', kind: 'worker', next: ['branch_a', '${{ output.extra }}'] },
     approval: { name: 'Approval', kind: 'approval', next: 'done' },
     branch_a: { name: 'Branch A', kind: 'worker', next: 'join' },
     branch_b: { name: 'Branch B', kind: 'worker', next: 'join' },
-    join: { name: 'Join', kind: 'worker', input: { state: ['branch_a', 'branch_b'] }, next: 'done' },
+    join: { name: 'Join', kind: 'worker', input: {}, next: 'done' },
     done: { name: 'Done', kind: 'done' },
     blocked: { name: 'Blocked', kind: 'blocked' },
   },
@@ -60,7 +60,7 @@ test('resolveTransition resolves match/cases targets and validates worker output
   );
 });
 
-test('Step resolves projected input and dynamic concrete targets', () => {
+test('Step resolves dynamic transition input and concrete targets', () => {
   const dynamicStep = new Step({ id: 'dynamic', step: workflow.steps.dynamic });
 
   assert.deepEqual(dynamicStep.resolveInputs(baton), { seed: { next: 'done' } });

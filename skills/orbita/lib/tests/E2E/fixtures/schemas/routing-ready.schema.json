@@ -1,18 +1,37 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": ["outcome", "results"],
+  "required": [
+    "outcome",
+    "results"
+  ],
   "properties": {
-    "outcome": { "const": "ready" },
+    "outcome": {
+      "const": "ready"
+    },
     "results": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["type", "summary"],
+        "required": [
+          "type",
+          "summary"
+        ],
         "properties": {
-          "type": { "type": "string" },
-          "summary": { "type": "string" }
+          "type": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          }
         },
+        "additionalProperties": true
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
         "additionalProperties": true
       }
     }

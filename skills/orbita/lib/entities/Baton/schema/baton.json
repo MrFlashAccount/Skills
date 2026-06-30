@@ -55,7 +55,7 @@
       },
       "patternProperties": {
         "^[A-Za-z_][A-Za-z0-9_-]*$": {
-          "description": "Per-step worker output keyed by workflow step id for downstream input.state projection."
+          "description": "Per-step worker output keyed by workflow step id for downstream prompt/transition input projection."
         }
       },
       "propertyNames": {

@@ -29,9 +29,6 @@
       "name": "Lint",
       "kind": "worker",
       "input": {
-        "state": [
-          "prepare"
-        ],
         "prompt": [
           "Run lint branch.",
           "",
@@ -40,7 +37,8 @@
         ]
       },
       "output": {
-        "template": "output.md"
+        "template": "output.md",
+        "schema": "schemas/routing-ready.schema.json"
       },
       "next": "join"
     },
@@ -48,9 +46,6 @@
       "name": "Build",
       "kind": "worker",
       "input": {
-        "state": [
-          "prepare"
-        ],
         "prompt": [
           "Run build branch.",
           "",
@@ -59,7 +54,8 @@
         ]
       },
       "output": {
-        "template": "output.md"
+        "template": "output.md",
+        "schema": "schemas/routing-ready.schema.json"
       },
       "next": "join"
     },
@@ -67,10 +63,6 @@
       "name": "Join",
       "kind": "worker",
       "input": {
-        "state": [
-          "lint",
-          "build"
-        ],
         "prompt": [
           "Synthesize branch outputs.",
           "",
@@ -82,7 +74,8 @@
         ]
       },
       "output": {
-        "template": "output.md"
+        "template": "output.md",
+        "schema": "schemas/routing-ready.schema.json"
       },
       "next": "done"
     },

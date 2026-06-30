@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Research Critic Approval Output",
+  "type": "object",
+  "required": [
+    "approval"
+  ],
+  "properties": {
+    "approval": {
+      "enum": [
+        "approved",
+        "blocked"
+      ],
+      "description": "Human answer gate decision for the research questions step.",
+      "x-usage": "Use approved when user answers are ready for research_answered_draft, and blocked only when blocker explains why research cannot continue."
+    },
+    "answers": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Optional structured user answers captured by the approval gate.",
+      "x-usage": "Use as the authoritative user answers when present."
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/result"
+      },
+      "description": "Optional compact summary of approved user answers.",
+      "x-usage": "Use as supporting answer context; do not route from this field."
+    },
+    "blocker": {
+      "type": "object",
+      "description": "Required when approval is blocked.",
+      "x-usage": "Surface this blocker before continuing; do not infer missing blocker details from prose."
+    }
+  },
+  "additionalProperties": true
+}

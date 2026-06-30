@@ -37,6 +37,10 @@ function promptText(step) {
   return Array.isArray(prompt) ? prompt.join('\n') : prompt;
 }
 
+function promptInputRefs(step) {
+  return [...new Set([...promptText(step).matchAll(/\$\{\{\s*input\.([A-Za-z_][A-Za-z0-9_-]*)/g)].map((match) => match[1]))];
+}
+
 function validateSynthetic(doc) {
   return validateWithRuntimeArchitecture(doc, { workflowPath: path.join(tempDir, 'workflow.json') });
 }
@@ -95,6 +99,15 @@ writeSchema('unknown-array-target-output.schema.json', {
     },
   },
 });
+writeSchema('approval-output.schema.json', {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  required: ['approval'],
+  properties: {
+    approval: { enum: ['approved', 'blocked'] },
+  },
+  additionalProperties: false,
+});
 
 function genericWorkflowWithWorkerRole(role) {
   return {
@@ -135,33 +148,33 @@ function syntheticWorkflow(overrides) {
         consumer: {
           name: 'Consumer',
           kind: 'worker',
-          input: { state: ['producer'] },
+          input: {},
           output: { template: 'consumer.md', schema: 'route-output.schema.json' },
           next: 'done',
         },
         branch_a: {
           name: 'Branch A',
           kind: 'worker',
-          input: { state: ['producer'] },
+          input: {},
           output: { template: 'branch-a.md', schema: 'route-output.schema.json' },
           next: 'join',
         },
         branch_b: {
           name: 'Branch B',
           kind: 'worker',
-          input: { state: ['producer'] },
+          input: {},
           output: { template: 'branch-b.md', schema: 'route-output.schema.json' },
           next: 'join',
         },
         join: {
           name: 'Join',
           kind: 'worker',
-          input: { state: ['producer', 'branch_a', 'branch_b'] },
+          input: {},
           output: { template: 'join.md', schema: 'route-output.schema.json' },
           next: 'done',
         },
-        done: { name: 'Done', kind: 'done', input: { state: ['consumer'] } },
-        blocked: { name: 'Blocked', kind: 'blocked', input: { state: ['producer'] } },
+        done: { name: 'Done', kind: 'done' },
+        blocked: { name: 'Blocked', kind: 'blocked' },
       },
 
   };
@@ -200,14 +213,12 @@ test('DevHarness worker and approval prompts expose explicit input context templ
   assert.match(promptText(workflowDoc.steps.review_join), /\$\{\{ input\.backend_review\.verdict \| default:/);
 });
 
-test('DevHarness prompt input templates only reference declared input.state selectors', () => {
+test('DevHarness prompt input templates only reference declared workflow steps', () => {
   const routedSteps = Object.entries(workflowDoc.steps).filter(([, step]) => ['worker', 'approval'].includes(step.kind));
   for (const [stepId, step] of routedSteps) {
-    const state = new Set(step.input.state ?? []);
-    const references = [...promptText(step).matchAll(/\$\{\{\s*input\.([A-Za-z_][A-Za-z0-9_-]*)/g)].map((match) => match[1]);
-    const missing = [...new Set(references)].filter((reference) => !state.has(reference));
+    const missing = promptInputRefs(step).filter((reference) => !Object.hasOwn(workflowDoc.steps, reference));
 
-    assert.deepEqual(missing, [], `${stepId} prompt references inputs outside declared input.state`);
+    assert.deepEqual(missing, [], `${stepId} prompt references unknown workflow steps`);
   }
 });
 
@@ -325,9 +336,9 @@ test('research critic save packet output keeps saved and blocked branches exclus
 
 
 
-test('dev harness revision loops project the feedback that caused revision', () => {
-  assert.deepEqual(workflowDoc.steps.research_draft.input.state, ['research_draft', 'research_attack', 'approve_research']);
-  assert.deepEqual(workflowDoc.steps.architecture_draft.input.state, [
+test('dev harness revision loops inline the feedback that caused revision', () => {
+  assert.deepEqual(promptInputRefs(workflowDoc.steps.research_draft), ['research_draft', 'research_attack', 'approve_research']);
+  assert.deepEqual(promptInputRefs(workflowDoc.steps.architecture_draft), [
     'research_draft',
     'research_attack',
     'approve_research',
@@ -335,7 +346,7 @@ test('dev harness revision loops project the feedback that caused revision', () 
     'architecture_attack',
     'approve_architecture',
   ]);
-  assert.deepEqual(workflowDoc.steps.planning_draft.input.state, [
+  assert.deepEqual(promptInputRefs(workflowDoc.steps.planning_draft), [
     'research_draft',
     'architecture_draft',
     'architecture_attack',
@@ -345,24 +356,24 @@ test('dev harness revision loops project the feedback that caused revision', () 
   ]);
 });
 
-test('workflow authoring design revision projects prior feedback', () => {
-  assert.deepEqual(workflowAuthoringWorkflowDoc.steps.workflow_design_draft.input.state, [
+test('workflow authoring design revision inlines prior feedback', () => {
+  assert.deepEqual(promptInputRefs(workflowAuthoringWorkflowDoc.steps.workflow_design_draft), [
     'workflow_design_draft',
     'workflow_design_attack',
     'approve_workflow_design',
   ]);
-  assert.match(workflowAuthoringWorkflowDoc.steps.workflow_design_draft.input.prompt, /When revising after workflow_design_attack feedback or approve_workflow_design rejection/);
+  assert.match(promptText(workflowAuthoringWorkflowDoc.steps.workflow_design_draft), /When revising after workflow_design_attack feedback or approve_workflow_design rejection/);
 });
 
-test('workflow authoring implementation revision projects review findings', () => {
-  assert.deepEqual(workflowAuthoringWorkflowDoc.steps.workflow_implementation.input.state, [
+test('workflow authoring implementation revision inlines review findings', () => {
+  assert.deepEqual(promptInputRefs(workflowAuthoringWorkflowDoc.steps.workflow_implementation), [
     'workflow_design_draft',
     'workflow_design_attack',
     'approve_workflow_design',
     'workflow_implementation',
     'workflow_implementation_attack',
   ]);
-  assert.match(workflowAuthoringWorkflowDoc.steps.workflow_implementation.input.prompt, /When revising after workflow_implementation_attack feedback/);
+  assert.match(promptText(workflowAuthoringWorkflowDoc.steps.workflow_implementation), /When revising after workflow_implementation_attack feedback/);
 });
 
 test('workflow authoring design output requires branch payloads', () => {
@@ -389,8 +400,8 @@ test('workflow authoring design output requires branch payloads', () => {
   assert.equal(withBlocker.ok, true);
 });
 
-test('revision loop continuity separates input state from clarification-session continuation', () => {
-  const loopIterationContinuityPrompt = /Loop continuity across workflow loop iterations is prompt\/state based/;
+test('revision loop continuity separates prompt context from clarification-session continuation', () => {
+  const loopIterationContinuityPrompt = /Loop continuity across workflow loop iterations is prompt based/;
   const noPersistentDraftCriticReuse = /do not assume persistent draft\/critic worker reuse across iterations/;
   const clarificationContinuation = /If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening/;
   const contradictorySameSessionWording = /not same-session memory|hidden same-session memory|ask, pause/;
@@ -415,7 +426,7 @@ test('revision loop continuity separates input state from clarification-session 
   }
 
   for (const stepId of ['research_draft', 'research_answered_draft', 'research_attack', 'research_revision', 'save_research_packet']) {
-    const prompt = researchCriticWorkflowDoc.steps[stepId].input.prompt;
+    const prompt = promptText(researchCriticWorkflowDoc.steps[stepId]);
     assert.match(prompt, loopIterationContinuityPrompt);
     assert.match(prompt, noPersistentDraftCriticReuse);
     assert.match(prompt, clarificationContinuation);
@@ -423,7 +434,7 @@ test('revision loop continuity separates input state from clarification-session 
   }
 
   assert.match(
-    researchCriticWorkflowDoc.steps.research_draft.input.prompt,
+    promptText(researchCriticWorkflowDoc.steps.research_draft),
     /Return ready_for_attack when the packet is ready for critic review, needs_input when user answers are required, or blocked when progress is unsafe without external input\./,
   );
   assert.equal(researchCriticWorkflowDoc.steps.research_draft.next.cases.needs_input, 'ask_research_questions');
@@ -431,14 +442,14 @@ test('revision loop continuity separates input state from clarification-session 
 
 
 
-test('dev harness architect review projects approved architecture contract sources', () => {
+test('dev harness architect review inlines approved architecture contract sources', () => {
   for (const requiredState of ['architecture_draft', 'architecture_attack', 'approve_architecture']) {
-    assert.equal(workflowDoc.steps.architect_review.input.state.includes(requiredState), true);
+    assert.equal(promptInputRefs(workflowDoc.steps.architect_review).includes(requiredState), true);
   }
   assert.match(promptText(workflowDoc.steps.architect_review), /approved architecture contract/);
 });
 
-test('dev harness implementation rework branches project review findings', () => {
+test('dev harness implementation rework branches inline review findings', () => {
   const expectedReworkState = [
     'planning_draft',
     'implementation_dispatch',
@@ -453,7 +464,7 @@ test('dev harness implementation rework branches project review findings', () =>
   ];
 
   for (const stepId of ['backend_implementation', 'frontend_implementation', 'architecture_artifact_update']) {
-    assert.deepEqual(workflowDoc.steps[stepId].input.state, expectedReworkState);
+    assert.deepEqual(promptInputRefs(workflowDoc.steps[stepId]), expectedReworkState);
     assert.match(promptText(workflowDoc.steps[stepId]), /review_join needs_changes/);
   }
 });
@@ -801,16 +812,17 @@ test('workflow semantic validation rejects malformed workflow names', () => {
   assertSemanticFailure(doc, /workflow name must be a non-empty lowercase kebab-case identifier/);
 });
 
-test('workflow semantic validation accepts input.state selectors that reference declared workflow step ids', () => {
+test('workflow semantic validation accepts prompt input expressions that reference declared workflow step ids', () => {
   assert.deepEqual(validateSynthetic(syntheticWorkflow()), { ok: true, workflow: 'synthetic-validation-fixture', steps: 7 });
 
   const doc = syntheticWorkflow((draft) => {
     draft.steps.approval_gate = {
       name: 'Approval gate',
       kind: 'approval',
+      output: { schema: 'approval-output.schema.json' },
       next: { match: '${{ output.approval }}', cases: { approved: 'consumer', blocked: 'blocked' } },
     };
-    draft.steps.consumer.input.state = ['approval_gate'];
+    draft.steps.consumer.input.prompt = 'Approval result:\n${{ input.approval_gate }}';
     return draft;
   });
 
@@ -863,9 +875,8 @@ test('workflow semantic validation rejects optional input paths used for match r
   );
 });
 
-test('workflow semantic validation accepts input expressions against declared input.state selectors', () => {
+test('workflow semantic validation accepts input expressions in dynamic transitions without separate selectors', () => {
   const doc = syntheticWorkflow((draft) => {
-    draft.steps.consumer.input = { state: ['producer', 'branch_a'] };
     draft.steps.consumer.next = { match: '${{ input.branch_a.outcome }}', cases: { ready: 'done', blocked: 'blocked' } };
     return draft;
   });
@@ -873,32 +884,32 @@ test('workflow semantic validation accepts input expressions against declared in
   assert.deepEqual(validateSynthetic(doc), { ok: true, workflow: 'synthetic-validation-fixture', steps: 7 });
 });
 
-test('workflow semantic validation rejects input.state selectors that do not name own workflow step ids', () => {
+test('workflow semantic validation rejects prompt input expressions that do not name own workflow step ids', () => {
   for (const selector of ['missing_step', 'toString']) {
     assertSemanticFailure(
       syntheticWorkflow((draft) => {
-        draft.steps.consumer.input.state = [selector];
+        draft.steps.consumer.input.prompt = `Bad input:\n\${{ input.${selector} }}`;
         return draft;
       }),
-      new RegExp(`consumer.*input\\.state selector '${selector}'.*declared workflow step`),
+      new RegExp(`consumer.*input\\.prompt expression \\\$\\{\\{ input\\.${selector} \\}\\}.*input step '${selector}' is not a declared workflow step`),
     );
   }
 
   assertSemanticFailure(
     syntheticWorkflow((draft) => {
-      draft.steps.consumer.input.state = ['artifacts', 'results', 'outputs'];
+      draft.steps.consumer.input.prompt = 'Bad input:\n${{ input.artifacts }}';
       return draft;
     }),
-    /consumer.*input\.state selector 'artifacts'.*reserved for runtime aggregate state/,
+    /consumer.*input\.prompt expression \$\{\{ input\.artifacts \}\}.*input step 'artifacts' is not a declared workflow step/,
   );
 
 
   assertSemanticFailure(
     syntheticWorkflow((draft) => {
-      draft.steps.consumer.input.state = ['__proto__'];
+      draft.steps.consumer.input.prompt = 'Bad input:\n${{ input.__proto__ }}';
       return draft;
     }),
-    /consumer.*input\.state selector '__proto__'.*unsafe as a JavaScript object key/,
+    /consumer.*input\.prompt workflow expression '\$\{\{ input\.__proto__ \}\}' is invalid: path segment '__proto__' is not allowed/,
   );
 });
 
@@ -919,13 +930,13 @@ test('workflow semantic validation rejects declared step ids reserved for aggreg
   }
 });
 
-test('workflow semantic validation rejects unsupported nested input.state selectors', () => {
+test('workflow semantic validation rejects unsupported nested prompt input paths', () => {
   assertSemanticFailure(
     syntheticWorkflow((draft) => {
-      draft.steps.consumer.input.state = ['producer.route'];
+      draft.steps.consumer.input.prompt = 'Bad input:\n${{ input.producer.route.extra }}';
       return draft;
     }),
-    /consumer.*input\.state selector 'producer\.route' is invalid/,
+    /consumer.*input\.prompt expression \$\{\{ input\.producer\.route\.extra \}\}.*no schema-covered path/,
   );
 });
 
@@ -945,7 +956,7 @@ test('workflow semantic validation rejects aggregate runtime state expressions i
       draft.steps.consumer.next = { match: '${{ input.outputs.producer.route }}', cases: { review: 'done', blocked: 'blocked' } };
       return draft;
     }),
-    /consumer.*input\.outputs\.producer\.route.*does not project input state 'outputs'/,
+    /consumer.*input\.outputs\.producer\.route.*input step 'outputs' is not a declared workflow step/,
   );
 });
 

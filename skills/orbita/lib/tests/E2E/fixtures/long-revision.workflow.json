@@ -12,7 +12,8 @@
         "prompt": "Plan the work."
       },
       "output": {
-        "template": "output.md"
+        "template": "output.md",
+        "schema": "schemas/routing-ready.schema.json"
       },
       "next": "approval_gate"
     },
@@ -20,14 +21,14 @@
       "name": "Approval Gate",
       "kind": "approval",
       "input": {
-        "state": [
-          "plan"
-        ],
         "prompt": [
           "Approve the plan.",
           "",
           "Plan result:",
-          "${{ input.plan.results }}"
+          "${{ input.plan.results }}",
+          "",
+          "Plan artifacts:",
+          "${{ input.plan.artifacts }}"
         ]
       },
       "next": {
@@ -37,17 +38,15 @@
           "rejected": "plan",
           "blocked": "blocked"
         }
+      },
+      "output": {
+        "schema": "schemas/approval.schema.json"
       }
     },
     "implement": {
       "name": "Implement",
       "kind": "worker",
       "input": {
-        "state": [
-          "plan",
-          "approval_gate",
-          "review"
-        ],
         "prompt": [
           "Implement the approved plan.",
           "",
@@ -62,7 +61,8 @@
         ]
       },
       "output": {
-        "template": "output.md"
+        "template": "output.md",
+        "schema": "schemas/routing-ready.schema.json"
       },
       "next": "review"
     },
@@ -70,14 +70,14 @@
       "name": "Review",
       "kind": "worker",
       "input": {
-        "state": [
-          "implement"
-        ],
         "prompt": [
           "Review implementation.",
           "",
           "Implementation result:",
-          "${{ input.implement.results }}"
+          "${{ input.implement.results }}",
+          "",
+          "Implementation artifacts:",
+          "${{ input.implement.artifacts | default: \"No implementation artifacts.\" }}"
         ]
       },
       "output": {

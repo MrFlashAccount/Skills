@@ -9,7 +9,7 @@ Workflow steps can set `next` to one whole-string expression:
 V1 expressions are path selectors only. They can read:
 
 - `output`: the current worker or approval output.
-- `input`: the current step's projected state from `input.state`.
+- `input`: prior step output selected by the dynamic transition expression itself.
 
 Examples:
 

@@ -15,7 +15,7 @@ const workflow = {
     consumer: {
       name: 'Consumer',
       kind: 'worker',
-      input: { state: ['producer'], role: 'backend', template: 'consumer-input.md', prompt: 'Use projected producer output.' },
+      input: { role: 'backend', template: 'consumer-input.md', prompt: 'Use projected producer output.\n\nArtifacts:\n${{ input.producer.artifacts }}' },
       output: { template: 'consumer-output.md', schema: 'consumer.schema.json' },
       next: 'done',
     },
@@ -125,7 +125,14 @@ test('template compiler renders already-resolved required read paths without res
     stepId: 'consumer',
     step: workflow.steps.consumer,
     resources,
-    projection: { value: {}, projectedKeys: [] },
+    projection: {
+      value: {
+        producer: {
+          artifacts: [{ id: 'research-packet', content_type: 'text/markdown', path: '/abs/run/producer/artifacts/research-packet.md' }],
+        },
+      },
+      projectedKeys: ['producer'],
+    },
     requiredReads: [
       { label: "Role material for 'backend'", path: '/abs/project/roles/backend/ROLE.md' },
       { label: "Projected artifact 'research-packet' from 'producer'", path: '/abs/run/producer/artifacts/research-packet.md', contentType: 'text/markdown' },

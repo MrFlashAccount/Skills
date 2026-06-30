@@ -126,14 +126,6 @@
         },
         "prompt": {
           "$ref": "#/$defs/prompt"
-        },
-        "state": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          },
-          "uniqueItems": true
         }
       },
       "additionalProperties": false
@@ -147,14 +139,6 @@
         },
         "prompt": {
           "$ref": "#/$defs/prompt"
-        },
-        "state": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          },
-          "uniqueItems": true
         },
         "role": {
           "type": "string",

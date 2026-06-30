@@ -8,21 +8,30 @@
     "intake_approval": {
       "name": "Intake Approval",
       "kind": "approval",
-      "input": { "prompt": "Accept the startup request before worker execution." },
+      "input": {
+        "prompt": "Accept the startup request before worker execution."
+      },
       "next": "prepare"
     },
     "prepare": {
       "name": "Prepare",
       "kind": "worker",
-      "input": { "state": ["intake_approval"], "prompt": "Prepare approved startup request." },
-      "output": { "template": "output.md" },
-      "next": ["branch_a", "branch_b"]
+      "input": {
+        "prompt": "Prepare approved startup request."
+      },
+      "output": {
+        "template": "output.md",
+        "schema": "schemas/routing-ready.schema.json"
+      },
+      "next": [
+        "branch_a",
+        "branch_b"
+      ]
     },
     "branch_a": {
       "name": "Branch A",
       "kind": "worker",
       "input": {
-        "state": ["prepare"],
         "prompt": [
           "Do branch A.",
           "",
@@ -30,14 +39,16 @@
           "${{ input.prepare.results }}"
         ]
       },
-      "output": { "template": "output.md" },
+      "output": {
+        "template": "output.md",
+        "schema": "schemas/routing-ready.schema.json"
+      },
       "next": "join"
     },
     "branch_b": {
       "name": "Branch B",
       "kind": "worker",
       "input": {
-        "state": ["prepare"],
         "prompt": [
           "Do branch B.",
           "",
@@ -45,14 +56,16 @@
           "${{ input.prepare.results }}"
         ]
       },
-      "output": { "template": "output.md" },
+      "output": {
+        "template": "output.md",
+        "schema": "schemas/routing-ready.schema.json"
+      },
       "next": "join"
     },
     "join": {
       "name": "Join",
       "kind": "worker",
       "input": {
-        "state": ["branch_a", "branch_b"],
         "prompt": [
           "Join branch results.",
           "",
@@ -63,14 +76,16 @@
           "${{ input.branch_b.results }}"
         ]
       },
-      "output": { "template": "output.md" },
+      "output": {
+        "template": "output.md",
+        "schema": "schemas/routing-ready.schema.json"
+      },
       "next": "final_approval"
     },
     "final_approval": {
       "name": "Final Approval",
       "kind": "approval",
       "input": {
-        "state": ["join"],
         "prompt": [
           "Approve final result.",
           "",
@@ -78,9 +93,27 @@
           "${{ input.join.results }}"
         ]
       },
-      "next": { "match": "${{ output.approval }}", "cases": { "approved": "done", "blocked": "blocked" } }
+      "next": {
+        "match": "${{ output.approval }}",
+        "cases": {
+          "approved": "done",
+          "blocked": "blocked"
+        }
+      }
     },
-    "done": { "name": "Done", "kind": "done", "input": { "prompt": "Finished." } },
-    "blocked": { "name": "Blocked", "kind": "blocked", "input": { "prompt": "Blocked." } }
+    "done": {
+      "name": "Done",
+      "kind": "done",
+      "input": {
+        "prompt": "Finished."
+      }
+    },
+    "blocked": {
+      "name": "Blocked",
+      "kind": "blocked",
+      "input": {
+        "prompt": "Blocked."
+      }
+    }
   }
 }

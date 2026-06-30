@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Workflow Authoring Approval Output",
+  "type": "object",
+  "required": [
+    "approval"
+  ],
+  "properties": {
+    "approval": {
+      "enum": [
+        "approved",
+        "rejected",
+        "blocked"
+      ],
+      "description": "Human workflow-design gate decision.",
+      "x-usage": "Use approved to implement, rejected to revise workflow_design_draft, and blocked only when blocker explains why authoring cannot continue."
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/result"
+      },
+      "description": "Optional compact summary of human approval feedback.",
+      "x-usage": "Use as supporting approval context; do not route from this field."
+    },
+    "blocker": {
+      "type": "object",
+      "description": "Required when approval is blocked.",
+      "x-usage": "Surface this blocker before continuing; do not infer missing blocker details from prose."
+    }
+  },
+  "additionalProperties": true
+}

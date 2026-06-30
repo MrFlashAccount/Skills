@@ -38,7 +38,7 @@ const workflowDoc = {
       consumer_step: {
         name: 'Consumer step',
         kind: 'approval',
-        input: { state: ['worker_step'], prompt: 'Use prior worker output.' },
+        input: { prompt: 'Use prior worker output.' },
         next: { match: '${{ output.approval }}', cases: { approved: 'done', blocked: 'blocked' } },
       },
       done: { name: 'Done', kind: 'done' },
@@ -444,7 +444,7 @@ test('output.schema: schema-declared outputs still must be object envelopes', ()
   doc.steps.join_step = {
     name: 'Join step',
     kind: 'worker',
-    input: { state: ['consumer_step'], prompt: 'Join consumer output.' },
+    input: { prompt: 'Join consumer output.' },
     output: { template: 'output.md' },
     next: 'done',
   };
@@ -601,30 +601,19 @@ test('output.schema: absent schema preserves previous envelope behavior without 
   assert.equal(response.baton.state.results.at(-1).summary, 'generic worker-output envelope');
 });
 
-test('output.schema: non-structured worker output is projected by step id into downstream prompt', () => {
+test('output.schema: prompt expressions reject schema-less producer steps', () => {
   const doc = structuredClone(workflowDoc);
   delete doc.steps.worker_step.output.schema;
   doc.steps.worker_step.next = 'consumer_step';
   doc.steps.consumer_step.input.prompt = 'Use prior worker output:\n${{ input.worker_step }}';
 
-  const applyResponse = runApply('output-schema-plain-project-apply', baton(), {
+  const response = runApply('output-schema-schema-less-prompt-ref', baton(), {
     outcome: 'ready',
     results: [{ type: 'markdown', summary: 'plain markdown result body' }],
-  }, true, doc);
+  }, false, doc);
 
-  assert.equal(applyResponse.baton.cursor, 'consumer_step');
-  const batonPath = writeJson('output-schema-plain-project-baton.json', applyResponse.baton);
-  const workflowPath = writeJson('output-schema-plain-project-workflow.json', doc);
-  const renderResponse = runWorkflowCommand('output-schema-plain-project-render', [
-    'skills/orbita/lib/entrypoints/cli/workflow-interpreter.mjs',
-    'render',
-    workflowPath,
-    batonPath,
-  ]);
-
-  assert.doesNotMatch(renderResponse.steps[0].compiledPrompt.prompt, /## Projected baton state/);
-  assert.match(renderResponse.steps[0].compiledPrompt.prompt, /Use prior worker output:/);
-  assert.match(renderResponse.steps[0].compiledPrompt.prompt, /"plain markdown result body"/);
+  assert.match(response.stderr, /input\.prompt expression \$\{\{ input\.worker_step \}\} has no schema-covered path/);
+  assert.match(response.stderr, /input step 'worker_step' has no output\.schema/);
 });
 
 test('output.schema: central artifact contract accepts simplified shape and rejects legacy artifact fields', () => {

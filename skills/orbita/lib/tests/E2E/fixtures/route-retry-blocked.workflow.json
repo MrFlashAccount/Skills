@@ -28,9 +28,6 @@
       "name": "Resolve",
       "kind": "worker",
       "input": {
-        "state": [
-          "triage"
-        ],
         "prompt": [
           "Resolve ready request.",
           "",

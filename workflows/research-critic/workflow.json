@@ -11,7 +11,20 @@
       "kind": "worker",
       "input": {
         "role": "researcher",
-        "prompt": "Normalize the task input, inspect available evidence, and produce a research packet. Return ready_for_attack when the packet is ready for critic review, needs_input when user answers are required, or blocked when progress is unsafe without external input. If revising after critic feedback or user answers, preserve answered decisions and close only evidence-backed questions. Loop continuity across workflow loop iterations is prompt/state based: rely only on workflow-projected input and prior step outputs; do not assume persistent draft/critic worker reuse across iterations. If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening."
+        "prompt": [
+          "Normalize the task input, inspect available evidence, and produce a research packet. Return ready_for_attack when the packet is ready for critic review, needs_input when user answers are required, or blocked when progress is unsafe without external input. If revising after critic feedback or user answers, preserve answered decisions and close only evidence-backed questions.",
+          "Loop continuity across workflow loop iterations is prompt based: rely only on explicit input.prompt context and prior step outputs; do not assume persistent draft/critic worker reuse across iterations. If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
+          "",
+          "Input context:",
+          "Previous research draft:",
+          "${{ input.research_draft.research_packet | default: \"No previous research draft.\" }}",
+          "",
+          "Critic verdict:",
+          "${{ input.research_attack.verdict | default: \"No previous research attack verdict.\" }}",
+          "",
+          "User answers:",
+          "${{ input.ask_research_questions | default: \"No previous user answers.\" }}"
+        ]
       },
       "output": {
         "template": "../../shared/templates/research-packet-template.md",
@@ -30,13 +43,22 @@
       "name": "Ask research questions",
       "kind": "approval",
       "input": {
-        "state": [
-          "research_draft",
-          "research_answered_draft",
-          "research_revision",
-          "research_attack"
-        ],
-        "prompt": "Ask the user only the blocking research questions from the latest available draft-producing output and latest research_attack output. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Continue with approval approved after the user answer is captured in the approval output; use blocked only when the user cannot or will not provide required input."
+        "prompt": [
+          "Ask the user only the blocking research questions from the latest available draft-producing output and latest research_attack output. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Continue with approval approved after the user answer is captured in the approval output; use blocked only when the user cannot or will not provide required input.",
+          "",
+          "Input context:",
+          "Research revision questions:",
+          "${{ input.research_revision.questions | default: \"No research_revision questions.\" }}",
+          "",
+          "Research answered draft questions:",
+          "${{ input.research_answered_draft.questions | default: \"No research_answered_draft questions.\" }}",
+          "",
+          "Research draft questions:",
+          "${{ input.research_draft.questions | default: \"No research_draft questions.\" }}",
+          "",
+          "Critic questions:",
+          "${{ input.research_attack.questions | default: \"No research_attack questions.\" }}"
+        ]
       },
       "next": {
         "match": "${{ output.approval }}",
@@ -44,6 +66,9 @@
           "approved": "research_answered_draft",
           "blocked": "blocked"
         }
+      },
+      "output": {
+        "schema": "schemas/approval-output.json"
       }
     },
     "research_answered_draft": {
@@ -51,12 +76,26 @@
       "kind": "worker",
       "input": {
         "role": "researcher",
-        "state": [
-          "research_draft",
-          "ask_research_questions",
-          "research_attack"
-        ],
-        "prompt": "Revise the research packet using the approved user answers from ask_research_questions and any critic feedback if present. Preserve answered decisions and close only evidence-backed questions. Return ready_for_attack when the packet is ready for critic review, needs_input when more user answers are required, or blocked when progress is unsafe without external input. Loop continuity across workflow loop iterations is prompt/state based: rely only on workflow-projected input and prior step outputs; do not assume persistent draft/critic worker reuse across iterations. If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening."
+        "prompt": [
+          "Revise the research packet using the approved user answers from ask_research_questions and any critic feedback if present. Preserve answered decisions and close only evidence-backed questions. Return ready_for_attack when the packet is ready for critic review, needs_input when more user answers are required, or blocked when progress is unsafe without external input.",
+          "Loop continuity across workflow loop iterations is prompt based: rely only on explicit input.prompt context and prior step outputs; do not assume persistent draft/critic worker reuse across iterations. If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
+          "",
+          "Input context:",
+          "User answers:",
+          "${{ input.ask_research_questions }}",
+          "",
+          "Critic verdict:",
+          "${{ input.research_attack.verdict | default: \"No prior research_attack verdict.\" }}",
+          "",
+          "Latest research revision packet:",
+          "${{ input.research_revision.research_packet | default: \"No research_revision packet.\" }}",
+          "",
+          "Prior answered draft packet:",
+          "${{ input.research_answered_draft.research_packet | default: \"No research_answered_draft packet.\" }}",
+          "",
+          "Initial research draft packet:",
+          "${{ input.research_draft.research_packet | default: \"No research_draft packet.\" }}"
+        ]
       },
       "output": {
         "template": "../../shared/templates/research-packet-template.md",
@@ -76,12 +115,20 @@
       "kind": "worker",
       "input": {
         "role": "critic",
-        "state": [
-          "research_draft",
-          "research_answered_draft",
-          "research_revision"
-        ],
-        "prompt": "Attack the latest available research packet for weak evidence, unsafe assumptions, missing user input, misclassified blockers, and over-broad candidate approaches. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Return approved only when the packet is ready for downstream handoff, needs_revision when a bounded revision should loop through a fresh draft-producing output, needs_input when user answers are required, or blocked for an unsafe stop. Loop continuity across workflow loop iterations is prompt/state based: rely only on workflow-projected input and prior step outputs; do not assume persistent draft/critic worker reuse across iterations. If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening."
+        "prompt": [
+          "Attack the latest available research packet for weak evidence, unsafe assumptions, missing user input, misclassified blockers, and over-broad candidate approaches. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Return approved only when the packet is ready for downstream handoff, needs_revision when a bounded revision should loop through a fresh draft-producing output, needs_input when user answers are required, or blocked for an unsafe stop.",
+          "Loop continuity across workflow loop iterations is prompt based: rely only on explicit input.prompt context and prior step outputs; do not assume persistent draft/critic worker reuse across iterations. If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
+          "",
+          "Input context:",
+          "Research revision packet:",
+          "${{ input.research_revision.research_packet | default: \"No research_revision packet.\" }}",
+          "",
+          "Research answered draft packet:",
+          "${{ input.research_answered_draft.research_packet | default: \"No research_answered_draft packet.\" }}",
+          "",
+          "Research draft packet:",
+          "${{ input.research_draft.research_packet | default: \"No research_draft packet.\" }}"
+        ]
       },
       "output": {
         "template": "../../shared/templates/review-verdict-template.md",
@@ -102,14 +149,26 @@
       "kind": "worker",
       "input": {
         "role": "researcher",
-        "state": [
-          "research_draft",
-          "research_answered_draft",
-          "research_revision",
-          "research_attack",
-          "ask_research_questions"
-        ],
-        "prompt": "Revise the latest available research packet using the latest research_attack verdict and any approved user answers. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Preserve answered decisions, address each bounded critic finding, and return ready_for_attack when the packet is ready for another critic review, needs_input when user answers are required, or blocked when progress is unsafe without external input. Loop continuity across workflow loop iterations is prompt/state based: rely only on workflow-projected input and prior step outputs; do not assume persistent draft/critic worker reuse across iterations. If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening."
+        "prompt": [
+          "Revise the latest available research packet using the latest research_attack verdict and any approved user answers. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Preserve answered decisions, address each bounded critic finding, and return ready_for_attack when the packet is ready for another critic review, needs_input when user answers are required, or blocked when progress is unsafe without external input.",
+          "Loop continuity across workflow loop iterations is prompt based: rely only on explicit input.prompt context and prior step outputs; do not assume persistent draft/critic worker reuse across iterations. If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
+          "",
+          "Input context:",
+          "Latest research revision packet:",
+          "${{ input.research_revision.research_packet | default: \"No research_revision packet.\" }}",
+          "",
+          "Research answered draft packet:",
+          "${{ input.research_answered_draft.research_packet | default: \"No research_answered_draft packet.\" }}",
+          "",
+          "Research draft packet:",
+          "${{ input.research_draft.research_packet | default: \"No research_draft packet.\" }}",
+          "",
+          "Critic verdict:",
+          "${{ input.research_attack.verdict }}",
+          "",
+          "User answers:",
+          "${{ input.ask_research_questions | default: \"No user answers.\" }}"
+        ]
       },
       "output": {
         "template": "../../shared/templates/research-packet-template.md",
@@ -129,13 +188,23 @@
       "kind": "worker",
       "input": {
         "role": "researcher",
-        "state": [
-          "research_draft",
-          "research_answered_draft",
-          "research_revision",
-          "research_attack"
-        ],
-        "prompt": "Finalize persistence metadata for the approved research packet using the latest approved research packet and latest research_attack verdict. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Return saved after emitting artifact/result references to the saved packet, or blocked if the packet cannot be safely saved. Loop continuity across workflow loop iterations is prompt/state based: rely only on workflow-projected input and prior step outputs; do not assume persistent draft/critic worker reuse across iterations. If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening."
+        "prompt": [
+          "Finalize persistence metadata for the approved research packet using the latest approved research packet and latest research_attack verdict. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Return saved after emitting artifact/result references to the saved packet, or blocked if the packet cannot be safely saved.",
+          "Loop continuity across workflow loop iterations is prompt based: rely only on explicit input.prompt context and prior step outputs; do not assume persistent draft/critic worker reuse across iterations. If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
+          "",
+          "Input context:",
+          "Research revision packet:",
+          "${{ input.research_revision.research_packet | default: \"No research_revision packet.\" }}",
+          "",
+          "Research answered draft packet:",
+          "${{ input.research_answered_draft.research_packet | default: \"No research_answered_draft packet.\" }}",
+          "",
+          "Research draft packet:",
+          "${{ input.research_draft.research_packet | default: \"No research_draft packet.\" }}",
+          "",
+          "Critic verdict:",
+          "${{ input.research_attack.verdict }}"
+        ]
       },
       "output": {
         "template": "../../shared/templates/research-save-metadata-template.md",
@@ -153,9 +222,6 @@
       "name": "Done",
       "kind": "done",
       "input": {
-        "state": [
-          "save_research_packet"
-        ],
         "prompt": "Research packet approved and saved."
       }
     },
@@ -163,14 +229,6 @@
       "name": "Blocked",
       "kind": "blocked",
       "input": {
-        "state": [
-          "research_draft",
-          "ask_research_questions",
-          "research_answered_draft",
-          "research_attack",
-          "research_revision",
-          "save_research_packet"
-        ],
         "prompt": "Research workflow is blocked. Surface the blocker and required input."
       }
     }

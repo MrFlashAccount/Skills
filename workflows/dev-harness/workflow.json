@@ -19,18 +19,13 @@
           "When missing implementation-critical input is answerable by the user, do not return blocked; return a focused user-facing request for the orchestrator to relay.",
           "Return blocked with blocker.source_step_id = research_draft only when progress is unsafe or impossible, or when the missing input is external/non-user-answerable.",
           "When revising after research_attack feedback or approve_research rejection, read feedback from input.research_attack and input.approve_research and address it explicitly while preserving approved constraints.",
-          "Loop continuity across workflow loop iterations is prompt/state based: rely only on workflow input context and prior step outputs; do not assume persistent draft/critic worker reuse across iterations.",
+          "Loop continuity across workflow loop iterations is prompt based: rely only on workflow input context and prior step outputs; do not assume persistent draft/critic worker reuse across iterations.",
           "If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
           "",
           "Input context:",
           "- Previous research packet: ${{ input.research_draft.research_packet | default: \"No previous research draft in input context.\" }}",
           "- Research attack feedback to address: ${{ input.research_attack.verdict | default: \"No prior research_attack feedback.\" }}",
           "- Human research gate feedback to address: ${{ input.approve_research | default: \"No prior approve_research decision or feedback.\" }}"
-        ],
-        "state": [
-          "research_draft",
-          "research_attack",
-          "approve_research"
         ]
       },
       "output": {
@@ -50,9 +45,6 @@
       "kind": "worker",
       "input": {
         "role": "critic",
-        "state": [
-          "research_draft"
-        ],
         "prompt": [
           "Read artifact `research-packet` from `research_draft` and attack it for missing evidence, unsafe assumptions, scope drift, sensitive surfaces, and unclear approval questions.",
           "Use structured research_packet JSON only for branching/context.",
@@ -81,10 +73,6 @@
       "name": "Approve research",
       "kind": "approval",
       "input": {
-        "state": [
-          "research_draft",
-          "research_attack"
-        ],
         "prompt": [
           "Present artifact `research-packet` from `research_draft` and research_attack.verdict to the user for human approval.",
           "If the user asks for a packet/proposal file, retrieve/export the existing artifact referenced by baton/output artifacts; do not ask a worker to recreate it in a temp path.",
@@ -104,6 +92,9 @@
           "rejected": "research_draft",
           "blocked": "blocked"
         }
+      },
+      "output": {
+        "schema": "schemas/approval-output.json"
       }
     },
     "architecture_draft": {
@@ -111,14 +102,6 @@
       "kind": "worker",
       "input": {
         "role": "architect",
-        "state": [
-          "research_draft",
-          "research_attack",
-          "approve_research",
-          "architecture_draft",
-          "architecture_attack",
-          "approve_architecture"
-        ],
         "prompt": [
           "Read the approved/current `research-packet` artifact from `research_draft` as the research source of truth and strictly follow it.",
           "Produce the minimal architecture decision or structural contract required by the approved research.",
@@ -126,7 +109,7 @@
           "If architecture work is not needed, record the explicit no-artifact decision in architecture_contract.",
           "Return ready_for_attack or blocked with blocker.source_step_id = architecture_draft.",
           "When revising after architecture_attack feedback or approve_architecture rejection, read feedback from input.architecture_attack and input.approve_architecture and address it explicitly while preserving approved research constraints.",
-          "Loop continuity across workflow loop iterations is prompt/state based: rely only on workflow input context and prior step outputs; do not assume persistent draft/critic worker reuse across iterations.",
+          "Loop continuity across workflow loop iterations is prompt based: rely only on workflow input context and prior step outputs; do not assume persistent draft/critic worker reuse across iterations.",
           "If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
           "",
           "Input context:",
@@ -155,10 +138,6 @@
       "kind": "worker",
       "input": {
         "role": "architect",
-        "state": [
-          "research_draft",
-          "architecture_draft"
-        ],
         "prompt": [
           "Attack architecture_draft.architecture_contract for ownership seams, dependency direction, contract surfaces, durable artifact pressure, and compatibility risk.",
           "Return approved, needs_revision, or blocked.",
@@ -187,10 +166,6 @@
       "name": "Approve architecture",
       "kind": "approval",
       "input": {
-        "state": [
-          "architecture_draft",
-          "architecture_attack"
-        ],
         "prompt": [
           "Show architecture_draft.architecture_contract, the `architecture-proposal` artifact from architecture_draft when present, and architecture_attack.verdict to the user.",
           "If the user asks for a proposal file, retrieve/export the existing artifact referenced by baton/output artifacts; do not ask a worker to recreate it in a temp path.",
@@ -210,6 +185,9 @@
           "rejected": "architecture_draft",
           "blocked": "blocked"
         }
+      },
+      "output": {
+        "schema": "schemas/approval-output.json"
       }
     },
     "planning_draft": {
@@ -217,14 +195,6 @@
       "kind": "worker",
       "input": {
         "role": "architect",
-        "state": [
-          "research_draft",
-          "architecture_draft",
-          "architecture_attack",
-          "planning_draft",
-          "planning_attack",
-          "approve_plan"
-        ],
         "prompt": [
           "Produce the implementation plan contract for approval from approved research and architecture.",
           "The step id remains planning_draft for compatibility, but once approve_plan approves this output, downstream steps must treat it as the final approved plan contract. selected_implementation_steps must contain only unique canonical implementation step ids needed for the plan: backend_implementation, frontend_implementation, architecture_artifact_update. implementation_route must be the normalized route for exactly that unique selected set: backend, frontend, architecture, backend_frontend, backend_architecture, frontend_architecture, or all.",
@@ -233,7 +203,7 @@
           "Keep review_plan.reviewers aligned with selected_review_steps.",
           "Return ready_for_attack or blocked with blocker.source_step_id = planning_draft.",
           "When revising after planning_attack feedback or approve_plan rejection, read feedback from input.planning_attack and input.approve_plan and address it explicitly while preserving approved research and architecture constraints.",
-          "Loop continuity across workflow loop iterations is prompt/state based: rely only on workflow input context and prior step outputs; do not assume persistent draft/critic worker reuse across iterations.",
+          "Loop continuity across workflow loop iterations is prompt based: rely only on workflow input context and prior step outputs; do not assume persistent draft/critic worker reuse across iterations.",
           "If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
           "",
           "Input context:",
@@ -262,9 +232,6 @@
       "kind": "worker",
       "input": {
         "role": "critic",
-        "state": [
-          "planning_draft"
-        ],
         "prompt": [
           "Challenge the plan contract in planning_draft.implementation_plan plus selected_implementation_steps, implementation_route, selected_review_steps, and review_plan for unique canonical task selection, route/selection consistency, explicit final reviewer selection, no duplicate same-role workers, entity coverage, one-owner-per-file-zone, project baseline, architecture artifact manifest, verification/rollback surfaces, sensitive surfaces, request-path/contract touchpoints, and max-detail leaks.",
           "Return approved, needs_revision, or blocked.",
@@ -295,10 +262,6 @@
       "name": "Approve implementation plan",
       "kind": "approval",
       "input": {
-        "state": [
-          "planning_draft",
-          "planning_attack"
-        ],
         "prompt": [
           "Show one cleaned execution plan contract to the user and stop until explicit implementation approval.",
           "If the user asks for a plan/proposal file, retrieve/export the existing artifact referenced by baton/output artifacts; do not ask a worker to recreate it in a temp path.",
@@ -322,15 +285,15 @@
           "rejected": "planning_draft",
           "blocked": "blocked"
         }
+      },
+      "output": {
+        "schema": "schemas/approval-output.json"
       }
     },
     "implementation_dispatch": {
       "name": "Implementation dispatch",
       "kind": "worker",
       "input": {
-        "state": [
-          "planning_draft"
-        ],
         "prompt": [
           "Validate that the approved plan contract planning_draft.implementation_route exactly matches the unique canonical planning_draft.selected_implementation_steps and that no duplicate same-role implementation worker is requested.",
           "If valid, return outcome equal to planning_draft.implementation_route.",
@@ -384,18 +347,6 @@
       "kind": "worker",
       "input": {
         "role": "backend",
-        "state": [
-          "planning_draft",
-          "implementation_dispatch",
-          "review_join",
-          "architect_review",
-          "backend_review",
-          "frontend_review",
-          "frontend_taste_review",
-          "security_review",
-          "privacy_review",
-          "qa_review"
-        ],
         "prompt": [
           "Implement only the backend slice selected in the approved plan contract planning_draft.selected_implementation_steps.",
           "This workflow supports at most one backend_implementation worker; handle all backend work for the approved plan here and do not spawn duplicate backend workers.",
@@ -403,7 +354,7 @@
           "Preserve frozen research, architecture, execution plan, and user constraints.",
           "Return implemented or blocked with blocker.source_step_id = backend_implementation.",
           "When rerun from review_join needs_changes, read input.review_join and reviewer outputs, apply only the required changes for this step, and preserve all approved contracts.",
-          "Loop continuity across workflow loop iterations is prompt/state based: rely only on workflow input context and prior step outputs; do not assume persistent draft/critic worker reuse across iterations.",
+          "Loop continuity across workflow loop iterations is prompt based: rely only on workflow input context and prior step outputs; do not assume persistent draft/critic worker reuse across iterations.",
           "If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
           "",
           "Input context:",
@@ -432,18 +383,6 @@
       "kind": "worker",
       "input": {
         "role": "frontend",
-        "state": [
-          "planning_draft",
-          "implementation_dispatch",
-          "review_join",
-          "architect_review",
-          "backend_review",
-          "frontend_review",
-          "frontend_taste_review",
-          "security_review",
-          "privacy_review",
-          "qa_review"
-        ],
         "prompt": [
           "Implement only the frontend slice selected in the approved plan contract planning_draft.selected_implementation_steps.",
           "This workflow supports at most one frontend_implementation worker; handle all frontend work for the approved plan here and do not spawn duplicate frontend workers.",
@@ -451,7 +390,7 @@
           "Preserve frozen research, architecture, execution plan, and user constraints.",
           "Return implemented or blocked with blocker.source_step_id = frontend_implementation.",
           "When rerun from review_join needs_changes, read input.review_join and reviewer outputs, apply only the required changes for this step, and preserve all approved contracts.",
-          "Loop continuity across workflow loop iterations is prompt/state based: rely only on workflow input context and prior step outputs; do not assume persistent draft/critic worker reuse across iterations.",
+          "Loop continuity across workflow loop iterations is prompt based: rely only on workflow input context and prior step outputs; do not assume persistent draft/critic worker reuse across iterations.",
           "If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
           "",
           "Input context:",
@@ -480,18 +419,6 @@
       "kind": "worker",
       "input": {
         "role": "architect",
-        "state": [
-          "planning_draft",
-          "implementation_dispatch",
-          "review_join",
-          "architect_review",
-          "backend_review",
-          "frontend_review",
-          "frontend_taste_review",
-          "security_review",
-          "privacy_review",
-          "qa_review"
-        ],
         "prompt": [
           "Update only approved architecture artifacts or architecture handoff notes selected in the approved plan contract planning_draft.selected_implementation_steps.",
           "This workflow supports at most one architecture_artifact_update worker; collapse all approved architecture artifact work into this step.",
@@ -499,7 +426,7 @@
           "Read prior step outputs from input.<step_id> fields only.",
           "Return implemented or blocked with blocker.source_step_id = architecture_artifact_update.",
           "When rerun from review_join needs_changes, read input.review_join and reviewer outputs, apply only the required changes for this step, and preserve all approved contracts.",
-          "Loop continuity across workflow loop iterations is prompt/state based: rely only on workflow input context and prior step outputs; do not assume persistent draft/critic worker reuse across iterations.",
+          "Loop continuity across workflow loop iterations is prompt based: rely only on workflow input context and prior step outputs; do not assume persistent draft/critic worker reuse across iterations.",
           "If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
           "",
           "Input context:",
@@ -527,12 +454,6 @@
       "name": "Implementation join",
       "kind": "worker",
       "input": {
-        "state": [
-          "planning_draft",
-          "backend_implementation",
-          "frontend_implementation",
-          "architecture_artifact_update"
-        ],
         "prompt": [
           "Join exactly the implementation outputs named by the approved plan contract planning_draft.selected_implementation_steps from input.<step_id> fields.",
           "Confirm each selected branch completed, verification evidence exists, and no branch widened scope.",
@@ -564,10 +485,6 @@
       "name": "Review dispatch",
       "kind": "worker",
       "input": {
-        "state": [
-          "planning_draft",
-          "implementation_join"
-        ],
         "prompt": [
           "Dispatch reviewers from the final approved plan contract.",
           "Do not infer reviewers from implementation_join output.",
@@ -589,17 +506,6 @@
       "kind": "worker",
       "input": {
         "role": "architect",
-        "state": [
-          "planning_draft",
-          "architecture_draft",
-          "architecture_attack",
-          "approve_architecture",
-          "implementation_join",
-          "review_dispatch",
-          "backend_implementation",
-          "frontend_implementation",
-          "architecture_artifact_update"
-        ],
         "prompt": [
           "Review implementation against approved architecture decision, ownership seams, dependency direction, compatibility surfaces, and artifact obligations.",
           "Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = architect_review.",
@@ -632,14 +538,6 @@
       "kind": "worker",
       "input": {
         "role": "backend",
-        "state": [
-          "planning_draft",
-          "implementation_join",
-          "review_dispatch",
-          "backend_implementation",
-          "frontend_implementation",
-          "architecture_artifact_update"
-        ],
         "prompt": [
           "Review backend correctness, contracts, data flow, validation, failure handling, permissions, rollout safety, observability, and tests for the slice selected by the approved plan contract.",
           "Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = backend_review.",
@@ -668,14 +566,6 @@
       "kind": "worker",
       "input": {
         "role": "frontend",
-        "state": [
-          "planning_draft",
-          "implementation_join",
-          "review_dispatch",
-          "backend_implementation",
-          "frontend_implementation",
-          "architecture_artifact_update"
-        ],
         "prompt": [
           "Review frontend correctness, data flow, state handling, accessibility-relevant behavior, and tests for the slice selected by the approved plan contract.",
           "Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = frontend_review.",
@@ -704,14 +594,6 @@
       "kind": "worker",
       "input": {
         "role": "frontend-taste",
-        "state": [
-          "planning_draft",
-          "implementation_join",
-          "review_dispatch",
-          "backend_implementation",
-          "frontend_implementation",
-          "architecture_artifact_update"
-        ],
         "prompt": [
           "Review visual/product taste, copy fit, interaction polish, and user-facing coherence for frontend-relevant changes.",
           "Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = frontend_taste_review.",
@@ -740,14 +622,6 @@
       "kind": "worker",
       "input": {
         "role": "security",
-        "state": [
-          "planning_draft",
-          "implementation_join",
-          "review_dispatch",
-          "backend_implementation",
-          "frontend_implementation",
-          "architecture_artifact_update"
-        ],
         "prompt": [
           "Review trust boundaries, injection surfaces, secret handling, permission assumptions, and unsafe automation paths for the slice selected by the approved plan contract.",
           "Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = security_review.",
@@ -776,14 +650,6 @@
       "kind": "worker",
       "input": {
         "role": "privacy-data-safety",
-        "state": [
-          "planning_draft",
-          "implementation_join",
-          "review_dispatch",
-          "backend_implementation",
-          "frontend_implementation",
-          "architecture_artifact_update"
-        ],
         "prompt": [
           "Review data minimization, sensitive content exposure, durable memory/logging risk, and user-context handling for the slice selected by the approved plan contract.",
           "Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = privacy_review.",
@@ -812,14 +678,6 @@
       "kind": "worker",
       "input": {
         "role": "qa-reliability",
-        "state": [
-          "planning_draft",
-          "implementation_join",
-          "review_dispatch",
-          "backend_implementation",
-          "frontend_implementation",
-          "architecture_artifact_update"
-        ],
         "prompt": [
           "Review verification depth, regression risk, edge cases, deterministic runtime behavior, and handoff quality for the slice selected by the approved plan contract.",
           "Return passed, needs_changes with required_implementation_steps, or blocked with blocker.source_step_id = qa_review.",
@@ -847,17 +705,6 @@
       "name": "Review join",
       "kind": "worker",
       "input": {
-        "state": [
-          "planning_draft",
-          "implementation_join",
-          "architect_review",
-          "backend_review",
-          "frontend_review",
-          "frontend_taste_review",
-          "security_review",
-          "privacy_review",
-          "qa_review"
-        ],
         "prompt": [
           "Aggregate exactly the review outputs named by the approved plan contract planning_draft.selected_review_steps from input.<step_id> fields.",
           "This is a join/decision step, not a critique pass.",
@@ -887,9 +734,6 @@
       "name": "Done",
       "kind": "done",
       "input": {
-        "state": [
-          "review_join"
-        ],
         "prompt": [
           "Workflow completed.",
           "Project review_join.verdict as the final result; do not summarize artifacts/results globals.",
@@ -904,28 +748,6 @@
       "name": "Blocked",
       "kind": "blocked",
       "input": {
-        "state": [
-          "research_draft",
-          "research_attack",
-          "architecture_draft",
-          "architecture_attack",
-          "planning_draft",
-          "planning_attack",
-          "implementation_dispatch",
-          "backend_implementation",
-          "frontend_implementation",
-          "architecture_artifact_update",
-          "implementation_join",
-          "review_dispatch",
-          "architect_review",
-          "backend_review",
-          "frontend_review",
-          "frontend_taste_review",
-          "security_review",
-          "privacy_review",
-          "qa_review",
-          "review_join"
-        ],
         "prompt": [
           "Workflow blocked.",
           "Use the blocker embedded in the exact input step output; blocker.source_step_id identifies the producing step.",
@@ -943,7 +765,6 @@
           "- Frontend implementation blocker: ${{ input.frontend_implementation.blocker | default: \"No frontend_implementation blocker available in input context.\" }}",
           "- Architecture artifact update blocker: ${{ input.architecture_artifact_update.blocker | default: \"No architecture_artifact_update blocker available in input context.\" }}",
           "- Implementation join blocker: ${{ input.implementation_join.blocker | default: \"No implementation_join blocker available in input context.\" }}",
-          "- Review dispatch blocker: ${{ input.review_dispatch.blocker | default: \"No review_dispatch blocker available in input context.\" }}",
           "- Architect review blocker: ${{ input.architect_review.blocker | default: \"No architect_review blocker available in input context.\" }}",
           "- Backend review blocker: ${{ input.backend_review.blocker | default: \"No backend_review blocker available in input context.\" }}",
           "- Frontend review blocker: ${{ input.frontend_review.blocker | default: \"No frontend_review blocker available in input context.\" }}",
