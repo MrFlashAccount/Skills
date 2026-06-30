@@ -132,14 +132,3 @@ export function artifactOutputFieldNotes(schema, options = {}) {
     ...lines,
   ].join('\n');
 }
-
-export function projectedValueFieldNotes({ stepId, schema, value, schemaDefinitions }) {
-  if (!isObject(schema) || !isObject(value)) return [];
-  const normalized = normalizeSchemaForNotes(schema, schema, [], { schemaDefinitions, failOnUnresolvedRefs: true });
-  const lines = [];
-  for (const [fieldName, fieldSchema] of Object.entries(normalized.properties ?? {})) {
-    if (!Object.hasOwn(value, fieldName) || !isObject(fieldSchema)) continue;
-    collectPropertyNotes(lines, fieldSchema, normalized, `${stepId}.${fieldName}`, { mode: 'read', usageLabel: 'Usage', schemaDefinitions });
-  }
-  return lines;
-}

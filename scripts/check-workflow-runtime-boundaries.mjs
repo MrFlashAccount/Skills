@@ -159,7 +159,7 @@ function checkBoundaries() {
     'skills/orbita/lib/runtime/expression.mjs',
     'skills/orbita/lib/runtime/role-ref.mjs',
     'skills/orbita/lib/runtime/state-keys.mjs',
-    'skills/orbita/lib/runtime/state-projection.mjs',
+    'skills/orbita/lib/runtime/state-selection.mjs',
     'skills/orbita/lib/runtime/step-status.mjs',
     'skills/orbita/lib/runtime/transition-next.mjs',
     'skills/orbita/lib/runtime/transition-targets.mjs',

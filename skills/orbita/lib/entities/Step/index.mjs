@@ -1,11 +1,11 @@
 /**
- * Step entity owns step-level input projection, transition descriptors,
+ * Step entity owns step-level transition input context, transition descriptors,
  * concrete transition resolution, and output application intent.
  */
 import { readPath } from './expressions/index.mjs';
 import { invariant } from '../../errors.mjs';
 import { applyOutputToBatonState } from '../../runtime/baton-state.mjs';
-import { projectState } from '../../runtime/state-projection.mjs';
+import { selectState } from '../../runtime/state-selection.mjs';
 import { statusForStep } from '../../runtime/step-status.mjs';
 import { assertParallelTargets, assertTransitionTarget } from '../../runtime/transition-targets.mjs';
 import {
@@ -54,8 +54,28 @@ function validateOutputKind(step, output, stepId) {
   }
 }
 
-function contextInputForStep(baton, step, stepId) {
-  return projectState({ batonState: baton.state ?? {}, selectors: step.input?.state ?? [], stepId }).value;
+function addExpressionInputSelector(selectors, expression) {
+  if (expression?.root !== 'input') return;
+  const [stepId] = expression.path;
+  if (typeof stepId === 'string' && !selectors.includes(stepId)) selectors.push(stepId);
+}
+
+function transitionInputSelectors(descriptor) {
+  const selectors = [];
+  if (descriptor.kind === NEXT_KIND.DYNAMIC_TARGET || descriptor.kind === NEXT_KIND.MATCH_CASES) {
+    addExpressionInputSelector(selectors, descriptor.expression);
+    return selectors;
+  }
+  if (descriptor.kind === NEXT_KIND.PARALLEL_ITEMS) {
+    for (const item of descriptor.items) {
+      if (item.kind === NEXT_KIND.DYNAMIC_TARGET || item.kind === NEXT_KIND.MATCH_CASES) addExpressionInputSelector(selectors, item.expression);
+    }
+  }
+  return selectors;
+}
+
+function contextInputForStep(baton, selectors, stepId) {
+  return selectState({ batonState: baton.state ?? {}, selectors, stepId }).value;
 }
 
 function assertResolvedTransitionTargets(workflow, stepId, resolved, fieldPath = 'next') {
@@ -74,7 +94,7 @@ function assertResolvedTransitionTargets(workflow, stepId, resolved, fieldPath =
 }
 
 function resolveDynamicValue({ baton, stepId, step, output, descriptor }) {
-  const input = contextInputForStep(baton, step, stepId);
+  const input = contextInputForStep(baton, transitionInputSelectors(descriptor), stepId);
   return readPath({ output, input }, descriptor.expression);
 }
 
@@ -157,7 +177,8 @@ export class Step {
   }
 
   resolveInputs(baton) {
-    return contextInputForStep(baton, this.data, this.id);
+    const descriptor = Object.hasOwn(this.data, 'next') ? normalizeTransitionNext(this.data.next) : undefined;
+    return contextInputForStep(baton, descriptor ? transitionInputSelectors(descriptor) : [], this.id);
   }
 
   resolveConcreteTargets(baton, workflow, output = baton?.state?.[this.id]) {

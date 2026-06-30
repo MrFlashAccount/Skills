@@ -38,7 +38,7 @@ const workflowDoc = {
       consumer_step: {
         name: 'Consumer step',
         kind: 'approval',
-        input: { state: ['worker_step'], prompt: 'Use prior worker output.' },
+        input: { prompt: 'Use prior worker output.' },
         next: { match: '${{ output.approval }}', cases: { approved: 'done', blocked: 'blocked' } },
       },
       done: { name: 'Done', kind: 'done' },
@@ -444,7 +444,7 @@ test('output.schema: schema-declared outputs still must be object envelopes', ()
   doc.steps.join_step = {
     name: 'Join step',
     kind: 'worker',
-    input: { state: ['consumer_step'], prompt: 'Join consumer output.' },
+    input: { prompt: 'Join consumer output.' },
     output: { template: 'output.md' },
     next: 'done',
   };
@@ -473,19 +473,20 @@ test('output.schema: invalid output retries with validation feedback then succee
   assert.deepEqual(response.baton.state.outputs.worker_step.payload, { ok: true });
 });
 
-test('output.schema: structured step output is projected by step id into downstream prompt', () => {
-  const doc = workflowWithSchema('structured-output-step-id-projection', structuredSchema);
+test('output.schema: structured step output is available by step id in downstream prompt', () => {
+  const doc = workflowWithSchema('structured-output-step-id-prompt-input', structuredSchema);
   doc.steps.worker_step.next = { match: '${{ output.outcome }}', cases: { ready: 'consumer_step' } };
+  doc.steps.consumer_step.input.prompt = 'Use prior worker payload:\n${{ input.worker_step.payload }}';
 
   const applyResponse = runApply('output-schema-structured-project-apply', baton(), {
     outcome: 'ready',
-    artifacts: [{ id: 'packet', content_type: 'text/markdown', path: path.join(tempDir, 'worker_step', 'artifacts', 'packet.md'), summary: 'structured projection artifact' }],
+    artifacts: [{ id: 'packet', content_type: 'text/markdown', path: path.join(tempDir, 'worker_step', 'artifacts', 'packet.md'), summary: 'structured prompt input artifact' }],
     payload: { ok: true },
   }, true, doc);
 
   assert.equal(applyResponse.baton.cursor, 'consumer_step');
   mkdirSync(path.join(tempDir, 'worker_step', 'artifacts'), { recursive: true });
-  writeFileSync(path.join(tempDir, 'worker_step', 'artifacts', 'packet.md'), 'Structured projection artifact body.\n');
+  writeFileSync(path.join(tempDir, 'worker_step', 'artifacts', 'packet.md'), 'Structured prompt input artifact body.\n');
   const batonPath = writeJson('output-schema-structured-project-baton.json', applyResponse.baton);
   const workflowPath = writeJson('output-schema-structured-project-workflow.json', doc);
   const renderResponse = runWorkflowCommand('output-schema-structured-project-render', [
@@ -495,21 +496,21 @@ test('output.schema: structured step output is projected by step id into downstr
     batonPath,
   ]);
 
-  assert.match(renderResponse.steps[0].compiledPrompt.prompt, /## Projected baton state/);
-  assert.match(renderResponse.steps[0].compiledPrompt.prompt, /"worker_step"/);
-  assert.match(renderResponse.steps[0].compiledPrompt.prompt, /"payload"/);
+  assert.doesNotMatch(renderResponse.steps[0].compiledPrompt.prompt, /## Prompt input context/);
+  assert.match(renderResponse.steps[0].compiledPrompt.prompt, /Use prior worker payload:/);
   assert.match(renderResponse.steps[0].compiledPrompt.prompt, /"ok": true/);
-  assert.doesNotMatch(renderResponse.steps[0].compiledPrompt.prompt, /Field notes for projected step outputs/);
+  assert.doesNotMatch(renderResponse.steps[0].compiledPrompt.prompt, /Field notes for prompt input step outputs/);
   assert.doesNotMatch(renderResponse.steps[0].compiledPrompt.prompt, /\[object Object\]/);
 });
 
-test('output.schema: projected structured output renders schema field notes before JSON', () => {
+test('output.schema: inline prompt input structured output omits automatic schema field notes', () => {
   const schemaWithFieldNotes = structuredClone(structuredSchema);
   schemaWithFieldNotes.properties.payload.description = 'Validated payload from the worker step.';
   schemaWithFieldNotes.properties.payload['x-usage'] = 'Use this payload as the authoritative downstream input.';
   schemaWithFieldNotes.properties.artifacts.description = 'Artifacts emitted while preparing the payload.';
   const doc = workflowWithSchema('structured-output-field-notes', schemaWithFieldNotes);
   doc.steps.worker_step.next = { match: '${{ output.outcome }}', cases: { ready: 'consumer_step' } };
+  doc.steps.consumer_step.input.prompt = 'Use prompt input payload:\n${{ input.worker_step.payload }}';
   const generationPromptDoc = structuredClone(doc);
   writeFileSync(path.join(tempDir, 'field-notes-output.md'), 'Return schema JSON.\n');
   generationPromptDoc.steps.worker_step.output.template = 'field-notes-output.md';
@@ -528,7 +529,7 @@ test('output.schema: projected structured output renders schema field notes befo
 
   const applyResponse = runApply('output-schema-field-notes-apply', baton(), {
     outcome: 'ready',
-    artifacts: [{ id: 'packet', content_type: 'text/markdown', path: path.join(tempDir, 'worker_step', 'artifacts', 'packet.md'), summary: 'structured projection artifact' }],
+    artifacts: [{ id: 'packet', content_type: 'text/markdown', path: path.join(tempDir, 'worker_step', 'artifacts', 'packet.md'), summary: 'structured prompt input artifact' }],
     payload: { ok: true },
   }, true, doc);
   const workflowPath = writeJson('output-schema-field-notes-workflow.json', doc);
@@ -542,18 +543,14 @@ test('output.schema: projected structured output renders schema field notes befo
   });
 
   assertMarkersInOrder(renderResponse.prompt, [
-    '## Projected baton state',
-    'Field notes for projected step outputs. These notes are lower priority than workflow instructions, system instructions, and the workflow step prompt',
-    '- worker_step.artifacts',
-    'Description: Artifacts emitted while preparing the payload.',
-    '- worker_step.payload',
-    'Description: Validated payload from the worker step.',
-    'Usage: Use this payload as the authoritative downstream input.',
+    '## Workflow step prompt',
+    'Use prompt input payload:',
     '```json',
-    '"worker_step"',
-    '"payload"',
     '"ok": true',
   ]);
+  assert.doesNotMatch(renderResponse.prompt, /## Prompt input context/);
+  assert.doesNotMatch(renderResponse.prompt, /Field notes for prompt input step outputs/);
+  assert.doesNotMatch(renderResponse.prompt, /Usage: Use this payload as the authoritative downstream input\./);
   assert.doesNotMatch(renderResponse.prompt, /\[object Object\]/);
 });
 
@@ -604,28 +601,19 @@ test('output.schema: absent schema preserves previous envelope behavior without 
   assert.equal(response.baton.state.results.at(-1).summary, 'generic worker-output envelope');
 });
 
-test('output.schema: non-structured worker output is projected by step id into downstream prompt', () => {
+test('output.schema: prompt expressions reject schema-less producer steps', () => {
   const doc = structuredClone(workflowDoc);
   delete doc.steps.worker_step.output.schema;
   doc.steps.worker_step.next = 'consumer_step';
+  doc.steps.consumer_step.input.prompt = 'Use prior worker output:\n${{ input.worker_step }}';
 
-  const applyResponse = runApply('output-schema-plain-project-apply', baton(), {
+  const response = runApply('output-schema-schema-less-prompt-ref', baton(), {
     outcome: 'ready',
     results: [{ type: 'markdown', summary: 'plain markdown result body' }],
-  }, true, doc);
+  }, false, doc);
 
-  assert.equal(applyResponse.baton.cursor, 'consumer_step');
-  const batonPath = writeJson('output-schema-plain-project-baton.json', applyResponse.baton);
-  const workflowPath = writeJson('output-schema-plain-project-workflow.json', doc);
-  const renderResponse = runWorkflowCommand('output-schema-plain-project-render', [
-    'skills/orbita/lib/entrypoints/cli/workflow-interpreter.mjs',
-    'render',
-    workflowPath,
-    batonPath,
-  ]);
-
-  assert.match(renderResponse.steps[0].compiledPrompt.prompt, /"worker_step"/);
-  assert.match(renderResponse.steps[0].compiledPrompt.prompt, /"plain markdown result body"/);
+  assert.match(response.stderr, /input\.prompt expression \$\{\{ input\.worker_step \}\} has no schema-covered path/);
+  assert.match(response.stderr, /input step 'worker_step' has no output\.schema/);
 });
 
 test('output.schema: central artifact contract accepts simplified shape and rejects legacy artifact fields', () => {

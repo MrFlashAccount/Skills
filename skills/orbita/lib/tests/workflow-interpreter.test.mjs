@@ -85,20 +85,20 @@ const schemaWorkflowDoc = {
       worker_step: {
         name: 'Worker step',
         kind: 'worker',
-        input: { template: 'worker.md', role: 'backend', state: ['worker_step'], prompt: 'Run worker.' },
+        input: { template: 'worker.md', role: 'backend', prompt: 'Run worker.' },
         output: outputContract(),
         next: { match: '${{ output.outcome }}', cases: { ready: 'approval_step', retry: 'worker_step', blocked: 'blocked' } },
       },
       approval_step: {
         name: 'Approval step',
         kind: 'approval',
-        input: { state: ['worker_step'], prompt: 'Approve.' },
+        input: { prompt: 'Approve.' },
         next: { match: '${{ output.approval }}', cases: { approved: 'direct_next_worker', rejected: 'worker_step', blocked: 'blocked' } },
       },
       direct_next_worker: {
         name: 'Direct next worker',
         kind: 'worker',
-        input: { template: 'direct.md', state: ['worker_step'] },
+        input: { template: 'direct.md' },
         output: outputContract(),
         next: 'done',
       },
@@ -118,7 +118,7 @@ const e2eWorkflowDoc = {
       worker_step: {
         name: 'Worker step',
         kind: 'worker',
-        input: { template: 'worker.md', role: 'backend', state: ['worker_step'], prompt: 'Run worker.' },
+        input: { template: 'worker.md', role: 'backend', prompt: 'Run worker.' },
         output: outputContract(),
         next: {
           match: '${{ output.outcome }}',
@@ -132,20 +132,20 @@ const e2eWorkflowDoc = {
       approval_step: {
         name: 'Approval step',
         kind: 'approval',
-        input: { state: ['worker_step'], prompt: 'Approve.' },
+        input: { prompt: 'Approve.' },
         next: { match: '${{ output.approval }}', cases: { approved: 'implementation_worker', rejected: 'worker_step', blocked: 'blocked' } },
       },
       implementation_worker: {
         name: 'Implementation worker',
         kind: 'worker',
-        input: { template: 'implementation.md', state: ['worker_step', 'approval_step'] },
+        input: { template: 'implementation.md' },
         output: outputContract(),
         next: 'review_worker',
       },
       review_worker: {
         name: 'Review worker',
         kind: 'worker',
-        input: { template: 'review.md', state: ['worker_step', 'approval_step'] },
+        input: { template: 'review.md' },
         output: outputContract('review'),
         next: { match: '${{ output.outcome }}', cases: { ready: 'done', blocked: 'blocked' } },
       },
@@ -245,29 +245,25 @@ function runApply(label, batonDoc, workerOutput, expectSuccess = true, workflowD
   return response;
 }
 
-test('runtime guard: inspect rejects reserved input.state selectors even when schema validation passes', () => {
+test('schema validation: worker input rejects removed state field', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc.steps.approval_step.input.state = ['artifacts'];
+  workflowDoc.steps.worker_step.input['state'] = ['worker_step'];
+  const response = runInspect('worker-removed-state-field', baton(), false, workflowDoc);
 
-  const response = runInspect('runtime-reserved-selector-inspect', baton({ cursor: 'approval_step', status: 'running' }), false, workflowDoc);
-
-  assert.match(response.stderr, /reserved state selector 'artifacts'.*runtime aggregate state/);
+  assert.match(response.stderr, /workflow failed schema validation/);
 });
 
-test('runtime guard: inspect rejects undeclared input.state selectors even when semantic validation is bypassed', () => {
+test('schema validation: approval input rejects removed state field', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc.steps.approval_step.input.state = ['missing_step'];
+  workflowDoc.steps.approval_step.input['state'] = ['worker_step'];
+  const response = runInspect('approval-removed-state-field', baton({ cursor: 'approval_step', status: 'running' }), false, workflowDoc);
 
-  const response = runInspect('runtime-missing-state-selector-inspect', baton({ cursor: 'approval_step', status: 'running' }), false, workflowDoc);
-
-  assert.match(response.stderr, /input\.state selector 'missing_step'.*declared workflow step/);
+  assert.match(response.stderr, /workflow failed schema validation/);
 });
 
 test('runtime guard: apply rejects reserved workflow step ids even when semantic validation is bypassed', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
   workflowDoc.start = 'artifacts';
-  workflowDoc.steps.approval_step.input.state = [];
-  workflowDoc.steps.direct_next_worker.input.state = [];
   workflowDoc.steps.artifacts = workflowDoc.steps.worker_step;
   delete workflowDoc.steps.worker_step;
 
@@ -771,7 +767,7 @@ test('schema validation: approval output accepts request-specific JSON fields', 
   assert.deepEqual(response.baton.state.approval_step, { choice: 'option_a', answer: 'Use the safer implementation path.', confidence: 0.82 });
 });
 
-test('apply: next directive exposes target step input state selectors after transition', () => {
+test('apply: next directive does not expose removed state field after transition', () => {
   const response = runApply(
     'next-directive-target-state-selectors',
     baton({
@@ -786,7 +782,7 @@ test('apply: next directive exposes target step input state selectors after tran
 
   assert.equal(response.steps[0].id, 'direct_next_worker');
   assert.equal(response.steps[0].action, 'run_worker');
-  assert.deepEqual(response.steps[0].step.input.state, ['worker_step']);
+  assert.equal(Object.hasOwn(response.steps[0].step.input, 'state'), false);
   assert.deepEqual(response.baton.state.artifacts, [aggregateArtifact('packet', 'ready packet')]);
   assert.deepEqual(response.baton.state.results, [{ type: 'approval', summary: 'approved' }]);
 });
@@ -1031,16 +1027,6 @@ test('schema validation: step input rejects wrapper-owned nested fields', () => 
   const terminalInputExtension = structuredClone(schemaWorkflowDoc);
   terminalInputExtension.steps.done.input.operatorHints = { prompt: 'wrapper-owned-done-prompt.md' };
   assert.match(runInspect('terminal-input-wrapper-field', baton({ cursor: 'done', status: 'done' }), false, terminalInputExtension).stderr, /workflow failed schema validation/);
-});
-
-test('schema validation: input state selectors must be unique non-empty strings', () => {
-  const duplicateSelector = structuredClone(schemaWorkflowDoc);
-  duplicateSelector.steps.worker_step.input.state = ['worker_step', 'worker_step'];
-  assert.match(runInspect('duplicate-worker-state-selector', baton(), false, duplicateSelector).stderr, /workflow failed schema validation/);
-
-  const emptyApprovalSelector = structuredClone(schemaWorkflowDoc);
-  emptyApprovalSelector.steps.approval_step.input.state = [''];
-  assert.match(runInspect('empty-approval-state-selector', baton({ cursor: 'approval_step' }), false, emptyApprovalSelector).stderr, /workflow failed schema validation/);
 });
 
 test('schema validation: approval input rejects worker-only role field', () => {

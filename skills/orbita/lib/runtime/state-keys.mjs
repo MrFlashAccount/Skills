@@ -26,7 +26,7 @@ export function assertProjectableStateSelector(selector, { stepId = '', errorPre
 
   if (isReservedStateKey(selector)) {
     throw new WorkflowRuntimeError(
-      `${errorPrefix}: step '${stepId}' uses reserved state selector '${selector}'; selector is reserved for runtime aggregate state and cannot be projected`,
+      `${errorPrefix}: step '${stepId}' uses reserved state selector '${selector}'; selector is reserved for runtime aggregate state and cannot be selected as step input`,
     );
   }
 

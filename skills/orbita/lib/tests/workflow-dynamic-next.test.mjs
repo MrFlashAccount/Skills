@@ -79,27 +79,26 @@ function schemaForNext(next) {
 
 function workflow(next = '${{ output.next }}', selectorSchema = schemaForNext(next)) {
   return {
-      name: 'dynamic-next-spec',
-      version: 1,
-      start: 'selector',
-      done: 'done',
-      blocked: 'blocked',
-      steps: {
-        selector: {
-          name: 'Selector',
-          kind: 'worker',
-          input: { state: ['planning_draft'], prompt: 'Select next.' },
-          output: outputContract(selectorSchema),
-          next,
-        },
-        planning_draft: { name: 'Planning draft', kind: 'worker', input: {}, output: outputContract('planning-draft-output-schema.json'), next: 'selector' },
-        review_a: { name: 'Review A', kind: 'worker', input: {}, output: outputContract(), next: 'join' },
-        review_b: { name: 'Review B', kind: 'worker', input: {}, output: outputContract(), next: 'join' },
-        join: { name: 'Join', kind: 'worker', input: { state: ['review_a', 'review_b'] }, output: outputContract(), next: 'done' },
-        done: { name: 'Done', kind: 'done', input: { prompt: 'Done.' } },
-        blocked: { name: 'Blocked', kind: 'blocked', input: { prompt: 'Blocked.' } },
+    name: 'dynamic-next-spec',
+    version: 1,
+    start: 'selector',
+    done: 'done',
+    blocked: 'blocked',
+    steps: {
+      selector: {
+        name: 'Selector',
+        kind: 'worker',
+        input: { prompt: 'Select next.' },
+        output: outputContract(selectorSchema),
+        next,
       },
-
+      planning_draft: { name: 'Planning draft', kind: 'worker', input: {}, output: outputContract('planning-draft-output-schema.json'), next: 'selector' },
+      review_a: { name: 'Review A', kind: 'worker', input: {}, output: outputContract(), next: 'join' },
+      review_b: { name: 'Review B', kind: 'worker', input: {}, output: outputContract(), next: 'join' },
+      join: { name: 'Join', kind: 'worker', input: {}, output: outputContract(), next: 'done' },
+      done: { name: 'Done', kind: 'done', input: { prompt: 'Done.' } },
+      blocked: { name: 'Blocked', kind: 'blocked', input: { prompt: 'Blocked.' } },
+    },
   };
 }
 
@@ -189,16 +188,9 @@ test('dynamic output array prepares and executes parallel steps like static arra
   assert.deepEqual(joined.baton.state.results.map((result) => result.summary), ['a', 'b']);
 });
 
-test('dynamic input projected state path routes correctly', () => {
+test('dynamic input state path routes correctly', () => {
   const response = runApply('input-path', baton(), { outcome: 'ready' }, true, workflow('${{ input.planning_draft.selected_reviewers }}'));
   assert.deepEqual(response.steps.map((step) => step.id), ['review_a', 'review_b']);
-});
-
-test('dynamic input path not projected errors deterministically', () => {
-  const workflowDoc = workflow('${{ input.planning_draft.selected_reviewers }}');
-  workflowDoc.steps.selector.input.state = [];
-  const result = runApply('input-not-projected', baton(), { outcome: 'ready' }, false, workflowDoc);
-  assert.match(result.stderr, /does not project input state 'planning_draft'/);
 });
 
 test('dynamic next rejects missing paths and invalid resolved values', () => {
@@ -268,7 +260,6 @@ test('dynamic parallel next enforces join-shape validation', () => {
   const selfJoinWorkflow = workflow('${{ output.selected_steps }}');
   selfJoinWorkflow.steps.review_a.next = 'review_b';
   selfJoinWorkflow.steps.review_b.next = 'review_b';
-  selfJoinWorkflow.steps.review_b.input = { state: ['review_a', 'review_b'] };
   assert.match(
     runApply('dynamic-self-join-target', baton(), { outcome: 'ready', selected_steps: ['review_a', 'review_b'] }, false, selfJoinWorkflow).stderr,
     /parallel branch targets must converge on a separate explicit join step 'review_b'/,
@@ -281,7 +272,7 @@ test('match/cases output path routes string target', () => {
   assert.equal(matched.baton.cursor, 'review_b');
 });
 
-test('match/cases input projected path routes target', () => {
+test('match/cases input path routes target', () => {
   const matchWorkflow = workflow({ match: '${{ input.planning_draft.route }}', cases: { review: 'review_a', blocked: 'blocked' } });
   const matched = runApply(
     'match-cases-input-string',

@@ -61,7 +61,7 @@ function inlineInstructionForStep(step, { runId, runsRoot, leaseToken } = {}) {
     "",
     "The orchestrator must execute this approval instruction itself.",
     "Use the following compiled approval prompt as the complete source for the user-facing approval message.",
-    "When the compiled approval prompt lists required-read files or projected artifact paths, attach those artifact files through the host/platform approval mechanism before asking for a decision.",
+    "When the compiled approval prompt lists required-read files or prompt input artifact paths, attach those artifact files through the host/platform approval mechanism before asking for a decision.",
     "Do not replace artifact attachments with summaries or inline full artifact bodies. If the host cannot attach or link a listed artifact, state that capability gap explicitly in the approval message and include the path/reference that could not be attached.",
     "Do not inspect workflow source, runner internals, schema files, or CLI help to reconstruct approval output.",
     writeOutputCommand

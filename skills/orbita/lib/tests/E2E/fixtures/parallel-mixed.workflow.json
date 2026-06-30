@@ -29,13 +29,16 @@
       "name": "Lint",
       "kind": "worker",
       "input": {
-        "state": [
-          "prepare"
-        ],
-        "prompt": "Run lint branch."
+        "prompt": [
+          "Run lint branch.",
+          "",
+          "Prepare result:",
+          "${{ input.prepare.results }}"
+        ]
       },
       "output": {
-        "template": "output.md"
+        "template": "output.md",
+        "schema": "schemas/routing-ready.schema.json"
       },
       "next": "join"
     },
@@ -43,13 +46,16 @@
       "name": "Build",
       "kind": "worker",
       "input": {
-        "state": [
-          "prepare"
-        ],
-        "prompt": "Run build branch."
+        "prompt": [
+          "Run build branch.",
+          "",
+          "Prepare result:",
+          "${{ input.prepare.results }}"
+        ]
       },
       "output": {
-        "template": "output.md"
+        "template": "output.md",
+        "schema": "schemas/routing-ready.schema.json"
       },
       "next": "join"
     },
@@ -57,14 +63,19 @@
       "name": "Join",
       "kind": "worker",
       "input": {
-        "state": [
-          "lint",
-          "build"
-        ],
-        "prompt": "Synthesize branch outputs."
+        "prompt": [
+          "Synthesize branch outputs.",
+          "",
+          "Lint result:",
+          "${{ input.lint.results }}",
+          "",
+          "Build result:",
+          "${{ input.build.results }}"
+        ]
       },
       "output": {
-        "template": "output.md"
+        "template": "output.md",
+        "schema": "schemas/routing-ready.schema.json"
       },
       "next": "done"
     },

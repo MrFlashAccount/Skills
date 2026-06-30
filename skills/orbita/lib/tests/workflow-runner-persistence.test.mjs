@@ -12,6 +12,20 @@ import { resolveRunPaths } from '../persistence/run-state/paths.mjs';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-runner-check-'));
 writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
+writeFileSync(path.join(tempDir, 'output.schema.json'), `${JSON.stringify({
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  required: ['outcome'],
+  properties: {
+    outcome: { type: 'string' },
+  },
+  additionalProperties: true,
+}, null, 2)}\n`);
+writeFileSync(path.join(tempDir, 'approval-freeform.schema.json'), `${JSON.stringify({
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  additionalProperties: true,
+}, null, 2)}\n`);
 const testLeaseToken = `workflow-runner-test-token-${process.pid}`;
 const leaseTokensByRunId = new Map();
 process.env.WORKFLOW_RUN_TOKEN = testLeaseToken;
@@ -27,28 +41,28 @@ const workflowDoc = {
         name: 'Prepare',
         kind: 'worker',
         input: { prompt: 'Prepare branch.' },
-        output: { template: 'output.md' },
+        output: { template: 'output.md', schema: 'output.schema.json' },
         next: ['branch_a', 'branch_b'],
       },
       branch_a: {
         name: 'Branch A',
         kind: 'worker',
-        input: { state: ['prepare'], prompt: 'Run branch A.' },
-        output: { template: 'output.md' },
+        input: { prompt: 'Run branch A.\nPrepare output:\n${{ input.prepare }}' },
+        output: { template: 'output.md', schema: 'output.schema.json' },
         next: 'join',
       },
       branch_b: {
         name: 'Branch B',
         kind: 'worker',
-        input: { state: ['prepare'], prompt: 'Run branch B.' },
-        output: { template: 'output.md' },
+        input: { prompt: 'Run branch B.\nPrepare output:\n${{ input.prepare }}' },
+        output: { template: 'output.md', schema: 'output.schema.json' },
         next: 'join',
       },
       join: {
         name: 'Join',
         kind: 'worker',
-        input: { state: ['branch_a', 'branch_b'], prompt: 'Join branch output.' },
-        output: { template: 'output.md' },
+        input: { prompt: 'Join branch output.\nBranch A:\n${{ input.branch_a }}\nBranch B:\n${{ input.branch_b }}' },
+        output: { template: 'output.md', schema: 'output.schema.json' },
         next: 'done',
       },
       done: { name: 'Done', kind: 'done', input: { prompt: 'Finished.' } },
@@ -228,8 +242,8 @@ test('runner: persisted user prompt injection marker survives workflow drift on 
 
   delete driftWorkflow.steps.prepare;
   driftWorkflow.start = 'branch_a';
-  driftWorkflow.steps.branch_a.input.state = [];
-  driftWorkflow.steps.branch_b.input.state = [];
+  driftWorkflow.steps.branch_a.input.prompt = 'Run branch A.';
+  driftWorkflow.steps.branch_b.input.prompt = 'Run branch B.';
   writeJson(workflowPath, driftWorkflow);
   const resumed = expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'rerender after workflow drift');
   assert.equal(resumed.baton.user_prompt_injected, true);
@@ -293,7 +307,7 @@ test('runner: wait_for_approval request accepts request-specific host output JSO
     done: approvalWorkflow.steps.done,
     blocked: approvalWorkflow.steps.blocked,
   };
-  approvalWorkflow.steps.join.input.state = [];
+  approvalWorkflow.steps.join.input.prompt = 'Join without branch prompt input.';
   approvalWorkflow.steps.join.next = 'done';
   writeJson(workflowPath, approvalWorkflow);
 
@@ -326,7 +340,7 @@ test('runner: single approval request applies output by current stepId', () => {
     done: approvalWorkflow.steps.done,
     blocked: approvalWorkflow.steps.blocked,
   };
-  approvalWorkflow.steps.join.input.state = [];
+  approvalWorkflow.steps.join.input.prompt = 'Join without branch prompt input.';
   approvalWorkflow.steps.join.next = 'done';
   writeJson(workflowPath, approvalWorkflow);
 
@@ -457,8 +471,8 @@ test('runner: typed approval static parallel next preserves approval output in s
     done: approvalWorkflow.steps.done,
     blocked: approvalWorkflow.steps.blocked,
   };
-  approvalWorkflow.steps.branch_a.input.state = ['choose_path'];
-  approvalWorkflow.steps.branch_b.input.state = ['choose_path'];
+  approvalWorkflow.steps.branch_a.input.prompt = 'Run branch A from approval output:\n${{ input.choose_path }}';
+  approvalWorkflow.steps.branch_b.input.prompt = 'Run branch B from approval output:\n${{ input.choose_path }}';
   approvalWorkflow.steps.join.next = 'done';
   writeJson(workflowPath, approvalWorkflow);
 
@@ -488,6 +502,7 @@ test('runner: generic approval static parallel next preserves approval output in
       name: 'Choose path',
       kind: 'approval',
       input: { prompt: 'Ask the user whether to fan out.' },
+      output: { schema: 'approval-freeform.schema.json' },
       next: ['branch_a', 'branch_b'],
     },
     branch_a: approvalWorkflow.steps.branch_a,
@@ -496,8 +511,8 @@ test('runner: generic approval static parallel next preserves approval output in
     done: approvalWorkflow.steps.done,
     blocked: approvalWorkflow.steps.blocked,
   };
-  approvalWorkflow.steps.branch_a.input.state = ['choose_path'];
-  approvalWorkflow.steps.branch_b.input.state = ['choose_path'];
+  approvalWorkflow.steps.branch_a.input.prompt = 'Run branch A from approval output:\n${{ input.choose_path }}';
+  approvalWorkflow.steps.branch_b.input.prompt = 'Run branch B from approval output:\n${{ input.choose_path }}';
   approvalWorkflow.steps.join.next = 'done';
   writeJson(workflowPath, approvalWorkflow);
 
@@ -526,6 +541,7 @@ test('runner: selected startup prompt target survives static parallel workflow o
       name: 'Choose path',
       kind: 'approval',
       input: { prompt: 'Ask whether to fan out.' },
+      output: { schema: 'approval-freeform.schema.json' },
       next: ['branch_a', 'branch_b'],
     },
     branch_a: approvalWorkflow.steps.branch_a,
@@ -534,8 +550,8 @@ test('runner: selected startup prompt target survives static parallel workflow o
     done: approvalWorkflow.steps.done,
     blocked: approvalWorkflow.steps.blocked,
   };
-  approvalWorkflow.steps.branch_a.input.state = ['choose_path'];
-  approvalWorkflow.steps.branch_b.input.state = ['choose_path'];
+  approvalWorkflow.steps.branch_a.input.prompt = 'Run branch A.';
+  approvalWorkflow.steps.branch_b.input.prompt = 'Run branch B.';
   approvalWorkflow.steps.join.next = 'done';
   writeJson(workflowPath, approvalWorkflow);
   const rawPrompt = 'Prompt must stay with originally selected branch.';
@@ -590,8 +606,8 @@ test('runner: startup prompt static fanout selects renderable worker instead of 
     done: fanoutWorkflow.steps.done,
     blocked: fanoutWorkflow.steps.blocked,
   };
-  fanoutWorkflow.steps.work_b.input.state = ['choose_path'];
-  fanoutWorkflow.steps.join.input.state = ['approval_before_worker', 'work_b'];
+  fanoutWorkflow.steps.work_b.input.prompt = 'Run worker B.';
+  fanoutWorkflow.steps.join.input.prompt = 'Join approval and worker B.';
   fanoutWorkflow.steps.join.next = 'done';
   writeJson(workflowPath, fanoutWorkflow);
   const rawPrompt = 'Prompt belongs to the worker visible in the first fanout response.';
@@ -624,6 +640,7 @@ test('runner: startup prompt target removal before first output fails loudly ins
       name: 'Choose path',
       kind: 'approval',
       input: { prompt: 'Ask whether to fan out.' },
+      output: { schema: 'approval-freeform.schema.json' },
       next: ['branch_a', 'branch_b'],
     },
     branch_a: approvalWorkflow.steps.branch_a,
@@ -632,8 +649,8 @@ test('runner: startup prompt target removal before first output fails loudly ins
     done: approvalWorkflow.steps.done,
     blocked: approvalWorkflow.steps.blocked,
   };
-  approvalWorkflow.steps.branch_a.input.state = ['choose_path'];
-  approvalWorkflow.steps.branch_b.input.state = ['choose_path'];
+  approvalWorkflow.steps.branch_a.input.prompt = 'Run branch A.';
+  approvalWorkflow.steps.branch_b.input.prompt = 'Run branch B.';
   writeJson(workflowPath, approvalWorkflow);
 
   const initial = expectRunner(['next', '--run-id', runId, '--workflow', workflowPath, '--user-prompt', 'Prompt must not disappear.'], 'next approval before target removal');
@@ -641,7 +658,7 @@ test('runner: startup prompt target removal before first output fails loudly ins
 
   delete approvalWorkflow.steps.branch_a;
   approvalWorkflow.steps.choose_path.next = ['branch_b'];
-  approvalWorkflow.steps.join.input.state = ['branch_b'];
+  approvalWorkflow.steps.join.input.prompt = 'Join branch B:\n${{ input.branch_b }}';
   writeJson(workflowPath, approvalWorkflow);
   const approvalOutput = path.join(runDir, 'choose-path-output-removed.json');
   writeJson(approvalOutput, { approval: 'approved' });
@@ -661,6 +678,7 @@ test('runner: untyped approval static parallel applies branch outputs and persis
       name: 'Choose path',
       kind: 'approval',
       input: { prompt: 'Ask whether to fan out.' },
+      output: { schema: 'approval-freeform.schema.json' },
       next: ['branch_a', 'branch_b'],
     },
     branch_a: approvalWorkflow.steps.branch_a,
@@ -669,8 +687,8 @@ test('runner: untyped approval static parallel applies branch outputs and persis
     done: approvalWorkflow.steps.done,
     blocked: approvalWorkflow.steps.blocked,
   };
-  approvalWorkflow.steps.branch_a.input.state = ['choose_path'];
-  approvalWorkflow.steps.branch_b.input.state = ['choose_path'];
+  approvalWorkflow.steps.branch_a.input.prompt = 'Run branch A from approval output:\n${{ input.choose_path }}';
+  approvalWorkflow.steps.branch_b.input.prompt = 'Run branch B from approval output:\n${{ input.choose_path }}';
   approvalWorkflow.steps.join.next = 'done';
   writeJson(workflowPath, approvalWorkflow);
   const rawPrompt = 'Prompt marker should persist exactly once.';
@@ -729,9 +747,10 @@ test('runner: continue accepts mixed run_worker and user-input outputs in one ba
     name: 'Choose path',
     kind: 'approval',
     input: { prompt: 'Ask for the user choice before joining.' },
+    output: { schema: 'approval-freeform.schema.json' },
     next: 'join',
   };
-  mixedWorkflow.steps.join.input.state = ['branch_a', 'choose_path'];
+  mixedWorkflow.steps.join.input.prompt = 'Join branch A and approval:\n${{ input.branch_a }}\n${{ input.choose_path }}';
   mixedWorkflow.steps.join.next = 'done';
   writeJson(workflowPath, mixedWorkflow);
 

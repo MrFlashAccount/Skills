@@ -108,6 +108,22 @@ test('workflow schema permits empty workflow-level instruction values as optiona
   assert.doesNotThrow(() => assertWorkflowSchema(minimalWorkflowDoc({ instructions: '  \n\t' })));
 });
 
+test('workflow schema accepts prompt arrays for multiline authoring', () => {
+  assert.doesNotThrow(() => assertWorkflowSchema(minimalWorkflowDoc({
+    steps: {
+      worker_step: {
+        name: 'Worker step',
+        kind: 'worker',
+        input: { prompt: ['Line one.', '', 'Line three.'] },
+        output: { template: 'output.md' },
+        next: 'done',
+      },
+      done: { name: 'Done', kind: 'done', input: { prompt: ['Finished.'] } },
+      blocked: { name: 'Blocked', kind: 'blocked', input: { prompt: ['Blocked.'] } },
+    },
+  })));
+});
+
 test('runner host response schema enforces action-conditional reuse hint fields', () => {
   const validRunWorker = {
     status: 'needs_host_actions',

@@ -8,7 +8,7 @@ const validParserCases = [
   ['spaced output path', '${{ output.next }}', ['output', 'next']],
   ['compact output path', '${{output.next}}', ['output', 'next']],
   ['extra inner whitespace', '${{   output.next   }}', ['output', 'next']],
-  ['projected input path', '${{ input.planning_draft.selected_reviewers }}', ['input', 'planning_draft', 'selected_reviewers']],
+  ['prompt input path', '${{ input.planning_draft.selected_reviewers }}', ['input', 'planning_draft', 'selected_reviewers']],
   ['underscore and hyphen segment', '${{ output.review_step-2 }}', ['output', 'review_step-2']],
   ['digits after first character', '${{ output.next_2.step-3 }}', ['output', 'next_2', 'step-3']],
 ];
@@ -55,7 +55,7 @@ test('expression evaluator resolves output values', () => {
   assert.equal(evaluatePathExpression('${{ output.next }}', { output: { next: 'done' }, input: {} }), 'done');
 });
 
-test('expression evaluator resolves projected input values', () => {
+test('expression evaluator resolves prompt input values', () => {
   assert.deepEqual(
     evaluatePathExpression('${{ input.planning_draft.selected_reviewers }}', {
       output: {},

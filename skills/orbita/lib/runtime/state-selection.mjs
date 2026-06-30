@@ -1,8 +1,8 @@
 import { assertProjectableStateSelector } from './state-keys.mjs';
 
-export function projectState({ batonState = {}, selectors = [], stepId = '' } = {}) {
+export function selectState({ batonState = {}, selectors = [], stepId = '' } = {}) {
   const value = {};
-  const projectedKeys = [];
+  const selectedKeys = [];
   const diagnostics = [];
 
   for (const selector of selectors ?? []) {
@@ -11,10 +11,10 @@ export function projectState({ batonState = {}, selectors = [], stepId = '' } = 
     if (!Object.hasOwn(batonState, selector)) continue;
 
     value[selector] = structuredClone(batonState[selector]);
-    projectedKeys.push(selector);
+    selectedKeys.push(selector);
   }
 
-  return { value, projectedKeys, diagnostics };
+  return { value, selectedKeys, diagnostics };
 }
 
 export function fencedJson(value) {

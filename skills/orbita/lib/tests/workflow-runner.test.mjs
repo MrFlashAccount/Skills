@@ -34,21 +34,21 @@ const workflowDoc = {
       branch_a: {
         name: 'Branch A',
         kind: 'worker',
-        input: { state: ['prepare'], prompt: 'Run branch A.' },
+        input: { prompt: 'Run branch A.' },
         output: { template: 'output.md' },
         next: 'join',
       },
       branch_b: {
         name: 'Branch B',
         kind: 'worker',
-        input: { state: ['prepare'], prompt: 'Run branch B.' },
+        input: { prompt: 'Run branch B.' },
         output: { template: 'output.md' },
         next: 'join',
       },
       join: {
         name: 'Join',
         kind: 'worker',
-        input: { state: ['branch_a', 'branch_b'], prompt: 'Join branch output.' },
+        input: { prompt: 'Join branch output.' },
         output: { template: 'output.md' },
         next: 'done',
       },
@@ -303,10 +303,22 @@ test('runner: --only-instructions prints only orchestrator instruction text', ()
   assert.match(result.stdout, /--only-instructions/);
 });
 
-test('runner: approval host instruction lists projected artifact content as required read', () => {
+test('runner: approval host instruction lists prompt input artifact content as required read', () => {
   const { runId, runDir } = runCase('approval-inline-instructions');
   const workflowPath = path.join(tempDir, 'approval-inline-instructions-workflow.json');
   const schemaPath = path.join(tempDir, 'approval-inline-instructions.schema.json');
+  const prepareSchemaPath = path.join(tempDir, 'approval-inline-prepare-output.schema.json');
+  writeJson(prepareSchemaPath, {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome'],
+    properties: {
+      outcome: { type: 'string' },
+      artifacts: { type: 'array' },
+      results: { type: 'array' },
+    },
+    additionalProperties: true,
+  });
   writeJson(schemaPath, {
     $schema: 'https://json-schema.org/draft/2020-12/schema',
     type: 'object',
@@ -319,12 +331,12 @@ test('runner: approval host instruction lists projected artifact content as requ
   });
   const approvalWorkflow = structuredClone(workflowDoc);
   approvalWorkflow.steps.prepare.next = 'approve';
+  approvalWorkflow.steps.prepare.output.schema = path.basename(prepareSchemaPath);
   approvalWorkflow.steps.approve = {
     name: 'Approve research',
     kind: 'approval',
     input: {
-      state: ['prepare'],
-      prompt: 'Present artifact `research-packet` from prepare to the user before asking for approval.',
+      prompt: 'Present artifact `research-packet` from prepare to the user before asking for approval.\n\nArtifacts:\n${{ input.prepare.artifacts }}',
     },
     output: { schema: path.basename(schemaPath) },
     next: { match: '${{ output.approval }}', cases: { approved: 'done', rejected: 'prepare', blocked: 'blocked' } },
@@ -358,7 +370,7 @@ test('runner: approval host instruction lists projected artifact content as requ
   assert.match(response.orchestratorInstruction, /Approval request: approve/);
   assert.match(response.orchestratorInstruction, /The orchestrator must execute this approval instruction itself\./);
   assert.match(response.orchestratorInstruction, /Use the following compiled approval prompt as the complete source/);
-  assert.match(response.orchestratorInstruction, /When the compiled approval prompt lists required-read files or projected artifact paths, attach those artifact files through the host\/platform approval mechanism before asking for a decision\./);
+  assert.match(response.orchestratorInstruction, /When the compiled approval prompt lists required-read files or prompt input artifact paths, attach those artifact files through the host\/platform approval mechanism before asking for a decision\./);
   assert.match(response.orchestratorInstruction, /Do not replace artifact attachments with summaries or inline full artifact bodies\./);
   assert.match(response.orchestratorInstruction, /If the host cannot attach or link a listed artifact, state that capability gap explicitly in the approval message and include the path\/reference that could not be attached\./);
   assert.match(response.orchestratorInstruction, /Do not inspect workflow source, runner internals, schema files, or CLI help to reconstruct approval output\./);
@@ -367,11 +379,11 @@ test('runner: approval host instruction lists projected artifact content as requ
   assert.match(response.orchestratorInstruction, /<paste strict JSON here>/);
   assert.match(response.orchestratorInstruction, /# Approve research/);
   assert.match(response.orchestratorInstruction, /## Required reads/);
-  assert.match(response.orchestratorInstruction, /Projected artifact 'research-packet' from 'prepare' \(text\/markdown\):/);
+  assert.match(response.orchestratorInstruction, /Prompt input artifact 'research-packet' from 'prepare' \(text\/markdown\):/);
   assert.match(response.orchestratorInstruction, /prepare\/artifacts\/research-packet\.md/);
   assert.match(response.orchestratorInstruction, /## Output contract/);
-  assert.match(response.orchestratorInstruction, /## Projected baton state/);
-  assert.doesNotMatch(response.orchestratorInstruction, /### Projected artifact content/);
+  assert.doesNotMatch(response.orchestratorInstruction, /## Prompt input context/);
+  assert.doesNotMatch(response.orchestratorInstruction, /### Prompt input artifact content/);
   assert.doesNotMatch(response.orchestratorInstruction, /Full packet body for approval\./);
   assert.match(response.orchestratorInstruction, /## Workflow step prompt/);
   assert.match(response.orchestratorInstruction, /Present artifact `research-packet`/);
@@ -699,8 +711,6 @@ test('runner: startup prompt target rejects dynamic fanout before prompt selecti
     done: approvalWorkflow.steps.done,
     blocked: approvalWorkflow.steps.blocked,
   };
-  approvalWorkflow.steps.branch_a.input.state = ['choose_path'];
-  approvalWorkflow.steps.branch_b.input.state = ['choose_path'];
   approvalWorkflow.steps.join.next = 'done';
   writeJson(workflowPath, approvalWorkflow);
 

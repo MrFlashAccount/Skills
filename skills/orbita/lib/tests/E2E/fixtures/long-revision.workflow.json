@@ -12,7 +12,8 @@
         "prompt": "Plan the work."
       },
       "output": {
-        "template": "output.md"
+        "template": "output.md",
+        "schema": "schemas/routing-ready.schema.json"
       },
       "next": "approval_gate"
     },
@@ -20,10 +21,15 @@
       "name": "Approval Gate",
       "kind": "approval",
       "input": {
-        "state": [
-          "plan"
-        ],
-        "prompt": "Approve the plan."
+        "prompt": [
+          "Approve the plan.",
+          "",
+          "Plan result:",
+          "${{ input.plan.results }}",
+          "",
+          "Plan artifacts:",
+          "${{ input.plan.artifacts }}"
+        ]
       },
       "next": {
         "match": "${{ output.approval }}",
@@ -32,20 +38,31 @@
           "rejected": "plan",
           "blocked": "blocked"
         }
+      },
+      "output": {
+        "schema": "schemas/approval.schema.json"
       }
     },
     "implement": {
       "name": "Implement",
       "kind": "worker",
       "input": {
-        "state": [
-          "plan",
-          "approval_gate"
-        ],
-        "prompt": "Implement the approved plan."
+        "prompt": [
+          "Implement the approved plan.",
+          "",
+          "Plan result:",
+          "${{ input.plan.results }}",
+          "",
+          "Approval decision:",
+          "${{ input.approval_gate }}",
+          "",
+          "Review feedback to address:",
+          "${{ input.review.results | default: \"No review feedback yet.\" }}"
+        ]
       },
       "output": {
-        "template": "output.md"
+        "template": "output.md",
+        "schema": "schemas/routing-ready.schema.json"
       },
       "next": "review"
     },
@@ -53,10 +70,15 @@
       "name": "Review",
       "kind": "worker",
       "input": {
-        "state": [
-          "implement"
-        ],
-        "prompt": "Review implementation."
+        "prompt": [
+          "Review implementation.",
+          "",
+          "Implementation result:",
+          "${{ input.implement.results }}",
+          "",
+          "Implementation artifacts:",
+          "${{ input.implement.artifacts | default: \"No implementation artifacts.\" }}"
+        ]
       },
       "output": {
         "template": "output.md",

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DevHarness Approval Output",
+  "type": "object",
+  "required": [
+    "approval"
+  ],
+  "properties": {
+    "approval": {
+      "enum": [
+        "approved",
+        "rejected",
+        "blocked"
+      ],
+      "description": "Human gate decision for the current DevHarness approval step.",
+      "x-usage": "Use approved to continue, rejected to revise the gated draft step, and blocked only when blocker explains why the run cannot proceed."
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/result"
+      },
+      "description": "Optional compact summary of the human approval decision or feedback.",
+      "x-usage": "Use as supporting human gate context; do not route from this field."
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact"
+      },
+      "description": "Optional artifacts attached by the approval gate.",
+      "x-usage": "Use only when the approval gate explicitly attaches artifacts."
+    },
+    "blocker": {
+      "type": "object",
+      "description": "Required when approval is blocked.",
+      "x-usage": "Surface this blocker before continuing; do not infer missing blocker details from prose."
+    }
+  },
+  "additionalProperties": true
+}

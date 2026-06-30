@@ -207,10 +207,10 @@ test('Step.resolveConcreteTargets resolves dynamic parallel array output into ta
   assert.deepEqual(step.resolveConcreteTargets(batonDoc(), doc, { outcome: 'ok', route: 'split', targets: ['branch_a', 'branch_b'] }), { targetStepIds: ['branch_a', 'branch_b'] });
 });
 
-test('Step.resolveInputs projects only requested state keys and returns diagnostics shape', () => {
-  const step = new Step({ id: 'join', step: { name: 'Join', kind: 'worker', input: { state: ['branch_a'] }, next: 'done' } });
+test('Step.resolveInputs projects only state keys referenced by dynamic transitions', () => {
+  const step = new Step({ id: 'join', step: { name: 'Join', kind: 'worker', input: {}, next: '${{ input.branch_a.next }}' } });
 
-  assert.deepEqual(step.resolveInputs({ state: { branch_a: { outcome: 'ok' }, branch_b: { outcome: 'skip' } } }), { branch_a: { outcome: 'ok' } });
+  assert.deepEqual(step.resolveInputs({ state: { branch_a: { next: 'done' }, branch_b: { next: 'skip' } } }), { branch_a: { next: 'done' } });
 });
 
 test('Step.applyOutput carries a blocker object when a worker transitions to the blocked terminal', () => {

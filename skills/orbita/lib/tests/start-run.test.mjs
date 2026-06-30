@@ -26,7 +26,7 @@ const fixtureWorkflowDoc = {
       worker_step: {
         name: 'Worker step',
         kind: 'worker',
-        input: { state: ['worker_step'], prompt: 'Run worker.' },
+        input: { prompt: 'Run worker.' },
         output: { template: 'output.md' },
         next: 'done',
       },

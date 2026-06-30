@@ -125,15 +125,7 @@
           "minLength": 1
         },
         "prompt": {
-          "type": "string"
-        },
-        "state": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          },
-          "uniqueItems": true
+          "$ref": "#/$defs/prompt"
         }
       },
       "additionalProperties": false
@@ -146,15 +138,7 @@
           "minLength": 1
         },
         "prompt": {
-          "type": "string"
-        },
-        "state": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          },
-          "uniqueItems": true
+          "$ref": "#/$defs/prompt"
         },
         "role": {
           "type": "string",
@@ -162,6 +146,20 @@
         }
       },
       "additionalProperties": false
+    },
+    "prompt": {
+      "description": "Workflow prompt text. Use a string for compact prompts or an array of strings for readable multi-line authoring; array items are joined with newline characters before rendering.",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
     },
     "next": {
       "description": "Next step target, top-level parallel transition items, a path-only dynamic next expression, or match/cases routing from a path-only expression to static targets. Top-level next arrays may contain static step ids, path-only expressions, or match/cases objects and are flattened one level after resolution. JSON schema may allow shapes that semantic validation rejects; parallel fanout branches must converge directly into one explicit non-terminal join step and cannot use dynamic or conditional branch next before that join.",

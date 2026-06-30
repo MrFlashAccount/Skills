@@ -1,5 +1,6 @@
 import { buildStepEntries } from '../../executable-steps.mjs';
 import { invariant } from '../../../errors.mjs';
+import { appendPromptText } from '../../../runtime/prompt-text.mjs';
 import { assertResponseSchema } from './response-schema.mjs';
 
 export function hasAppliedOutputForStep(baton, stepId) {
@@ -17,7 +18,7 @@ export function stepWithValidationFeedback(step, feedbackPrompt) {
   const updatedStep = structuredClone(step);
   updatedStep.input = {
     ...(updatedStep.input ?? {}),
-    prompt: [updatedStep.input?.prompt, feedbackPrompt].filter(Boolean).join('\n\n'),
+    prompt: appendPromptText(updatedStep.input?.prompt, feedbackPrompt),
   };
   return updatedStep;
 }

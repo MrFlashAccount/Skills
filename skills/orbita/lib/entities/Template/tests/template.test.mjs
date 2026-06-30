@@ -15,7 +15,7 @@ const workflow = {
     consumer: {
       name: 'Consumer',
       kind: 'worker',
-      input: { state: ['producer'], role: 'backend', template: 'consumer-input.md', prompt: 'Use projected producer output.' },
+      input: { role: 'backend', template: 'consumer-input.md', prompt: 'Use producer output.\n\nArtifacts:\n${{ input.producer.artifacts }}' },
       output: { template: 'consumer-output.md', schema: 'consumer.schema.json' },
       next: 'done',
     },
@@ -125,21 +125,28 @@ test('template compiler renders already-resolved required read paths without res
     stepId: 'consumer',
     step: workflow.steps.consumer,
     resources,
-    projection: { value: {}, projectedKeys: [] },
+    promptInput: {
+      value: {
+        producer: {
+          artifacts: [{ id: 'research-packet', content_type: 'text/markdown', path: '/abs/run/producer/artifacts/research-packet.md' }],
+        },
+      },
+      keys: ['producer'],
+    },
     requiredReads: [
       { label: "Role material for 'backend'", path: '/abs/project/roles/backend/ROLE.md' },
-      { label: "Projected artifact 'research-packet' from 'producer'", path: '/abs/run/producer/artifacts/research-packet.md', contentType: 'text/markdown' },
+      { label: "Prompt input artifact 'research-packet' from 'producer'", path: '/abs/run/producer/artifacts/research-packet.md', contentType: 'text/markdown' },
     ],
     roleMetadataPaths: ['/abs/project/roles/backend/ROLE.md'],
   });
 
   assert.match(rendered.prompt, /1\. Role material for 'backend': `\/abs\/project\/roles\/backend\/ROLE\.md`/);
-  assert.match(rendered.prompt, /2\. Projected artifact 'research-packet' from 'producer' \(text\/markdown\): `\/abs\/run\/producer\/artifacts\/research-packet\.md`/);
+  assert.match(rendered.prompt, /2\. Prompt input artifact 'research-packet' from 'producer' \(text\/markdown\): `\/abs\/run\/producer\/artifacts\/research-packet\.md`/);
   assert.doesNotMatch(rendered.prompt, /workflow-runner-test/);
   assert.deepEqual(rendered.metadata.roleMaterial, ['/abs/project/roles/backend/ROLE.md']);
 });
 
-test('renderWorkflowPrompt assembles templates, required reads, output contract, projected state, and metadata', () => {
+test('renderWorkflowPrompt assembles templates, required reads, output contract, workflow prompt, and metadata', () => {
   const rendered = renderWorkflowPrompt({
     workflow,
     baton,
@@ -154,7 +161,7 @@ test('renderWorkflowPrompt assembles templates, required reads, output contract,
   assert.match(rendered.prompt, /## Required reads/);
   assert.match(rendered.prompt, /1\. Role material for 'backend': `\/roles\/backend\/ROLE\.md`/);
   assert.match(rendered.prompt, /2\. Role material for 'backend': `\/roles\/backend\/RUBRIC\.md`/);
-  assert.match(rendered.prompt, /3\. Projected artifact 'research-packet' from 'producer' \(text\/markdown\): `\/tmp\/workflow-runner-test\/producer\/artifacts\/research-packet\.md`/);
+  assert.match(rendered.prompt, /3\. Prompt input artifact 'research-packet' from 'producer' \(text\/markdown\): `\/tmp\/workflow-runner-test\/producer\/artifacts\/research-packet\.md`/);
   assert.match(rendered.prompt, /## Output contract/);
   assert.match(rendered.prompt, /No validating writer command is provided in these instructions, so do not invent one/);
   assert.match(rendered.prompt, /do not create or hand off a separate JSON output path/);
@@ -168,12 +175,10 @@ test('renderWorkflowPrompt assembles templates, required reads, output contract,
   assert.match(rendered.prompt, /artifacts\[\]\.content_type/);
   assert.match(rendered.prompt, /Fill: Use to render or parse the artifact content/);
   assert.match(rendered.prompt, /Fill: When producing an artifact file, write it inside the step's artifact output directory and emit the full absolute filesystem path here/);
-  assert.match(rendered.prompt, /Field notes for projected step outputs/);
-  assert.match(rendered.prompt, /Description: Producer outcome\./);
-  assert.match(rendered.prompt, /Usage: Selects the next route\./);
-  assert.match(rendered.prompt, /Usage: Use to render or parse the artifact content/);
-  assert.match(rendered.prompt, /"route": "review"/);
-  assert.match(rendered.prompt, /## Workflow step prompt\n\nUse projected producer output\./);
+  assert.doesNotMatch(rendered.prompt, /Field notes for prompt input step outputs/);
+  assert.doesNotMatch(rendered.prompt, /"route": "review"/);
+  assert.doesNotMatch(rendered.prompt, /## Prompt input context/);
+  assert.match(rendered.prompt, /## Workflow step prompt\n\nUse producer output\./);
   assert.match(rendered.prompt, /## User prompt\n\nextra operator context/);
   assert.match(rendered.prompt, /## Final reminder/);
 
@@ -182,7 +187,6 @@ test('renderWorkflowPrompt assembles templates, required reads, output contract,
     outputTemplate: 'consumer-output.md',
     outputSchema: 'consumer.schema.json',
     roleMaterial: ['/roles/backend/ROLE.md', '/roles/backend/RUBRIC.md'],
-    projectedStateKeys: ['producer'],
   });
 });
 

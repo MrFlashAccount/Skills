@@ -38,25 +38,25 @@ function pureWorkflow(overrides = (workflow) => workflow) {
       review: {
         name: 'Review',
         kind: 'worker',
-        input: { state: ['route'] },
+        input: {},
         next: 'done',
       },
       branch_a: {
         name: 'Branch A',
         kind: 'worker',
-        input: { state: ['route'] },
+        input: {},
         next: 'join',
       },
       branch_b: {
         name: 'Branch B',
         kind: 'worker',
-        input: { state: ['route'] },
+        input: {},
         next: 'join',
       },
       join: {
         name: 'Join',
         kind: 'worker',
-        input: { state: ['branch_a', 'branch_b'] },
+        input: {},
         next: 'done',
       },
       done: { name: 'Done', kind: 'done' },
@@ -97,15 +97,6 @@ test('Workflow.validate enforces loaded role catalogs but permits unloaded catal
     workflow: 'pure-entity-fixture',
     steps: Object.keys(doc.steps).length,
   });
-});
-
-test('Workflow.validate rejects projected state selectors that do not name declared workflow steps', () => {
-  const doc = pureWorkflow((workflow) => {
-    workflow.steps.review.input.state = ['missing_step'];
-    return workflow;
-  });
-
-  assertWorkflowFailure(doc, /step 'review' input\.state selector 'missing_step' does not reference a declared workflow step/);
 });
 
 test('Workflow.validate keeps match/cases transitions exhaustive against closed output schema enums', () => {

@@ -6,7 +6,7 @@ import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { renderStepPrompts } from '../use-cases/runtime/parallel/render.mjs';
-import { projectState } from '../runtime/state-projection.mjs';
+import { selectState } from '../runtime/state-selection.mjs';
 import { renderWorkflowPrompt } from '../entities/Template/index.mjs';
 import { validateAgainstOutputSchema } from '../use-cases/runtime/output/output-schema-validation.mjs';
 import { loadWorkflowResources } from '../persistence/workflow-resources/runtime-reader.mjs';
@@ -83,20 +83,20 @@ const schemaWorkflowDoc = {
       worker_step: {
         name: 'Worker step',
         kind: 'worker',
-        input: { template: 'worker.md', role: 'backend', state: ['worker_step'], prompt: 'Run worker.' },
+        input: { template: 'worker.md', role: 'backend', prompt: 'Run worker.' },
         output: outputContract(),
         next: { match: '${{ output.outcome }}', cases: { ready: 'approval_step', retry: 'worker_step', blocked: 'blocked' } },
       },
       approval_step: {
         name: 'Approval step',
         kind: 'approval',
-        input: { state: ['worker_step'], prompt: 'Approve.' },
+        input: { prompt: 'Approve.' },
         next: { match: '${{ output.approval }}', cases: { approved: 'direct_next_worker', rejected: 'worker_step', blocked: 'blocked' } },
       },
       direct_next_worker: {
         name: 'Direct next worker',
         kind: 'worker',
-        input: { template: 'direct.md', state: ['approval_step'] },
+        input: { template: 'direct.md' },
         output: outputContract(),
         next: 'done',
       },
@@ -186,44 +186,44 @@ after(() => {
   rmSync(tempDir, { recursive: true, force: true });
 });
 
-test('state projection: projects explicit top-level keys in selector order', () => {
-  const projected = projectState({ stepId: 'worker_step', batonState: { zed: 1, alpha: { ok: true }, beta: [2] }, selectors: ['alpha', 'zed'] });
+test('state selection: selects explicit top-level keys in selector order', () => {
+  const selected = selectState({ stepId: 'worker_step', batonState: { zed: 1, alpha: { ok: true }, beta: [2] }, selectors: ['alpha', 'zed'] });
 
-  assert.deepEqual(Object.keys(projected.value), ['alpha', 'zed']);
-  assert.deepEqual(projected.value, { alpha: { ok: true }, zed: 1 });
-  assert.deepEqual(projected.projectedKeys, ['alpha', 'zed']);
+  assert.deepEqual(Object.keys(selected.value), ['alpha', 'zed']);
+  assert.deepEqual(selected.value, { alpha: { ok: true }, zed: 1 });
+  assert.deepEqual(selected.selectedKeys, ['alpha', 'zed']);
 });
 
-test('state projection: absent selectors project empty object', () => {
-  const projected = projectState({ stepId: 'worker_step', batonState: { worker_step: ['hidden'] } });
+test('state selection: absent selectors select empty object', () => {
+  const selected = selectState({ stepId: 'worker_step', batonState: { worker_step: ['hidden'] } });
 
-  assert.deepEqual(projected.value, {});
-  assert.deepEqual(projected.projectedKeys, []);
+  assert.deepEqual(selected.value, {});
+  assert.deepEqual(selected.selectedKeys, []);
 });
 
-test('state projection: skips valid selectors that are absent from the current baton state', () => {
-  const projected = projectState({
+test('state selection: selects valid selectors that are absent from the current baton state', () => {
+  const selected = selectState({
     stepId: 'join',
     batonState: { required: { ok: true }, selected_branch: { done: true } },
     selectors: ['required', 'selected_branch', 'unselected_branch'],
   });
 
-  assert.deepEqual(projected.value, { required: { ok: true }, selected_branch: { done: true } });
-  assert.deepEqual(projected.projectedKeys, ['required', 'selected_branch']);
-  assert.deepEqual(projected.diagnostics, []);
+  assert.deepEqual(selected.value, { required: { ok: true }, selected_branch: { done: true } });
+  assert.deepEqual(selected.selectedKeys, ['required', 'selected_branch']);
+  assert.deepEqual(selected.diagnostics, []);
 });
 
-test('state projection: nested selectors are rejected', () => {
+test('state selection: nested selectors are rejected', () => {
   assert.throws(
-    () => projectState({ stepId: 'research', batonState: { worker_step: [] }, selectors: ['worker_step.0'] }),
+    () => selectState({ stepId: 'research', batonState: { worker_step: [] }, selectors: ['worker_step.0'] }),
     /unsupported state selector 'worker_step\.0'.*top-level workflow step ids only/,
   );
 });
 
-test('state projection: reserved runtime aggregate selectors are rejected even when present in baton state', () => {
+test('state selection: reserved runtime aggregate selectors are rejected even when present in baton state', () => {
   for (const selector of ['artifacts', 'results', 'outputs', 'attempts']) {
     assert.throws(
-      () => projectState({ stepId: 'research', batonState: { [selector]: [{ type: 'packet', summary: 'leaked' }] }, selectors: [selector] }),
+      () => selectState({ stepId: 'research', batonState: { [selector]: [{ type: 'packet', summary: 'leaked' }] }, selectors: [selector] }),
       new RegExp(`reserved state selector '${selector}'.*runtime aggregate state`),
     );
   }
@@ -254,8 +254,8 @@ function renderFixture(overrides = {}) {
   });
 }
 
-test('prompt renderer: default prompt includes task projected state and deterministic newline formatting without diagnostics by default', () => {
-  const step = { name: 'Approval step', kind: 'approval', input: { state: ['worker_step'], prompt: 'Approve.' }, next: 'done' };
+test('prompt renderer: default prompt omits prompt input context dump and keeps deterministic newline formatting without diagnostics by default', () => {
+  const step = { name: 'Approval step', kind: 'approval', input: { prompt: 'Approve.' }, next: 'done' };
   const compiled = renderFixture({ label: 'render-default', step, batonDoc: baton({ cursor: 'approval_step', state: { artifacts: [], results: [], worker_step: [{ id: 'a' }], approval_step: [] } }) });
 
   assert.equal(Object.hasOwn(compiled, 'stepId'), false);
@@ -264,16 +264,16 @@ test('prompt renderer: default prompt includes task projected state and determin
   assert.equal(Object.hasOwn(compiled, 'name'), false);
   assert.match(compiled.prompt, /^# Approval step\n/);
   assertMarkersInOrder(compiled.prompt, [
-    '## Projected baton state\n\n```json\n{\n  "worker_step": [',
     '## Workflow step prompt',
     'Approve.',
   ]);
+  assert.doesNotMatch(compiled.prompt, /## Prompt input context/);
   assert.equal(Object.hasOwn(compiled, 'diagnostics'), false);
   assert.equal(compiled.prompt.endsWith('\n'), true);
 });
 
 test('prompt renderer: default prompt diagnostics are opt-in', () => {
-  const step = { name: 'Approval step', kind: 'approval', input: { state: ['worker_step'], prompt: 'Approve.' }, next: 'done' };
+  const step = { name: 'Approval step', kind: 'approval', input: { prompt: 'Approve.' }, next: 'done' };
   const compiled = renderFixture({ label: 'render-default-diagnostics', step, includeDiagnostics: true });
 
   assert.deepEqual(compiled.diagnostics, [
@@ -285,12 +285,11 @@ test('prompt renderer: default prompt diagnostics are opt-in', () => {
   ]);
 });
 
-test('prompt renderer: interpolates projected input expressions in workflow step prompt', () => {
+test('prompt renderer: interpolates prompt input expressions in workflow step prompt', () => {
   const step = {
     name: 'Worker step',
     kind: 'worker',
     input: {
-      state: ['worker_step', 'critic_step'],
       prompt: 'Previous summary: ${{ input.worker_step.summary }}\n\nCritic findings:\n${{ input.critic_step.verdict.findings }}',
     },
     output: { template: 'output.md' },
@@ -319,12 +318,49 @@ test('prompt renderer: interpolates projected input expressions in workflow step
   ]);
 });
 
-test('prompt renderer: uses prompt interpolation default for missing projected input paths', () => {
+test('prompt renderer: joins prompt arrays before interpolation', () => {
+  const step = {
+    name: 'Worker step',
+    kind: 'worker',
+    input: {
+      prompt: [
+        'Previous summary: ${{ input.worker_step.summary }}',
+        '',
+        'Critic findings:',
+        '${{ input.critic_step.verdict.findings }}',
+      ],
+    },
+    output: { template: 'output.md' },
+    next: 'done',
+  };
+
+  const compiled = renderFixture({
+    label: 'render-prompt-array-interpolation',
+    stepId: 'worker_step',
+    step,
+    batonDoc: baton({
+      state: {
+        artifacts: [],
+        results: [],
+        worker_step: { outcome: 'ready', summary: 'drafted' },
+        critic_step: { outcome: 'needs_revision', verdict: { findings: ['tighten scope'] } },
+      },
+    }),
+  });
+
+  assertMarkersInOrder(compiled.prompt, [
+    '## Workflow step prompt',
+    'Previous summary: drafted',
+    'Critic findings:',
+    '```json\n[\n  "tighten scope"\n]',
+  ]);
+});
+
+test('prompt renderer: uses prompt interpolation default for missing prompt input paths', () => {
   const step = {
     name: 'Draft step',
     kind: 'worker',
     input: {
-      state: ['critic_step'],
       prompt: 'Previous critic feedback:\n${{ input.critic_step.verdict.findings | default: "No previous critic feedback yet." }}',
     },
     output: { template: 'output.md' },
@@ -346,7 +382,6 @@ test('prompt renderer: rejects missing prompt interpolation paths without a defa
     name: 'Draft step',
     kind: 'worker',
     input: {
-      state: ['critic_step'],
       prompt: 'Previous critic feedback:\n${{ input.critic_step.verdict.findings }}',
     },
     output: { template: 'output.md' },
@@ -359,12 +394,11 @@ test('prompt renderer: rejects missing prompt interpolation paths without a defa
   );
 });
 
-test('prompt renderer: keeps prompt interpolation scoped to projected input paths', () => {
+test('prompt renderer: keeps prompt interpolation scoped to prompt input paths', () => {
   const step = {
     name: 'Draft step',
     kind: 'worker',
     input: {
-      state: [],
       prompt: 'Bad root: ${{ output.outcome | default: "ready" }}',
     },
     output: { template: 'output.md' },
@@ -382,7 +416,6 @@ test('prompt renderer: treats interpolated values as data, not nested templates'
     name: 'Draft step',
     kind: 'worker',
     input: {
-      state: ['critic_step'],
       prompt: 'Previous critic feedback:\n${{ input.critic_step.note }}',
     },
     output: { template: 'output.md' },
@@ -410,7 +443,7 @@ test('prompt renderer: rejects input template placeholders as unsupported', () =
   const step = {
     name: 'Worker step',
     kind: 'worker',
-    input: { template: 'placeholder-template.md', state: [] },
+    input: { template: 'placeholder-template.md' },
     output: { template: 'output.md' },
     next: 'done',
   };
@@ -421,14 +454,14 @@ test('prompt renderer: rejects input template placeholders as unsupported', () =
   );
 });
 
-test('prompt renderer: appends required reads, output, and state sections in fixed compiled layer order', () => {
+test('prompt renderer: appends required reads, output, and workflow prompt in fixed compiled layer order', () => {
   writeRoleMaterial('backend');
   writeFileSync(path.join(tempDir, 'minimal-template.md'), '# Worker step\n');
   writeFileSync(path.join(tempDir, 'minimal-output.md'), '## Required return\nUse this contract.\n');
   const step = {
     name: 'Worker step',
     kind: 'worker',
-    input: { template: 'minimal-template.md', role: 'backend', state: ['worker_step'], prompt: 'Do the task.' },
+    input: { template: 'minimal-template.md', role: 'backend', prompt: 'Do the task.' },
     output: { template: 'minimal-output.md' },
     next: 'done',
   };
@@ -454,13 +487,12 @@ test('prompt renderer: appends required reads, output, and state sections in fix
     '## Output contract',
     '<!-- output template: minimal-output.md -->',
     '## Required return\nUse this contract.',
-    '## Projected baton state',
-    '```json',
     '## Workflow step prompt',
     'Do the task.',
     '## Final reminder',
     'Return exactly according to the output contract above.',
   ]);
+  assert.doesNotMatch(compiled.prompt, /## Prompt input context/);
 });
 
 test('prompt renderer: runtime layer resolves role and artifact required-read paths before compilation', () => {
@@ -471,7 +503,7 @@ test('prompt renderer: runtime layer resolves role and artifact required-read pa
   const step = {
     name: 'Approval step',
     kind: 'approval',
-    input: { template: 'runtime-required-reads-template.md', role: 'backend', state: ['worker_step'], prompt: 'Approve.' },
+    input: { template: 'runtime-required-reads-template.md', role: 'backend', prompt: 'Approve.\n\nArtifacts:\n${{ input.worker_step.artifacts }}' },
     next: 'done',
   };
   const workflow = {
@@ -492,15 +524,15 @@ test('prompt renderer: runtime layer resolves role and artifact required-read pa
   });
 
   assert.ok(compiled.prompt.includes(`1. Role material for 'backend': \`${path.join(tempDir, 'roles', 'backend', 'ROLE.md')}\``));
-  assert.ok(compiled.prompt.includes(`3. Projected artifact 'packet' from 'worker_step' (text/markdown): \`${path.join(runDir, 'worker_step', 'artifacts', 'packet.md')}\``));
+  assert.ok(compiled.prompt.includes(`3. Prompt input artifact 'packet' from 'worker_step' (text/markdown): \`${path.join(runDir, 'worker_step', 'artifacts', 'packet.md')}\``));
 });
 
-test('prompt renderer: rejects relative projected artifact read paths when no runtime resolver is available', () => {
+test('prompt renderer: rejects relative prompt input artifact read paths when no runtime resolver is available', () => {
   writeFileSync(path.join(tempDir, 'cwd-ambiguity-template.md'), '# Worker step\n');
   const step = {
     name: 'Approval step',
     kind: 'approval',
-    input: { template: 'cwd-ambiguity-template.md', state: ['worker_step'], prompt: 'Approve.' },
+    input: { template: 'cwd-ambiguity-template.md', prompt: 'Approve.\n\nArtifacts:\n${{ input.worker_step.artifacts }}' },
     next: 'done',
   };
 
@@ -511,7 +543,7 @@ test('prompt renderer: rejects relative projected artifact read paths when no ru
       step,
       batonDoc: baton({ cursor: 'approval_step', state: { artifacts: [], results: [], worker_step: { artifacts: [{ id: 'packet', path: 'worker_step/artifacts/packet.md' }] } } }),
     }),
-    /projected artifact path must be absolute before template compilation: worker_step\/artifacts\/packet\.md/,
+    /prompt input artifact path must be absolute before template compilation: worker_step\/artifacts\/packet\.md/,
   );
 });
 
@@ -676,7 +708,7 @@ test('prompt renderer: does not infer user prompt eligibility from baton by defa
   const step = {
     name: 'Direct next worker',
     kind: 'worker',
-    input: { state: ['worker_step'] },
+    input: {},
     output: { template: 'output.md' },
     next: 'done',
   };
@@ -783,7 +815,7 @@ test('prompt renderer: resolves input.role as required reads for ROLE.md and RUB
   const step = {
     name: 'Worker step',
     kind: 'worker',
-    input: { template: 'role-template.md', role: 'custom-backend', state: [] },
+    input: { template: 'role-template.md', role: 'custom-backend' },
     output: { template: 'output.md' },
     next: 'done',
   };
@@ -804,7 +836,7 @@ test('prompt renderer: input.role rejects traversal and external escape attempts
   const traversalStep = {
     name: 'Worker step',
     kind: 'worker',
-    input: { role: '../backend', state: [] },
+    input: { role: '../backend' },
     next: 'done',
   };
 
@@ -823,7 +855,7 @@ test('prompt renderer: input.role rejects traversal and external escape attempts
     const escapeStep = {
       name: 'Worker step',
       kind: 'worker',
-      input: { role: 'escaped-role', state: [] },
+      input: { role: 'escaped-role' },
       next: 'done',
     };
 
@@ -843,7 +875,7 @@ test('prompt renderer: missing role material fails deterministically', () => {
   const step = {
     name: 'Worker step',
     kind: 'worker',
-    input: { role: 'missing-rubric', state: [] },
+    input: { role: 'missing-rubric' },
     next: 'done',
   };
 
@@ -853,35 +885,35 @@ test('prompt renderer: missing role material fails deterministically', () => {
   );
 });
 
-test('prompt renderer: empty input.state omits projected state section', () => {
+test('prompt renderer: prompt without input expressions omits prompt input context section', () => {
   const step = {
     name: 'Worker step',
     kind: 'worker',
-    input: { state: [], prompt: 'Do the task.' },
+    input: { prompt: 'Do the task.' },
     next: 'done',
   };
 
   const compiled = renderFixture({ label: 'render-empty-state', stepId: 'worker_step', step });
 
-  assert.doesNotMatch(compiled.prompt, /## Projected baton state/);
+  assert.doesNotMatch(compiled.prompt, /## Prompt input context/);
   assert.doesNotMatch(compiled.prompt, /```json\n\{\}\n```/);
   assert.equal(compiled.metadata, undefined);
   assert.equal(Object.hasOwn(compiled, 'diagnostics'), false);
 });
 
-test('prompt renderer: input templates are static and still omit empty projected state', () => {
+test('prompt renderer: input templates are static and still omit empty prompt input context', () => {
   writeFileSync(path.join(tempDir, 'static-template.md'), '# Static wrapper\n');
   const step = {
     name: 'Worker step',
     kind: 'worker',
-    input: { template: 'static-template.md', state: [] },
+    input: { template: 'static-template.md' },
     next: 'done',
   };
 
   const compiled = renderFixture({ label: 'render-static-empty-state', stepId: 'worker_step', step });
 
   assert.match(compiled.prompt, /^# Static wrapper\n/);
-  assert.doesNotMatch(compiled.prompt, /## Projected baton state/);
+  assert.doesNotMatch(compiled.prompt, /## Prompt input context/);
   assert.doesNotMatch(compiled.prompt, /```json\n\{\}\n```/);
 });
 
@@ -890,7 +922,7 @@ test('prompt renderer: output template content is included as markdown, not inte
   const step = {
     name: 'Worker step',
     kind: 'worker',
-    input: { state: [], prompt: 'Return output.' },
+    input: { prompt: 'Return output.' },
     output: { template: 'schema-looking-output.md' },
     next: 'done',
   };
@@ -929,7 +961,7 @@ test('workflow resource refs resolve from the workflow package directory after p
       worker_step: {
         name: 'Worker step',
         kind: 'worker',
-        input: { template: 'input.md', state: [] },
+        input: { template: 'input.md' },
         output: { template: 'templates/output.md', schema: 'schemas/output.schema.json' },
         next: 'done',
       },
@@ -981,7 +1013,7 @@ test('prompt renderer: role required reads use full repository paths, not cwd-re
   writeFileSync(path.join(workflowDir, 'workflow.json'), '{}\n');
   const workflowPath = path.join(workflowDir, 'workflow.json');
   const doc = structuredClone(schemaWorkflowDoc);
-  doc.steps.worker_step.input = { role: 'backend', state: [], prompt: 'Run worker.' };
+  doc.steps.worker_step.input = { role: 'backend', prompt: 'Run worker.' };
   doc.steps.worker_step.output = {};
 
   const rendered = renderPromptWithResources({
@@ -1054,7 +1086,7 @@ test('prompt renderer: shared template refs are explicit and reusable across wor
       worker_step: {
         name: 'Worker step',
         kind: 'worker',
-        input: { state: [] },
+        input: {},
         output: { template: '../../shared/templates/reused-output.md' },
         next: 'done',
       },
@@ -1108,7 +1140,7 @@ test('prompt renderer: workflow resource refs cannot escape repository root', ()
     done: 'done',
     blocked: 'blocked',
     steps: {
-      worker_step: { name: 'Worker step', kind: 'worker', input: { state: [], prompt: 'Run.' }, next: 'done' },
+      worker_step: { name: 'Worker step', kind: 'worker', input: { prompt: 'Run.' }, next: 'done' },
       done: { name: 'Done', kind: 'done' },
       blocked: { name: 'Blocked', kind: 'blocked' },
     },
@@ -1165,7 +1197,7 @@ test('prompt renderer: output schema is validated and injected in the output con
   const step = {
     name: 'Worker step',
     kind: 'worker',
-    input: { template: 'static-schema-wrapper.md', state: [], prompt: 'Return output.' },
+    input: { template: 'static-schema-wrapper.md', prompt: 'Return output.' },
     output: { template: 'schema-output.md', schema: 'artifact.schema.json' },
     next: 'done',
   };
@@ -1191,7 +1223,7 @@ test('prompt renderer: missing output schema fails deterministically', () => {
   const step = {
     name: 'Worker step',
     kind: 'worker',
-    input: { state: [] },
+    input: {},
     output: { template: 'output.md', schema: 'missing.schema.json' },
     next: 'done',
   };
@@ -1207,7 +1239,7 @@ test('prompt renderer: invalid output schema JSON fails deterministically', () =
   const step = {
     name: 'Worker step',
     kind: 'worker',
-    input: { state: [] },
+    input: {},
     output: { template: 'output.md', schema: 'invalid.schema.json' },
     next: 'done',
   };
@@ -1224,7 +1256,7 @@ test('prompt renderer: absent output schema preserves existing output contract r
   const step = {
     name: 'Worker step',
     kind: 'worker',
-    input: { template: 'no-schema-wrapper.md', state: [] },
+    input: { template: 'no-schema-wrapper.md' },
     output: { template: 'no-schema-output.md' },
     next: 'done',
   };
@@ -1248,7 +1280,7 @@ test('prompt renderer: output contract is always appended as static included tex
   const step = {
     name: 'Worker step',
     kind: 'worker',
-    input: { template: 'static-wrapper.md', state: [] },
+    input: { template: 'static-wrapper.md' },
     output: { template: 'wrapped-output.md' },
     next: 'done',
   };
@@ -1267,7 +1299,7 @@ test('prompt renderer: path resolver rejects missing templates without fallback'
   const missingStep = {
     name: 'Worker step',
     kind: 'worker',
-    input: { template: 'missing-template.md', state: [] },
+    input: { template: 'missing-template.md' },
     output: { template: 'output.md' },
     next: 'done',
   };
@@ -1275,16 +1307,31 @@ test('prompt renderer: path resolver rejects missing templates without fallback'
   assert.throws(() => renderFixture({ label: 'render-missing', stepId: 'worker_step', step: missingStep }), /missing input template 'missing-template\.md'/);
 });
 
-test('CLI render: runtime guard rejects reserved aggregate state selectors', () => {
+test('prompt renderer: validation feedback appends to prompt arrays', () => {
   const workflowDoc = structuredClone(schemaWorkflowDoc);
-  workflowDoc.steps.approval_step.input.state = ['artifacts'];
+  workflowDoc.steps.worker_step.input = { prompt: ['Run worker.', '', 'Use strict output.'] };
+  workflowDoc.steps.worker_step.output = { template: 'output.md', schema: 'worker-output.schema.json' };
+  const workflowPath = writeJson('prompt-array-feedback-workflow.json', workflowDoc);
+  const batonPath = writeJson('prompt-array-feedback-baton.json', baton());
+  const outputPath = writeJson('prompt-array-feedback-output.json', { outcome: 'invalid' });
+
+  const result = runNode(['skills/orbita/lib/entrypoints/cli/workflow-interpreter.mjs', 'apply', workflowPath, batonPath, outputPath]);
+  const response = expectCliResult('prompt-array-feedback', result, true);
+
+  assert.equal(response.steps[0].step.input.prompt.includes('Run worker.\n\nUse strict output.'), true);
+  assert.match(response.steps[0].step.input.prompt, /Previous output failed output\.schema validation/);
+});
+
+test('CLI render: prompt input expressions cannot read aggregate runtime state', () => {
+  const workflowDoc = structuredClone(schemaWorkflowDoc);
+  workflowDoc.steps.approval_step.input.prompt = 'Bad aggregate:\n${{ input.artifacts }}';
   const workflowPath = writeJson('runtime-reserved-render-workflow.json', workflowDoc);
   const batonPath = writeJson('runtime-reserved-render-baton.json', baton({ cursor: 'approval_step', status: 'running', state: { artifacts: [{ producerStepId: 'worker_step', artifact: { id: 'packet', content_type: 'text/markdown', path: '/runs/worker_step/artifacts/packet.md', summary: 'leaked' } }], results: [] } }));
 
   const result = runNode(['skills/orbita/lib/entrypoints/cli/workflow-interpreter.mjs', 'render', workflowPath, batonPath]);
   const response = expectCliResult('runtime-reserved-render', result, false);
 
-  assert.match(response.stderr, /reserved state selector 'artifacts'.*runtime aggregate state/);
+  assert.match(response.stderr, /input step 'artifacts' is not a declared workflow step/);
 });
 
 test('CLI render: fixture returns compiledPrompt and does not mutate baton', () => {
@@ -1308,19 +1355,19 @@ test('CLI render: fixture returns compiledPrompt and does not mutate baton', () 
   assert.equal(Object.hasOwn(response.steps[0].compiledPrompt, 'kind'), false);
   assert.equal(Object.hasOwn(response.steps[0].compiledPrompt, 'name'), false);
   assert.equal(response.steps[0].compiledPrompt.metadata.outputTemplate, outputTemplateRef);
-  assert.deepEqual(response.steps[0].compiledPrompt.metadata.projectedStateKeys, ['worker_step']);
+  assert.equal(Object.hasOwn(response.steps[0].compiledPrompt.metadata, 'promptInputKeys'), false);
   assert.equal(Object.hasOwn(response.steps[0].compiledPrompt, 'diagnostics'), false);
   assertMarkersInOrder(response.steps[0].compiledPrompt.prompt, [
     '# Worker template',
     '## Output contract',
     `<!-- output template: ${outputTemplateRef} -->`,
     '## Required return\nUse this contract.',
-    '## Projected baton state',
     '## Workflow step prompt',
     'Run worker.',
     '## Final reminder',
     'Return exactly according to the output contract above.',
   ]);
+  assert.doesNotMatch(response.steps[0].compiledPrompt.prompt, /## Prompt input context/);
 });
 
 test('CLI render: diagnostics are included only when explicitly requested', () => {

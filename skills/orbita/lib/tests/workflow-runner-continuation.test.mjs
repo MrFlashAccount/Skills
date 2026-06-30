@@ -12,6 +12,15 @@ import { resolveRunPaths } from '../persistence/run-state/paths.mjs';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-runner-check-'));
 writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
+writeFileSync(path.join(tempDir, 'output.schema.json'), `${JSON.stringify({
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  required: ['outcome'],
+  properties: {
+    outcome: { type: 'string' },
+  },
+  additionalProperties: true,
+}, null, 2)}\n`);
 const testLeaseToken = `workflow-runner-test-token-${process.pid}`;
 const leaseTokensByRunId = new Map();
 process.env.WORKFLOW_RUN_TOKEN = testLeaseToken;
@@ -27,28 +36,28 @@ const workflowDoc = {
         name: 'Prepare',
         kind: 'worker',
         input: { prompt: 'Prepare branch.' },
-        output: { template: 'output.md' },
+        output: { template: 'output.md', schema: 'output.schema.json' },
         next: ['branch_a', 'branch_b'],
       },
       branch_a: {
         name: 'Branch A',
         kind: 'worker',
-        input: { state: ['prepare'], prompt: 'Run branch A.' },
-        output: { template: 'output.md' },
+        input: { prompt: 'Run branch A.' },
+        output: { template: 'output.md', schema: 'output.schema.json' },
         next: 'join',
       },
       branch_b: {
         name: 'Branch B',
         kind: 'worker',
-        input: { state: ['prepare'], prompt: 'Run branch B.' },
-        output: { template: 'output.md' },
+        input: { prompt: 'Run branch B.' },
+        output: { template: 'output.md', schema: 'output.schema.json' },
         next: 'join',
       },
       join: {
         name: 'Join',
         kind: 'worker',
-        input: { state: ['branch_a', 'branch_b'], prompt: 'Join branch output.' },
-        output: { template: 'output.md' },
+        input: { prompt: 'Join branch output.' },
+        output: { template: 'output.md', schema: 'output.schema.json' },
         next: 'done',
       },
       done: { name: 'Done', kind: 'done', input: { prompt: 'Finished.' } },
@@ -234,7 +243,6 @@ test('runner: dynamic parallel with one branch still applies branch output as pa
   dynamicWorkflow.steps.prepare.output.schema = path.basename(schemaPath);
   dynamicWorkflow.steps.prepare.next = '${{ output.selected_steps }}';
   delete dynamicWorkflow.steps.branch_b;
-  dynamicWorkflow.steps.join.input.state = ['branch_a'];
   writeJson(workflowPath, dynamicWorkflow);
 
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next dynamic single branch setup');
@@ -261,7 +269,6 @@ test('runner: static parallel with one branch still applies branch output as par
   const staticWorkflow = structuredClone(workflowDoc);
   staticWorkflow.steps.prepare.next = ['branch_a'];
   delete staticWorkflow.steps.branch_b;
-  staticWorkflow.steps.join.input.state = ['branch_a'];
   writeJson(workflowPath, staticWorkflow);
 
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next static single branch setup');
@@ -305,7 +312,6 @@ test('runner: continue does not persist applied output when next render fails', 
     name: 'Bad Render',
     kind: 'worker',
     input: {
-      state: ['prepare'],
       template: 'missing-input-template.md',
       prompt: 'This step should fail prompt rendering.',
     },
@@ -369,7 +375,7 @@ test('runner: continue recovers from post-render durable commit failure without 
     const workflowPath = path.join(tempDir, `durable-commit-${failurePoint}-failure-workflow.json`);
     const singleWorkflow = structuredClone(workflowDoc);
     singleWorkflow.steps.prepare.next = 'join';
-    singleWorkflow.steps.join.input.state = ['prepare'];
+    singleWorkflow.steps.join.input.prompt = 'Join branch output:\n${{ input.prepare }}';
     writeJson(workflowPath, singleWorkflow);
 
     expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], `next durable commit ${failurePoint} failure setup`);
