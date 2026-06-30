@@ -88,9 +88,9 @@ function next(run, workflow, extra = []) {
   return expectRunner(['next', '--run-id', runId(run), '--workflow', workflow, ...extra], `next ${path.basename(workflow)}`);
 }
 
-function currentRequestIds(run, workflow) {
+function currentRequests(run, workflow) {
   const response = next(run, workflow);
-  return (response.requests ?? []).map((request) => request.stepId ?? request.id);
+  return response.requests ?? [];
 }
 
 function parseOutputRef(ref) {
@@ -99,9 +99,16 @@ function parseOutputRef(ref) {
   return { stepId: ref.slice(0, separator), filePath: ref.slice(separator + 1) };
 }
 
-function writeOutput(run, workflow, stepId, filePath, label = 'write output') {
+function writeOutput(run, workflow, stepId, filePath, { action, label = 'write output' } = {}) {
   const outputJson = readFileSync(filePath, 'utf8').replaceAll('__RUN_DIR__', runPath(run));
-  const result = runRunner(['write-output', '--run-id', runId(run), '--workflow', workflow, '--step-id', stepId], {
+  const args = ['write-output', '--run-id', runId(run), '--workflow', workflow, '--step-id', stepId];
+  if (action === 'run_worker') {
+    const debugSummaryPath = path.join(runPath(run), stepId, 'debug-summary.md');
+    mkdirSync(path.dirname(debugSummaryPath), { recursive: true });
+    writeFileSync(debugSummaryPath, `debug summary for ${stepId}\n`);
+    args.push('--debug-summary-file', debugSummaryPath);
+  }
+  const result = runRunner(args, {
     input: outputJson,
   });
   assert.equal(result.status, 0, `${label} failed
@@ -114,12 +121,14 @@ ${result.stderr}`);
 
 function continueWith(run, workflow, refs, label = 'continue') {
   const normalized = Array.isArray(refs) ? refs : [refs];
-  const pendingIds = currentRequestIds(run, workflow);
+  const pendingRequests = currentRequests(run, workflow);
+  const pendingIds = pendingRequests.map((request) => request.stepId ?? request.id);
   for (const ref of normalized) {
     const { stepId, filePath } = parseOutputRef(ref);
     const targetStepId = stepId ?? (pendingIds.length === 1 ? pendingIds[0] : undefined);
     assert.ok(targetStepId, `output for ${label} must name a step when multiple requests are pending`);
-    writeOutput(run, workflow, targetStepId, filePath, `${label} write ${targetStepId}`);
+    const request = pendingRequests.find((item) => (item.stepId ?? item.id) === targetStepId);
+    writeOutput(run, workflow, targetStepId, filePath, { action: request?.action, label: `${label} write ${targetStepId}` });
   }
   return expectRunner(['continue', '--run-id', runId(run), '--workflow', workflow], label);
 }

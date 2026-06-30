@@ -21,13 +21,14 @@ The host adapter is thin. It executes requests with whatever capabilities the en
 
 ```bash
 node ./lib/entrypoints/cli/workflow-runner.mjs next --lease-token <token> --run-id <run-id> [--workflow <workflow.json>] [--user-prompt <text> | --user-prompt-file <path>]
-node ./lib/entrypoints/cli/workflow-runner.mjs write-output --lease-token <token> --run-id <run-id> --step-id <id> [--json <json>] [--workflow <workflow.json>]
+node ./lib/entrypoints/cli/workflow-runner.mjs write-output --lease-token <token> --run-id <run-id> --step-id <id> [--debug-summary-file <path>] [--json <json>] [--workflow <workflow.json>]
 node ./lib/entrypoints/cli/workflow-runner.mjs continue --lease-token <token> --run-id <run-id> [--workflow <workflow.json>]
 node ./lib/entrypoints/cli/workflow-runner.mjs instructions [--follow-up] --run-id <run-id> --step-id <id> --lease-token <token>
 node ./lib/entrypoints/cli/workflow-runner.mjs bind-agent --run-id <run-id> --step-id <id> --agent-id <agent-id> --lease-token <token>
+node ./lib/entrypoints/cli/workflow-runner.mjs record-orchestrator --lease-token <token> --run-id <run-id> [--json <json>] [--workflow <workflow.json>]
 ```
 
-`next` and `continue` also accept `--only-instructions`; with that flag stdout is exactly the `orchestratorInstruction` text instead of the full JSON host response. `next` creates the run files if needed and returns the current host work. `write-output` validates and accepts one current request output directly into baton/state, then returns only acceptance JSON or validation errors; it does not accept `--only-instructions`, does not drive orchestrator navigation, and must not accept or mutate worker binding metadata. `continue` applies already-accepted outputs from baton/state, persists the new baton, and returns the next host work. `instructions` prints only the compiled instructions for one current requested step, does not accept `--only-instructions`, and fails for unknown or unsafe step ids. `bind-agent` validates the same explicit lease and updates only top-level `baton.workerBindings[stepId]` with the supplied opaque worker id. Current requests and instructions are rendered from the indexed workflow plus `baton.json`; durable runner state is baton plus history plus advisory top-level worker bindings. Every write-capable, bind-capable, or instruction-loading command validates a fresh explicit `--lease-token` before creating run directories, locks, index entries, baton/history, binding metadata, or durable commit files; `runId` is identity only, and durable lease state keeps only token hash, token epoch, and lease expiry.
+`next` and `continue` also accept `--only-instructions`; with that flag stdout is exactly the `orchestratorInstruction` text instead of the full JSON host response. `next` creates the run files if needed and returns the current host work. `write-output` validates and accepts one current request output directly into baton/state, then returns only acceptance JSON or validation errors; it does not accept `--only-instructions`, does not drive orchestrator navigation, and must not accept or mutate worker binding metadata. `record-orchestrator` accepts one host/orchestrator debug JSON note for the current non-terminal host action and appends a bounded, redacted, deduplicated history entry without changing baton state. `continue` applies already-accepted outputs from baton/state, persists the new baton, and returns the next host work. `instructions` prints only the compiled instructions for one current requested step, does not accept `--only-instructions`, and fails for unknown or unsafe step ids. `bind-agent` validates the same explicit lease and updates only top-level `baton.workerBindings[stepId]` with the supplied opaque worker id. Current requests and instructions are rendered from the indexed workflow plus `baton.json`; durable runner state is baton plus history plus advisory top-level worker bindings. Every write-capable, bind-capable, or instruction-loading command validates a fresh explicit `--lease-token` before creating run directories, locks, index entries, baton/history, binding metadata, or durable commit files; `runId` is identity only, and durable lease state keeps only token hash, token epoch, and lease expiry.
 
 Commands returned in host responses are rendered with the absolute path to `workflow-runner.mjs` and an explicit absolute `--runs-root`, quoted for shell execution, so a worker or host can run them from any current working directory. The relative examples above are only for humans running the CLI from the skill root.
 
@@ -77,7 +78,17 @@ A CLI failure is an execution error and should be reported by the host adapter i
 
 ## Output capture
 
-The host wrapper writes each request result through `workflow-runner write-output`. The command validates strict JSON against the current request/step output schema and accepts the normalized value directly into baton/state. It is a pure task-output path: it must not accept, store, emit, or mutate worker binding/control-plane metadata. There is no output-path handoff from worker to orchestrator, and `workflow-runner continue` does not accept output paths.
+The host wrapper writes each request result through `workflow-runner write-output`. The command validates strict JSON against the current request/step output schema and accepts the normalized value directly into baton/state. For `run_worker` requests, the same command also requires the generated `--debug-summary-file` path and reads that side-channel only after the JSON output validates. It is a pure task-output path: it must not accept, store, emit, or mutate worker binding/control-plane metadata. There is no output-path handoff from worker to orchestrator, and `workflow-runner continue` does not accept output paths.
+
+`write-output` owns accepted-output history projection. After schema validation, artifact path validation, and required worker debug-summary side-channel validation succeed, it may append a deterministic entry to the run's managed `history.md` from the accepted output, accepted step metadata, and the bounded side-channel debug summary. This entry is part of the same durable output acceptance path as the baton update; hidden host transcripts, subagent sessions, private prompts, lease tokens, instruction storage paths, and worker/control-plane metadata must never be scraped or written into history.
+
+Accepted-output history uses two layers:
+
+- A compact fallback summary derived from public accepted output fields such as `outcome`, `approval`, `artifacts`, `results`, `blocker`, and the accepted step id. This fallback remains enabled for compatible existing worker outputs and for debug-history disabled mode.
+- A required rich body side-channel for `run_worker` requests, passed through the exact generated `--debug-summary-file` path. Generated worker instructions tell workers to write a concise operational rationale to that file before running the validating writer command. The file is not part of the JSON output, is not stored in baton/state, and does not depend on the worker output schema shape. Rich body ingestion requires the exact expected path, a non-empty regular file, reads only a bounded prefix before normalization, is suppressible by debug-history disabled mode, and is bounded after normalization to 4 KiB or 80 lines, whichever limit is hit first. Truncated rich bodies must include an explicit truncation marker.
+- A host/orchestrator debug note from `record-orchestrator`, used to preserve why the host chose a worker reuse/fresh spawn path, which host actions and commands/tools ran, what evidence was observed, and remaining risks before `continue`. This note is bounded, redacted, deduplicated, and never written by direct host file access.
+
+When debug-history rich ingestion is disabled, `write-output` still validates the required worker debug-summary side-channel but suppresses its body while preserving the compact accepted-output fallback summary and the normal control-flow history. The debug summary must not require a new generic debug field in the worker-output envelope or a baton schema expansion.
 
 On success, `write-output` stdout is acceptance JSON such as `{ "ok": true, "accepted": true, ... }`. The host must not treat `write-output` stdout as the next workflow directive: it only marks one current request output as accepted. After every current request is accepted, the host continues following the latest `next`/`continue` instruction and runs the embedded `continue --only-instructions` command.
 
@@ -116,7 +127,7 @@ Missing host capability is represented as blocked output, not as a transition de
 For each requested step, accept output first:
 
 ```bash
-node ./lib/entrypoints/cli/workflow-runner.mjs write-output --lease-token "$WORKFLOW_RUN_TOKEN" --run-id "$RUN_ID" --step-id "step_id" --workflow "$WORKFLOW" <<'JSON'
+node ./lib/entrypoints/cli/workflow-runner.mjs write-output --lease-token "$WORKFLOW_RUN_TOKEN" --run-id "$RUN_ID" --step-id "step_id" --debug-summary-file "$RUN_DIR/step_id/debug-summary.md" --workflow "$WORKFLOW" <<'JSON'
 { "outcome": "ready", "artifacts": [], "results": [] }
 JSON
 ```
@@ -128,6 +139,16 @@ node ./lib/entrypoints/cli/workflow-runner.mjs continue --lease-token "$WORKFLOW
 ```
 
 For parallel branch requests, call `write-output` once per requested `stepId`; `continue` collects the accepted values from baton/state into the existing portable `{ "steps": { ... } }` envelope internally before applying workflow state.
+
+## History ownership
+
+`history.md` is the single human-facing flight recorder for one run. It is deterministic per run and may contain lifecycle/control-flow events, accepted worker output summaries, required bounded worker debug-summary side-channel content, terminal outcomes, and exact relevant public errors when they are safely attributable. It is not a transcript store and not a private runner-state export.
+
+`continue` owns transition and terminal history. Transition entries are written only while applying already-accepted outputs and advancing baton state, so the visible history stays aligned with durable workflow state. Terminal `done` and `blocked` outcomes must be reconstructable from the transition/terminal history without reading private request or transcript state.
+
+Public runner failure history is allowed only when all attribution checks pass: the command has a safe run directory, the lease context matches the run being operated on, and the target is the managed `history.md` path for that run. The recorded text must be exact relevant public error text after host-safe redaction, bounded after normalization to 2 KiB or 40 lines, whichever limit is hit first, with an explicit truncation marker when shortened. If any context is unsafe or missing, no failure-history write occurs. Durable retry/recovery must not duplicate failure entries, corrupt history, or advance misleading history ahead of baton state.
+
+History entries must preserve the public boundary: no hidden transcripts, session registries, worker lifecycle internals, private prompts, lease tokens, raw instruction storage paths, or other host control-plane metadata. Artifact manifests may be referenced only through accepted output metadata; rich worker debug-summary content may be read only through the exact generated `--debug-summary-file` side-channel and only under the enabled policy above. Orchestrator debug notes must go through `record-orchestrator`; the host must not inspect or mutate `history.md` directly.
 
 ## OpenClaw mapping example
 

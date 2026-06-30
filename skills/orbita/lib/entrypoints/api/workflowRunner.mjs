@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { applyWorkflowOutput } from '../../use-cases/ApplyWorkflowOutput.mjs';
 import { validateAgainstOutputSchema } from '../../use-cases/runtime/output/output-schema-validation.mjs';
+import { acceptedOutputHistoryDetails, orchestratorDebugHistoryDetails, publicFailureHistoryDetails, transitionHistoryDetails } from '../../use-cases/runtime/output/history-projection.mjs';
 import { workerOutputSchema } from '../../use-cases/runtime/output/worker-output-schema.mjs';
 import { renderAppliedResponse } from '../../use-cases/ContinueRun.mjs';
 import { runNext } from '../../use-cases/RunNext.mjs';
@@ -12,7 +13,7 @@ import { toHostResponse } from './runner/host-requests.mjs';
 import { assertSafeStepId, writeOutputCommandForStep } from './runner/runner-command-builder.mjs';
 import { readText } from '../../persistence/run-state/atomic-file.mjs';
 import { assertFreshTokenAuthority, assertMatchingTokenAuthority, buildTokenLease, renewTokenLease } from '../../persistence/run-state/lease-authority.mjs';
-import { recoverDurableCommit } from '../../persistence/run-state/durable-commit.mjs';
+import { appendHistoryOnce, recoverDurableCommit } from '../../persistence/run-state/durable-commit.mjs';
 import { readPersistedRunState } from '../../persistence/run-state/PersistedRunStateReader.mjs';
 import { ensureRunFiles, migrateLegacyWorkflowRunsRootIfNeeded, pathExists, resolveRunPaths } from '../../persistence/run-state/paths.mjs';
 import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot, upsertRunIndexEntry } from '../../persistence/run-state/run-index.mjs';
@@ -120,22 +121,60 @@ function publicApiError(error, options = {}) {
   return redacted;
 }
 
+async function recordPublicRunnerFailure(error, options = {}) {
+  const { runId, workflowPath, runsRoot, leaseToken, command, now = new Date() } = options;
+  if (!runId || !leaseToken) return false;
+  try {
+    const lockPaths = resolveRunPaths({ runId, runsRoot });
+    await assertPreLockWorkerLeaseAuthority(lockPaths, { leaseToken, now, allowStale: true });
+    return await withRunStateLock(lockPaths, async () => {
+      const paths = await resolveIndexedRunPaths({ runId, workflowPath, runsRoot });
+      await assertWorkerLeaseAuthority(paths, { leaseToken, now, allowStale: true });
+      if (!(await pathExists(paths.historyPath)) || !(await pathExists(paths.batonPath))) return false;
+      if (await pathExists(paths.durableCommitPath)) return false;
+      await recoverDurableCommit(paths);
+      const current = await readPersistedRunState(paths);
+      const details = publicFailureHistoryDetails({
+        command,
+        error: publicErrorMessage(error?.message ?? error, { runsRoot: paths.runsRoot }),
+        leaseToken,
+      });
+      return await appendHistoryOnce(
+        paths,
+        { source: 'workflow-runner-failure', baton: current.baton, details },
+        { dedupeKey: `workflow-runner-failure:${command}:${details.join('\n')}` },
+      );
+    });
+  } catch {
+    return false;
+  }
+}
+
 async function publicApiCall(callback, options = {}) {
   try { return await callback(); }
-  catch (error) { throw publicApiError(error, options); }
+  catch (error) {
+    await recordPublicRunnerFailure(error, options);
+    throw publicApiError(error, options);
+  }
 }
 
 function resourcesWithValidatingWriter(resources, paths, { leaseToken } = {}) {
+  const debugSummaryPathForStep = (stepId) => {
+    assertSafeStepId(stepId);
+    return join(paths.runDir, stepId, 'debug-summary.md');
+  };
   return {
     ...resources,
-    validatingWriterCommandForStep: (stepId) => writeOutputCommandForStep(paths.runId, stepId, {
+    validatingWriterCommandForStep: (stepId, step) => writeOutputCommandForStep(paths.runId, stepId, {
       runsRoot: paths.runsRoot,
       leaseToken,
+      debugSummaryFile: step?.kind === 'worker' ? debugSummaryPathForStep(stepId) : undefined,
     }),
     artifactOutputDirForStep: (stepId) => {
       assertSafeStepId(stepId);
       return join(paths.runDir, stepId, 'artifacts');
     },
+    debugSummaryPathForStep: (stepId, step) => step?.kind === 'worker' ? debugSummaryPathForStep(stepId) : undefined,
   };
 }
 
@@ -285,7 +324,7 @@ async function resolveContinueRunPaths({ runId, workflowPath, runsRoot }) {
 }
 
 export async function next(options = {}) {
-  return publicApiCall(() => nextInternal(options), { runsRoot: options.runsRoot });
+  return publicApiCall(() => nextInternal(options), { ...options, command: 'next' });
 }
 
 async function continueRunInternal({ runId, workflowPath, output, includeDiagnostics = false, leaseToken, now = new Date(), runsRoot } = {}) {
@@ -310,7 +349,13 @@ async function continueRunInternal({ runId, workflowPath, output, includeDiagnos
     const workerLease = await renewedWorkerLeaseAuthority(paths, { leaseToken, now });
     await writePersistedRunStateUpdate(paths, {
       baton: applied.baton,
-      history: { source: 'workflow-runner-continue', baton: applied.baton, output: historyOutput, requests: response.requests },
+      history: {
+        source: 'workflow-runner-continue',
+        baton: applied.baton,
+        output: historyOutput,
+        requests: response.requests,
+        details: transitionHistoryDetails({ before: runtime.baton, after: applied.baton, output: historyOutput, requests: response.requests }),
+      },
     });
     await upsertRunIndexEntry(paths, { status: response.status, workflowPath: paths.workflowPath, workerLease });
     return response;
@@ -318,7 +363,7 @@ async function continueRunInternal({ runId, workflowPath, output, includeDiagnos
 }
 
 export async function continueRun(options = {}) {
-  return publicApiCall(() => continueRunInternal(options), { runsRoot: options.runsRoot });
+  return publicApiCall(() => continueRunInternal(options), { ...options, command: 'continue' });
 }
 
 function parseOutputJson(json) {
@@ -391,7 +436,19 @@ function batonWithWorkerBinding(baton, stepId, agentId) {
   return nextBaton;
 }
 
-async function writeOutputInternal({ runId, workflowPath, stepId, json, leaseToken, now = new Date(), runsRoot } = {}) {
+function latestNonOrchestratorHistoryScope(historyText) {
+  if (typeof historyText !== 'string' || historyText.length === 0) return 'empty-history';
+  const starts = [...historyText.matchAll(/^## /gm)].map((match) => match.index);
+  for (let index = starts.length - 1; index >= 0; index -= 1) {
+    const start = starts[index];
+    const end = starts[index + 1] ?? historyText.length;
+    const entry = historyText.slice(start, end);
+    if (!entry.includes('\n- source: workflow-runner-orchestrator\n')) return entry.trim();
+  }
+  return 'orchestrator-only-history';
+}
+
+async function writeOutputInternal({ runId, workflowPath, stepId, json, debugSummaryFile, leaseToken, now = new Date(), runsRoot } = {}) {
   await migrateLegacyWorkflowRunsRootIfNeeded(runsRoot);
   assertSafeStepId(stepId);
   const output = parseOutputJson(json);
@@ -408,12 +465,24 @@ async function writeOutputInternal({ runId, workflowPath, stepId, json, leaseTok
     const request = currentRequestForStep(response, stepId);
     if (!request) throw staleWorkflowCommandError(stepId, response);
     const validationResources = resourcesWithValidatingWriter(runtime.resources, paths, { leaseToken });
-    const accepted = validateAcceptedOutputForRequest({ workflow: runtime.workflow, resources: validationResources, request, output });
     const acceptedStepId = stepIdForRequest(request);
+    const accepted = validateAcceptedOutputForRequest({ workflow: runtime.workflow, resources: validationResources, request, output });
+    const expectedDebugSummaryPath = request.action === 'run_worker'
+      ? validationResources.debugSummaryPathForStep?.(acceptedStepId, runtime.workflow.steps?.[acceptedStepId])
+      : undefined;
+    if (request.action === 'run_worker') {
+      const actual = typeof debugSummaryFile === 'string' ? resolve(debugSummaryFile) : '';
+      const expected = resolve(expectedDebugSummaryPath);
+      if (!actual) throw new Error(`debug summary file is required for worker step '${acceptedStepId}'`);
+      if (actual !== expected) throw new Error(`debug summary file for worker step '${acceptedStepId}' must be exactly ${expectedDebugSummaryPath}`);
+    } else if (debugSummaryFile !== undefined) {
+      throw new Error(`debug summary file is only accepted for run_worker requests, not '${request.action}'`);
+    }
     const baton = batonWithAcceptedOutput(current.baton, acceptedStepId, accepted);
+    const details = await acceptedOutputHistoryDetails({ stepId: acceptedStepId, request, output: accepted, debugSummaryPath: expectedDebugSummaryPath, leaseToken });
     await writePersistedRunStateUpdate(paths, {
       baton,
-      history: { source: 'workflow-runner-write-output', baton, output: `accepted:${acceptedStepId}`, requests: response.requests ?? [] },
+      history: { source: 'workflow-runner-write-output', baton, output: `accepted:${acceptedStepId}`, requests: response.requests ?? [], details },
     });
     const workerLease = await renewedWorkerLeaseAuthority(paths, { leaseToken, now });
     await upsertRunIndexEntry(paths, { workflowPath: paths.workflowPath, workerLease });
@@ -427,7 +496,40 @@ async function writeOutputInternal({ runId, workflowPath, stepId, json, leaseTok
 }
 
 export async function writeOutput(options = {}) {
-  return publicApiCall(() => writeOutputInternal(options), { runsRoot: options.runsRoot });
+  return publicApiCall(() => writeOutputInternal(options), { ...options, command: 'write-output' });
+}
+
+async function recordOrchestratorInternal({ runId, workflowPath, json, leaseToken, now = new Date(), runsRoot } = {}) {
+  const note = parseOutputJson(json);
+  const lockPaths = resolveRunPaths({ runId, runsRoot });
+  await assertPreLockWorkerLeaseAuthority(lockPaths, { leaseToken, now, allowStale: true });
+  return withRunStateLock(lockPaths, async () => {
+    const paths = await resolveContinueRunPaths({ runId, workflowPath, runsRoot });
+    await assertWorkerLeaseAuthority(paths, { leaseToken, now, allowStale: true });
+    await ensureRunFiles(paths);
+    await recoverDurableCommit(paths);
+    const current = await readPersistedRunState(paths);
+    const { response } = await renderCurrentHostResponse(paths, current.baton, { leaseToken });
+    if (response.status !== 'needs_host_actions') throw new Error(`current runner response is '${response.status}', not needs_host_actions`);
+    const details = orchestratorDebugHistoryDetails({ note, leaseToken });
+    const historyScope = latestNonOrchestratorHistoryScope(current.history?.text);
+    const recorded = await appendHistoryOnce(
+      paths,
+      { source: 'workflow-runner-orchestrator', baton: current.baton, requests: response.requests ?? [], details },
+      { dedupeKey: `workflow-runner-orchestrator:${historyScope}:${details.join('\n')}` },
+    );
+    const workerLease = await renewedWorkerLeaseAuthority(paths, { leaseToken, now });
+    await upsertRunIndexEntry(paths, { workflowPath: paths.workflowPath, workerLease });
+    return {
+      ok: true,
+      runId: paths.runId,
+      recorded,
+    };
+  });
+}
+
+export async function recordOrchestrator(options = {}) {
+  return publicApiCall(() => recordOrchestratorInternal(options), { ...options, command: 'record-orchestrator' });
 }
 
 async function bindAgentInternal({ runId, workflowPath, stepId, agentId, leaseToken, now = new Date(), runsRoot } = {}) {
@@ -465,7 +567,7 @@ async function bindAgentInternal({ runId, workflowPath, stepId, agentId, leaseTo
 }
 
 export async function bindAgent(options = {}) {
-  return publicApiCall(() => bindAgentInternal(options), { runsRoot: options.runsRoot });
+  return publicApiCall(() => bindAgentInternal(options), { ...options, command: 'bind-agent' });
 }
 
 async function loadInstructionsInternal({ runId, workflowPath, stepId, followUp = false, leaseToken, now = new Date(), runsRoot } = {}) {
@@ -495,5 +597,5 @@ async function loadInstructionsInternal({ runId, workflowPath, stepId, followUp 
 }
 
 export async function loadInstructions(options = {}) {
-  return publicApiCall(() => loadInstructionsInternal(options), { runsRoot: options.runsRoot });
+  return publicApiCall(() => loadInstructionsInternal(options), { ...options, command: 'instructions' });
 }

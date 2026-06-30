@@ -146,9 +146,22 @@ function withLeaseTokenArg(args, token) {
   return [mode, `--lease-token=${token}`, ...rest];
 }
 
+function withDebugSummaryArg(args, options = {}) {
+  if (args[0] !== 'write-output' || args.includes('--debug-summary-file') || options.debugSummary !== true) return args;
+  const runId = valueAfter(args, '--run-id');
+  const stepId = valueAfter(args, '--step-id');
+  if (!runId || !stepId) return args;
+  const runsRoot = valueAfter(args, '--runs-root');
+  const debugSummaryPath = path.join(resolveRunPaths({ runId, runsRoot }).runDir, stepId, 'debug-summary.md');
+  mkdirSync(path.dirname(debugSummaryPath), { recursive: true });
+  writeFileSync(debugSummaryPath, options.debugSummaryText ?? `debug summary for ${stepId}\n`);
+  return [...args, '--debug-summary-file', debugSummaryPath];
+}
+
 function runRunner(args, options = {}) {
   const token = claimRunForRunnerArgs(args);
-  return spawnSync(process.execPath, ['skills/orbita/lib/entrypoints/cli/workflow-runner.mjs', ...withLeaseTokenArg(args, token)], { cwd: root, encoding: 'utf8', input: options.input, env: { ...process.env, WORKFLOW_RUN_TOKEN: token ?? testLeaseToken, ...(options.env ?? {}) } });
+  const runnerArgs = withDebugSummaryArg(withLeaseTokenArg(args, token), options);
+  return spawnSync(process.execPath, ['skills/orbita/lib/entrypoints/cli/workflow-runner.mjs', ...runnerArgs], { cwd: root, encoding: 'utf8', input: options.input, env: { ...process.env, WORKFLOW_RUN_TOKEN: token ?? testLeaseToken, ...(options.env ?? {}) } });
 }
 
 async function runRunnerAsync(args) {
@@ -195,9 +208,13 @@ function workerOutput(summary) {
   return { outcome: 'ready', results: [{ type: 'check', summary }] };
 }
 
-function currentRequestIds(runId, workflowPath) {
+function currentRequests(runId, workflowPath) {
   const response = expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'derive current requests');
-  return (response.requests ?? []).map((request) => request.stepId ?? request.id);
+  return response.requests ?? [];
+}
+
+function currentRequestIds(runId, workflowPath) {
+  return currentRequests(runId, workflowPath).map((request) => request.stepId ?? request.id);
 }
 
 function parseOutputRef(ref) {
@@ -207,8 +224,11 @@ function parseOutputRef(ref) {
 }
 
 function writeOutputFile({ runId, runDir, workflowPath, stepId, filePath, label = 'write output' }) {
-  const targetStepId = stepId ?? currentRequestIds(runId, workflowPath)[0];
-  const result = runRunner(['write-output', '--run-id', runId, '--workflow', workflowPath, '--step-id', targetStepId], { input: readFileSync(filePath, 'utf8') });
+  const requests = currentRequests(runId, workflowPath);
+  const pendingIds = requests.map((request) => request.stepId ?? request.id);
+  const targetStepId = stepId ?? pendingIds[0];
+  const request = requests.find((item) => (item.stepId ?? item.id) === targetStepId);
+  const result = runRunner(['write-output', '--run-id', runId, '--workflow', workflowPath, '--step-id', targetStepId], { input: readFileSync(filePath, 'utf8'), debugSummary: request?.action === 'run_worker' });
   assert.equal(result.status, 0, `${label} failed
 stdout:
 ${result.stdout}
@@ -248,6 +268,9 @@ test('runner: next returns a single host action request with load command only',
   assert.doesNotMatch(response.orchestratorInstruction, /run_worker request, enforce this host watchdog/);
   assert.deepEqual(requestsFromOrchestratorInstruction(response.orchestratorInstruction), response.requests);
   assert.match(response.orchestratorInstruction, new RegExp(`workflow-runner\\.mjs' instructions --run-id '${runId}' --step-id 'prepare' --runs-root '${runsRoot}' --lease-token '${leaseToken}'`));
+  assert.match(response.orchestratorInstruction, /Before continue, record a concise orchestrator debug summary/);
+  assert.match(response.orchestratorInstruction, new RegExp(`workflow-runner\\.mjs' record-orchestrator --run-id '${runId}' --runs-root '${runsRoot}' --lease-token '${leaseToken}'`));
+  assert.equal(response.orchestratorDebugCommand.includes(`record-orchestrator --run-id '${runId}' --runs-root '${runsRoot}' --lease-token '${leaseToken}'`), true);
   assert.equal(response.orchestratorInstruction.includes(`Then run:\n${workflowRunnerCommand} continue --run-id '${runId}' --runs-root '${runsRoot}' --lease-token '${leaseToken}' --only-instructions`), true);
   assert.match(response.orchestratorInstruction, /Follow that stdout instruction exactly/);
   assert.doesNotMatch(response.orchestratorInstruction, /write-output/);
@@ -773,7 +796,7 @@ test('runner: write-output accepts valid stdin JSON into baton state and continu
   writeJson(workflowPath, workflow);
 
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next before write-output');
-  const written = runRunner(['write-output', '--run-id', runId, '--step-id', 'prepare'], { input: JSON.stringify(workerOutput('prepared')) });
+  const written = runRunner(['write-output', '--run-id', runId, '--step-id', 'prepare'], { input: JSON.stringify(workerOutput('prepared')), debugSummary: true });
   assert.equal(written.status, 0, written.stderr);
   const writtenResponse = JSON.parse(written.stdout);
   assert.equal(writtenResponse.ok, true);
@@ -790,6 +813,20 @@ test('runner: write-output accepts valid stdin JSON into baton state and continu
   assert.equal(continued.baton.state.prepare.outcome, 'ready');
 });
 
+test('runner: write-output rejects valid worker output without required debug summary side-channel', () => {
+  const { runId, runDir } = runCase('write-output-missing-debug-summary');
+  const workflowPath = path.join(tempDir, 'write-output-missing-debug-summary-workflow.json');
+  const workflow = schemaCoveredWorkflow({ prepare: { next: 'done' } });
+  writeJson(workflowPath, workflow);
+
+  expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next before missing debug summary');
+  const rejected = runRunner(['write-output', '--run-id', runId, '--step-id', 'prepare'], { input: JSON.stringify(workerOutput('prepared')) });
+  assert.notEqual(rejected.status, 0);
+  assert.match(rejected.stderr, /debug summary file is required for worker step 'prepare'/);
+  const batonAfterReject = JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8'));
+  assert.equal(Object.hasOwn(batonAfterReject.state, 'prepare'), false);
+});
+
 test('runner: continue --only-instructions prints terminal instruction text', () => {
   const { runId } = runCase('continue-only-instructions');
   const workflowPath = path.join(tempDir, 'continue-only-instructions-workflow.json');
@@ -797,7 +834,7 @@ test('runner: continue --only-instructions prints terminal instruction text', ()
   writeJson(workflowPath, workflow);
 
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next before continue only instructions');
-  const written = runRunner(['write-output', '--run-id', runId, '--step-id', 'prepare'], { input: JSON.stringify(workerOutput('prepared')) });
+  const written = runRunner(['write-output', '--run-id', runId, '--step-id', 'prepare'], { input: JSON.stringify(workerOutput('prepared')), debugSummary: true });
   assert.equal(written.status, 0, written.stderr);
   const continued = runRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--only-instructions']);
   assert.equal(continued.status, 0, continued.stderr);
@@ -821,7 +858,7 @@ test('runner: blocked --only-instructions prints terminal blocker data', () => {
     ...workerOutput('blocked'),
     blocker: { reason: 'needs human decision' },
   };
-  const written = runRunner(['write-output', '--run-id', runId, '--step-id', 'prepare'], { input: JSON.stringify(output) });
+  const written = runRunner(['write-output', '--run-id', runId, '--step-id', 'prepare'], { input: JSON.stringify(output), debugSummary: true });
   assert.equal(written.status, 0, written.stderr);
   const continued = runRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--only-instructions']);
   assert.equal(continued.status, 0, continued.stderr);
@@ -877,9 +914,15 @@ test('runner: worker instructions include prefilled validating write-output comm
   assert.match(instructions.stdout, /workflow-runner\.mjs' write-output --run-id/);
   assert.match(instructions.stdout, /--step-id 'prepare'/);
   assert.match(instructions.stdout, /--lease-token '[^']+'/);
+  assert.match(instructions.stdout, /--debug-summary-file '[^']+\/prepare\/debug-summary\.md'/);
   assert.doesNotMatch(instructions.stdout, /write-output[^\n]*--only-instructions/);
   assert.doesNotMatch(instructions.stdout, /--lease-token <lease-token>/);
   assert.match(instructions.stdout, /Do not create a separate JSON output file and do not pass an output path to the orchestrator/);
+  assert.match(instructions.stdout, /Debug history summary:/);
+  assert.match(instructions.stdout, /Do not put this debug summary in the JSON output/);
+  assert.match(instructions.stdout, /before calling the validating writer command/);
+  assert.match(instructions.stdout, /operational rationale/);
+  assert.match(instructions.stdout, /Do not write history\.md directly/);
 });
 
 test('runner: write-output separates parallel request outputs by step id before continue without --output', () => {
@@ -889,12 +932,12 @@ test('runner: write-output separates parallel request outputs by step id before 
   writeJson(workflowPath, workflow);
 
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next before prepare writer');
-  assert.equal(runRunner(['write-output', '--run-id', runId, '--step-id', 'prepare'], { input: JSON.stringify(workerOutput('prepared')) }).status, 0);
+  assert.equal(runRunner(['write-output', '--run-id', runId, '--step-id', 'prepare'], { input: JSON.stringify(workerOutput('prepared')), debugSummary: true }).status, 0);
   const fanout = expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath], 'continue to parallel branches');
   assert.deepEqual(fanout.requests.map((request) => request.stepId).sort(), ['branch_a', 'branch_b']);
 
-  assert.equal(runRunner(['write-output', '--run-id', runId, '--step-id', 'branch_a'], { input: JSON.stringify(workerOutput('A')) }).status, 0);
-  assert.equal(runRunner(['write-output', '--run-id', runId, '--step-id', 'branch_b'], { input: JSON.stringify(workerOutput('B')) }).status, 0);
+  assert.equal(runRunner(['write-output', '--run-id', runId, '--step-id', 'branch_a'], { input: JSON.stringify(workerOutput('A')), debugSummary: true }).status, 0);
+  assert.equal(runRunner(['write-output', '--run-id', runId, '--step-id', 'branch_b'], { input: JSON.stringify(workerOutput('B')), debugSummary: true }).status, 0);
   const batonAfterWrites = JSON.parse(readFileSync(path.join(runDir, 'baton.json'), 'utf8'));
   assert.equal(batonAfterWrites.state.branch_a.results[0].summary, 'A');
   assert.equal(batonAfterWrites.state.branch_b.results[0].summary, 'B');

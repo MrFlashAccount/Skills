@@ -61,6 +61,13 @@ function writeJson(filePath, value) {
   writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
 }
 
+function debugSummaryFileFor({ runId, stepId, runsRoot, text = 'worker debug summary\n' }) {
+  const debugSummaryFile = path.join(resolveRunPaths({ runId, runsRoot }).runDir, stepId, 'debug-summary.md');
+  mkdirSync(path.dirname(debugSummaryFile), { recursive: true });
+  writeFileSync(debugSummaryFile, text);
+  return debugSummaryFile;
+}
+
 function claimRunForTest(paths) {
   const knownToken = leaseTokensByRunId.get(paths.runId);
   if (knownToken) {
@@ -133,9 +140,22 @@ function withLeaseTokenArg(args, token) {
   return [mode, `--lease-token=${token}`, ...rest];
 }
 
+function withDebugSummaryArg(args, options = {}) {
+  if (args[0] !== 'write-output' || args.includes('--debug-summary-file') || options.debugSummary !== true) return args;
+  const runId = valueAfter(args, '--run-id');
+  const stepId = valueAfter(args, '--step-id');
+  if (!runId || !stepId) return args;
+  const runsRoot = valueAfter(args, '--runs-root');
+  const debugSummaryPath = path.join(resolveRunPaths({ runId, runsRoot }).runDir, stepId, 'debug-summary.md');
+  mkdirSync(path.dirname(debugSummaryPath), { recursive: true });
+  writeFileSync(debugSummaryPath, options.debugSummaryText ?? `debug summary for ${stepId}\n`);
+  return [...args, '--debug-summary-file', debugSummaryPath];
+}
+
 function runRunner(args, options = {}) {
   const token = claimRunForRunnerArgs(args);
-  return spawnSync(process.execPath, ['skills/orbita/lib/entrypoints/cli/workflow-runner.mjs', ...withLeaseTokenArg(args, token)], { cwd: root, encoding: 'utf8', input: options.input, env: { ...process.env, WORKFLOW_RUN_TOKEN: token ?? testLeaseToken, ...(options.env ?? {}) } });
+  const runnerArgs = withDebugSummaryArg(withLeaseTokenArg(args, token), options);
+  return spawnSync(process.execPath, ['skills/orbita/lib/entrypoints/cli/workflow-runner.mjs', ...runnerArgs], { cwd: root, encoding: 'utf8', input: options.input, env: { ...process.env, WORKFLOW_RUN_TOKEN: token ?? testLeaseToken, ...(options.env ?? {}) } });
 }
 
 async function runRunnerAsync(args) {
@@ -312,12 +332,12 @@ test('runner: stale older-response commands name the current request step ids', 
   writeJson(workflowPath, workflowDoc);
 
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next stale current request diagnostics');
-  expectRunner(['write-output', '--run-id', runId, '--step-id', 'prepare'], 'write prepare before stale diagnostics', { input: JSON.stringify(workerOutput('prepared')) });
+  expectRunner(['write-output', '--run-id', runId, '--step-id', 'prepare'], 'write prepare before stale diagnostics', { input: JSON.stringify(workerOutput('prepared')), debugSummary: true });
   let continued = expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath], 'continue to branch fanout');
   assert.deepEqual(continued.requests.map((request) => request.stepId), ['branch_a', 'branch_b']);
 
-  expectRunner(['write-output', '--run-id', runId, '--step-id', 'branch_a'], 'write branch_a before stale diagnostics', { input: JSON.stringify(workerOutput('branch a')) });
-  expectRunner(['write-output', '--run-id', runId, '--step-id', 'branch_b'], 'write branch_b before stale diagnostics', { input: JSON.stringify(workerOutput('branch b')) });
+  expectRunner(['write-output', '--run-id', runId, '--step-id', 'branch_a'], 'write branch_a before stale diagnostics', { input: JSON.stringify(workerOutput('branch a')), debugSummary: true });
+  expectRunner(['write-output', '--run-id', runId, '--step-id', 'branch_b'], 'write branch_b before stale diagnostics', { input: JSON.stringify(workerOutput('branch b')), debugSummary: true });
   continued = expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath], 'continue to join request');
   assert.deepEqual(continued.requests.map((request) => request.stepId), ['join']);
 
@@ -498,6 +518,7 @@ test('runner write-output accepts artifact paths inside the current step artifac
     workflowPath,
     stepId: 'prepare',
     json: JSON.stringify({ outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: path.join(artifactDir, 'packet.md') }] }),
+    debugSummaryFile: debugSummaryFileFor({ runId, stepId: 'prepare' }),
     leaseToken,
   });
 
@@ -558,7 +579,15 @@ test('runner API propagates custom runsRoot through next, instructions, and cont
   const bound = await runnerBindAgent({ runId, stepId: 'prepare', agentId: 'custom-root-worker', runsRoot, leaseToken });
   assert.deepEqual(bound, { ok: true, runId, stepId: 'prepare', bound: true });
 
-  const writeOutput = await runnerWriteOutput({ runId, workflowPath, runsRoot, stepId: 'prepare', json: readFileSync(outputPath, 'utf8'), leaseToken });
+  const writeOutput = await runnerWriteOutput({
+    runId,
+    workflowPath,
+    runsRoot,
+    stepId: 'prepare',
+    json: readFileSync(outputPath, 'utf8'),
+    debugSummaryFile: debugSummaryFileFor({ runId, runsRoot, stepId: 'prepare' }),
+    leaseToken,
+  });
   assert.equal(writeOutput.ok, true);
   assert.equal(writeOutput.accepted, true);
   assert.equal(Object.hasOwn(writeOutput, 'orchestratorInstruction'), false);

@@ -8,6 +8,7 @@ import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { next as runnerNext } from '../entrypoints/api/workflowRunner.mjs';
 import { resolveRunPaths } from '../persistence/run-state/paths.mjs';
+import { publicFailureHistoryDetails } from '../use-cases/runtime/output/history-projection.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-runner-check-'));
@@ -142,9 +143,22 @@ function withLeaseTokenArg(args, token) {
   return [mode, `--lease-token=${token}`, ...rest];
 }
 
+function withDebugSummaryArg(args, options = {}) {
+  if (args[0] !== 'write-output' || args.includes('--debug-summary-file') || options.debugSummary !== true) return args;
+  const runId = valueAfter(args, '--run-id');
+  const stepId = valueAfter(args, '--step-id');
+  if (!runId || !stepId) return args;
+  const runsRoot = valueAfter(args, '--runs-root');
+  const debugSummaryPath = path.join(resolveRunPaths({ runId, runsRoot }).runDir, stepId, 'debug-summary.md');
+  mkdirSync(path.dirname(debugSummaryPath), { recursive: true });
+  writeFileSync(debugSummaryPath, options.debugSummaryText ?? `debug summary for ${stepId}\n`);
+  return [...args, '--debug-summary-file', debugSummaryPath];
+}
+
 function runRunner(args, options = {}) {
   const token = claimRunForRunnerArgs(args);
-  return spawnSync(process.execPath, ['skills/orbita/lib/entrypoints/cli/workflow-runner.mjs', ...withLeaseTokenArg(args, token)], { cwd: root, encoding: 'utf8', input: options.input, env: { ...process.env, WORKFLOW_RUN_TOKEN: token ?? testLeaseToken, ...(options.env ?? {}) } });
+  const runnerArgs = withDebugSummaryArg(withLeaseTokenArg(args, token), options);
+  return spawnSync(process.execPath, ['skills/orbita/lib/entrypoints/cli/workflow-runner.mjs', ...runnerArgs], { cwd: root, encoding: 'utf8', input: options.input, env: { ...process.env, WORKFLOW_RUN_TOKEN: token ?? testLeaseToken, ...(options.env ?? {}) } });
 }
 
 async function runRunnerAsync(args) {
@@ -187,9 +201,13 @@ function expectRunner(args, label) {
   return JSON.parse(result.stdout);
 }
 
-function currentRequestIds(runId, workflowPath) {
+function currentRequests(runId, workflowPath) {
   const response = expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'derive current requests');
-  return (response.requests ?? []).map((request) => request.stepId ?? request.id);
+  return response.requests ?? [];
+}
+
+function currentRequestIds(runId, workflowPath) {
+  return currentRequests(runId, workflowPath).map((request) => request.stepId ?? request.id);
 }
 
 function parseOutputRef(ref) {
@@ -199,8 +217,17 @@ function parseOutputRef(ref) {
 }
 
 function writeOutputFile({ runId, runDir, workflowPath, stepId, filePath, label = 'write output', options = {} }) {
-  const targetStepId = stepId ?? currentRequestIds(runId, workflowPath)[0];
-  const result = runRunner(['write-output', '--run-id', runId, '--workflow', workflowPath, '--step-id', targetStepId], { input: readFileSync(filePath, 'utf8'), ...options });
+  const requests = currentRequests(runId, workflowPath);
+  const pendingIds = requests.map((request) => request.stepId ?? request.id);
+  const targetStepId = stepId ?? pendingIds[0];
+  const request = requests.find((item) => (item.stepId ?? item.id) === targetStepId);
+  const result = runRunner(['write-output', '--run-id', runId, '--workflow', workflowPath, '--step-id', targetStepId], { input: readFileSync(filePath, 'utf8'), debugSummary: request?.action === 'run_worker', ...options });
+  assert.equal(result.status, 0, `${label} failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+  return JSON.parse(result.stdout);
+}
+
+function recordOrchestratorNote({ runId, workflowPath, note, label = 'record orchestrator note' }) {
+  const result = runRunner(['record-orchestrator', '--run-id', runId, '--workflow', workflowPath], { input: JSON.stringify(note) });
   assert.equal(result.status, 0, `${label} failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
   return JSON.parse(result.stdout);
 }
@@ -332,7 +359,12 @@ test('runner: continue does not persist applied output when next render fails', 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /workflow prompt render failed/);
   assert.equal(readFileSync(path.join(runDir, 'baton.json'), 'utf8'), batonBefore);
-  assert.equal(readFileSync(path.join(runDir, 'history.md'), 'utf8'), historyBefore);
+  const failureHistory = readFileSync(path.join(runDir, 'history.md'), 'utf8');
+  const failureEntry = failureHistory.slice(historyBefore.length);
+  assert.match(failureEntry, /source: workflow-runner-failure/);
+  assert.match(failureEntry, /public failure: command=continue/);
+  assert.match(failureEntry, /workflow prompt render failed: missing input template 'missing-input-template.md'/);
+  assert.doesNotMatch(failureEntry, /source: workflow-runner-continue/);
 
   const baton = JSON.parse(batonBefore);
   assert.equal(baton.cursor, 'prepare');
@@ -365,7 +397,12 @@ test('runner: parallel continue does not create durable envelope when next rende
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /workflow prompt render failed/);
   assert.equal(readFileSync(path.join(runDir, 'baton.json'), 'utf8'), batonBefore);
-  assert.equal(readFileSync(path.join(runDir, 'history.md'), 'utf8'), historyBefore);
+  const failureHistory = readFileSync(path.join(runDir, 'history.md'), 'utf8');
+  const failureEntry = failureHistory.slice(historyBefore.length);
+  assert.match(failureEntry, /source: workflow-runner-failure/);
+  assert.match(failureEntry, /public failure: command=continue/);
+  assert.match(failureEntry, /workflow prompt render failed: missing input template 'missing-join-template.md'/);
+  assert.doesNotMatch(failureEntry, /source: workflow-runner-continue/);
   assert.equal(existsSync(path.join(runDir, '.workflow-runner', 'parallel-output.json')), false);
 });
 
@@ -424,10 +461,309 @@ test('runner: durable commit recovery rejects symlinked history without reading 
   const outputPath = path.join(runDir, 'prepare-result.json');
   writeJson(outputPath, workerOutput('prepared'));
 
-  const result = runRunner(['write-output', '--run-id', runId, '--workflow', workflowPath, '--step-id', 'prepare'], { input: readFileSync(outputPath, 'utf8') });
+  const result = runRunner(['write-output', '--run-id', runId, '--workflow', workflowPath, '--step-id', 'prepare'], { input: readFileSync(outputPath, 'utf8'), debugSummary: true });
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /workflow history.*symlink|symlink.*history/);
   assert.equal(readFileSync(outsideSecret, 'utf8'), 'outside secret must not be read or overwritten\n');
   assert.equal(existsSync(path.join(runDir, '.workflow-runner', 'durable-commit.json')), false);
+});
+
+test('runner: history records accepted output debug summary and preserves sparse startup baseline', () => {
+  const { runId, runDir } = runCase('accepted-output-debug-history');
+  const workflowPath = path.join(tempDir, 'accepted-output-debug-history-workflow.json');
+  const singleWorkflow = structuredClone(workflowDoc);
+  singleWorkflow.steps.prepare.next = 'done';
+  writeJson(workflowPath, singleWorkflow);
+
+  expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next accepted output debug history');
+  const sparseHistory = readFileSync(path.join(runDir, 'history.md'), 'utf8');
+  assert.match(sparseHistory, /source: workflow-runner/);
+  assert.match(sparseHistory, /requests: id=prepare action=run_worker/);
+  assert.doesNotMatch(sparseHistory, /accepted output summary/);
+
+  const debugSummaryText = `${Array.from({ length: 90 }, (_, index) => `reasoning line ${index + 1}`).join('\n')}\n`;
+  const outputPath = path.join(runDir, 'prepare-debug-output.json');
+  writeJson(outputPath, {
+    outcome: 'ready',
+    results: [{ type: 'check', summary: 'debug history smoke passed' }],
+  });
+
+  writeOutputFile({ runId, runDir, workflowPath, stepId: 'prepare', filePath: outputPath, label: 'write debug history output', options: { debugSummaryText } });
+  const history = readFileSync(path.join(runDir, 'history.md'), 'utf8');
+  assert.match(history, /accepted output summary: step=prepare action=run_worker/);
+  assert.match(history, /outcome: ready/);
+  assert.match(history, /results: count=1 summaries=debug history smoke passed/);
+  assert.match(history, /debug-summary body:/);
+  assert.match(history, /reasoning line 80/);
+  assert.doesNotMatch(history, /reasoning line 81/);
+  assert.match(history, /\[truncated: limit 4096 bytes\/80 lines\]/);
+});
+
+test('runner: debug summary history reads only a bounded regular-file prefix', () => {
+  const { runId, runDir } = runCase('accepted-output-debug-history-large-file');
+  const workflowPath = path.join(tempDir, 'accepted-output-debug-history-large-file-workflow.json');
+  const singleWorkflow = structuredClone(workflowDoc);
+  singleWorkflow.steps.prepare.next = 'done';
+  writeJson(workflowPath, singleWorkflow);
+
+  expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next large debug history');
+  const outputPath = path.join(runDir, 'prepare-large-debug-output.json');
+  writeJson(outputPath, {
+    outcome: 'ready',
+  });
+
+  writeOutputFile({
+    runId,
+    runDir,
+    workflowPath,
+    stepId: 'prepare',
+    filePath: outputPath,
+    label: 'write large debug history output',
+    options: { debugSummaryText: `${'a'.repeat(4096)}TAIL-MUST-NOT-APPEAR\n` },
+  });
+  const history = readFileSync(path.join(runDir, 'history.md'), 'utf8');
+  assert.match(history, /debug-summary body:/);
+  assert.doesNotMatch(history, /TAIL-MUST-NOT-APPEAR/);
+  assert.match(history, /\[truncated: limit 4096 bytes\/80 lines\]/);
+});
+
+test('runner: write-output rejects non-regular debug summary side-channel before accepting output', () => {
+  const { runId, runDir } = runCase('accepted-output-debug-history-fifo');
+  const workflowPath = path.join(tempDir, 'accepted-output-debug-history-fifo-workflow.json');
+  const singleWorkflow = structuredClone(workflowDoc);
+  singleWorkflow.steps.prepare.next = 'done';
+  writeJson(workflowPath, singleWorkflow);
+
+  expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next fifo debug history');
+  const debugSummaryPath = path.join(runDir, 'prepare', 'debug-summary.md');
+  mkdirSync(path.dirname(debugSummaryPath), { recursive: true });
+  makeFifo(debugSummaryPath);
+  const outputPath = path.join(runDir, 'prepare-fifo-debug-output.json');
+  writeJson(outputPath, {
+    outcome: 'ready',
+  });
+
+  const result = runRunner(['write-output', '--run-id', runId, '--workflow', workflowPath, '--step-id', 'prepare', '--debug-summary-file', debugSummaryPath], { input: readFileSync(outputPath, 'utf8') });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /debug summary file is required but unavailable \(ENOTREG\)/);
+  const history = readFileSync(path.join(runDir, 'history.md'), 'utf8');
+  assert.doesNotMatch(history, /accepted output summary: step=prepare/);
+  assert.doesNotMatch(history, /debug-summary body:/);
+});
+
+test('runner: accepted output history redacts copied lease tokens from summaries and debug body', () => {
+  const { runId, runDir } = runCase('accepted-output-redacts-lease-token');
+  const workflowPath = path.join(tempDir, 'accepted-output-redacts-lease-token-workflow.json');
+  const singleWorkflow = structuredClone(workflowDoc);
+  singleWorkflow.steps.prepare.next = 'done';
+  writeJson(workflowPath, singleWorkflow);
+
+  expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next accepted output lease redaction');
+  const leaseToken = leaseTokensByRunId.get(runId);
+  assert.ok(leaseToken, 'test run should have a claimed lease token');
+  const outputPath = path.join(runDir, 'prepare-redacted-debug-output.json');
+  writeJson(outputPath, {
+    outcome: 'ready',
+    results: [{ type: 'check', summary: `command includes --lease-token ${leaseToken}` }],
+    blocker: { summary: `token ${leaseToken} must not persist` },
+  });
+
+  writeOutputFile({
+    runId,
+    runDir,
+    workflowPath,
+    stepId: 'prepare',
+    filePath: outputPath,
+    label: 'write redacted debug history output',
+    options: { debugSummaryText: `Copied command: workflow-runner write-output --lease-token '${leaseToken}'\nRaw token: ${leaseToken}\n` },
+  });
+  const history = readFileSync(path.join(runDir, 'history.md'), 'utf8');
+  assert.doesNotMatch(history, new RegExp(leaseToken.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.match(history, /\[redacted-lease-token\]/);
+});
+
+test('runner: disabled debug history suppresses rich side-channel body but keeps fallback summary', () => {
+  const { runId, runDir } = runCase('debug-history-disabled');
+  const workflowPath = path.join(tempDir, 'debug-history-disabled-workflow.json');
+  const singleWorkflow = structuredClone(workflowDoc);
+  singleWorkflow.steps.prepare.next = 'done';
+  writeJson(workflowPath, singleWorkflow);
+
+  expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next disabled debug history');
+  const outputPath = path.join(runDir, 'prepare-disabled-debug-output.json');
+  writeJson(outputPath, {
+    outcome: 'ready',
+  });
+
+  writeOutputFile({
+    runId,
+    runDir,
+    workflowPath,
+    stepId: 'prepare',
+    filePath: outputPath,
+    label: 'write disabled debug history output',
+    options: { env: { WORKFLOW_RUNNER_DEBUG_HISTORY: '0' }, debugSummaryText: 'suppressed worker reasoning\n' },
+  });
+
+  const history = readFileSync(path.join(runDir, 'history.md'), 'utf8');
+  assert.match(history, /accepted output summary: step=prepare action=run_worker/);
+  assert.match(history, /debug-summary: rich body disabled/);
+  assert.doesNotMatch(history, /suppressed worker reasoning/);
+});
+
+test('runner: orchestrator debug note appends bounded host rationale and deduplicates retries', () => {
+  const { runId, runDir } = runCase('orchestrator-debug-history');
+  const workflowPath = path.join(tempDir, 'orchestrator-debug-history-workflow.json');
+  const singleWorkflow = structuredClone(workflowDoc);
+  singleWorkflow.steps.prepare.next = 'review';
+  singleWorkflow.steps.review = {
+    name: 'Review',
+    kind: 'worker',
+    input: { prompt: 'Review.' },
+    output: singleWorkflow.steps.prepare.output,
+    next: 'done',
+  };
+  writeJson(workflowPath, singleWorkflow);
+
+  expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next orchestrator debug history');
+  const leaseToken = leaseTokensByRunId.get(runId);
+  const note = {
+    summary: 'spawned prepare worker and accepted its output',
+    reasoning: 'The current runner request was run_worker for prepare, so host delegated only that step before continue.',
+    commands: [
+      `workflow-runner instructions --lease-token ${leaseToken}`,
+      'workflow-runner bind-agent --agent-id worker-1',
+    ],
+    validation: 'worker reported accepted write-output',
+    risks: 'none known',
+  };
+
+  const prepareOutputPath = path.join(runDir, 'prepare-orchestrator-debug-output.json');
+  writeJson(prepareOutputPath, workerOutput('prepared'));
+  writeOutputFile({
+    runId,
+    runDir,
+    workflowPath,
+    stepId: 'prepare',
+    filePath: prepareOutputPath,
+    label: 'write prepare before orchestrator debug',
+  });
+
+  assert.deepEqual(recordOrchestratorNote({ runId, workflowPath, note }), {
+    ok: true,
+    runId,
+    recorded: true,
+  });
+  assert.deepEqual(recordOrchestratorNote({ runId, workflowPath, note, label: 'dedupe orchestrator note' }), {
+    ok: true,
+    runId,
+    recorded: false,
+  });
+
+  const history = readFileSync(path.join(runDir, 'history.md'), 'utf8');
+  assert.match(history, /source: workflow-runner-orchestrator/);
+  assert.match(history, /orchestrator debug summary:/);
+  assert.match(history, /spawned prepare worker and accepted its output/);
+  assert.match(history, /workflow-runner bind-agent --agent-id worker-1/);
+  assert.doesNotMatch(history, new RegExp(leaseToken.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.match(history, /\[redacted-lease-token\]/);
+  assert.equal((history.match(/orchestrator debug summary:/g) ?? []).length, 1);
+
+  const continued = expectRunner(['continue', '--run-id', runId, '--workflow', workflowPath], 'continue to next orchestrator debug cycle');
+  assert.equal(continued.status, 'needs_host_actions');
+  assert.deepEqual(continued.requests.map((request) => request.stepId), ['review']);
+  const reviewOutputPath = path.join(runDir, 'review-orchestrator-debug-output.json');
+  writeJson(reviewOutputPath, workerOutput('reviewed'));
+  writeOutputFile({
+    runId,
+    runDir,
+    workflowPath,
+    stepId: 'review',
+    filePath: reviewOutputPath,
+    label: 'write review before repeated orchestrator debug',
+  });
+  assert.deepEqual(recordOrchestratorNote({ runId, workflowPath, note, label: 'record repeated note in next host cycle' }), {
+    ok: true,
+    runId,
+    recorded: true,
+  });
+  assert.deepEqual(recordOrchestratorNote({ runId, workflowPath, note, label: 'dedupe repeated note in next host cycle' }), {
+    ok: true,
+    runId,
+    recorded: false,
+  });
+  const nextCycleHistory = readFileSync(path.join(runDir, 'history.md'), 'utf8');
+  assert.equal((nextCycleHistory.match(/orchestrator debug summary:/g) ?? []).length, 2);
+});
+
+test('runner: public continue failure history is safely attributable and deduplicated', () => {
+  const { runId, runDir } = runCase('public-failure-history');
+  const workflowPath = path.join(tempDir, 'public-failure-history-workflow.json');
+  const singleWorkflow = structuredClone(workflowDoc);
+  singleWorkflow.steps.prepare.next = 'done';
+  writeJson(workflowPath, singleWorkflow);
+
+  expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next public failure history');
+  const failed = runRunner(['continue', '--run-id', runId, '--workflow', workflowPath]);
+  assert.notEqual(failed.status, 0);
+  assert.match(failed.stderr, /missing accepted host output/);
+
+  const failedAgain = runRunner(['continue', '--run-id', runId, '--workflow', workflowPath]);
+  assert.notEqual(failedAgain.status, 0);
+  const history = readFileSync(path.join(runDir, 'history.md'), 'utf8');
+  assert.match(history, /source: workflow-runner-failure/);
+  assert.match(history, /public failure: command=continue/);
+  assert.match(history, /missing accepted host output for workflow step prepare/);
+  assert.equal((history.match(/public failure: command=continue/g) ?? []).length, 1);
+});
+
+test('runner: public failure history redacts exact lease token outside option syntax', () => {
+  const { runId, runDir } = runCase('public-failure-history-redacts-token-step-id');
+  const workflowPath = path.join(tempDir, 'public-failure-history-redacts-token-step-id-workflow.json');
+  const singleWorkflow = structuredClone(workflowDoc);
+  singleWorkflow.steps.prepare.next = 'done';
+  writeJson(workflowPath, singleWorkflow);
+
+  expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next public failure token redaction');
+  const leaseToken = leaseTokensByRunId.get(runId);
+  assert.ok(leaseToken, 'test run should have a claimed lease token');
+  const failed = runRunner(['instructions', '--run-id', runId, '--workflow', workflowPath, '--step-id', leaseToken]);
+  assert.notEqual(failed.status, 0);
+
+  const history = readFileSync(path.join(runDir, 'history.md'), 'utf8');
+  assert.match(history, /source: workflow-runner-failure/);
+  assert.match(history, /public failure: command=instructions/);
+  assert.doesNotMatch(history, new RegExp(leaseToken.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.match(history, /\[redacted-lease-token\]/);
+});
+
+test('runner: public failure history details bound long public errors with a truncation marker', () => {
+  const details = publicFailureHistoryDetails({
+    command: 'continue',
+    error: Array.from({ length: 50 }, (_, index) => `public error line ${index + 1}`).join('\n'),
+  }).join('\n');
+
+  assert.match(details, /public error line 40/);
+  assert.doesNotMatch(details, /public error line 41/);
+  assert.match(details, /\[truncated: limit 2048 bytes\/40 lines\]/);
+});
+
+test('runner: continue history includes transition and terminal context', () => {
+  const { runId, runDir } = runCase('terminal-transition-history');
+  const workflowPath = path.join(tempDir, 'terminal-transition-history-workflow.json');
+  const singleWorkflow = structuredClone(workflowDoc);
+  singleWorkflow.steps.prepare.next = 'done';
+  writeJson(workflowPath, singleWorkflow);
+
+  expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next terminal transition history');
+  const outputPath = path.join(runDir, 'prepare-terminal-output.json');
+  writeJson(outputPath, workerOutput('terminal transition complete'));
+  const response = continueWithOutputs({ runId, runDir, workflowPath, refs: outputPath, label: 'continue terminal transition' });
+
+  assert.equal(response.status, 'done');
+  const history = readFileSync(path.join(runDir, 'history.md'), 'utf8');
+  assert.match(history, /transition: cursor=prepare status=running -> cursor=done status=done/);
+  assert.match(history, /terminal: status=done cursor=done/);
+  assert.match(history, /next requests: none/);
 });

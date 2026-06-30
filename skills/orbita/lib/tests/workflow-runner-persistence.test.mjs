@@ -147,9 +147,22 @@ function withLeaseTokenArg(args, token) {
   return [mode, `--lease-token=${token}`, ...rest];
 }
 
+function withDebugSummaryArg(args, options = {}) {
+  if (args[0] !== 'write-output' || args.includes('--debug-summary-file') || options.debugSummary !== true) return args;
+  const runId = valueAfter(args, '--run-id');
+  const stepId = valueAfter(args, '--step-id');
+  if (!runId || !stepId) return args;
+  const runsRoot = valueAfter(args, '--runs-root');
+  const debugSummaryPath = path.join(resolveRunPaths({ runId, runsRoot }).runDir, stepId, 'debug-summary.md');
+  mkdirSync(path.dirname(debugSummaryPath), { recursive: true });
+  writeFileSync(debugSummaryPath, options.debugSummaryText ?? `debug summary for ${stepId}\n`);
+  return [...args, '--debug-summary-file', debugSummaryPath];
+}
+
 function runRunner(args, options = {}) {
   const token = claimRunForRunnerArgs(args);
-  return spawnSync(process.execPath, ['skills/orbita/lib/entrypoints/cli/workflow-runner.mjs', ...withLeaseTokenArg(args, token)], { cwd: root, encoding: 'utf8', input: options.input, env: { ...process.env, WORKFLOW_RUN_TOKEN: token ?? testLeaseToken, ...(options.env ?? {}) } });
+  const runnerArgs = withDebugSummaryArg(withLeaseTokenArg(args, token), options);
+  return spawnSync(process.execPath, ['skills/orbita/lib/entrypoints/cli/workflow-runner.mjs', ...runnerArgs], { cwd: root, encoding: 'utf8', input: options.input, env: { ...process.env, WORKFLOW_RUN_TOKEN: token ?? testLeaseToken, ...(options.env ?? {}) } });
 }
 
 async function runRunnerAsync(args) {
@@ -192,9 +205,13 @@ function expectRunner(args, label) {
   return JSON.parse(result.stdout);
 }
 
-function currentRequestIds(runId, workflowPath) {
+function currentRequests(runId, workflowPath) {
   const response = expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'derive current requests');
-  return (response.requests ?? []).map((request) => request.stepId ?? request.id);
+  return response.requests ?? [];
+}
+
+function currentRequestIds(runId, workflowPath) {
+  return currentRequests(runId, workflowPath).map((request) => request.stepId ?? request.id);
 }
 
 function parseOutputRef(ref) {
@@ -203,8 +220,13 @@ function parseOutputRef(ref) {
 }
 
 function writeOutputFile({ runId, runDir, workflowPath, stepId, filePath, label = 'write output' }) {
-  const targetStepId = stepId ?? currentRequestIds(runId, workflowPath)[0];
-  const result = runRunner(['write-output', '--run-id', runId, '--workflow', workflowPath, '--step-id', targetStepId], { input: readFileSync(filePath, 'utf8') });
+  const requests = currentRequests(runId, workflowPath);
+  const targetStepId = stepId ?? requests.map((request) => request.stepId ?? request.id)[0];
+  const request = requests.find((candidate) => (candidate.stepId ?? candidate.id) === targetStepId);
+  const result = runRunner(['write-output', '--run-id', runId, '--workflow', workflowPath, '--step-id', targetStepId], {
+    input: readFileSync(filePath, 'utf8'),
+    debugSummary: request?.action === 'run_worker',
+  });
   assert.equal(result.status, 0, `${label} failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
   return JSON.parse(result.stdout);
 }

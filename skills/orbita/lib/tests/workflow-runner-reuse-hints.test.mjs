@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
@@ -63,6 +63,13 @@ function readBaton(runDir) {
 
 function workerOutput(summary) {
   return { outcome: 'ready', results: [{ type: 'check', summary }] };
+}
+
+function debugSummaryFileFor(runDir, stepId, text = `debug summary for ${stepId}\n`) {
+  const filePath = path.join(runDir, stepId, 'debug-summary.md');
+  mkdirSync(path.dirname(filePath), { recursive: true });
+  writeFileSync(filePath, text, { flag: 'w' });
+  return filePath;
 }
 
 function schemaCoveredWorkflow(overrides = {}) {
@@ -213,6 +220,7 @@ test('runner reuse hints: bind-agent keeps parallel step bindings separated', as
     workflowPath,
     stepId: 'prepare',
     json: JSON.stringify(workerOutput('prepared')),
+    debugSummaryFile: debugSummaryFileFor(runDir, 'prepare'),
     leaseToken,
     now,
   });
@@ -261,6 +269,7 @@ test('runner reuse hints: write-output rejects binding metadata and preserves wo
     workflowPath,
     stepId: 'prepare',
     json: JSON.stringify(workerOutput('accepted without binding mutation')),
+    debugSummaryFile: debugSummaryFileFor(runDir, 'prepare'),
     leaseToken,
     now,
   });

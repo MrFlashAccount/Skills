@@ -128,6 +128,7 @@ test('runner host response schema enforces action-conditional reuse hint fields'
   const validRunWorker = {
     status: 'needs_host_actions',
     orchestratorInstruction: 'Execute host requests.',
+    orchestratorDebugCommand: 'node workflow-runner.mjs record-orchestrator',
     baton: {
       cursor: 'worker_step',
       status: 'running',

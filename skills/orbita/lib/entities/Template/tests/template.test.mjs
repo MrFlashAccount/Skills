@@ -152,7 +152,12 @@ test('renderWorkflowPrompt assembles templates, required reads, output contract,
     baton,
     stepId: 'consumer',
     step: workflow.steps.consumer,
-    resources: { ...resources, runDir: '/tmp/workflow-runner-test', artifactOutputDir: '/tmp/workflow-runner-test/consumer/artifacts' },
+    resources: {
+      ...resources,
+      runDir: '/tmp/workflow-runner-test',
+      artifactOutputDir: '/tmp/workflow-runner-test/consumer/artifacts',
+      debugSummaryPath: '/tmp/workflow-runner-test/consumer/debug-summary.md',
+    },
     userPrompt: 'extra operator context',
   });
 
@@ -171,6 +176,14 @@ test('renderWorkflowPrompt assembles templates, required reads, output contract,
   assert.match(rendered.prompt, /Artifact output directory for this step: \/tmp\/workflow-runner-test\/consumer\/artifacts/);
   assert.match(rendered.prompt, /Use the artifact id as the artifact file name\/stem/);
   assert.match(rendered.prompt, /artifacts\[\]\.path to the full absolute filesystem path/);
+  assert.match(rendered.prompt, /Debug history summary:/);
+  assert.match(rendered.prompt, /\/tmp\/workflow-runner-test\/consumer\/debug-summary\.md/);
+  assert.match(rendered.prompt, /before calling the validating writer command/);
+  assert.match(rendered.prompt, /operational rationale/);
+  assert.match(rendered.prompt, /Do not put this debug summary in the JSON output/);
+  assert.match(rendered.prompt, /--debug-summary-file/);
+  assert.match(rendered.prompt, /Do not write history\.md directly/);
+  assert.match(rendered.prompt, /Do not include hidden\/private chain-of-thought/);
   assert.match(rendered.prompt, /Schema-derived artifact field notes/);
   assert.match(rendered.prompt, /artifacts\[\]\.content_type/);
   assert.match(rendered.prompt, /Fill: Use to render or parse the artifact content/);
@@ -198,18 +211,51 @@ test('renderWorkflowPrompt injects provided validating writer command into outpu
     step: workflow.steps.consumer,
     resources: {
       ...resources,
-      validatingWriterCommand: "node ./lib/entrypoints/cli/workflow-runner.mjs write-output --run-id example --step-id consumer --lease-token example-token <<'JSON'\n<paste strict JSON here>\nJSON",
+      validatingWriterCommand: "node ./lib/entrypoints/cli/workflow-runner.mjs write-output --run-id example --step-id consumer --lease-token example-token --debug-summary-file /tmp/workflow-runner-test/consumer/debug-summary.md <<'JSON'\n<paste strict JSON here>\nJSON",
+      debugSummaryPath: '/tmp/workflow-runner-test/consumer/debug-summary.md',
     },
   });
 
   assert.match(rendered.prompt, /Write the request output by calling this validating writer command/);
   assert.match(rendered.prompt, /workflow-runner\.mjs write-output --run-id example --step-id consumer/);
+  assert.match(rendered.prompt, /--debug-summary-file \/tmp\/workflow-runner-test\/consumer\/debug-summary\.md/);
   assert.match(rendered.prompt, /If it fails with validation errors, fix the JSON and run the same command again/);
   assert.match(rendered.prompt, /Do not create a separate JSON output file and do not pass an output path to the orchestrator/);
   assert.match(rendered.prompt, /Artifact content files are allowed and required when producing artifacts/);
   assert.match(rendered.prompt, /handed off through the workflow artifacts metadata accepted into baton\/state/);
   assert.match(rendered.prompt, /do not create arbitrary temp\/export files as substitutes for baton artifacts/);
   assert.doesNotMatch(rendered.prompt, /No validating writer command is provided/);
+});
+
+test('renderWorkflowPrompt asks for debug summary side-channel with strict output schema', () => {
+  const strictResources = structuredClone(resources);
+  strictResources.outputSchemas = new Map([
+    [
+      'consumer.schema.json',
+      {
+        type: 'object',
+        required: ['outcome'],
+        properties: { outcome: { enum: ['ok'] } },
+        additionalProperties: false,
+      },
+    ],
+  ]);
+
+  const rendered = renderWorkflowPrompt({
+    workflow,
+    baton,
+    stepId: 'consumer',
+    step: workflow.steps.consumer,
+    resources: {
+      ...strictResources,
+      artifactOutputDir: '/tmp/workflow-runner-test/consumer/artifacts',
+      debugSummaryPath: '/tmp/workflow-runner-test/consumer/debug-summary.md',
+    },
+  });
+
+  assert.match(rendered.prompt, /Debug history summary:/);
+  assert.match(rendered.prompt, /Do not put this debug summary in the JSON output/);
+  assert.match(rendered.prompt, /\/tmp\/workflow-runner-test\/consumer\/debug-summary\.md/);
 });
 
 test('renderWorkflowPrompt reports unsupported prompt placeholders from explicit input templates', () => {

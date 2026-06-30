@@ -55,6 +55,7 @@ export function renderWorkflowPrompt({ workflow, stepId, step, resources, prompt
     schemaDefinitions: resources?.schemaDefinitions,
     validatingWriterCommand: resources?.validatingWriterCommand,
     artifactOutputDir: resources?.artifactOutputDir,
+    debugSummaryPath: resources?.debugSummaryPath,
   });
   const workflowInstructionBlock = workflowInstruction({ workflow });
   const finalReminder = finalOutputReminder(outputContract);

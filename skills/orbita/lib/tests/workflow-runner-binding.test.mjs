@@ -5,6 +5,7 @@ import path from 'node:path';
 import test, { after } from 'node:test';
 import { continueRun, loadInstructions, next as runnerNext, writeOutput } from '../entrypoints/api/workflowRunner.mjs';
 import { claimWorkflowRun, registerWorkflowRun } from '../entrypoints/api/workflowRuns.mjs';
+import { resolveRunPaths } from '../persistence/run-state/paths.mjs';
 
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-runner-binding-'));
 
@@ -72,6 +73,13 @@ function roleWorkflowPath(label) {
   return filePath;
 }
 
+function debugSummaryFileFor(runId, stepId) {
+  const filePath = path.join(resolveRunPaths({ runId }).runDir, stepId, 'debug-summary.md');
+  mkdirSync(path.dirname(filePath), { recursive: true });
+  writeFileSync(filePath, `debug summary for ${stepId}\n`);
+  return filePath;
+}
+
 test('runner binding: existing runId cannot be rebound by next or continue workflow args', async () => {
   const runId = `binding-${process.pid}-runner-api`;
   const firstWorkflow = workflowPath('runner-api-first', 'first');
@@ -86,7 +94,7 @@ test('runner binding: existing runId cannot be rebound by next or continue workf
     runnerNext({ runId, workflowPath: secondWorkflow, leaseToken }),
     /already bound to a different workflow/,
   );
-  await writeOutput({ runId, workflowPath: firstWorkflow, stepId: 'prepare', json: JSON.stringify({ outcome: 'Worker output.' }), leaseToken });
+  await writeOutput({ runId, workflowPath: firstWorkflow, stepId: 'prepare', json: JSON.stringify({ outcome: 'Worker output.' }), debugSummaryFile: debugSummaryFileFor(runId, 'prepare'), leaseToken });
   await assert.rejects(
     continueRun({ runId, workflowPath: secondWorkflow, leaseToken }),
     /already bound to a different workflow/,
