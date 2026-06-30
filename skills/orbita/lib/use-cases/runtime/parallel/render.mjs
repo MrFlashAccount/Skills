@@ -4,7 +4,7 @@ import { invariant } from '../../../errors.mjs';
 import { responseFor } from '../output/response.mjs';
 import { assertStartupUserPromptTargetRenderable, markUserPromptInjectedForStep, selectedUserPromptStepId, validateSelectedStartupUserPromptTarget } from '../../user-prompt.mjs';
 
-export function renderStepPrompts({ workflow, baton, steps, resources, includeDiagnostics = false } = {}) {
+export function renderStepPrompts({ workflow, baton, steps, resources, includeDiagnostics = false, followUp = false } = {}) {
   assertStartupUserPromptTargetRenderable({ workflow, baton, steps });
   const userPromptStepId = selectedUserPromptStepId({ workflow, baton });
   const rendered = steps.map((entry) => {
@@ -23,6 +23,7 @@ export function renderStepPrompts({ workflow, baton, steps, resources, includeDi
         resources: stepResources,
         includeDiagnostics,
         userPrompt: userPromptStepId === entry.id ? baton.user_prompt : undefined,
+        followUp,
       }),
     };
   });
