@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
@@ -12,7 +12,7 @@ import { validateAgainstOutputSchema } from '../use-cases/runtime/output/output-
 import { loadWorkflowResources } from '../persistence/workflow-resources/runtime-reader.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
-const tempDir = mkdtempSync(path.join(tmpdir(), 'prompt-rendering-check-'));
+const tempDir = realpathSync(mkdtempSync(path.join(tmpdir(), 'prompt-rendering-check-')));
 writeFileSync(path.join(tempDir, 'output.md'), '## Output contract\nReturn markdown.\n');
 writeFileSync(path.join(tempDir, 'worker-output.schema.json'), `${JSON.stringify({
   $schema: 'https://json-schema.org/draft/2020-12/schema',
@@ -283,6 +283,126 @@ test('prompt renderer: default prompt diagnostics are opt-in', () => {
       message: 'No input.template declared; assembled deterministic default prompt.',
     },
   ]);
+});
+
+test('prompt renderer: interpolates projected input expressions in workflow step prompt', () => {
+  const step = {
+    name: 'Worker step',
+    kind: 'worker',
+    input: {
+      state: ['worker_step', 'critic_step'],
+      prompt: 'Previous summary: ${{ input.worker_step.summary }}\n\nCritic findings:\n${{ input.critic_step.verdict.findings }}',
+    },
+    output: { template: 'output.md' },
+    next: 'done',
+  };
+
+  const compiled = renderFixture({
+    label: 'render-prompt-interpolation',
+    stepId: 'worker_step',
+    step,
+    batonDoc: baton({
+      state: {
+        artifacts: [],
+        results: [],
+        worker_step: { outcome: 'ready', summary: 'drafted' },
+        critic_step: { outcome: 'needs_revision', verdict: { findings: ['tighten scope'] } },
+      },
+    }),
+  });
+
+  assertMarkersInOrder(compiled.prompt, [
+    '## Workflow step prompt',
+    'Previous summary: drafted',
+    'Critic findings:',
+    '```json\n[\n  "tighten scope"\n]',
+  ]);
+});
+
+test('prompt renderer: uses prompt interpolation default for missing projected input paths', () => {
+  const step = {
+    name: 'Draft step',
+    kind: 'worker',
+    input: {
+      state: ['critic_step'],
+      prompt: 'Previous critic feedback:\n${{ input.critic_step.verdict.findings | default: "No previous critic feedback yet." }}',
+    },
+    output: { template: 'output.md' },
+    next: 'done',
+  };
+
+  const compiled = renderFixture({
+    label: 'render-prompt-interpolation-default',
+    stepId: 'draft_step',
+    step,
+    batonDoc: baton({ state: { artifacts: [], results: [] } }),
+  });
+
+  assert.match(compiled.prompt, /Previous critic feedback:\nNo previous critic feedback yet\./);
+});
+
+test('prompt renderer: rejects missing prompt interpolation paths without a default', () => {
+  const step = {
+    name: 'Draft step',
+    kind: 'worker',
+    input: {
+      state: ['critic_step'],
+      prompt: 'Previous critic feedback:\n${{ input.critic_step.verdict.findings }}',
+    },
+    output: { template: 'output.md' },
+    next: 'done',
+  };
+
+  assert.throws(
+    () => renderFixture({ label: 'render-prompt-interpolation-missing', stepId: 'draft_step', step }),
+    /workflow prompt render failed: prompt expression '\$\{\{ input\.critic_step\.verdict\.findings \}\}' could not resolve missing path 'input\.critic_step'/,
+  );
+});
+
+test('prompt renderer: keeps prompt interpolation scoped to projected input paths', () => {
+  const step = {
+    name: 'Draft step',
+    kind: 'worker',
+    input: {
+      state: [],
+      prompt: 'Bad root: ${{ output.outcome | default: "ready" }}',
+    },
+    output: { template: 'output.md' },
+    next: 'done',
+  };
+
+  assert.throws(
+    () => renderFixture({ label: 'render-prompt-interpolation-output-root', stepId: 'draft_step', step }),
+    /workflow prompt render failed: prompt expression '\$\{\{ output\.outcome \| default: "ready" \}\}' is invalid: root 'input' is required in input\.prompt interpolation/,
+  );
+});
+
+test('prompt renderer: treats interpolated values as data, not nested templates', () => {
+  const step = {
+    name: 'Draft step',
+    kind: 'worker',
+    input: {
+      state: ['critic_step'],
+      prompt: 'Previous critic feedback:\n${{ input.critic_step.note }}',
+    },
+    output: { template: 'output.md' },
+    next: 'done',
+  };
+
+  const compiled = renderFixture({
+    label: 'render-prompt-interpolation-data-token',
+    stepId: 'draft_step',
+    step,
+    batonDoc: baton({
+      state: {
+        artifacts: [],
+        results: [],
+        critic_step: { note: 'Literal example: ${{ input.other.value }}' },
+      },
+    }),
+  });
+
+  assert.match(compiled.prompt, /Literal example: \$\{\{ input\.other\.value \}\}/);
 });
 
 test('prompt renderer: rejects input template placeholders as unsupported', () => {

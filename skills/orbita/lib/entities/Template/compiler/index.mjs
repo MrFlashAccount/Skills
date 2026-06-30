@@ -1,4 +1,5 @@
 import { finalOutputReminder, outputContractSection, readOutputSchema, readOutputTemplate } from './sections/output-contract.mjs';
+import { interpolatePromptExpressions } from './sections/prompt-interpolation.mjs';
 import { projectedStateBlock } from './sections/projected-state.mjs';
 import { section, trimStable } from './utils.mjs';
 import { assertNoUnsupportedPlaceholders, defaultPrompt, readInputTemplate } from './sections/template.mjs';
@@ -63,7 +64,7 @@ export function renderWorkflowPrompt({ workflow, stepId, step, resources, projec
     templatePath: inputTemplate.metadataPath,
     workflowInstructionBlock,
     requiredReads: requiredReadsSection,
-    inlinePrompt: input.prompt ?? '',
+    inlinePrompt: interpolatePromptExpressions(input.prompt ?? '', { input: projection.value }),
     stateBlock,
     outputContract,
     userPrompt: step.kind === 'worker' && userPromptInjected !== true ? userPrompt : undefined,

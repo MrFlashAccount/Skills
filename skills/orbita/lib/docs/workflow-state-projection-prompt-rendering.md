@@ -276,6 +276,21 @@ Input template variables are unsupported in this slice. The renderer does not ex
 
 Rationale: current workflow prompts only need fixed layering. Placeholder expansion would turn prompt rendering into a mini templating language before there is a concrete need for it.
 
+Inline `input.prompt` may interpolate explicitly projected state with path-only expressions:
+
+```markdown
+Previous critic feedback:
+${{ input.critic_step.verdict.findings | default: "No previous critic feedback yet." }}
+```
+
+Rules:
+
+- the only supported root is `input`, which maps to the current step's projected `input.state`;
+- missing paths fail prompt rendering unless the expression has `| default: <json-literal>`;
+- `default` is local prompt fallback only; it does not define or leak another step's output schema;
+- objects and arrays render as fenced JSON; strings render as text; numbers, booleans, and `null` render as scalar text;
+- no conditionals, loops, filters beyond `default`, output-root reads, or unprojected baton reads are supported.
+
 ### Prompt assembly
 
 If `input.template` exists, the renderer uses it only as static top-level markdown. No variables are expanded. Omitted templates use a deterministic default top-level wrapper:
@@ -410,6 +425,7 @@ Unit tests:
 - `renderWorkflowPrompt` renders default prompt when no input template exists.
 - `renderWorkflowPrompt` emits default-prompt diagnostics only when requested.
 - `renderWorkflowPrompt` rejects unsupported placeholders in input templates.
+- `renderWorkflowPrompt` interpolates projected `input.prompt` paths with explicit local defaults.
 - `renderWorkflowPrompt` appends role/output/state/workflow-step/user-prompt/reminder sections in fixed order.
 - `renderWorkflowPrompt` keeps output contracts as static included contract text.
 - `renderWorkflowPrompt` includes shared output template content without treating it as schema.
