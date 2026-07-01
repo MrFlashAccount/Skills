@@ -1,11 +1,11 @@
 ---
 name: dev-harness
-description: Orchestrate software work through execution planning and high-level delegation after research has produced a human-approved research packet. In the repo's flow, this is primarily the `execution plan` stage, consuming a research wrapper packet after explicit human approval and, when architecture-sensitive, an Architect-owned structural contract, then producing an implementation contract. Use when planning or delegating implementation/refactor tasks, especially multi-file, risky, or sliceable work, or when durable learnings should be captured.
+description: Orchestrate software work through execution planning and high-level delegation after research has produced a human-approved research packet and, when the architecture gate runs, an Architect-owned successor contract. In the repo's flow, this is primarily the `execution plan` stage: planning consumes the nearest approved upstream contract, preferring architecture artifacts over direct research when architecture has run, then produces an implementation contract. Use when planning or delegating implementation/refactor tasks, especially multi-file, risky, or sliceable work, or when durable learnings should be captured.
 ---
 
 # Dev Harness
 
-Use as the top-level execution-planning harness. It turns a human-approved research packet, plus Architect-owned structural contract when needed, into an implementation contract and then routes the approved contract onward.
+Use as the top-level execution-planning harness. It turns the approved upstream contract into an implementation contract and then routes the approved contract onward. When architecture has run, the Architect-owned output is the active planning input; research remains trace evidence carried forward through architecture.
 
 Default chain:
 
@@ -27,7 +27,7 @@ Read only the references needed for the current phase; do not load every role by
 - If the slice may touch local files, personal docs, prompts/examples, logs, retained user data, or machine-specific paths, read [references/sensitive-surfaces.md](references/sensitive-surfaces.md) before proposal.
 - For architecture-sensitive work, or any slice where durable architecture artifacts might be required, read [references/roles/architect-planning.md](references/roles/architect-planning.md).
 - Before any delegated Architect, Planner, implementer, or reviewer worker is spawned, build the prompt from the shared delegated role task template at [../../shared/delegate/delegated-role-task-template.md](../../shared/delegate/delegated-role-task-template.md). Fill it with the selected role material path, a compact role/focus block from [references/roles/architect-planning.md](references/roles/architect-planning.md), [references/roles/implementers.md](references/roles/implementers.md), [references/roles/reviewers.md](references/roles/reviewers.md), or [references/task-contract.md](references/task-contract.md), and the concrete approved task packet/scope/verification expectations. A role label alone is not a role contract.
-- After approval, hand off to `../implementation-harness/` with the approved task context, human-approved research packet, structural contract when present, and approved execution-plan packet.
+- After approval, hand off to `../implementation-harness/` with the approved task context, approved upstream artifact lineage, active structural contract when present, and approved execution-plan packet.
 - If routing is ambiguous or you want a sanity check on expected worker/reviewer choice, read [references/examples.md](references/examples.md).
 - Read the knowledge base only when relevant:
   - [references/knowledge/facts.md](references/knowledge/facts.md)
@@ -94,7 +94,7 @@ Implementation entities are planner-level handoff objects. They are not Research
    - For tiny work, run this gate only when ownership, seams, dependency direction, structural records, or durable architecture artifacts might move.
    - If an artifact decision is `update_existing` or `create_new`, Architect owns that create/update decision before implementation handoff by default.
 5. Build the execution plan.
-   - `Planner A propose`: translate the human-approved research packet and structural contract when present into the execution contract.
+   - `Planner A propose`: translate the nearest approved upstream contract into the execution contract. If architecture ran, consume the Architect-owned structural contract and `reasons-canvas-architecture` when present; do not reinterpret research directly except as trace evidence already carried forward by architecture.
    - `Planner B attack`: start from a hostile prior: assume the execution packet is wrong, incomplete, overcomplicated, or under-evidenced until it proves otherwise. Challenge entity coverage, file-zone ownership, project baseline coverage, architecture artifact manifest, verification surfaces, rollback surfaces, sensitive surfaces, request-path/contract touchpoints, risks, proposal-workspace hygiene, and max-detail leaks. PASS only after serious attack finds no evidence-backed blocker or important finding; do not credit author confidence, green self-reports, or plausible structure.
    - Allow one bounded revise/re-review loop for non-trivial work when the attack finds fixable gaps, unless the caller explicitly approves another.
    - Keep this as the same planner role/class in an attack pass, not a new separate role.
@@ -103,7 +103,7 @@ Implementation entities are planner-level handoff objects. They are not Research
    - approval means explicit `APPROVED`, `LGTM`, or the same level of unmistakable go-ahead in the user's language
    - `ok`, `yeah`, `got it`, and similar weak acknowledgements are not approval
 8. After approval, build the handoff packet for `implementation-harness`.
-   - include approved task context, human-approved research packet, structural contract when present, approved execution plan, approved supporting materials, and user constraints
+   - include approved task context, approved upstream artifact lineage, active structural contract when present, approved execution plan, approved supporting materials, and user constraints
    - spawn implementation through delegated worker/subagent via `implementation-harness`; do not implement in the orchestrator session unless the user explicitly requested direct in-session execution
    - if delegated execution is unavailable, fails to start, or cannot be used, stop as `blocked`
 9. `implementation-harness` owns post-approval development and smallest meaningful verification.

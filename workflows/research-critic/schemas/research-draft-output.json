@@ -83,7 +83,9 @@
       "type": "array",
       "items": {
         "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact"
-      }
+      },
+      "description": "Producer may emit the research packet artifact and, when required by the REASONS Canvas decision, a separate immutable reasons-canvas-research artifact.",
+      "x-usage": "Use artifact files as the human-facing source of truth; structured JSON remains for workflow branching."
     },
     "results": {
       "type": "array",

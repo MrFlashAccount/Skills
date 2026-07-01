@@ -28,7 +28,7 @@
         "goal": {
           "type": "string",
           "minLength": 1,
-          "description": "Producer must state one implementation goal aligned with the approved research and architecture contracts.",
+          "description": "Producer must state one implementation goal aligned with the approved architecture contract.",
           "x-usage": "Use this to check scope alignment. Do not add work outside the listed workstreams and done criteria."
         },
         "workstreams": {
@@ -68,8 +68,8 @@
         }
       },
       "additionalProperties": true,
-      "description": "Producer must draft the implementation contract for the approved scope: goal, workstreams, done criteria, verification, and rollback.",
-      "x-usage": "Treat this as a proposed implementation contract until an approval/pass outcome freezes it. After approval, do not change it without an approved replacement plan."
+      "description": "Producer must draft the implementation contract for the approved architecture scope: goal, workstreams, done criteria, verification, and rollback.",
+      "x-usage": "Treat this as a proposed implementation contract until an approval/pass outcome freezes it. Build it from approved architecture artifacts, including reasons-canvas-architecture when present; do not consume research separately. After approval, do not change it without an approved replacement plan."
     },
     "selected_implementation_steps": {
       "type": "array",

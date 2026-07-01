@@ -1,10 +1,9 @@
 # <Project/Issue> Research Packet — <Capability>
 
-## Status
+## Artifact Metadata
 
 - Owner:
 - Date:
-- State: Draft | Ready for review | Approved | Rejected
 - Decision needed:
 
 ## Executive summary
@@ -65,6 +64,12 @@
 
 - <Question architecture must resolve before implementation planning.>
 
+## REASONS Canvas decision
+
+- Required: yes | no
+- Reason: <Why this slice does or does not need a durable prompt/spec artifact. Use yes for fuzzy requirements, AI-assisted non-trivial work, multi-step generation, repeated evolution, cross-role alignment, or meaningful drift risk between intent and code.>
+- Artifact: <If required, emit a separate immutable workflow artifact with id `reasons-canvas-research`; otherwise write `not needed`.>
+
 ## Recommendation/readiness verdict
 
 <Recommend one option or state why the packet is not ready. Include the minimum evidence needed to move forward.>
@@ -78,4 +83,5 @@
 - Stay at analytical research level: business goal, problem, scope, non-goals, options, risks, and open questions.
 - Do not include file-level implementation details, class/method plans, imports, diffs, or command sequences.
 - Do not write an architecture or implementation proposal here.
+- Decide explicitly whether a REASONS Canvas is needed. If needed, create `reasons-canvas-research` as a separate immutable artifact; do not bury the full Canvas inside this research packet.
 - For artifact-capable workflows, treat the markdown file as the human-facing source of truth and the JSON output as branching/context metadata.

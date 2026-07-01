@@ -12,6 +12,7 @@ These files are reusable output templates. Workflow descriptors reference them w
 
 - [`research-packet-template.md`](research-packet-template.md): analytical research packet for business goal, problem, scope, options, risks, and architecture-ready open questions. No file-level implementation detail.
 - [`architecture-proposal-template.md`](architecture-proposal-template.md): concise architecture proposal for entities, placement, ownership, dependencies, interfaces, integrations, and docs impact. No implementation plan or code.
+- [`reasons/`](reasons/): shared SPDD structured prompt/spec template for immutable REASONS Canvas artifacts.
 - [`implementation-plan-template.md`](implementation-plan-template.md): concrete approved-work plan with ABCD workstreams, exact file zones, planning-level entities/methods, DoD, owners, reviewers, rollback, and generic source appendices.
 - [`implementer-handoff-template.md`](implementer-handoff-template.md): implementation handoff packet for an assigned slice, including source-of-truth context, todo checklist, contract rows, evidence expectations, and output fields.
 - [`reviewer-handoff-template.md`](reviewer-handoff-template.md): review handoff packet with source-of-truth context, implementation evidence, review checklist, contract-trace rows, and verdict fields.

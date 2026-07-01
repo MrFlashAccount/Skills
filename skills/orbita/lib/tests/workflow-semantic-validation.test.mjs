@@ -222,6 +222,33 @@ test('DevHarness prompt input templates only reference declared workflow steps',
   }
 });
 
+test('DevHarness implementation and review corridor carries the approved implementation plan', () => {
+  const downstreamStepIds = [
+    'implementation_dispatch',
+    'backend_implementation',
+    'frontend_implementation',
+    'architecture_artifact_update',
+    'implementation_join',
+    'review_dispatch',
+    'architect_review',
+    'backend_review',
+    'frontend_review',
+    'frontend_taste_review',
+    'security_review',
+    'privacy_review',
+    'qa_review',
+    'review_join',
+  ];
+
+  for (const stepId of downstreamStepIds) {
+    assert.match(
+      promptText(workflowDoc.steps[stepId]),
+      /Approved implementation plan: \$\{\{ input\.planning_draft\.implementation_plan \}\}/,
+      `${stepId} should receive the approved implementation plan`,
+    );
+  }
+});
+
 test('workflow semantic validation rejects wrapped workflow documents', () => {
   const flat = syntheticWorkflow();
   const wrapped = { workflow: structuredClone(flat) };
@@ -347,13 +374,13 @@ test('dev harness revision loops inline the feedback that caused revision', () =
     'approve_architecture',
   ]);
   assert.deepEqual(promptInputRefs(workflowDoc.steps.planning_draft), [
-    'research_draft',
     'architecture_draft',
     'architecture_attack',
     'planning_draft',
     'planning_attack',
     'approve_plan',
   ]);
+  assert.match(promptText(workflowDoc.steps.planning_draft), /do not edit it, complete missing Canvas sections, or read earlier research artifacts separately/);
 });
 
 test('workflow authoring design revision inlines prior feedback', () => {
