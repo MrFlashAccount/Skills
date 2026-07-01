@@ -222,6 +222,33 @@ test('DevHarness prompt input templates only reference declared workflow steps',
   }
 });
 
+test('DevHarness implementation and review corridor carries the approved implementation plan', () => {
+  const downstreamStepIds = [
+    'implementation_dispatch',
+    'backend_implementation',
+    'frontend_implementation',
+    'architecture_artifact_update',
+    'implementation_join',
+    'review_dispatch',
+    'architect_review',
+    'backend_review',
+    'frontend_review',
+    'frontend_taste_review',
+    'security_review',
+    'privacy_review',
+    'qa_review',
+    'review_join',
+  ];
+
+  for (const stepId of downstreamStepIds) {
+    assert.match(
+      promptText(workflowDoc.steps[stepId]),
+      /Approved implementation plan: \$\{\{ input\.planning_draft\.implementation_plan \}\}/,
+      `${stepId} should receive the approved implementation plan`,
+    );
+  }
+});
+
 test('workflow semantic validation rejects wrapped workflow documents', () => {
   const flat = syntheticWorkflow();
   const wrapped = { workflow: structuredClone(flat) };
@@ -248,6 +275,16 @@ test('research critic save step uses persistence metadata template matching its 
     workflow: 'research-critic',
     steps: Object.keys(researchCriticWorkflowDoc.steps).length,
   });
+});
+
+test('research critic attack and save steps receive latest research artifacts', () => {
+  for (const stepId of ['research_attack', 'save_research_packet']) {
+    const prompt = promptText(researchCriticWorkflowDoc.steps[stepId]);
+
+    assert.match(prompt, /\$\{\{ input\.research_revision\.artifacts \| default:/, `${stepId} should receive research_revision artifacts`);
+    assert.match(prompt, /\$\{\{ input\.research_answered_draft\.artifacts \| default:/, `${stepId} should receive research_answered_draft artifacts`);
+    assert.match(prompt, /\$\{\{ input\.research_draft\.artifacts \| default:/, `${stepId} should receive research_draft artifacts`);
+  }
 });
 
 test('research critic saved packet output requires artifacts and results payloads', () => {
@@ -347,13 +384,13 @@ test('dev harness revision loops inline the feedback that caused revision', () =
     'approve_architecture',
   ]);
   assert.deepEqual(promptInputRefs(workflowDoc.steps.planning_draft), [
-    'research_draft',
     'architecture_draft',
     'architecture_attack',
     'planning_draft',
     'planning_attack',
     'approve_plan',
   ]);
+  assert.match(promptText(workflowDoc.steps.planning_draft), /do not edit it, complete missing Canvas sections, or read earlier research artifacts separately/);
 });
 
 test('workflow authoring design revision inlines prior feedback', () => {

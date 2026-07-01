@@ -1,6 +1,6 @@
 # Execution Plan Contract
 
-Use this after research has produced a human-approved research packet and, when needed, after Architect has produced the structural contract. For tiny work, this may be a compact one-paragraph or short-bullet version of the same contract.
+Use this after research has produced a human-approved research packet and, when the architecture gate runs, after Architect has produced the active successor contract. For tiny work, this may be a compact one-paragraph or short-bullet version of the same contract.
 
 Execution planning must be concrete enough for implementation shape, ownership, verification, and rollback. It must not become code, pseudocode, algorithms, edit recipes, or a patch plan.
 
@@ -8,8 +8,10 @@ Execution planning must be concrete enough for implementation shape, ownership, 
 
 - Goal:
 - Non-goals:
-- Research basis:
+- Upstream evidence: research packet reference plus any carried-forward artifact lineage
+- Active planning basis: approved research packet if no architecture gate ran / approved Architect output when architecture ran
 - Structural contract: none / reference to Architect output
+- REASONS architecture artifact: none / reference to `reasons-canvas-architecture`
 - Project baseline: `not-required` / `required` + current docs, meaningful source ownership zones, and gaps/deferred items
 - Architecture artifact manifest: existing / required / deferred project artifacts (`ARCHITECTURE.md`, meaningful source-zone `CONTEXT.md`, ADR/migration docs, and `DESIGN.md` when UI/frontend surface is material)
 - Architecture-artifact decision: `none` / `update_existing` / `create_new` + target artifact when applicable
@@ -115,7 +117,7 @@ Terminology:
 
 For non-trivial work:
 
-1. `Planner A propose`: creates the execution contract from the human-approved research packet and structural contract when present.
+1. `Planner A propose`: creates the execution contract from the nearest approved upstream contract. If architecture ran, consume the Architect-owned structural contract and `reasons-canvas-architecture` when present; research is trace evidence, not a competing active contract.
 2. `Planner B attack`: challenges implementation entity coverage, file-zone ownership, project baseline coverage, architecture artifact manifest, proposal-workspace hygiene, verification surfaces, rollback surfaces, sensitive surfaces, request-path/contract touchpoints, risks, and max-detail leaks.
 3. Allow one bounded revise/re-review loop when the attack finds fixable gaps, unless the caller explicitly approves another.
 
@@ -123,7 +125,7 @@ This is the same planner role/class in an attack pass, not a separate role.
 
 ## Rules
 
-- For non-trivial work, execution planning may start only from a human-approved research packet: wrapper `approve_as_is`, or `approve_with_changes` only after required changes are folded back in, must still be shown to the user for explicit approval.
+- For non-trivial work, execution planning may start only after the required upstream gates are approved: research approval first, then architecture approval when the architecture gate ran. Planning consumes the nearest approved upstream contract.
 - One agent per file zone.
 - Code implementer owners must use only `backend` or `frontend` as the role label. `architect` is allowed only as an architecture artifact implementer owner for approved docs/artifacts, not backend/frontend code.
 - Each owner must map to one closed, exclusive file zone. No file may belong to two owners.

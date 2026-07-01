@@ -25,7 +25,6 @@ Local OpenClaw reads skills directly from this repo's `SKILL.md` files, so packa
 - [Shared reference packages](#shared-reference-packages)
 - [Codex custom agents](#codex-custom-agents)
 - [Role index](#role-index)
-- [Process docs](#process-docs)
 - [Conventions](#conventions)
 - [Repo rules](#repo-rules)
 
@@ -73,7 +72,6 @@ roles/          reusable role contracts
 agents/         generated Codex custom-agent TOML files
 shared/         reusable reference packages, not runtime skills
 conventions/    shared repo-level conventions
-SPDD-lite.md    lightweight process doc
 README.md       onboarding + repo map
 ```
 
@@ -291,7 +289,7 @@ Shared packages are reference material for skill authors and workflow skills. Th
   - Do not use when: the task only needs a standalone workflow or artifact-specific execution with no shared context dependency.
 
 - `shared/templates`
-  - What it is: reusable artifact-format/output templates for research packets, architecture proposals, implementation plans, implementation handoffs, review handoffs, review verdicts, and fix-pass handoffs.
+  - What it is: reusable artifact-format/output templates for research packets, architecture proposals, immutable REASONS Canvas prompt/spec artifacts, implementation plans, implementation handoffs, review handoffs, review verdicts, and fix-pass handoffs.
   - Use when: a workflow needs a concise packet/proposal/plan/review answer shape with clear source context, evidence, checklist, verdict, and transition fields.
   - Do not use when: the task is already approved for direct implementation or only needs a short ad hoc note.
 
@@ -360,13 +358,6 @@ Use them when a skill needs a stable specialist identity across phases.
   - Exploitability, auth, injection, secrets, and trust-boundary review.
 - `roles/tech-writer`
   - Teaching-oriented technical documentation writing and review.
-
-## Process docs
-
-- `SPDD-lite.md`
-  - What it is: lightweight four-stage repo process doc: `research -> execution plan -> development -> review`.
-  - Use when: you need the house workflow and stage boundaries for structured skill work.
-  - Do not use when: you only need a single skill folder and its own local instructions.
 
 ## Conventions
 

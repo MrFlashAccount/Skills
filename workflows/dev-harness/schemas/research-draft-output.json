@@ -83,8 +83,8 @@
       "items": {
         "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact"
       },
-      "description": "Producer must emit the research packet artifact metadata when outcome is ready_for_attack.",
-      "x-usage": "Emit the human-facing research packet artifact. Exact artifact field semantics come from the shared baton artifact schema.",
+      "description": "Producer must emit the research packet artifact metadata when outcome is ready_for_attack, plus a reasons-canvas-research artifact when the research packet marks a REASONS Canvas as required.",
+      "x-usage": "Emit the human-facing research packet artifact, and emit the optional immutable reasons-canvas-research artifact when needed. Exact artifact field semantics come from the shared baton artifact schema.",
       "minItems": 1
     },
     "results": {

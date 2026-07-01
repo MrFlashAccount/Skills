@@ -1,11 +1,11 @@
 # <Project/Issue> Architecture Proposal — <Capability>
 
-## Status
+## Artifact Metadata
 
 - Owner:
 - Date:
-- State: Draft | Ready for review | Approved | Rejected
-- Based on research/context:
+- Source artifacts:
+- Scope boundary:
 
 ## Architecture decision
 
@@ -13,7 +13,7 @@
 
 ## Target entities
 
-| Entity | Status | Placement | Responsibility |
+| Entity | Change type | Placement | Responsibility |
 | --- | --- | --- | --- |
 | <entity> | New/Change/Keep/Retire | Core/Integration/Plugin/Dependency/<path or package> | <single responsibility> |
 

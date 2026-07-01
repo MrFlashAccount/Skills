@@ -1,10 +1,10 @@
 # Research packet persistence metadata
 
-Return JSON metadata for the final saved research packet, not the packet markdown body.
+Return JSON metadata for the final saved research packet and any approved REASONS research Canvas, not the markdown bodies.
 
 ## Required saved outcome
 
-When persistence is safe and complete, return `outcome: saved`, a short `saved.summary`, optional `saved.history_note`, artifact metadata for the saved approved research packet, and a compact result summary.
+When persistence is safe and complete, return `outcome: saved`, a short `saved.summary`, optional `saved.history_note`, artifact metadata for the saved approved research packet and approved `reasons-canvas-research` artifact when present, and a compact result summary.
 
 ## Blocked outcome
 
@@ -13,6 +13,6 @@ When the packet cannot be safely saved, return `outcome: blocked` with a blocker
 ## Template rules
 
 - Do not reproduce the full research packet markdown here.
-- Return the saved research packet as an artifact when the schema asks for `artifacts`.
+- Return the saved research packet as an artifact when the schema asks for `artifacts`; include the saved `reasons-canvas-research` artifact when present.
 - Keep summaries short and suitable for baton/history projection.
 - Use the appended output schema for exact JSON shape and artifact field mechanics.

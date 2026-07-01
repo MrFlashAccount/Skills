@@ -1,12 +1,11 @@
 # <Project/Issue> Implementation Plan — <Capability>
 
-## Status
+## Artifact Metadata
 
 - Owner:
 - Date:
-- State: Draft | Ready for implementation approval | Approved | In progress | Done
-- Based on research/context:
-- Based on architecture proposal:
+- Source artifacts:
+- Scope boundary:
 
 ## Goal
 
@@ -20,6 +19,15 @@
 | B | <role> | <exact files, folders, modules, or zones> | <new/change/remove at planning level> | <observable completion signal> |
 | C | <role> | <exact files, folders, modules, or zones> | <new/change/remove at planning level> | <observable completion signal> |
 | D | <role> | <exact files, folders, modules, or zones> | <new/change/remove at planning level> | <observable completion signal> |
+
+## REASONS-to-workstream trace
+
+| REASONS section | Planning decision | Workstream / DoD coverage |
+| --- | --- | --- |
+| Requirements | <accepted behavior/scope from architecture artifact> | <workstream or DoD item> |
+| Entities | <implementation entities/file zones> | <workstream> |
+| Approach/Structure | <chosen implementation shape> | <workstream/reviewer> |
+| Norms/Safeguards | <constraints/checks/rollback> | <DoD/verification/review> |
 
 ## Exact implementation tasks
 
@@ -67,11 +75,12 @@ When a structured output schema asks for reviewer selection, keep this table ali
 
 ## Appendix: <source artifact name>
 
-<Paste or link source-of-truth context needed by implementers/reviewers. Add more appendix sections as needed.>
+<Paste approved architecture-derived context needed by implementers/reviewers. Add more appendix sections as needed.>
 
 ## Template rules
 
 - Be concrete and file-level: name file zones, classes, entities, functions, methods, configs, and docs at planning level.
 - Use ABCD workstreams when helpful; keep roles/owners explicit.
 - Include DoD, reviewer roles, rollback, and any source appendices needed to make the plan self-contained.
+- Consume the approved architecture proposal and `reasons-canvas-architecture` as the active contract. Do not consume research separately; rely on the architecture artifact to carry forward any research context that remains valid.
 - Do not include code, diffs, command sequences, or process handoff instructions.
