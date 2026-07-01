@@ -277,6 +277,16 @@ test('research critic save step uses persistence metadata template matching its 
   });
 });
 
+test('research critic attack and save steps receive latest research artifacts', () => {
+  for (const stepId of ['research_attack', 'save_research_packet']) {
+    const prompt = promptText(researchCriticWorkflowDoc.steps[stepId]);
+
+    assert.match(prompt, /\$\{\{ input\.research_revision\.artifacts \| default:/, `${stepId} should receive research_revision artifacts`);
+    assert.match(prompt, /\$\{\{ input\.research_answered_draft\.artifacts \| default:/, `${stepId} should receive research_answered_draft artifacts`);
+    assert.match(prompt, /\$\{\{ input\.research_draft\.artifacts \| default:/, `${stepId} should receive research_draft artifacts`);
+  }
+});
+
 test('research critic saved packet output requires artifacts and results payloads', () => {
   const workflowPath = path.join(REPO_ROOT, 'workflows/research-critic/workflow.json');
   const step = researchCriticWorkflowDoc.steps.save_research_packet;
