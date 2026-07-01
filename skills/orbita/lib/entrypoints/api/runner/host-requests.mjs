@@ -5,6 +5,7 @@ import {
   continueInstructionCommandForRun,
   loadFollowupInstructionsCommandForStep,
   loadInstructionsCommandForStep,
+  recordOrchestratorCommandForRun,
   writeOutputCommandForStep,
 } from "./runner-command-builder.mjs";
 
@@ -26,6 +27,8 @@ const TERMINAL_ORCHESTRATOR_INSTRUCTIONS_BY_STATUS = Object.freeze({
   needs_host_actions: (ctx) => [
     `Execute every host request in this JSON and wait until all requested actions finish: ${JSON.stringify(ctx.requests)}`,
     ctx.inlineInstructions,
+    "Before continue, record a concise orchestrator debug summary with this validating runner command. Replace only the JSON body. Include what host actions you completed, why, commands/tools used, validation/evidence, and any remaining risks or blockers. Do not include private prompts, hidden reasoning, tokens, or raw transcripts.",
+    ctx.orchestratorDebugCommand,
     "Then run:",
     ctx.continueCommand,
     "Follow that stdout instruction exactly.",
@@ -182,11 +185,20 @@ export function toHostResponse(interpreterResponse, options) {
         runsRoot: options.runsRoot,
         leaseToken: options.leaseToken,
       }),
+      orchestratorDebugCommand: recordOrchestratorCommandForRun(options.runId, {
+        runsRoot: options.runsRoot,
+        leaseToken: options.leaseToken,
+      }),
       baton: interpreterResponse.baton,
     }),
     baton: interpreterResponse.baton,
   };
   if (status === "needs_host_actions")
     response.requests = requests;
+  if (status === "needs_host_actions")
+    response.orchestratorDebugCommand = recordOrchestratorCommandForRun(options.runId, {
+      runsRoot: options.runsRoot,
+      leaseToken: options.leaseToken,
+    });
   return response;
 }

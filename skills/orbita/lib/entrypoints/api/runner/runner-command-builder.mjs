@@ -78,10 +78,23 @@ export function continueInstructionCommandForRun(runId, options = {}) {
   return `${continueCommandForRun(runId, options)} --only-instructions`;
 }
 
+export function recordOrchestratorCommandForRun(runId, { runsRoot, leaseToken } = {}) {
+  const runsRootArg = runsRoot ? ` --runs-root ${shellQuote(runsRoot)}` : "";
+  const token =
+    typeof leaseToken === "string" && leaseToken.length > 0
+      ? shellQuote(leaseToken)
+      : "<lease-token>";
+  return [
+    `${WORKFLOW_RUNNER_COMMAND} record-orchestrator --run-id ${shellQuote(runId)}${runsRootArg} --lease-token ${token} <<'JSON'`,
+    "<paste orchestrator debug JSON here>",
+    "JSON",
+  ].join("\n");
+}
+
 export function writeOutputCommandForStep(
   runId,
   stepId,
-  { runsRoot, leaseToken } = {},
+  { runsRoot, leaseToken, debugSummaryFile } = {},
 ) {
   assertSafeStepId(stepId);
   const runsRootArg = runsRoot ? ` --runs-root ${shellQuote(runsRoot)}` : "";
@@ -89,8 +102,11 @@ export function writeOutputCommandForStep(
     typeof leaseToken === "string" && leaseToken.length > 0
       ? shellQuote(leaseToken)
       : "<lease-token>";
+  const debugSummaryArg = typeof debugSummaryFile === "string" && debugSummaryFile.length > 0
+    ? ` --debug-summary-file ${shellQuote(debugSummaryFile)}`
+    : "";
   return [
-    `${WORKFLOW_RUNNER_COMMAND} write-output --run-id ${shellQuote(runId)} --step-id ${shellQuote(stepId)}${runsRootArg} --lease-token ${token} <<'JSON'`,
+    `${WORKFLOW_RUNNER_COMMAND} write-output --run-id ${shellQuote(runId)} --step-id ${shellQuote(stepId)}${runsRootArg} --lease-token ${token}${debugSummaryArg} <<'JSON'`,
     "<paste strict JSON here>",
     "JSON",
   ].join("\n");

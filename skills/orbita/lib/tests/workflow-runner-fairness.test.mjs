@@ -1,6 +1,6 @@
 // Freezes worker-lease fairness boundaries around runner actions before deeper ownership refactors.
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
@@ -64,12 +64,20 @@ function workerOutput(summary) {
   return { outcome: 'ready', results: [{ type: 'check', summary }] };
 }
 
+function debugSummaryFileFor({ runId, workflowPath, stepId, text = 'worker debug summary\n' }) {
+  const debugSummaryFile = path.join(resolveRunPaths({ runId, workflowPath }).runDir, stepId, 'debug-summary.md');
+  mkdirSync(path.dirname(debugSummaryFile), { recursive: true });
+  writeFileSync(debugSummaryFile, text);
+  return debugSummaryFile;
+}
+
 async function writeCurrentOutput({ runId, workflowPath, leaseToken, summary, now = new Date('2026-06-01T10:00:02.000Z') }) {
   return runnerWriteOutput({
     runId,
     workflowPath,
     stepId: 'prepare',
     json: JSON.stringify(workerOutput(summary)),
+    debugSummaryFile: debugSummaryFileFor({ runId, workflowPath, stepId: 'prepare' }),
     leaseToken,
     now,
   });
@@ -298,5 +306,15 @@ test('runner fairness: missing host output does not mutate lifecycle status befo
     /missing accepted host output/,
   );
 
-  assert.deepEqual(snapshotRunState(paths), before);
+  const after = snapshotRunState(paths);
+  assert.equal(after.baton, before.baton);
+  assert.equal(after.runDirExists, before.runDirExists);
+  assert.equal(after.runnerDirExists, before.runnerDirExists);
+  assert.equal(after.continueLockExists, before.continueLockExists);
+  assert.equal(after.instructionsDirExists, before.instructionsDirExists);
+  assert.deepEqual(after.indexEntry, before.indexEntry);
+  const failureEntry = after.history.slice(before.history.length);
+  assert.match(failureEntry, /source: workflow-runner-failure/);
+  assert.match(failureEntry, /public failure: command=continue/);
+  assert.match(failureEntry, /missing accepted host output for workflow step prepare/);
 });

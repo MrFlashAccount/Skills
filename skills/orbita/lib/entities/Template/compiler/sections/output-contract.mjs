@@ -43,12 +43,31 @@ function artifactOutputDirectoryInstruction(artifactOutputDir) {
   ].join('\n');
 }
 
+function debugSummaryInstruction({ debugSummaryPath }) {
+  const trimmedPath = typeof debugSummaryPath === 'string' ? debugSummaryPath.trim() : '';
+  if (!trimmedPath) return '';
+  return [
+    'Debug history summary:',
+    '- At the end of this step, before calling the validating writer command, write a concise debug summary file for this step.',
+    `- Write it at ${trimmedPath}. Create the parent directory if needed.`,
+    '- Include operational rationale for the accepted output: what you did, why you chose this path, meaningful alternatives rejected, commands/tools used, files changed or inspected, validation/evidence, and remaining risks or blockers.',
+    '- Do not put this debug summary in the JSON output. The validating writer receives it through --debug-summary-file and records the bounded history entry only after output acceptance.',
+    '- Do not write history.md directly.',
+    '- Do not include hidden/private chain-of-thought, private prompts, session transcripts, tokens, or unrelated logs.',
+  ].join('\n');
+}
+
 export function outputContractSection(outputTemplate, templatePath, outputSchema, schemaPath, outputSchemaValue, options = {}) {
   if (!outputTemplate && !outputSchema) return '';
   const parts = [];
   if (outputTemplate) {
     const templateComment = templatePath ? `\n\n<!-- output template: ${templatePath} -->` : '';
-    parts.push(`Return output that satisfies the workflow worker-output envelope and follows this markdown artifact template when producing the artifact content.${templateComment}\n\n${trimStable(outputTemplate)}`);
+    const templateParts = [`Return output that satisfies the workflow worker-output envelope and follows this markdown artifact template when producing the artifact content.${templateComment}\n\n${trimStable(outputTemplate)}`];
+    if (!outputSchema) {
+      const debugSummary = debugSummaryInstruction({ debugSummaryPath: options.debugSummaryPath });
+      if (debugSummary) templateParts.push(debugSummary);
+    }
+    parts.push(templateParts.join('\n\n'));
   }
   if (outputSchema) {
     const schemaComment = schemaPath ? `\n\n<!-- output schema: ${schemaPath} -->` : '';
@@ -59,6 +78,8 @@ export function outputContractSection(outputTemplate, templatePath, outputSchema
       const artifactDirInstruction = artifactOutputDirectoryInstruction(options.artifactOutputDir);
       if (artifactDirInstruction) schemaParts.push(artifactDirInstruction);
     }
+    const debugSummary = debugSummaryInstruction({ debugSummaryPath: options.debugSummaryPath });
+    if (debugSummary) schemaParts.push(debugSummary);
     if (artifactNotes) schemaParts.push(artifactNotes);
     schemaParts.push(`${validatingWriterProtocol(options.validatingWriterCommand)}${schemaComment}\n\n\`\`\`json\n${trimStable(outputSchema)}\n\`\`\``);
     parts.push(schemaParts.join('\n\n'));

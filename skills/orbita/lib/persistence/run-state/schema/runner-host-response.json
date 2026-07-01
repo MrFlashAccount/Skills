@@ -7,6 +7,7 @@
   "properties": {
     "status": { "enum": ["needs_host_actions", "done", "blocked"] },
     "orchestratorInstruction": { "type": "string", "minLength": 1 },
+    "orchestratorDebugCommand": { "type": "string", "minLength": 1 },
     "baton": { "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton" },
     "requests": {
       "type": "array",

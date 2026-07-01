@@ -7,8 +7,9 @@ export function renderStepPrompts({ workflow, baton, steps, resources, includeDi
   const rendered = steps.map((entry) => {
     const stepResources = {
       ...resources,
-      validatingWriterCommand: resources?.validatingWriterCommandForStep?.(entry.id) ?? resources?.validatingWriterCommand,
+      validatingWriterCommand: resources?.validatingWriterCommandForStep?.(entry.id, entry.step) ?? resources?.validatingWriterCommand,
       artifactOutputDir: resources?.artifactOutputDirForStep?.(entry.id) ?? resources?.artifactOutputDir,
+      debugSummaryPath: resources?.debugSummaryPathForStep?.(entry.id, entry.step) ?? resources?.debugSummaryPath,
     };
     return {
       ...entry,

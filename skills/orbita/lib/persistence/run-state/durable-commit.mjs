@@ -1,5 +1,7 @@
 import { constants } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { access, open, readFile, rm } from 'node:fs/promises';
+import { join } from 'node:path';
 import { assertPersistedRunState } from './persisted-state-schema.mjs';
 import { readPersistedRunState } from './PersistedRunStateReader.mjs';
 import { assertManagedRunStateFile, writeJsonAtomic, writeTextAtomic } from './atomic-file.mjs';
@@ -14,12 +16,13 @@ async function readJson(path, name) {
   catch (error) { throw new Error(`cannot parse ${name} from ${path}: ${error.message}`); }
 }
 
-function historyEntry({ source, baton, requests, steps, output, decision }) {
+function historyEntry({ source, baton, requests, steps, output, decision, details }) {
   const lines = [`## ${new Date().toISOString()}`, '', `- source: ${source}`, `- baton: cursor=${baton.cursor ?? 'unknown'} status=${baton.status ?? 'unknown'}`];
   if (steps?.length) lines.push(`- steps: ${steps.map((step) => `id=${step.id} action=${step.action}`).join('; ')}`);
   else if (requests?.length) lines.push(`- requests: ${requests.map((request) => `id=${request.id} action=${request.action}`).join('; ')}`);
   if (output) lines.push(`- output: ${output}`);
   if (decision) lines.push(`- decision: ${decision}`);
+  if (Array.isArray(details)) lines.push(...details.filter((line) => typeof line === 'string' && line.length > 0));
   if (baton.blocker) lines.push(`- blocker: ${JSON.stringify(baton.blocker).replace(/\s+/g, ' ').trim()}`);
   lines.push('', '');
   return lines.join('\n');
@@ -119,4 +122,21 @@ export async function appendHistory(paths, entry) {
   } finally {
     await handle.close();
   }
+}
+
+export async function appendHistoryOnce(paths, entry, { dedupeKey } = {}) {
+  if (typeof dedupeKey !== 'string' || dedupeKey.length === 0) return appendHistory(paths, entry);
+  const digest = createHash('sha256').update(dedupeKey).digest('hex');
+  const markerPath = join(paths.runnerDir, `history-entry-${digest}.marker`);
+  await assertManagedRunStateFile(markerPath, 'workflow history dedupe marker');
+  if (await exists(markerPath)) return false;
+  await appendHistory(paths, entry);
+  try {
+    const handle = await open(markerPath, 'wx', 0o600);
+    await handle.close();
+  } catch (error) {
+    if (error?.code === 'EEXIST') return false;
+    throw error;
+  }
+  return true;
 }
