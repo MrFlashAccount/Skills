@@ -40,10 +40,10 @@ Use this as the format/context packet passed to an implementer for one approved 
 
 Rules:
 
-- Treat this table as binding for the assigned slice.
-- Do not replace source terms with “close enough” names or behavior unless the row includes an approved mapping.
-- If a row cannot be satisfied in scope, stop and return `BLOCKED` with the exact row id and reason.
-- If implementation discovers a contradiction with the approved plan, stop instead of redesigning silently.
+- Treat every row in this table as a mandatory hard gate for the assigned slice, not as a preference or checklist hint.
+- Do not replace source terms with “close enough” names or behavior, satisfy rows through alternate wording, or use unapproved semantic mappings unless the row includes that approved mapping.
+- If a row cannot be satisfied in scope, stop and return `BLOCKED` with the exact row id, reason, and the smallest concrete approval question needed to proceed.
+- If implementation discovers a contradiction with the approved plan or would require a deviation from an approved row, stop instead of redesigning silently.
 
 ## Workstream tasks
 
@@ -68,9 +68,9 @@ Return:
 
 - summary
 - changed files
-- source contract checklist with final row statuses: `covered`, `partial`, `blocked`, or `not_applicable_with_reason`
+- source contract checklist with final row statuses: `covered`, `partial`, or `blocked`
 - verification run + result
 - blockers
 - review handoff notes
 
-Do not claim `ready_for_review` while any required row is `partial`, `blocked`, or unmapped.
+Do not claim `ready_for_review` unless every mandatory row is `covered`; `partial`, `blocked`, unmapped rows, not-applicable waivers, or rows satisfied only through unapproved alternate wording must block.

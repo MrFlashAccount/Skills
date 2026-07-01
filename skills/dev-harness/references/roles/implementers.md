@@ -14,6 +14,8 @@ Apply this to every code implementer prompt:
 
 - Keep the parent/orchestrator prompt neutral and compact.
 - Include only: the shared delegated role task template, selected role name/path, approved task packet, assigned file zones, scope/non-goals, verification expectations, and requested output.
+- Include binding approved proposal/plan/source-contract rows for the assigned slice, including any approved semantic mappings.
+- State that assigned source-contract rows are hard gates: workers must not approximate, rename, or improvise around them, and must return blocked with the smallest concrete approval question when a required row cannot be covered or a deviation/contradiction is discovered.
 - Do not inline backend-specific, frontend-specific, framework-specific, or stack-specific implementation rules into the parent prompt. Those rules belong in the loaded role material and any role-internal references it tells the worker to read.
 - If a worker needs more role detail, the worker must get it by loading the selected `ROLE.md`, `RUBRIC.md`, `LEARNINGS.md` when required, and role-referenced files.
 - Treat this file as routing/load guidance, not as a duplicated implementation rulebook.
