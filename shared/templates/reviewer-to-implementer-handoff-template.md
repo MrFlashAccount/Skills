@@ -36,9 +36,12 @@ Use this when review found must-fix or contract coverage gaps and the work must 
 
 ## Scope guardrails
 
+- Treat every row listed above, plus any prior reviewer blocker referenced by those rows, as a regression gate for this fix pass.
 - Only fix the rows listed above.
+- Every listed gap id must be fixed or explicitly returned as `BLOCKED` with the exact gap id, reason, and smallest concrete re-planning question.
 - Do not introduce new architecture, workflow, API, or naming semantics unless the fix row explicitly requires it.
 - Do not downgrade exact source terms into alternate concepts without approved mapping.
+- Do not silently bypass, rename, or defer prior blocker rows.
 - If the fix requires scope expansion, stop as `BLOCKED` and explain the smallest re-planning question.
 
 ## Verification expected from fix pass
@@ -47,14 +50,14 @@ Use this when review found must-fix or contract coverage gaps and the work must 
   - `<targeted regression/check for each gap>`
   - `<project-native check>`
 - Update docs/tests when the gap is contract-bearing.
-- Return evidence per gap id.
+- Return implementation and verification evidence per gap id.
 
 ## Output required
 
 Return:
 
 - summary
-- gap table with statuses: `fixed`, `blocked`, or `not_applicable_with_reason`
+- gap table with statuses: `fixed` or `blocked`
 - changed files
 - verification run + result
 - residual risks
