@@ -77,7 +77,7 @@
       "additionalProperties": false
     },
     "workerBindings": {
-      "description": "Runner-owned advisory worker reuse hints keyed by workflow step id. Values are opaque host worker ids; this is not an attempt, lifecycle, session, transcript, or output registry.",
+      "description": "Runner-owned advisory worker reuse hints keyed by workflow step id or by the step's explicit logical agent name. Values are opaque host worker ids; this is not an attempt, lifecycle, session, transcript, or output registry.",
       "type": "object",
       "additionalProperties": {
         "type": "string",

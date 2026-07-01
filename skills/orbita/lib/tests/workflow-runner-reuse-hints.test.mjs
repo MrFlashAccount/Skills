@@ -188,6 +188,36 @@ test('runner reuse hints: bind-agent stores and overwrites top-level worker bind
   assert.equal(retried.requests[0].preferredAgentId, 'worker-2');
 });
 
+test('runner reuse hints: logical agent name reuses one worker across different workflow steps', async () => {
+  const workflow = structuredClone(workflowDoc);
+  workflow.steps.prepare.agent = 'architect';
+  workflow.steps.prepare.next = 'branch_a';
+  workflow.steps.branch_a.agent = 'architect';
+  workflow.steps.branch_a.next = 'done';
+  const { runId, runDir, workflowPath, leaseToken, now } = await runCase('shared-agent-binding', workflow);
+
+  const first = await next({ runId, workflowPath, leaseToken, now });
+  assert.equal(first.requests[0].stepId, 'prepare');
+  assert.equal(first.requests[0].preferredAgentId, null);
+
+  await bindAgent({ runId, workflowPath, stepId: 'prepare', agentId: 'architect-worker', leaseToken, now });
+  assert.deepEqual(readBaton(runDir).workerBindings, { architect: 'architect-worker' });
+
+  await writeOutput({
+    runId,
+    workflowPath,
+    stepId: 'prepare',
+    json: JSON.stringify(workerOutput('prepared')),
+    debugSummaryFile: debugSummaryFileFor(runDir, 'prepare'),
+    leaseToken,
+    now,
+  });
+
+  const followUp = await continueRun({ runId, workflowPath, leaseToken, now });
+  assert.equal(followUp.requests[0].stepId, 'branch_a');
+  assert.equal(followUp.requests[0].preferredAgentId, 'architect-worker');
+});
+
 test('runner reuse hints: bind-agent renews stale matching worker lease', async () => {
   const workflow = structuredClone(workflowDoc);
   workflow.steps.prepare.next = 'done';
