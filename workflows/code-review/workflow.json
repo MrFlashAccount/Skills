@@ -1,0 +1,412 @@
+{
+  "name": "code-review",
+  "version": 1,
+  "description": "Orchestrate delegated multi-role code review for a repo, branch, PR, path, or diff, then merge specialist verdicts into one pass/fail report with must-fix, should-fix, and can-delay findings. Use when the user asks for code review or wants one review gate across critic, architect, backend, frontend, frontend taste, security, privacy/data-safety, qa/reliability, or performance. Do not use for pre-implementation research, implementation planning, direct code changes, workflow authoring, native workflow sharding, or review tasks where required delegation is unavailable.",
+  "start": "review_context",
+  "done": "done",
+  "blocked": "blocked",
+  "steps": {
+    "review_context": {
+      "name": "Review context",
+      "kind": "worker",
+      "input": {
+        "prompt": [
+          "Build the shared code-review context packet for the requested repo, branch, PR, path, or diff.",
+          "Identify the target repo/path/ref/PR, base comparison when available, user acceptance or approved contract when available, target AGENTS.md guidance, git status, branch, diff summary, touched files, relevant test/config hints, and sensitive-surface scanner evidence.",
+          "For sensitive-surface diffs, run `skills/code-review-orchestrator/scripts/check_sensitive_surface.py <repo-path> [<base-rev>]` and project its status into sensitive_surface.status.",
+          "Set review_iteration to input.rereview_guard.next_review_iteration when present; otherwise set it to 1. Never reset a later review pass to 1.",
+          "Do not add semantic PR slicing, large_review_decision, review_slices, slice_coverage, native workflow sharding, child-subagent evidence requirements, implementation/fix work, or research/planning stages.",
+          "Return ready_for_selection or blocked with blocker.source_step_id = review_context.",
+          "",
+          "Input context:",
+          "- Use the current workflow-runner user request as the review target request; if the target repo/path/ref/PR or base comparison is missing and cannot be inferred from the working context, return blocked with the smallest concrete question.",
+          "- Previous join verdict for re-review: ${{ input.review_join.verdict | default: \"No previous review_join verdict.\" }}",
+          "- Re-review guard: ${{ input.rereview_guard | default: \"No re-review guard output.\" }}"
+        ]
+      },
+      "output": {
+        "template": "../../shared/templates/reviewer-handoff-template.md",
+        "schema": "schemas/review-context-output.json"
+      },
+      "next": {
+        "match": "${{ output.outcome }}",
+        "cases": {
+          "ready_for_selection": "reviewer_selection",
+          "blocked": "blocked"
+        }
+      }
+    },
+    "reviewer_selection": {
+      "name": "Reviewer selection",
+      "kind": "worker",
+      "input": {
+        "prompt": [
+          "Select the smallest evidence-backed reviewer set that covers the actual review risks in review_context.",
+          "Default to one independent reviewer; add roles only when primary risks are genuinely separate.",
+          "Canonical selected_review_steps are critic_review, architect_review, backend_review, frontend_review, frontend_taste_review, security_review, privacy_review, qa_review, and performance_review.",
+          "If review_context.sensitive_surface.status is sensitive, selected_review_steps must include privacy_review and privacy_route_decision.required must be true.",
+          "Every selected reviewer must receive ../../shared/review/known-debt-reviewer-contract.md; set known_debt_contract_included true only when that requirement is represented for every selected reviewer.",
+          "Reviewer workers must load only ../../roles/<role>/ROLE.md and ../../roles/<role>/RUBRIC.md for their role plus ../../shared/review/known-debt-reviewer-contract.md. Do not require LEARNINGS.md or roles/<role>/references/** from workflow prompts.",
+          "Do not select all reviewers by default. Do not invent non-canonical reviewer roles. Do not add semantic PR slicing, review_slices, slice_coverage, native workflow sharding, or nested child-subagent evidence.",
+          "If required delegation, role material, target repo access, or scanner evidence is unavailable, return blocked rather than replacing delegation with manual review.",
+          "Return ready_for_dispatch or blocked with blocker.source_step_id = reviewer_selection.",
+          "",
+          "Input context:",
+          "- Review context: ${{ input.review_context }}"
+        ]
+      },
+      "output": {
+        "template": "../../shared/templates/review-verdict-template.md",
+        "schema": "schemas/reviewer-selection-output.json"
+      },
+      "next": {
+        "match": "${{ output.outcome }}",
+        "cases": {
+          "ready_for_dispatch": "review_dispatch",
+          "blocked": "blocked"
+        }
+      }
+    },
+    "review_dispatch": {
+      "name": "Review dispatch",
+      "kind": "worker",
+      "input": {
+        "prompt": [
+          "Dispatch exactly reviewer_selection.selected_review_steps as flat runner-visible reviewer fanout.",
+          "Do not infer reviewers from prose, touched files, or join output. Do not introduce semantic slices or child-subagent work.",
+          "Return ready_for_review and copy reviewer_selection.selected_review_steps into selected_review_steps.",
+          "",
+          "Input context:",
+          "- Review context: ${{ input.review_context }}",
+          "- Reviewer selection: ${{ input.reviewer_selection }}"
+        ]
+      },
+      "output": {
+        "template": "../../shared/templates/review-verdict-template.md",
+        "schema": "schemas/review-dispatch-output.json"
+      },
+      "next": "${{ input.reviewer_selection.selected_review_steps }}"
+    },
+    "critic_review": {
+      "name": "Critic review",
+      "kind": "worker",
+      "input": {
+        "role": "critic",
+        "prompt": [
+          "Required reads before reviewing: ../../roles/critic/ROLE.md, ../../roles/critic/RUBRIC.md, and ../../shared/review/known-debt-reviewer-contract.md.",
+          "Start from a hostile prior: assume the change is wrong, incomplete, overcomplicated, or under-evidenced until the diff proves otherwise.",
+          "Review simplification, trade-offs, hidden fragility, scope pressure, and whether the approved contract passed.",
+          "Known debt is not a waiver; downgrade only with explicit evidence that the current change does not worsen, depend on, normalize, or entrench it. Surface downgraded known debt in can_delay, not as automatic fix work.",
+          "Return passed, needs_changes, or blocked with blocker.source_step_id = critic_review.",
+          "",
+          "Input context:",
+          "- Review context: ${{ input.review_context }}",
+          "- Reviewer selection: ${{ input.reviewer_selection }}",
+          "- Dispatch selection: ${{ input.review_dispatch }}"
+        ]
+      },
+      "output": {
+        "template": "../../shared/templates/review-verdict-template.md",
+        "schema": "schemas/reviewer-verdict-output.json"
+      },
+      "next": "review_join"
+    },
+    "architect_review": {
+      "name": "Architect review",
+      "kind": "worker",
+      "agent": "architect",
+      "input": {
+        "role": "architect",
+        "prompt": [
+          "Required reads before reviewing: ../../roles/architect/ROLE.md, ../../roles/architect/RUBRIC.md, and ../../shared/review/known-debt-reviewer-contract.md.",
+          "Start from a hostile prior: assume the change is wrong, incomplete, overcomplicated, or under-evidenced until the diff proves otherwise.",
+          "Review seams, layering, dependency direction, file-zone correctness, request-path boundaries, balanced coupling, architecture-memory integrity, contract/docs drift, and architectural fit.",
+          "Known debt is not a waiver; downgrade only with explicit evidence that the current change does not worsen, depend on, normalize, or entrench it. Surface downgraded known debt in can_delay, not as automatic fix work.",
+          "Return passed, needs_changes, or blocked with blocker.source_step_id = architect_review.",
+          "",
+          "Input context:",
+          "- Review context: ${{ input.review_context }}",
+          "- Reviewer selection: ${{ input.reviewer_selection }}",
+          "- Dispatch selection: ${{ input.review_dispatch }}"
+        ]
+      },
+      "output": {
+        "template": "../../shared/templates/review-verdict-template.md",
+        "schema": "schemas/reviewer-verdict-output.json"
+      },
+      "next": "review_join"
+    },
+    "backend_review": {
+      "name": "Backend review",
+      "kind": "worker",
+      "input": {
+        "role": "backend",
+        "prompt": [
+          "Required reads before reviewing: ../../roles/backend/ROLE.md, ../../roles/backend/RUBRIC.md, and ../../shared/review/known-debt-reviewer-contract.md.",
+          "Start from a hostile prior: assume the change is wrong, incomplete, overcomplicated, or under-evidenced until the diff proves otherwise.",
+          "Review backend/server correctness, contracts, data flow, validation, failure handling, permissions, rollout safety, observability, and tests.",
+          "Known debt is not a waiver; downgrade only with explicit evidence that the current change does not worsen, depend on, normalize, or entrench it. Surface downgraded known debt in can_delay, not as automatic fix work.",
+          "Return passed, needs_changes, or blocked with blocker.source_step_id = backend_review.",
+          "",
+          "Input context:",
+          "- Review context: ${{ input.review_context }}",
+          "- Reviewer selection: ${{ input.reviewer_selection }}",
+          "- Dispatch selection: ${{ input.review_dispatch }}"
+        ]
+      },
+      "output": {
+        "template": "../../shared/templates/review-verdict-template.md",
+        "schema": "schemas/reviewer-verdict-output.json"
+      },
+      "next": "review_join"
+    },
+    "frontend_review": {
+      "name": "Frontend review",
+      "kind": "worker",
+      "input": {
+        "role": "frontend",
+        "prompt": [
+          "Required reads before reviewing: ../../roles/frontend/ROLE.md, ../../roles/frontend/RUBRIC.md, and ../../shared/review/known-debt-reviewer-contract.md.",
+          "Start from a hostile prior: assume the change is wrong, incomplete, overcomplicated, or under-evidenced until the diff proves otherwise.",
+          "Review client-side correctness, data flow, state, routing, async behavior, contract consumption, and tests.",
+          "Known debt is not a waiver; downgrade only with explicit evidence that the current change does not worsen, depend on, normalize, or entrench it. Surface downgraded known debt in can_delay, not as automatic fix work.",
+          "Return passed, needs_changes, or blocked with blocker.source_step_id = frontend_review.",
+          "",
+          "Input context:",
+          "- Review context: ${{ input.review_context }}",
+          "- Reviewer selection: ${{ input.reviewer_selection }}",
+          "- Dispatch selection: ${{ input.review_dispatch }}"
+        ]
+      },
+      "output": {
+        "template": "../../shared/templates/review-verdict-template.md",
+        "schema": "schemas/reviewer-verdict-output.json"
+      },
+      "next": "review_join"
+    },
+    "frontend_taste_review": {
+      "name": "Frontend taste review",
+      "kind": "worker",
+      "input": {
+        "role": "frontend-taste",
+        "prompt": [
+          "Required reads before reviewing: ../../roles/frontend-taste/ROLE.md, ../../roles/frontend-taste/RUBRIC.md, and ../../shared/review/known-debt-reviewer-contract.md.",
+          "Start from a hostile prior: assume the change is wrong, incomplete, overcomplicated, or under-evidenced until the rendered/user-facing result proves otherwise.",
+          "Review visual/product taste, copy fit, interaction polish, hierarchy, and user-facing coherence for frontend-relevant changes.",
+          "Known debt is not a waiver; downgrade only with explicit evidence that the current change does not worsen, depend on, normalize, or entrench it. Surface downgraded known debt in can_delay, not as automatic fix work.",
+          "Return passed, needs_changes, or blocked with blocker.source_step_id = frontend_taste_review.",
+          "",
+          "Input context:",
+          "- Review context: ${{ input.review_context }}",
+          "- Reviewer selection: ${{ input.reviewer_selection }}",
+          "- Dispatch selection: ${{ input.review_dispatch }}"
+        ]
+      },
+      "output": {
+        "template": "../../shared/templates/review-verdict-template.md",
+        "schema": "schemas/reviewer-verdict-output.json"
+      },
+      "next": "review_join"
+    },
+    "security_review": {
+      "name": "Security review",
+      "kind": "worker",
+      "input": {
+        "role": "security",
+        "prompt": [
+          "Required reads before reviewing: ../../roles/security/ROLE.md, ../../roles/security/RUBRIC.md, and ../../shared/review/known-debt-reviewer-contract.md.",
+          "Start from a hostile prior: assume the change is wrong, incomplete, overcomplicated, or under-evidenced until the diff proves otherwise.",
+          "Review exploitability, auth, privilege, trust boundaries, injection surfaces, secret handling, permission assumptions, and unsafe automation paths.",
+          "Known debt is not a waiver; downgrade only with explicit evidence that the current change does not worsen, depend on, normalize, or entrench it. Surface downgraded known debt in can_delay, not as automatic fix work.",
+          "Return passed, needs_changes, or blocked with blocker.source_step_id = security_review.",
+          "",
+          "Input context:",
+          "- Review context: ${{ input.review_context }}",
+          "- Reviewer selection: ${{ input.reviewer_selection }}",
+          "- Dispatch selection: ${{ input.review_dispatch }}"
+        ]
+      },
+      "output": {
+        "template": "../../shared/templates/review-verdict-template.md",
+        "schema": "schemas/reviewer-verdict-output.json"
+      },
+      "next": "review_join"
+    },
+    "privacy_review": {
+      "name": "Privacy review",
+      "kind": "worker",
+      "input": {
+        "role": "privacy-data-safety",
+        "prompt": [
+          "Required reads before reviewing: ../../roles/privacy-data-safety/ROLE.md, ../../roles/privacy-data-safety/RUBRIC.md, and ../../shared/review/known-debt-reviewer-contract.md.",
+          "Start from a hostile prior: assume the change leaks, persists, exposes, or normalizes sensitive data until evidence proves otherwise.",
+          "Review data minimization, sensitive content exposure, durable memory/logging risk, local-path leakage, committed personal docs, prompt/example leakage, retained user data, and consent/retention mistakes.",
+          "Known debt is not a waiver; downgrade only with explicit evidence that the current change does not worsen, depend on, normalize, or entrench it. Surface downgraded known debt in can_delay, not as automatic fix work.",
+          "Return passed, needs_changes, or blocked with blocker.source_step_id = privacy_review.",
+          "",
+          "Input context:",
+          "- Review context: ${{ input.review_context }}",
+          "- Reviewer selection: ${{ input.reviewer_selection }}",
+          "- Dispatch selection: ${{ input.review_dispatch }}"
+        ]
+      },
+      "output": {
+        "template": "../../shared/templates/review-verdict-template.md",
+        "schema": "schemas/reviewer-verdict-output.json"
+      },
+      "next": "review_join"
+    },
+    "qa_review": {
+      "name": "QA review",
+      "kind": "worker",
+      "input": {
+        "role": "qa-reliability",
+        "prompt": [
+          "Required reads before reviewing: ../../roles/qa-reliability/ROLE.md, ../../roles/qa-reliability/RUBRIC.md, and ../../shared/review/known-debt-reviewer-contract.md.",
+          "Start from a hostile prior: assume verification is incomplete, flaky, or missing important edge cases until evidence proves otherwise.",
+          "Review failure handling, rollback/recovery, degraded behavior, diagnosability, deterministic runtime behavior, test signal, and regression risk.",
+          "Known debt is not a waiver; downgrade only with explicit evidence that the current change does not worsen, depend on, normalize, or entrench it. Surface downgraded known debt in can_delay, not as automatic fix work.",
+          "Return passed, needs_changes, or blocked with blocker.source_step_id = qa_review.",
+          "",
+          "Input context:",
+          "- Review context: ${{ input.review_context }}",
+          "- Reviewer selection: ${{ input.reviewer_selection }}",
+          "- Dispatch selection: ${{ input.review_dispatch }}"
+        ]
+      },
+      "output": {
+        "template": "../../shared/templates/review-verdict-template.md",
+        "schema": "schemas/reviewer-verdict-output.json"
+      },
+      "next": "review_join"
+    },
+    "performance_review": {
+      "name": "Performance review",
+      "kind": "worker",
+      "input": {
+        "role": "performance",
+        "prompt": [
+          "Required reads before reviewing: ../../roles/performance/ROLE.md, ../../roles/performance/RUBRIC.md, and ../../shared/review/known-debt-reviewer-contract.md.",
+          "Start from a hostile prior: assume the change wastes latency, throughput, CPU, memory, IO, network, render work, or storage until evidence proves otherwise.",
+          "Review hot paths, loops, IO, large data handling, render churn, resource cost, leaks, and performance test signal.",
+          "Known debt is not a waiver; downgrade only with explicit evidence that the current change does not worsen, depend on, normalize, or entrench it. Surface downgraded known debt in can_delay, not as automatic fix work.",
+          "Return passed, needs_changes, or blocked with blocker.source_step_id = performance_review.",
+          "",
+          "Input context:",
+          "- Review context: ${{ input.review_context }}",
+          "- Reviewer selection: ${{ input.reviewer_selection }}",
+          "- Dispatch selection: ${{ input.review_dispatch }}"
+        ]
+      },
+      "output": {
+        "template": "../../shared/templates/review-verdict-template.md",
+        "schema": "schemas/reviewer-verdict-output.json"
+      },
+      "next": "review_join"
+    },
+    "review_join": {
+      "name": "Review join",
+      "kind": "worker",
+      "input": {
+        "prompt": [
+          "Aggregate exactly the reviewer outputs named by reviewer_selection.selected_review_steps from input.<step_id> fields.",
+          "This is a strict join/decision step, not another critique pass.",
+          "If any selected reviewer output is missing, blocked, or unusable, return blocked with missing_review_steps and blocker.source_step_id = review_join.",
+          "If any selected reviewer reports needs_changes, return needs_changes with must_fix/should_fix/can_delay findings, disagreements, known_debt_findings, and next rerun_review.",
+          "If every selected reviewer passed, return passed with next done.",
+          "Preserve disagreements. Surface known debt with downgrade evidence in can_delay for separate user decision. Do not convert can_delay known debt into automatic fix work.",
+          "Do not infer unselected reviewer results and do not pass when selected privacy_review is missing.",
+          "",
+          "Input context:",
+          "- Review context: ${{ input.review_context }}",
+          "- Reviewer selection: ${{ input.reviewer_selection }}",
+          "- Dispatch selection: ${{ input.review_dispatch }}",
+          "- Critic verdict: ${{ input.critic_review | default: \"critic_review was not selected or has not produced output.\" }}",
+          "- Architect verdict: ${{ input.architect_review | default: \"architect_review was not selected or has not produced output.\" }}",
+          "- Backend verdict: ${{ input.backend_review | default: \"backend_review was not selected or has not produced output.\" }}",
+          "- Frontend verdict: ${{ input.frontend_review | default: \"frontend_review was not selected or has not produced output.\" }}",
+          "- Frontend taste verdict: ${{ input.frontend_taste_review | default: \"frontend_taste_review was not selected or has not produced output.\" }}",
+          "- Security verdict: ${{ input.security_review | default: \"security_review was not selected or has not produced output.\" }}",
+          "- Privacy verdict: ${{ input.privacy_review | default: \"privacy_review was not selected or has not produced output.\" }}",
+          "- QA verdict: ${{ input.qa_review | default: \"qa_review was not selected or has not produced output.\" }}",
+          "- Performance verdict: ${{ input.performance_review | default: \"performance_review was not selected or has not produced output.\" }}"
+        ]
+      },
+      "output": {
+        "template": "../../shared/templates/review-verdict-template.md",
+        "schema": "schemas/review-join-output.json"
+      },
+      "next": "${{ output.next }}"
+    },
+    "rereview_gate": {
+      "name": "Re-review gate",
+      "kind": "approval",
+      "input": {
+        "prompt": [
+          "Show review_join.verdict to the user. Continue into another review pass only after explicit user approval.",
+          "Return approval approved to run another review pass, rejected to finish with the current review_join verdict, or blocked with the blocker.",
+          "",
+          "Input context:",
+          "- Review iteration: ${{ input.review_context.review_iteration }}",
+          "- Joined review verdict: ${{ input.review_join.verdict }}",
+          "- Next requested by join: ${{ input.review_join.next }}"
+        ]
+      },
+      "output": {
+        "schema": "schemas/rereview-approval-output.json"
+      },
+      "next": {
+        "match": "${{ output.approval }}",
+        "cases": {
+          "approved": "rereview_guard",
+          "rejected": "done",
+          "blocked": "blocked"
+        }
+      }
+    },
+    "rereview_guard": {
+      "name": "Re-review guard",
+      "kind": "worker",
+      "input": {
+        "prompt": [
+          "Gate the bounded re-review loop.",
+          "If review_context.review_iteration is 1 or 2 and the user approved another pass, return continue with next_review_iteration = review_context.review_iteration + 1 and next review_context.",
+          "If review_context.review_iteration is 3 or higher, return blocked with next blocked and blocker.source_step_id = rereview_guard. Pass 4 is forbidden.",
+          "Do not reset iteration. Do not edit reviewed code. Do not create semantic slices or native workflow shards.",
+          "",
+          "Input context:",
+          "- Review iteration: ${{ input.review_context.review_iteration }}",
+          "- Re-review approval: ${{ input.rereview_gate }}",
+          "- Joined review verdict: ${{ input.review_join.verdict }}"
+        ]
+      },
+      "output": {
+        "template": "../../shared/templates/review-verdict-template.md",
+        "schema": "schemas/rereview-guard-output.json"
+      },
+      "next": "${{ output.next }}"
+    },
+    "done": {
+      "name": "Done",
+      "kind": "done",
+      "input": {
+        "prompt": [
+          "Workflow completed.",
+          "Project review_join.verdict as the final pass/fail result with must-fix, should-fix, can-delay, disagreements, known-debt reporting, selected reviewers, and review_iteration.",
+          "Do not summarize artifacts/results globals."
+        ]
+      }
+    },
+    "blocked": {
+      "name": "Blocked",
+      "kind": "blocked",
+      "input": {
+        "prompt": [
+          "Workflow blocked.",
+          "Project the blocker from the step that returned blocked. Include blocker.source_step_id, needed input/evidence/permission, and relevant review context.",
+          "Do not replace missing delegation with manual review."
+        ]
+      }
+    }
+  }
+}

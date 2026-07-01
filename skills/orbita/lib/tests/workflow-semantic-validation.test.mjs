@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import workflowDoc from '../../../../workflows/dev-harness/workflow.json' with { type: 'json' };
 import researchCriticWorkflowDoc from '../../../../workflows/research-critic/workflow.json' with { type: 'json' };
 import workflowAuthoringWorkflowDoc from '../../../../workflows/workflow-authoring/workflow.json' with { type: 'json' };
+import codeReviewWorkflowDoc from '../../../../workflows/code-review/workflow.json' with { type: 'json' };
 import { WorkflowRuntimeError } from '../errors.mjs';
 import { validateWorkflow } from '../use-cases/ValidateWorkflow.mjs';
 import { validateWorkflowFile } from '../entrypoints/api/validateWorkflow.mjs';
@@ -441,6 +442,21 @@ test('workflow authoring design output requires branch payloads', () => {
 
   const withBlocker = validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'blocked', blocker: { summary: 'Blocked.' } } });
   assert.equal(withBlocker.ok, true);
+});
+
+test('workflow semantic validation accepts the checked-in Code Review workflow', () => {
+  const workflowPath = path.join(REPO_ROOT, 'workflows/code-review/workflow.json');
+  assert.deepEqual(validateWithRuntimeArchitecture(codeReviewWorkflowDoc, { workflowPath }), {
+    ok: true,
+    workflow: 'code-review',
+    steps: Object.keys(codeReviewWorkflowDoc.steps).length,
+  });
+
+  assert.match(codeReviewWorkflowDoc.description, /delegated multi-role code review/);
+  assert.doesNotMatch(JSON.stringify(codeReviewWorkflowDoc), /\$\{\{\s*user_prompt\s*\}\}/);
+  assert.equal(Object.hasOwn(codeReviewWorkflowDoc.steps, 'semantic_slice_planning'), false);
+  assert.match(promptText(codeReviewWorkflowDoc.steps.review_context), /Do not add semantic PR slicing/);
+  assert.match(promptText(codeReviewWorkflowDoc.steps.reviewer_selection), /Do not select all reviewers by default/);
 });
 
 test('revision loop continuity separates prompt context from clarification-session continuation', () => {

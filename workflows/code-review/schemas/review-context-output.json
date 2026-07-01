@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/code-review/review-context-output",
+  "title": "Code Review Context Output",
+  "description": "Shared context packet for a delegated code-review workflow pass.",
+  "type": "object",
+  "required": [
+    "outcome"
+  ],
+  "properties": {
+    "outcome": {
+      "enum": [
+        "ready_for_selection",
+        "blocked"
+      ]
+    },
+    "review_iteration": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3,
+      "description": "Current review pass. Initial pass is 1; re-review passes are provided by rereview_guard and must never reset."
+    },
+    "target": {
+      "type": "object",
+      "required": [
+        "repo_path",
+        "review_subject"
+      ],
+      "properties": {
+        "repo_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "review_subject": {
+          "type": "string",
+          "minLength": 1
+        },
+        "base_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "head_ref": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "shared_brief": {
+      "type": "string",
+      "minLength": 1
+    },
+    "repo_guidance": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "git_context": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "diff_context": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "test_context": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "sensitive_surface": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "clean",
+            "sensitive",
+            "unknown"
+          ]
+        },
+        "scanner_command": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scanner_summary": {
+          "type": "string"
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "recommended_reviewers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact"
+      }
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/result"
+      }
+    },
+    "blocker": {
+      "$ref": "#/$defs/blocker"
+    }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "ready_for_selection"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "review_iteration",
+          "target",
+          "shared_brief",
+          "sensitive_surface"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "blocked"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "blocker"
+        ]
+      }
+    }
+  ],
+  "$defs": {
+    "blocker": {
+      "type": "object",
+      "required": [
+        "summary",
+        "source_step_id",
+        "needed"
+      ],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_step_id": {
+          "const": "review_context"
+        },
+        "needed": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "risk": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}
