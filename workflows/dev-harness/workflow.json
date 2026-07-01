@@ -101,6 +101,7 @@
     "architecture_draft": {
       "name": "Architecture draft",
       "kind": "worker",
+      "agent": "architect",
       "input": {
         "role": "architect",
         "prompt": [
@@ -419,6 +420,7 @@
     "architecture_artifact_update": {
       "name": "Architecture artifact update",
       "kind": "worker",
+      "agent": "architect",
       "input": {
         "role": "architect",
         "prompt": [
@@ -506,6 +508,7 @@
     "architect_review": {
       "name": "Architect review",
       "kind": "worker",
+      "agent": "architect",
       "input": {
         "role": "architect",
         "prompt": [

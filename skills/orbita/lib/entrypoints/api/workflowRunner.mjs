@@ -9,7 +9,7 @@ import { runNext } from '../../use-cases/RunNext.mjs';
 import { resolveStartupUserPrompt, startupUserPromptTarget } from '../../use-cases/user-prompt.mjs';
 import { loadWorkflowRuntime } from '../../persistence/workflow-resources/runtime-reader.mjs';
 import { writePersistedRunStateUpdate } from '../../persistence/run-state/PersistedRunStateWriter.mjs';
-import { toHostResponse } from './runner/host-requests.mjs';
+import { toHostResponse, workerBindingKeyForStep } from './runner/host-requests.mjs';
 import { assertSafeStepId, writeOutputCommandForStep } from './runner/runner-command-builder.mjs';
 import { readText } from '../../persistence/run-state/atomic-file.mjs';
 import { assertFreshTokenAuthority, assertMatchingTokenAuthority, buildTokenLease, renewTokenLease } from '../../persistence/run-state/lease-authority.mjs';
@@ -427,11 +427,11 @@ function assertAgentId(agentId) {
   }
 }
 
-function batonWithWorkerBinding(baton, stepId, agentId) {
+function batonWithWorkerBinding(baton, bindingKey, agentId) {
   const nextBaton = structuredClone(baton);
   nextBaton.workerBindings = {
     ...(nextBaton.workerBindings ?? {}),
-    [stepId]: agentId,
+    [bindingKey]: agentId,
   };
   return nextBaton;
 }
@@ -544,13 +544,14 @@ async function bindAgentInternal({ runId, workflowPath, stepId, agentId, leaseTo
     await ensureRunFiles(paths);
     await recoverDurableCommit(paths);
     const current = await readPersistedRunState(paths);
-    const { response } = await renderCurrentHostResponse(paths, current.baton, { leaseToken });
+    const { runtime, response } = await renderCurrentHostResponse(paths, current.baton, { leaseToken });
     if (response.status !== 'needs_host_actions') throw staleWorkflowCommandError(stepId, response);
     const request = currentRequestForStep(response, stepId);
     if (!request) throw staleWorkflowCommandError(stepId, response);
     if (request.action !== 'run_worker') throw new Error(`workflow step '${stepId}' is not a run_worker request`);
     const acceptedStepId = stepIdForRequest(request);
-    const baton = batonWithWorkerBinding(current.baton, acceptedStepId, agentId);
+    const bindingKey = workerBindingKeyForStep(acceptedStepId, runtime.workflow.steps?.[acceptedStepId]);
+    const baton = batonWithWorkerBinding(current.baton, bindingKey, agentId);
     await writePersistedRunStateUpdate(paths, {
       baton,
       history: { source: 'workflow-runner-bind-agent', baton, output: `bound-agent:${acceptedStepId}`, requests: response.requests ?? [] },

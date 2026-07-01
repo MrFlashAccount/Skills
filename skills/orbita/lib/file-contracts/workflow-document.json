@@ -38,6 +38,11 @@
         "kind": {
           "const": "worker"
         },
+        "agent": {
+          "description": "Optional stable logical agent name. Worker steps with the same agent share the same advisory host worker binding instead of using the workflow step id as the binding key.",
+          "type": "string",
+          "minLength": 1
+        },
         "input": {
           "$ref": "#/$defs/workerInput"
         },

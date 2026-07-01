@@ -105,12 +105,19 @@ function resolvedOutputSchemaForStep(
   };
 }
 
-function preferredAgentIdForStep(baton, stepId) {
+export function workerBindingKeyForStep(stepId, stepDoc) {
+  const agent = stepDoc?.agent;
+  return typeof agent === "string" && agent.length > 0
+    ? agent
+    : stepId;
+}
+
+function preferredAgentIdForStep(baton, stepId, stepDoc) {
   const bindings = baton?.workerBindings;
   if (!bindings || typeof bindings !== "object" || Array.isArray(bindings)) {
     return null;
   }
-  const preferredAgentId = bindings[stepId];
+  const preferredAgentId = bindings[workerBindingKeyForStep(stepId, stepDoc)];
   return typeof preferredAgentId === "string" && preferredAgentId.length > 0
     ? preferredAgentId
     : null;
@@ -140,6 +147,7 @@ export function buildHostRequests(
         request.preferredAgentId = preferredAgentIdForStep(
           interpreterResponse.baton,
           step.id,
+          step.step,
         );
         request.loadFollowupInstructionsCommand =
           loadFollowupInstructionsCommandForStep(runId, step.id, {
