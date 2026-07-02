@@ -187,4 +187,6 @@ This mapping is not part of the portable workflow contract. Other hosts can exec
 - `workflow-runner.mjs continue` uses an internal per-run lock guard so only one host continue operation mutates a single run at a time; lock paths are private runner state.
 - The CLI shape is small on purpose and can be renamed after review.
 
-`./lib/entrypoints/cli/start-run.mjs` is legacy initialization/inspection only. It requires the same lease token carrier and never exposes private baton/history paths. It does not accept `--user-prompt` or `--user-prompt-file`; use `workflow-runner next` for startup prompt capture and instruction rendering.
+Run initialization and instruction rendering are owned by `workflow-runner next`.
+No legacy initialization or inspection CLI is part of the supported runtime
+surface.

@@ -6,7 +6,7 @@ import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import researchCriticWorkflowDoc from '../../../../workflows/research-critic/workflow.json' with { type: 'json' };
 import { Workflow } from '../entities/Workflow/index.mjs';
-import { loadInstructions as runnerLoadInstructions, next as runnerNext } from '../entrypoints/api/workflowRunner.mjs';
+import { loadInstructions as runnerLoadInstructions, next as runnerNext } from '../entrypoints/workflow-runner-command.mjs';
 import { validateWorkflowFile } from '../entrypoints/api/validateWorkflow.mjs';
 import { workflowSemanticValidationOptions } from '../use-cases/workflow-semantic-validation.mjs';
 import { readAllowedRoles, readOutputSchemas } from '../persistence/workflow-resources/workflow-file-reader.mjs';

@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
-import { continueRun, loadInstructions, next as runnerNext, writeOutput } from '../entrypoints/api/workflowRunner.mjs';
+import { continueRun, loadInstructions, next as runnerNext, writeOutput } from '../entrypoints/workflow-runner-command.mjs';
 import { claimWorkflowRun, registerWorkflowRun } from '../entrypoints/api/workflowRuns.mjs';
 import { resolveRunPaths } from '../persistence/run-state/paths.mjs';
 

@@ -13,7 +13,7 @@
     "maintain:bundle-schema-validation-vendor-ajv": "npm run schema-validation:bundle-vendor-ajv",
     "agents:generate": "node scripts/generate-codex-agents.mjs",
     "workflow-layout:check": "node scripts/check-no-old-workflow-layout.mjs",
-    "workflow-runtime-boundaries:check": "node scripts/check-workflow-runtime-boundaries.mjs",
+    "workflow-runtime-boundaries:check": "node skills/orbita/scripts/check-workflow-runtime-boundaries.mjs",
     "agents:check": "node scripts/check-generated-codex-agents.mjs",
     "role-evidence:check": "python3 scripts/check_role_evidence.py"
   },

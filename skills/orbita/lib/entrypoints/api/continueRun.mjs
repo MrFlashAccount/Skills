@@ -1,1 +1,1 @@
-export { continueRun } from './workflowRunner.mjs';
+export { continueRun } from '../workflow-runner-command.mjs';

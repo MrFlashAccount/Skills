@@ -12,7 +12,8 @@ import { WorkflowRuntimeError } from '../errors.mjs';
 import { validateWorkflow } from '../use-cases/ValidateWorkflow.mjs';
 import { validateWorkflowFile } from '../entrypoints/api/validateWorkflow.mjs';
 import { readOutputSchemas, readAllowedRoles } from '../persistence/workflow-resources/workflow-file-reader.mjs';
-import { validateAgainstOutputSchema } from '../use-cases/runtime/output/output-schema-validation.mjs';
+import { loadWorkflowResources } from '../persistence/workflow-resources/runtime-reader.mjs';
+import { validateAgainstOutputSchema as validateLoadedOutputSchema } from '../use-cases/runtime/output/output-schema-validation.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
 function runNode(args) {
@@ -30,6 +31,18 @@ function validateWithRuntimeArchitecture(doc, { workflowPath }) {
 
 function validate(doc) {
   return validateWithRuntimeArchitecture(doc, { workflowPath: path.join(REPO_ROOT, 'workflows/dev-harness/workflow.json') });
+}
+
+function validateAgainstOutputSchema({ workflow, workflowPath, schemaRef, repositoryRoot = REPO_ROOT, schema, externalSchemas, ...context }) {
+  const loadedSchema = schema ?? (workflow && workflowPath && schemaRef
+    ? loadWorkflowResources({ workflow, workflowPath, repositoryRoot }).outputSchemas[schemaRef]?.schema
+    : undefined);
+  return validateLoadedOutputSchema({
+    ...context,
+    schemaRef,
+    schema: loadedSchema,
+    externalSchemas,
+  });
 }
 
 function promptText(step) {

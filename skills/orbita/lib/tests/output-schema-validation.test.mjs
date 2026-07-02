@@ -7,8 +7,9 @@ import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { renderWorkflowPrompt } from '../entities/Template/index.mjs';
 import { SchemaValidationError } from '../../../../shared/scripts/schema-validation/schema-validation.mjs';
-import { validateAgainstOutputSchema } from '../use-cases/runtime/output/output-schema-validation.mjs';
+import { validateAgainstOutputSchema as validateLoadedOutputSchema } from '../use-cases/runtime/output/output-schema-validation.mjs';
 import { loadWorkflowResources } from '../persistence/workflow-resources/runtime-reader.mjs';
+import { artifactPathBoundaryErrors } from '../persistence/workflow-resources/artifact-path-boundaries.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-output-schema-check-'));
@@ -72,6 +73,18 @@ function renderPromptWithResources(context) {
   });
 }
 
+function validateAgainstOutputSchema({ workflow, workflowPath, schemaRef, repositoryRoot = root, schema, externalSchemas, ...context }) {
+  const loadedSchema = schema ?? (workflow && workflowPath && schemaRef
+    ? loadWorkflowResources({ workflow, workflowPath, repositoryRoot }).outputSchemas[schemaRef]?.schema
+    : undefined);
+  return validateLoadedOutputSchema({
+    ...context,
+    schemaRef,
+    schema: loadedSchema,
+    externalSchemas,
+  });
+}
+
 function assertMarkersInOrder(value, markers) {
   let previousIndex = -1;
   for (const marker of markers) {
@@ -111,7 +124,7 @@ function runApply(label, batonDoc, workerOutput, expectSuccess = true, doc = wor
   const outputPath = writeJson(`${prefix}-output.json`, workerOutput);
   const wfPath = writeJson(`${prefix}-workflow.json`, doc);
   const before = readFileSync(batonPath, 'utf8');
-  const response = runWorkflowCommand(label, ['skills/orbita/lib/entrypoints/cli/workflow-interpreter.mjs', 'apply', wfPath, batonPath, outputPath], expectSuccess);
+  const response = runWorkflowCommand(label, ['skills/orbita/lib/tests/helpers/workflow-runtime-harness.mjs', 'apply', wfPath, batonPath, outputPath], expectSuccess);
   assert.equal(readFileSync(batonPath, 'utf8'), before, `check '${label}' mutated baton file during apply`);
   return response;
 }
@@ -202,7 +215,7 @@ test('output.schema: CLI apply rejects workflow schema refs escaping repository 
   writeFileSync(outputPath, `${JSON.stringify({ outcome: 'ready' }, null, 2)}
 `);
 
-  const result = runNode(['skills/orbita/lib/entrypoints/cli/workflow-interpreter.mjs', 'apply', workflowPath, batonPath, outputPath]);
+  const result = runNode(['skills/orbita/lib/tests/helpers/workflow-runtime-harness.mjs', 'apply', workflowPath, batonPath, outputPath]);
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /output schema escapes repository root/);
@@ -234,7 +247,7 @@ test('output.schema: CLI apply allows workflow-relative traversal to repo shared
   writeFileSync(batonPath, `${JSON.stringify(baton(), null, 2)}\n`);
   writeFileSync(outputPath, `${JSON.stringify({ outcome: 'ready' }, null, 2)}\n`);
 
-  const result = runNode(['skills/orbita/lib/entrypoints/cli/workflow-interpreter.mjs', 'apply', workflowPath, batonPath, outputPath]);
+  const result = runNode(['skills/orbita/lib/tests/helpers/workflow-runtime-harness.mjs', 'apply', workflowPath, batonPath, outputPath]);
 
   assert.equal(result.status, 0, result.stderr);
 });
@@ -262,7 +275,7 @@ test('output.schema: CLI apply rejects root-level workflow refs escaping workflo
   writeFileSync(batonPath, `${JSON.stringify(baton(), null, 2)}\n`);
   writeFileSync(outputPath, `${JSON.stringify({ outcome: 'ready' }, null, 2)}\n`);
 
-  const result = runNode(['skills/orbita/lib/entrypoints/cli/workflow-interpreter.mjs', 'apply', workflowPath, batonPath, outputPath]);
+  const result = runNode(['skills/orbita/lib/tests/helpers/workflow-runtime-harness.mjs', 'apply', workflowPath, batonPath, outputPath]);
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /output schema escapes repository root/);
@@ -487,7 +500,7 @@ test('output.schema: structured step output is available by step id in downstrea
   const batonPath = writeJson('output-schema-structured-project-baton.json', applyResponse.baton);
   const workflowPath = writeJson('output-schema-structured-project-workflow.json', doc);
   const renderResponse = runWorkflowCommand('output-schema-structured-project-render', [
-    'skills/orbita/lib/entrypoints/cli/workflow-interpreter.mjs',
+    'skills/orbita/lib/tests/helpers/workflow-runtime-harness.mjs',
     'render',
     workflowPath,
     batonPath,
@@ -665,15 +678,16 @@ test('output.schema: contextual artifact validation requires paths under the exp
 
   assert.equal(validateAgainstOutputSchema({
     schema,
-    artifactOutputDir,
     output: { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: path.join(artifactOutputDir, 'packet.md') }] },
+    artifactPathErrors: artifactPathBoundaryErrors({ artifacts: [{ path: path.join(artifactOutputDir, 'packet.md') }] }, artifactOutputDir),
   }).ok, true);
 
   for (const artifactPath of ['/tmp/outside-step.md', path.join(tempDir, 'contextual-artifacts', 'branch_a', 'artifacts', 'packet.md'), path.join(artifactOutputDir, '..', '..', 'branch_b', 'artifacts', 'packet.md'), artifactOutputDir]) {
+    const output = { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: artifactPath }] };
     const validation = validateAgainstOutputSchema({
       schema,
-      artifactOutputDir,
-      output: { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: artifactPath }] },
+      output,
+      artifactPathErrors: artifactPathBoundaryErrors(output, artifactOutputDir),
     });
     assert.equal(validation.ok, false, `expected artifact path to be rejected: ${artifactPath}`);
     assert.match(validation.errors, /artifact output directory/);
@@ -702,8 +716,8 @@ test('output.schema: contextual artifact validation rejects symlink escapes', ()
 
   const validation = validateAgainstOutputSchema({
     schema,
-    artifactOutputDir,
     output: { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: path.join(artifactOutputDir, 'escape', 'packet.md') }] },
+    artifactPathErrors: artifactPathBoundaryErrors({ artifacts: [{ path: path.join(artifactOutputDir, 'escape', 'packet.md') }] }, artifactOutputDir),
   });
 
   assert.equal(validation.ok, false);
@@ -734,8 +748,8 @@ test('output.schema: contextual artifact validation rejects symlinked expected a
 
   const validation = validateAgainstOutputSchema({
     schema,
-    artifactOutputDir,
     output: { outcome: 'ready', artifacts: [{ id: 'packet', content_type: 'text/markdown', path: path.join(artifactOutputDir, 'packet.md') }] },
+    artifactPathErrors: artifactPathBoundaryErrors({ artifacts: [{ path: path.join(artifactOutputDir, 'packet.md') }] }, artifactOutputDir),
   });
 
   assert.equal(validation.ok, false);

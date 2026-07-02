@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
-import { claimWorkflowRun, heartbeatWorkflowRun, listWorkflowRuns, registerWorkflowRun, summarizeWorkflowRuns } from '../api/workflowRuns.mjs';
-import { publicErrorMessage } from './public-error.mjs';
+import { claimWorkflowRun, heartbeatWorkflowRun, listWorkflowRuns, registerWorkflowRun, summarizeWorkflowRuns } from '../workflow-runs-api.mjs';
+import { publicErrorMessage } from '../../public-error.mjs';
 
 
 function fail(message) {

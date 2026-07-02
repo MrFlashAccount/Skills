@@ -18,7 +18,7 @@ export function shellQuote(value) {
 }
 
 export const WORKFLOW_RUNNER_CLI_PATH = fileURLToPath(
-  new URL("../../cli/workflow-runner.mjs", import.meta.url),
+  new URL("../../../entrypoints/cli/workflow-runner.mjs", import.meta.url),
 );
 
 export const WORKFLOW_RUNNER_COMMAND = `node ${shellQuote(WORKFLOW_RUNNER_CLI_PATH)}`;

@@ -1,1 +1,1 @@
-export { loadInstructions } from './workflowRunner.mjs';
+export { loadInstructions } from '../workflow-runner-command.mjs';

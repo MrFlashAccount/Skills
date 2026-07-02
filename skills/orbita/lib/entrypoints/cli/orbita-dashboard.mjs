@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
-import { startDashboardServer } from '../api/dashboard.mjs';
+import { startDashboardServer } from '../../dashboard/server/dashboard-server.mjs';
 import { publicErrorMessage } from './public-error.mjs';
 
 function fail(message) {
