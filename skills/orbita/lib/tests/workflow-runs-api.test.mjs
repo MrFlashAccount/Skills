@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test, { after, beforeEach } from 'node:test';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { listWorkflowRuns, summarizeWorkflowRuns } from '../entrypoints/api/workflowRuns.mjs';
 import { publicErrorMessage } from '../entrypoints/cli/public-error.mjs';
 import { claimWorkflowRunAtRoot, heartbeatWorkflowRunAtRoot, listWorkflowRunsAtRoot, registerWorkflowRunAtRoot } from '../persistence/run-state/workflow-runs.mjs';
@@ -86,6 +86,31 @@ test('workflow runs default root lives under ORBITA_HOME outside the skill tree'
   const payload = JSON.parse(result.stdout);
   assert.equal(payload.workflowRunsRoot, path.join(orbitaHome, 'workflow-runs/v1'));
   assert.equal(payload.workflowRunsRoot.startsWith(path.join(payload.repositoryRoot, 'skills/orbita')), false);
+});
+
+test('direct node --test import isolates default workflow runs root and cleans it on exit', () => {
+  const testFile = path.join(tempDir, 'direct-node-test-root.test.mjs');
+  const markerFile = path.join(tempDir, 'direct-node-test-root.json');
+  const pathsModuleUrl = pathToFileURL(path.join(root, 'skills/orbita/lib/persistence/run-state/paths.mjs')).href;
+  writeFileSync(testFile, [
+    "import test from 'node:test';",
+    "import { writeFileSync } from 'node:fs';",
+    `import { workflowRunsRoot } from ${JSON.stringify(pathsModuleUrl)};`,
+    `test('isolated root', () => writeFileSync(${JSON.stringify(markerFile)}, JSON.stringify({ workflowRunsRoot, envRoot: process.env.WORKFLOW_RUNS_ROOT })));`,
+  ].join('\n'));
+
+  const env = { ...process.env };
+  delete env.WORKFLOW_RUNS_ROOT;
+  delete env.ORBITA_HOME;
+  delete env.NODE_TEST_CONTEXT;
+  const result = spawnSync(process.execPath, ['--test', testFile], { cwd: root, encoding: 'utf8', env });
+
+  assert.equal(result.status, 0, result.stderr);
+  const payload = JSON.parse(readFileSync(markerFile, 'utf8'));
+  assert.equal(payload.workflowRunsRoot, payload.envRoot);
+  assert.match(payload.workflowRunsRoot, /orbita-test-workflow-runs-/);
+  assert.equal(payload.workflowRunsRoot.startsWith(path.join(process.env.HOME, '.orbita')), false);
+  assert.equal(existsSync(payload.workflowRunsRoot), false);
 });
 
 test('workflow runs default root migrates legacy skill-local runs when target is empty', (t) => {
