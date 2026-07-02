@@ -22,7 +22,6 @@ const workflowDoc = {
     version: 1,
     start: 'prepare',
     done: 'done',
-    blocked: 'blocked',
     steps: {
       prepare: {
         name: 'Prepare',
@@ -53,7 +52,6 @@ const workflowDoc = {
         next: 'done',
       },
       done: { name: 'Done', kind: 'done', input: { prompt: 'Finished.' } },
-      blocked: { name: 'Blocked', kind: 'blocked', input: { prompt: 'Blocked.' } },
     },
 
 };
@@ -362,7 +360,7 @@ test('runner: approval host instruction lists prompt input artifact content as r
       prompt: 'Present artifact `reasons-canvas-research` from prepare to the user before asking for approval.\n\nArtifacts:\n${{ input.prepare.artifacts }}',
     },
     output: { schema: path.basename(schemaPath) },
-    next: { match: '${{ output.approval }}', cases: { approved: 'done', rejected: 'prepare', blocked: 'blocked' } },
+    next: { match: '${{ output.approval }}', cases: { approved: 'done', rejected: 'prepare' } },
   };
   writeJson(workflowPath, approvalWorkflow);
 
@@ -677,7 +675,7 @@ test('runner: startup prompt target rejects match-cases with worker and terminal
       name: 'Gate',
       kind: 'approval',
       input: { prompt: 'Approve startup task.' },
-      next: { match: '${{ output.approval }}', cases: { approved: 'prepare', blocked: 'blocked' } },
+      next: { match: '${{ output.approval }}', cases: { approved: 'prepare', rejected: 'done' } },
     },
     ...approvalFirstWorkflow.steps,
   };
@@ -735,7 +733,6 @@ test('runner: startup prompt target rejects dynamic fanout before prompt selecti
     branch_b: approvalWorkflow.steps.branch_b,
     join: approvalWorkflow.steps.join,
     done: approvalWorkflow.steps.done,
-    blocked: approvalWorkflow.steps.blocked,
   };
   approvalWorkflow.steps.join.next = 'done';
   writeJson(workflowPath, approvalWorkflow);
@@ -847,29 +844,6 @@ test('runner: continue --only-instructions prints terminal instruction text', ()
   assert.match(continued.stdout, /status done is the terminal result/);
 });
 
-test('runner: blocked --only-instructions prints terminal blocker data', () => {
-  const { runId } = runCase('blocked-only-instructions');
-  const workflowPath = path.join(tempDir, 'blocked-only-instructions-workflow.json');
-  const workflow = schemaCoveredWorkflow({ prepare: { next: 'blocked' } });
-  writeJson(workflowPath, workflow);
-
-  expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next before blocked only instructions');
-  const output = {
-    ...workerOutput('blocked'),
-    blocker: { reason: 'needs human decision' },
-  };
-  const written = runRunner(['write-output', '--run-id', runId, '--step-id', 'prepare'], { input: JSON.stringify(output), debugSummary: true });
-  assert.equal(written.status, 0, written.stderr);
-  const continued = runRunner(['continue', '--run-id', runId, '--workflow', workflowPath, '--only-instructions']);
-  assert.equal(continued.status, 0, continued.stderr);
-  assert.throws(() => JSON.parse(continued.stdout));
-  assert.match(continued.stdout, /^Supersedes all previous workflow-runner stdout\./);
-  const terminalResponse = terminalResponseFromOrchestratorInstruction(continued.stdout);
-  assert.equal(terminalResponse.status, 'blocked');
-  assert.deepEqual(terminalResponse.baton.blocker, { reason: 'needs human decision' });
-  assert.match(continued.stdout, /status blocked is the terminal result/);
-});
-
 test('runner: write-output rejects --only-instructions because it is not an orchestrator command', () => {
   const { runId, runDir } = runCase('write-output-only-instructions');
   const workflowPath = path.join(tempDir, 'write-output-only-instructions-workflow.json');
@@ -970,7 +944,6 @@ test('runner: repeated parallel fanout uses cursor branches and latest overwritt
     version: 1,
     start: 'implementation_join',
     done: 'done',
-    blocked: 'blocked',
     steps: {
       implementation_join: {
         name: 'Implementation join',
@@ -1021,7 +994,6 @@ test('runner: repeated parallel fanout uses cursor branches and latest overwritt
         },
       },
       done: { name: 'Done', kind: 'done', input: { prompt: 'Done.' } },
-      blocked: { name: 'Blocked', kind: 'blocked', input: { prompt: 'Blocked.' } },
     },
   };
   writeJson(workflowPath, workflow);

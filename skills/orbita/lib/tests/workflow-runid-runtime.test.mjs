@@ -102,7 +102,6 @@ test('installed plugin layout starts a catalog-created run from the skill cwd', 
       version: 1,
       start: 'prepare',
       done: 'done',
-      blocked: 'blocked',
       steps: {
         prepare: {
           name: 'Prepare',
@@ -119,11 +118,6 @@ test('installed plugin layout starts a catalog-created run from the skill cwd', 
           name: 'Done',
           kind: 'done',
           input: { prompt: 'Finished.' },
-        },
-        blocked: {
-          name: 'Blocked',
-          kind: 'blocked',
-          input: { prompt: 'Blocked.' },
         },
       },
     }, null, 2)}\n`);

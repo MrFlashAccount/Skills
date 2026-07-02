@@ -5,7 +5,7 @@
   "type": "object",
   "required": ["status", "orchestratorInstruction", "baton"],
   "properties": {
-    "status": { "enum": ["needs_host_actions", "done", "blocked"] },
+    "status": { "enum": ["needs_host_actions", "done"] },
     "orchestratorInstruction": { "type": "string", "minLength": 1 },
     "orchestratorDebugCommand": { "type": "string", "minLength": 1 },
     "baton": { "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton" },
@@ -33,6 +33,10 @@
             "description": "Instruction-loader command variant for a host-restored preferred worker. Uses the same validating write-output protocol as loadInstructionsCommand.",
             "type": "string",
             "minLength": 1
+          },
+          "recoverableBlocker": {
+            "description": "Bounded public blocker details for a recoverable implementation-worker pause. Hosts should first try the same-worker follow-up path when preferredAgentId can be restored, and fall back to loadInstructionsCommand for a fresh worker; generated fresh-worker instructions include this recovery context.",
+            "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/recoverableWorkerBlocker"
           },
           "outputSchema": { "type": "string", "minLength": 1 },
           "resolvedOutputSchema": {
@@ -71,7 +75,8 @@
                 "anyOf": [
                   { "required": ["preferredAgentId"] },
                   { "required": ["bindAgentCommand"] },
-                  { "required": ["loadFollowupInstructionsCommand"] }
+                  { "required": ["loadFollowupInstructionsCommand"] },
+                  { "required": ["recoverableBlocker"] }
                 ]
               }
             }

@@ -13,7 +13,7 @@
         "blocked"
       ],
       "description": "Human reviewed-improvement gate decision.",
-      "x-usage": "Use approved to capture reviewed_edit_intent, rejected to skip improvement edits and continue to workflow_implementation_attack, and blocked only when blocker explains why authoring cannot continue."
+      "x-usage": "Use approved to capture reviewed_edit_intent, rejected to skip improvement edits and continue to workflow_implementation_attack, and blocked only when blocker explains why authoring must pause."
     },
     "results": {
       "type": "array",

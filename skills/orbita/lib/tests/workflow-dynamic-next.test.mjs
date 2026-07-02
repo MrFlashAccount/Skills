@@ -51,11 +51,12 @@ const outputSchemas = {
   }),
   'dynamic-value-output-schema.json': schemaDoc({ required: ['outcome', 'dynamic_value'], properties: { dynamic_value: dynamicValueSchema } }),
   'dynamic-match-value-output-schema.json': schemaDoc({ required: ['outcome', 'dynamic_value'], properties: { dynamic_value: dynamicMatchValueSchema } }),
+  'two-way-match-output-schema.json': schemaDoc({ required: ['outcome', 'status'], properties: { status: { enum: ['ready', 'retry'] } } }),
   'planning-draft-output-schema.json': schemaDoc({
     required: ['outcome', 'selected_reviewers', 'route'],
     properties: {
       selected_reviewers: { type: 'array', minItems: 1, uniqueItems: true, items: { enum: ['review_a', 'review_b'] } },
-      route: { enum: ['review', 'blocked'] },
+      route: { enum: ['review'] },
     },
   }),
 };
@@ -83,7 +84,6 @@ function workflow(next = '${{ output.next }}', selectorSchema = schemaForNext(ne
     version: 1,
     start: 'selector',
     done: 'done',
-    blocked: 'blocked',
     steps: {
       selector: {
         name: 'Selector',
@@ -97,7 +97,6 @@ function workflow(next = '${{ output.next }}', selectorSchema = schemaForNext(ne
       review_b: { name: 'Review B', kind: 'worker', input: {}, output: outputContract(), next: 'join' },
       join: { name: 'Join', kind: 'worker', input: {}, output: outputContract(), next: 'done' },
       done: { name: 'Done', kind: 'done', input: { prompt: 'Done.' } },
-      blocked: { name: 'Blocked', kind: 'blocked', input: { prompt: 'Blocked.' } },
     },
   };
 }
@@ -267,13 +266,13 @@ test('dynamic parallel next enforces join-shape validation', () => {
 });
 
 test('match/cases output path routes string target', () => {
-  const matchWorkflow = workflow({ match: '${{ output.outcome }}', cases: { ready: 'review_b', blocked: 'blocked' } });
+  const matchWorkflow = workflow({ match: '${{ output.outcome }}', cases: { ready: 'review_b' } });
   const matched = runApply('match-cases-output-string', baton(), { outcome: 'ready' }, true, matchWorkflow);
   assert.equal(matched.baton.cursor, 'review_b');
 });
 
 test('match/cases input path routes target', () => {
-  const matchWorkflow = workflow({ match: '${{ input.planning_draft.route }}', cases: { review: 'review_a', blocked: 'blocked' } });
+  const matchWorkflow = workflow({ match: '${{ input.planning_draft.route }}', cases: { review: 'review_a' } });
   const matched = runApply(
     'match-cases-input-string',
     baton({ state: { artifacts: [], results: [], planning_draft: { selected_reviewers: ['review_a', 'review_b'], route: 'review' } } }),
@@ -285,16 +284,16 @@ test('match/cases input path routes target', () => {
 });
 
 test('match/cases target can be a string array', () => {
-  const matchWorkflow = workflow({ match: '${{ output.outcome }}', cases: { ready: ['review_a', 'review_b'], blocked: 'blocked' } });
+  const matchWorkflow = workflow({ match: '${{ output.outcome }}', cases: { ready: ['review_a', 'review_b'] } });
   const matched = runApply('match-cases-array-target', baton(), { outcome: 'ready' }, true, matchWorkflow);
   assert.deepEqual(matched.steps.map((step) => step.id), ['review_a', 'review_b']);
 });
 
 test('match/cases rejects missing cases and non-string match results', () => {
-  const matchWorkflow = workflow({ match: '${{ output.outcome }}', cases: { ready: 'review_b' } });
+  const matchWorkflow = workflow({ match: '${{ output.status }}', cases: { ready: 'review_b' } }, 'two-way-match-output-schema.json');
   assert.match(
-    runApply('match-cases-missing-case', baton(), { outcome: 'blocked' }, false, matchWorkflow).stderr,
-    /next\.cases is missing schema-declared case 'blocked'/,
+    runApply('match-cases-missing-case', baton(), { outcome: 'ready', status: 'retry' }, false, matchWorkflow).stderr,
+    /next\.cases is missing schema-declared case 'retry'/,
   );
 
   const openStringWorkflow = workflow({ match: '${{ output.next }}', cases: { review_a: 'review_b' } }, 'open-next-output-schema.json');
@@ -326,7 +325,7 @@ test('match/cases array target rejects empty, duplicate, unknown, and nested arr
     ['case-array-unknown', ['review_a', 'missing'], /target not found: missing/],
     ['case-array-nested', ['review_a', ['review_b']], /workflow failed schema validation|must resolve to non-empty string step ids/],
   ]) {
-    const matchWorkflow = workflow({ match: '${{ output.outcome }}', cases: { ready: target, blocked: 'blocked' } });
+    const matchWorkflow = workflow({ match: '${{ output.outcome }}', cases: { ready: target } });
     assert.match(runApply(label, baton(), { outcome: 'ready' }, false, matchWorkflow).stderr, pattern);
   }
 });

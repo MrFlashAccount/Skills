@@ -46,7 +46,7 @@ function response(nextBaton = baton()) {
 function setupRunDir(name, initialBaton = baton()) {
   const runId = `persisted-state-test-${process.pid}-${name}`;
   const workflowPath = path.join(tempDir, `${name}-workflow.json`);
-  writeJson(workflowPath, { name: name.replace(/_/g, '-'), version: 1, start: 'prepare', done: 'done', blocked: 'blocked', steps: { prepare: { name: 'Prepare', kind: 'worker', output: { template: 'output.md' }, next: 'done' }, done: { name: 'Done', kind: 'done' }, blocked: { name: 'Blocked', kind: 'blocked' } } });
+  writeJson(workflowPath, { name: name.replace(/_/g, '-'), version: 1, start: 'prepare', done: 'done', steps: { prepare: { name: 'Prepare', kind: 'worker', output: { template: 'output.md' }, next: 'done' }, done: { name: 'Done', kind: 'done' } } });
   const paths = resolveRunPaths({ runId, workflowPath });
   rmSync(paths.runDir, { recursive: true, force: true });
   mkdirSync(paths.runnerDir, { recursive: true });
@@ -126,8 +126,8 @@ test('persisted-state writer recovers existing pending journal before writing a 
   });
 
   await writePersistedRunStateUpdate(paths, {
-    baton: baton({ cursor: 'blocked', status: 'blocked' }),
-    history: { source: 'test-new-commit', baton: baton({ cursor: 'blocked', status: 'blocked' }) },
+    baton: baton({ cursor: 'done', status: 'done' }),
+    history: { source: 'test-new-commit', baton: baton({ cursor: 'done', status: 'done' }) },
   });
 
   const history = readFileSync(paths.historyPath, 'utf8');

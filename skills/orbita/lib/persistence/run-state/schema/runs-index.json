@@ -42,7 +42,7 @@
           },
           "additionalProperties": false
         },
-        "status": { "enum": ["running", "needs_host_actions", "done", "blocked", "failed"] },
+        "status": { "enum": ["running", "needs_host_actions", "done", "failed"] },
         "createdAt": { "type": "string", "minLength": 1 },
         "updatedAt": { "type": "string", "minLength": 1 },
         "taskKey": { "$ref": "#/$defs/safeTextMetadata" },

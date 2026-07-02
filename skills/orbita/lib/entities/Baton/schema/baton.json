@@ -28,8 +28,7 @@
     "status": {
       "enum": [
         "running",
-        "done",
-        "blocked"
+        "done"
       ]
     },
     "state": {
@@ -84,6 +83,16 @@
         "minLength": 1
       }
     },
+    "recoverableWorkerBlockers": {
+      "description": "Runner-owned public recovery state for implementation worker blockers. Keys are workflow step ids; values are bounded blocker details safe to project into host requests. This is not a transcript, token, prompt, private runtime path, session, or lifecycle registry.",
+      "type": "object",
+      "patternProperties": {
+        "^[A-Za-z_][A-Za-z0-9_-]*$": {
+          "$ref": "#/$defs/recoverableWorkerBlocker"
+        }
+      },
+      "additionalProperties": false
+    },
     "user_prompt": {
       "description": "Raw run-level startup user prompt captured when the workflow run is initialized. Immutable after start/resume.",
       "type": "string",
@@ -92,9 +101,6 @@
           "pattern": "\\S"
         }
       ]
-    },
-    "blocker": {
-      "type": "object"
     },
     "error": {
       "type": "object"
@@ -180,6 +186,46 @@
         },
         "artifact": {
           "$ref": "#/$defs/artifact"
+        }
+      },
+      "additionalProperties": false
+    },
+    "recoverableWorkerBlocker": {
+      "type": "object",
+      "required": [
+        "summary",
+        "source_step_id",
+        "needed"
+      ],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "source_step_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "needed": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "evidence": {
+          "type": "array",
+          "maxItems": 5,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
+        },
+        "risk": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
         }
       },
       "additionalProperties": false

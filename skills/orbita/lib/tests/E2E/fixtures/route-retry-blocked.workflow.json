@@ -3,7 +3,6 @@
   "version": 1,
   "start": "triage",
   "done": "done",
-  "blocked": "blocked",
   "steps": {
     "triage": {
       "name": "Triage",
@@ -19,8 +18,7 @@
         "match": "${{ output.outcome }}",
         "cases": {
           "ready": "resolve",
-          "retry": "triage",
-          "blocked": "blocked"
+          "retry": "triage"
         }
       }
     },
@@ -45,13 +43,6 @@
       "kind": "done",
       "input": {
         "prompt": "Finished."
-      }
-    },
-    "blocked": {
-      "name": "Blocked",
-      "kind": "blocked",
-      "input": {
-        "prompt": "Blocked."
       }
     }
   }

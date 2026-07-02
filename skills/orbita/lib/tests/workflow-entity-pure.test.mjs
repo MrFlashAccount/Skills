@@ -9,7 +9,7 @@ const routeOutputSchema = {
   required: ['outcome', 'route', 'parallel_targets'],
   properties: {
     outcome: { enum: ['ready', 'blocked'] },
-    route: { enum: ['review', 'blocked'] },
+    route: { enum: ['review'] },
     parallel_targets: {
       type: 'array',
       minItems: 1,
@@ -26,14 +26,13 @@ function pureWorkflow(overrides = (workflow) => workflow) {
     version: 1,
     start: 'route',
     done: 'done',
-    blocked: 'blocked',
     steps: {
       route: {
         name: 'Route',
         kind: 'worker',
         input: { role: 'backend' },
         output: { schema: 'route.schema.json' },
-        next: { match: '${{ output.route }}', cases: { review: 'review', blocked: 'blocked' } },
+        next: { match: '${{ output.route }}', cases: { review: 'review' } },
       },
       review: {
         name: 'Review',
@@ -60,7 +59,6 @@ function pureWorkflow(overrides = (workflow) => workflow) {
         next: 'done',
       },
       done: { name: 'Done', kind: 'done' },
-      blocked: { name: 'Blocked', kind: 'blocked' },
     },
   };
   return overrides(doc) ?? doc;
@@ -100,8 +98,14 @@ test('Workflow.validate enforces loaded role catalogs but permits unloaded catal
 });
 
 test('Workflow.validate keeps match/cases transitions exhaustive against closed output schema enums', () => {
+  const twoWayRouteSchema = {
+    ...routeOutputSchema,
+    properties: {
+      ...routeOutputSchema.properties,
+      route: { enum: ['review', 'rework'] },
+    },
+  };
   const missingSchemaCase = pureWorkflow((workflow) => {
-    delete workflow.steps.route.next.cases.blocked;
     return workflow;
   });
   const unreachableCase = pureWorkflow((workflow) => {
@@ -109,7 +113,7 @@ test('Workflow.validate keeps match/cases transitions exhaustive against closed 
     return workflow;
   });
 
-  assertWorkflowFailure(missingSchemaCase, /next\.cases is missing schema-declared case 'blocked'/);
+  assertWorkflowFailure(missingSchemaCase, /next\.cases is missing schema-declared case 'rework'/, { outputSchemas: new Map([['route.schema.json', twoWayRouteSchema]]) });
   assertWorkflowFailure(unreachableCase, /next\.cases declares unreachable case 'extra' not present in the selector schema/);
 });
 
@@ -143,7 +147,7 @@ test('Workflow.validate requires worker output schemas to expose a required stri
     $schema: 'https://json-schema.org/draft/2020-12/schema',
     type: 'object',
     required: ['route'],
-    properties: { route: { enum: ['review', 'blocked'] } },
+    properties: { route: { enum: ['review'] } },
     additionalProperties: false,
   };
 

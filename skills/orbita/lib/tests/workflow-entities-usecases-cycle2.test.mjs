@@ -22,7 +22,7 @@ const routeSchema = {
   required: ['outcome', 'route', 'targets'],
   properties: {
     outcome: { type: 'string' },
-    route: { enum: ['direct', 'split', 'blocked'] },
+    route: { enum: ['direct', 'split'] },
     targets: {
       type: 'array',
       minItems: 1,
@@ -60,20 +60,18 @@ function workflowDoc(overrides = (workflow) => workflow) {
     version: 1,
     start: 'producer',
     done: 'done',
-    blocked: 'blocked',
     steps: {
       producer: {
         name: 'Producer',
         kind: 'worker',
         input: { role: 'backend' },
         output: { template: 'producer.md', schema: 'route.schema.json' },
-        next: { match: '${{ output.route }}', cases: { direct: 'done', split: ['branch_a', 'branch_b'], blocked: 'blocked' } },
+        next: { match: '${{ output.route }}', cases: { direct: 'done', split: ['branch_a', 'branch_b'] } },
       },
       branch_a: { name: 'Branch A', kind: 'worker', output: { template: 'branch-a.md', schema: 'branch.schema.json' }, next: 'join' },
       branch_b: { name: 'Branch B', kind: 'worker', output: { template: 'branch-b.md', schema: 'branch.schema.json' }, next: 'join' },
       join: { name: 'Join', kind: 'worker', output: { template: 'join.md' }, next: 'done' },
       done: { name: 'Done', kind: 'done' },
-      blocked: { name: 'Blocked', kind: 'blocked' },
     },
   };
   return overrides(workflow) ?? workflow;
@@ -211,15 +209,6 @@ test('Step.resolveInputs projects only state keys referenced by dynamic transiti
   const step = new Step({ id: 'join', step: { name: 'Join', kind: 'worker', input: {}, next: '${{ input.branch_a.next }}' } });
 
   assert.deepEqual(step.resolveInputs({ state: { branch_a: { next: 'done' }, branch_b: { next: 'skip' } } }), { branch_a: { next: 'done' } });
-});
-
-test('Step.applyOutput carries a blocker object when a worker transitions to the blocked terminal', () => {
-  const step = new Step({ id: 'producer', step: workflowDoc().steps.producer });
-  const applied = step.applyOutput({ workflow: workflowDoc(), baton: batonDoc(), output: { outcome: 'blocked', route: 'blocked', targets: ['branch_a'], blocker: { reason: 'no access' } } });
-
-  assert.equal(applied.baton.cursor, 'blocked');
-  assert.equal(applied.baton.status, 'blocked');
-  assert.deepEqual(applied.baton.blocker, { reason: 'no access' });
 });
 
 test('Step.applyOutput clears a stale blocker when a later transition reaches a non-blocked status', () => {

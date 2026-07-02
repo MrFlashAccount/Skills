@@ -4,7 +4,6 @@
   "description": "End-to-end planning and execution workflow for non-trivial code work: research attack, architecture gate, implementation plan, approval, implementation dispatch, and review. Use when a task needs structured evidence, staged approvals, role delegation, implementation slicing, or coordinated review before completion. Do not use when the user only needs a lightweight research verdict, a simple direct fix, a one-shot answer, or workflow creation/design.",
   "start": "research_draft",
   "done": "done",
-  "blocked": "blocked",
   "steps": {
     "research_draft": {
       "name": "Research draft",
@@ -36,8 +35,7 @@
       "next": {
         "match": "${{ output.outcome }}",
         "cases": {
-          "ready_for_attack": "research_attack",
-          "blocked": "blocked"
+          "ready_for_attack": "research_attack"
         }
       }
     },
@@ -64,8 +62,7 @@
         "match": "${{ output.outcome }}",
         "cases": {
           "approved": "approve_research",
-          "needs_revision": "research_draft",
-          "blocked": "blocked"
+          "needs_revision": "research_draft"
         }
       }
     },
@@ -88,8 +85,7 @@
         "match": "${{ output.approval }}",
         "cases": {
           "approved": "architecture_draft",
-          "rejected": "research_draft",
-          "blocked": "blocked"
+          "rejected": "research_draft"
         }
       },
       "output": {
@@ -129,8 +125,7 @@
       "next": {
         "match": "${{ output.outcome }}",
         "cases": {
-          "ready_for_attack": "architecture_attack",
-          "blocked": "blocked"
+          "ready_for_attack": "architecture_attack"
         }
       }
     },
@@ -158,8 +153,7 @@
         "match": "${{ output.outcome }}",
         "cases": {
           "approved": "approve_architecture",
-          "needs_revision": "architecture_draft",
-          "blocked": "blocked"
+          "needs_revision": "architecture_draft"
         }
       }
     },
@@ -183,8 +177,7 @@
         "match": "${{ output.approval }}",
         "cases": {
           "approved": "planning_draft",
-          "rejected": "architecture_draft",
-          "blocked": "blocked"
+          "rejected": "architecture_draft"
         }
       },
       "output": {
@@ -223,8 +216,7 @@
       "next": {
         "match": "${{ output.outcome }}",
         "cases": {
-          "ready_for_attack": "planning_attack",
-          "blocked": "blocked"
+          "ready_for_attack": "planning_attack"
         }
       }
     },
@@ -254,8 +246,7 @@
         "match": "${{ output.outcome }}",
         "cases": {
           "approved": "approve_plan",
-          "needs_revision": "planning_draft",
-          "blocked": "blocked"
+          "needs_revision": "planning_draft"
         }
       }
     },
@@ -283,8 +274,7 @@
         "match": "${{ output.approval }}",
         "cases": {
           "approved": "implementation_dispatch",
-          "rejected": "planning_draft",
-          "blocked": "blocked"
+          "rejected": "planning_draft"
         }
       },
       "output": {
@@ -339,8 +329,7 @@
             "backend_implementation",
             "frontend_implementation",
             "architecture_artifact_update"
-          ],
-          "blocked": "blocked"
+          ]
         }
       }
     },
@@ -491,8 +480,7 @@
       "next": {
         "match": "${{ output.outcome }}",
         "cases": {
-          "ready_for_review": "review_dispatch",
-          "blocked": "blocked"
+          "ready_for_review": "review_dispatch"
         }
       }
     },
@@ -727,7 +715,7 @@
           "This is a join/decision step, not a critique pass.",
           "If every selected reviewer passed, return outcome passed and next done.",
           "If changes are needed, return outcome needs_changes and next equal to the relevant implementation step ids from reviewer required_implementation_steps, not every implementation branch.",
-          "If review cannot finish safely, return outcome blocked, next blocked, and blocker.source_step_id = review_join.",
+          "If review cannot finish safely, return outcome blocked with blocker.source_step_id = review_join; do not set next for blocked outputs because the runner keeps the same step recoverable.",
           "",
           "Input context:",
           "- Approved implementation plan: ${{ input.planning_draft.implementation_plan }}",
@@ -759,38 +747,6 @@
           "Input context:",
           "- Final review join verdict: ${{ input.review_join.verdict }}",
           "- Final next target: ${{ input.review_join.next }}"
-        ]
-      }
-    },
-    "blocked": {
-      "name": "Blocked",
-      "kind": "blocked",
-      "input": {
-        "prompt": [
-          "Workflow blocked.",
-          "Use the blocker embedded in the exact input step output; blocker.source_step_id identifies the producing step.",
-          "Return the blocker, evidence, risk, and exact next decision or missing input; do not summarize artifacts/results globals.",
-          "",
-          "Input context:",
-          "- Research draft blocker: ${{ input.research_draft.blocker | default: \"No research_draft blocker available in input context.\" }}",
-          "- Research attack blocker: ${{ input.research_attack.blocker | default: \"No research_attack blocker available in input context.\" }}",
-          "- Architecture draft blocker: ${{ input.architecture_draft.blocker | default: \"No architecture_draft blocker available in input context.\" }}",
-          "- Architecture attack blocker: ${{ input.architecture_attack.blocker | default: \"No architecture_attack blocker available in input context.\" }}",
-          "- Planning draft blocker: ${{ input.planning_draft.blocker | default: \"No planning_draft blocker available in input context.\" }}",
-          "- Planning attack blocker: ${{ input.planning_attack.blocker | default: \"No planning_attack blocker available in input context.\" }}",
-          "- Implementation dispatch blocker: ${{ input.implementation_dispatch.blocker | default: \"No implementation_dispatch blocker available in input context.\" }}",
-          "- Backend implementation blocker: ${{ input.backend_implementation.blocker | default: \"No backend_implementation blocker available in input context.\" }}",
-          "- Frontend implementation blocker: ${{ input.frontend_implementation.blocker | default: \"No frontend_implementation blocker available in input context.\" }}",
-          "- Architecture artifact update blocker: ${{ input.architecture_artifact_update.blocker | default: \"No architecture_artifact_update blocker available in input context.\" }}",
-          "- Implementation join blocker: ${{ input.implementation_join.blocker | default: \"No implementation_join blocker available in input context.\" }}",
-          "- Architect review blocker: ${{ input.architect_review.blocker | default: \"No architect_review blocker available in input context.\" }}",
-          "- Backend review blocker: ${{ input.backend_review.blocker | default: \"No backend_review blocker available in input context.\" }}",
-          "- Frontend review blocker: ${{ input.frontend_review.blocker | default: \"No frontend_review blocker available in input context.\" }}",
-          "- Frontend taste review blocker: ${{ input.frontend_taste_review.blocker | default: \"No frontend_taste_review blocker available in input context.\" }}",
-          "- Security review blocker: ${{ input.security_review.blocker | default: \"No security_review blocker available in input context.\" }}",
-          "- Privacy review blocker: ${{ input.privacy_review.blocker | default: \"No privacy_review blocker available in input context.\" }}",
-          "- QA review blocker: ${{ input.qa_review.blocker | default: \"No qa_review blocker available in input context.\" }}",
-          "- Review join blocker: ${{ input.review_join.blocker | default: \"No review_join blocker available in input context.\" }}"
         ]
       }
     }

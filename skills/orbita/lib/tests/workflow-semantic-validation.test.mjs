@@ -78,7 +78,7 @@ const routeSchema = {
   required: ['outcome', 'route', 'next_steps'],
   properties: {
     outcome: { enum: ['ready', 'blocked'] },
-    route: { enum: ['review', 'blocked'] },
+    route: { enum: ['review'] },
     next_steps: {
       type: 'array',
       minItems: 1,
@@ -128,7 +128,6 @@ function genericWorkflowWithWorkerRole(role) {
       version: 1,
       start: 'worker_step',
       done: 'done',
-      blocked: 'blocked',
       steps: {
         worker_step: {
           name: 'Worker step',
@@ -138,7 +137,6 @@ function genericWorkflowWithWorkerRole(role) {
           next: 'done',
         },
         done: { name: 'Done', kind: 'done' },
-        blocked: { name: 'Blocked', kind: 'blocked' },
       },
 
   };
@@ -150,13 +148,12 @@ function syntheticWorkflow(overrides) {
       version: 1,
       start: 'producer',
       done: 'done',
-      blocked: 'blocked',
       steps: {
         producer: {
           name: 'Producer',
           kind: 'worker',
           output: { template: 'producer.md', schema: 'route-output.schema.json' },
-          next: { match: '${{ output.outcome }}', cases: { ready: 'consumer', blocked: 'blocked' } },
+          next: { match: '${{ output.outcome }}', cases: { ready: 'consumer' } },
         },
         consumer: {
           name: 'Consumer',
@@ -187,7 +184,6 @@ function syntheticWorkflow(overrides) {
           next: 'done',
         },
         done: { name: 'Done', kind: 'done' },
-        blocked: { name: 'Blocked', kind: 'blocked' },
       },
 
   };
@@ -698,7 +694,7 @@ test('dev harness blocked outputs require only blocker plus routing fields, not 
     ['security_review', { outcome: 'blocked', blocker: { summary: 'Cannot review.', source_step_id: 'security_review', needed: 'Trust boundary.' } }],
     ['privacy_review', { outcome: 'blocked', blocker: { summary: 'Cannot review.', source_step_id: 'privacy_review', needed: 'Data flow.' } }],
     ['qa_review', { outcome: 'blocked', blocker: { summary: 'Cannot review.', source_step_id: 'qa_review', needed: 'Verification evidence.' } }],
-    ['review_join', { outcome: 'blocked', next: 'blocked', blocker: { summary: 'Join blocked.', source_step_id: 'review_join', needed: 'All review outputs.' } }],
+    ['review_join', { outcome: 'blocked', blocker: { summary: 'Join blocked.', source_step_id: 'review_join', needed: 'All review outputs.' } }],
   ];
 
   for (const [stepId, output] of blockedCases) {
@@ -767,7 +763,7 @@ test('dev harness review join schema keeps outcome and next route consistent', (
   }).ok, false);
   assert.equal(validateAgainstOutputSchema({
     ...schemaContext,
-    output: { outcome: 'blocked', blocker: { summary: 'Blocked.', source_step_id: 'review_join', needed: 'Missing review.' }, next: 'blocked' },
+    output: { outcome: 'blocked', blocker: { summary: 'Blocked.', source_step_id: 'review_join', needed: 'Missing review.' } },
   }).ok, true);
 });
 
@@ -896,7 +892,7 @@ test('workflow semantic validation rejects optional output paths used for routin
     required: ['outcome'],
     properties: {
       outcome: { enum: ['ready', 'blocked'] },
-      route: { enum: ['done', 'blocked'] },
+      route: { enum: ['done'] },
     },
     additionalProperties: false,
   });
@@ -967,7 +963,7 @@ test('workflow semantic validation normalizes local refs before semantic introsp
         additionalProperties: false,
       },
       outcome: { type: 'string', enum: ['ready', 'blocked'] },
-      route: { type: 'string', enum: ['consumer', 'blocked'] },
+      route: { type: 'string', enum: ['consumer'] },
       branch: { type: 'string', enum: ['branch_a', 'branch_b'] },
     },
   });
@@ -977,14 +973,14 @@ test('workflow semantic validation normalizes local refs before semantic introsp
     draft.steps.producer.next = '${{ output.route }}';
     return draft;
   });
-  assert.deepEqual(validateSynthetic(dynamicTargetDoc), { ok: true, workflow: 'synthetic-validation-fixture', steps: 7 });
+  assert.deepEqual(validateSynthetic(dynamicTargetDoc), { ok: true, workflow: 'synthetic-validation-fixture', steps: 6 });
 
   const matchDoc = syntheticWorkflow((draft) => {
     draft.steps.producer.output.schema = 'ref-outcome-output.schema.json';
-    draft.steps.producer.next = { match: '${{ output.outcome }}', cases: { ready: 'consumer', blocked: 'blocked' } };
+    draft.steps.producer.next = { match: '${{ output.outcome }}', cases: { ready: 'consumer' } };
     return draft;
   });
-  assert.deepEqual(validateSynthetic(matchDoc), { ok: true, workflow: 'synthetic-validation-fixture', steps: 7 });
+  assert.deepEqual(validateSynthetic(matchDoc), { ok: true, workflow: 'synthetic-validation-fixture', steps: 6 });
 });
 
 test('workflow semantic validation rejects schema-declared dynamic targets that are not workflow steps', () => {
@@ -996,15 +992,29 @@ test('workflow semantic validation rejects schema-declared dynamic targets that 
 });
 
 test('workflow semantic validation rejects missing match cases from output schema enums', () => {
-  const doc = structuredClone(workflowDoc);
-  delete doc.steps.research_draft.next.cases.blocked;
+  writeSchema('two-way-output.schema.json', {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    required: ['outcome'],
+    properties: {
+      outcome: { enum: ['ready', 'retry'] },
+    },
+    additionalProperties: false,
+  });
 
-  assertSemanticFailure(doc, /research_draft.*next\.cases is missing schema-declared case 'blocked'/);
+  assertSemanticFailure(
+    syntheticWorkflow((draft) => {
+      draft.steps.producer.output.schema = 'two-way-output.schema.json';
+      draft.steps.producer.next = { match: '${{ output.outcome }}', cases: { ready: 'consumer' } };
+      return draft;
+    }),
+    /producer.*next\.cases is missing schema-declared case 'retry'/,
+  );
 });
 
 test('workflow semantic validation rejects unreachable match cases not present in output schema enums', () => {
   const doc = structuredClone(workflowDoc);
-  doc.steps.research_draft.next.cases.unreachable = 'blocked';
+  doc.steps.research_draft.next.cases.unreachable = 'done';
 
   assert.throws(() => validate(doc), /research_draft.*unreachable case 'unreachable'/);
 });
@@ -1019,20 +1029,20 @@ test('workflow semantic validation rejects malformed workflow names', () => {
 });
 
 test('workflow semantic validation accepts prompt input expressions that reference declared workflow step ids', () => {
-  assert.deepEqual(validateSynthetic(syntheticWorkflow()), { ok: true, workflow: 'synthetic-validation-fixture', steps: 7 });
+  assert.deepEqual(validateSynthetic(syntheticWorkflow()), { ok: true, workflow: 'synthetic-validation-fixture', steps: 6 });
 
   const doc = syntheticWorkflow((draft) => {
     draft.steps.approval_gate = {
       name: 'Approval gate',
       kind: 'approval',
       output: { schema: 'approval-output.schema.json' },
-      next: { match: '${{ output.approval }}', cases: { approved: 'consumer', blocked: 'blocked' } },
+      next: { match: '${{ output.approval }}', cases: { approved: 'consumer' } },
     };
     draft.steps.consumer.input.prompt = 'Approval result:\n${{ input.approval_gate }}';
     return draft;
   });
 
-  assert.deepEqual(validateSynthetic(doc), { ok: true, workflow: 'synthetic-validation-fixture', steps: 8 });
+  assert.deepEqual(validateSynthetic(doc), { ok: true, workflow: 'synthetic-validation-fixture', steps: 7 });
 });
 
 test('workflow semantic validation rejects optional input paths used for dynamic routing expressions', () => {
@@ -1065,7 +1075,7 @@ test('workflow semantic validation rejects optional input paths used for match r
     required: ['outcome'],
     properties: {
       outcome: { enum: ['ready'] },
-      route: { enum: ['done', 'blocked'] },
+      route: { enum: ['done'] },
     },
     additionalProperties: false,
   });
@@ -1074,7 +1084,7 @@ test('workflow semantic validation rejects optional input paths used for match r
     syntheticWorkflow((draft) => {
       draft.steps.producer.output.schema = 'optional-input-match-output.schema.json';
       draft.steps.producer.next = 'consumer';
-      draft.steps.consumer.next = { match: '${{ input.producer.route }}', cases: { done: 'done', blocked: 'blocked' } };
+      draft.steps.consumer.next = { match: '${{ input.producer.route }}', cases: { done: 'done' } };
       return draft;
     }),
     /consumer.*next\.match expression \$\{\{ input\.producer\.route \}\}.*required output\.schema path/,
@@ -1083,11 +1093,11 @@ test('workflow semantic validation rejects optional input paths used for match r
 
 test('workflow semantic validation accepts input expressions in dynamic transitions without separate selectors', () => {
   const doc = syntheticWorkflow((draft) => {
-    draft.steps.consumer.next = { match: '${{ input.branch_a.outcome }}', cases: { ready: 'done', blocked: 'blocked' } };
+    draft.steps.consumer.next = { match: '${{ input.branch_a.route }}', cases: { review: 'done' } };
     return draft;
   });
 
-  assert.deepEqual(validateSynthetic(doc), { ok: true, workflow: 'synthetic-validation-fixture', steps: 7 });
+  assert.deepEqual(validateSynthetic(doc), { ok: true, workflow: 'synthetic-validation-fixture', steps: 6 });
 });
 
 test('workflow semantic validation rejects prompt input expressions that do not name own workflow step ids', () => {
@@ -1149,7 +1159,7 @@ test('workflow semantic validation rejects unsupported nested prompt input paths
 test('workflow semantic validation rejects input expressions with unknown schema fields', () => {
   assertSemanticFailure(
     syntheticWorkflow((draft) => {
-      draft.steps.consumer.next = { match: '${{ input.producer.missing_route }}', cases: { review: 'done', blocked: 'blocked' } };
+      draft.steps.consumer.next = { match: '${{ input.producer.missing_route }}', cases: { review: 'done' } };
       return draft;
     }),
     /consumer.*input\.producer\.missing_route.*no schema-covered path/,
@@ -1159,7 +1169,7 @@ test('workflow semantic validation rejects input expressions with unknown schema
 test('workflow semantic validation rejects aggregate runtime state expressions in input transitions', () => {
   assertSemanticFailure(
     syntheticWorkflow((draft) => {
-      draft.steps.consumer.next = { match: '${{ input.results.producer.route }}', cases: { review: 'done', blocked: 'blocked' } };
+      draft.steps.consumer.next = { match: '${{ input.results.producer.route }}', cases: { review: 'done' } };
       return draft;
     }),
     /consumer.*input\.results\.producer\.route.*input step 'results' is not a declared workflow step/,
@@ -1238,7 +1248,6 @@ test('workflow semantic validation uses approval output.schema for output match 
       version: 1,
       start: 'approve',
       done: 'done',
-      blocked: 'blocked',
       steps: {
         approve: {
           name: 'Approve',
@@ -1248,7 +1257,6 @@ test('workflow semantic validation uses approval output.schema for output match 
           next: { match: '${{ output.choice }}', cases: { ship: 'done' } },
         },
         done: { name: 'Done', kind: 'done' },
-        blocked: { name: 'Blocked', kind: 'blocked' },
       },
 
   };

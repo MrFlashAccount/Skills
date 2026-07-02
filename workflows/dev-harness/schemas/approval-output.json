@@ -13,7 +13,7 @@
         "blocked"
       ],
       "description": "Human gate decision for the current DevHarness approval step.",
-      "x-usage": "Use approved to continue, rejected to revise the gated draft step, and blocked only when blocker explains why the run cannot proceed."
+      "x-usage": "Use approved to continue, rejected to revise the gated draft step, and blocked only when blocker explains why the run must pause recoverably."
     },
     "results": {
       "type": "array",

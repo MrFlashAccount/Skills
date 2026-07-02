@@ -15,7 +15,7 @@
         "needs_changes",
         "blocked"
       ],
-      "description": "Producer must emit the single enum value that reflects the completed stage state; use blocked only when blocker explains the stop condition.",
+      "description": "Producer must emit the single enum value that reflects the completed stage state; use blocked only when blocker explains the recoverable pause.",
       "x-usage": "Treat this as the authoritative workflow state for this output. Do not infer success from other populated fields when this says blocked or needs revision."
     },
     "verdict": {
@@ -56,7 +56,7 @@
       },
       "additionalProperties": true,
       "description": "Producer must emit the gate decision payload, including summary, checked evidence, and findings supporting the outcome.",
-      "x-usage": "Use this with outcome as the authoritative decision. Advance only on pass/approval states, rework only on rework states, and stop on blocked."
+      "x-usage": "Use this with outcome as the authoritative decision. Advance only on pass/approval states, rework only on rework states, and pause recoverably on blocked."
     },
     "required_implementation_steps": {
       "type": "array",
@@ -129,8 +129,8 @@
         }
       },
       "additionalProperties": false,
-      "description": "Producer must populate this when outcome is blocked, naming the stop reason, owning step, and specific missing input or permission.",
-      "x-usage": "Treat this as a stop condition. Surface the missing input or decision instead of continuing or working around it."
+      "description": "Producer must populate this when outcome is blocked, naming the recoverable pause reason, owning step, and specific missing input or permission.",
+      "x-usage": "Treat this as a recoverable pause. Surface the missing input or decision, then continue this same workflow step after it is resolved."
     }
   },
   "additionalProperties": false,

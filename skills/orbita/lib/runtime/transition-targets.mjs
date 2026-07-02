@@ -23,7 +23,7 @@ export function assertParallelTargets(workflow, stepId, targets, fieldPath = 'ne
 
     const targetStep = workflow.steps[targetStepId];
     invariant(
-      targetStep.kind !== 'done' && targetStep.kind !== 'blocked',
+      targetStep.kind !== 'done',
       `workflow step '${stepId}' parallel branch target '${targetStepId}' cannot be terminal`,
     );
     invariant(
@@ -51,7 +51,7 @@ export function assertParallelTargets(workflow, stepId, targets, fieldPath = 'ne
   );
   const joinStep = workflow.steps[joinStepId];
   invariant(
-    joinStep.kind !== 'done' && joinStep.kind !== 'blocked',
+    joinStep.kind !== 'done',
     `workflow step '${stepId}' parallel branch targets must converge on a non-terminal join step '${joinStepId}'`,
   );
 

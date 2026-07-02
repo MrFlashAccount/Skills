@@ -37,9 +37,6 @@ function assertWorkflowRootTargets(workflow) {
   if (!doneStep) fail(`workflow done target not found: ${workflow.done}`);
   if (doneStep.kind !== 'done') fail(`workflow done target '${workflow.done}' must be a done step`);
 
-  const blockedStep = workflow.steps[workflow.blocked];
-  if (!blockedStep) fail(`workflow blocked target not found: ${workflow.blocked}`);
-  if (blockedStep.kind !== 'blocked') fail(`workflow blocked target '${workflow.blocked}' must be a blocked step`);
 }
 
 function assertWorkflowIdentity(workflow) {
@@ -237,9 +234,34 @@ function schemaAllowsNonString(schema) {
 }
 
 function assertSchemaRequiresExpressionPath({ stepId, expression, field, rootSchema, pathSegments = expression.path }) {
-  if (!schemaRequiresPath(rootSchema, pathSegments)) {
+  if (!schemaRequiresPath(rootSchema, pathSegments) && !recoverableBlockedVariantAllowsMissingPath(rootSchema, pathSegments)) {
     fail(`step '${stepId}' ${field} expression ${expression.source} must reference a required output.schema path`);
   }
+}
+
+function branchRequiresPathForDiscriminatorValue(rootSchema, discriminator, value, pathSegments) {
+  if (!Array.isArray(rootSchema?.allOf)) return false;
+  return rootSchema.allOf.some((branch) => {
+    const branchValue = branch?.if?.properties?.[discriminator]?.const;
+    return branchValue === value && schemaRequiresPath(branch.then, pathSegments);
+  });
+}
+
+function recoverableBlockedVariantAllowsMissingPath(rootSchema, pathSegments) {
+  if (pathSegments.length === 0) return false;
+
+  for (const discriminator of ['outcome', 'approval']) {
+    const values = collectStringValues({ anyOf: schemaForPath(rootSchema, [discriminator]) });
+    if (!values.has('blocked')) continue;
+
+    const nonBlockedValues = [...values].filter((value) => value !== 'blocked');
+    if (nonBlockedValues.length === 0) continue;
+    if (nonBlockedValues.every((value) => branchRequiresPathForDiscriminatorValue(rootSchema, discriminator, value, pathSegments))) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function assertWorkerOutputContract({ stepId, schema }) {
@@ -422,6 +444,7 @@ function assertDynamicTargetSchema({ workflow, schemasByStep, stepId, step, expr
     throw error;
   }
 
+  if (recoverableBlockedOutputSelector(step, expression)) aggregate.directValues.delete('blocked');
   for (const target of aggregate.directValues) {
     if (!Object.hasOwn(workflow.steps, target)) fail(`step '${stepId}' ${field} expression ${expression.source} schema allows unknown target '${target}'`);
   }
@@ -458,16 +481,26 @@ function assertMatchCasesSchema({ workflow, schemasByStep, stepId, step, descrip
     if (allowOpenTransitionSchemas && error instanceof WorkflowRuntimeError) return undefined;
     throw error;
   }
-  for (const key of possibleCaseKeys) {
+  const transitionCaseKeys = recoverableBlockedOutputSelector(step, descriptor.expression)
+    ? new Set([...possibleCaseKeys].filter((key) => key !== 'blocked'))
+    : possibleCaseKeys;
+  for (const key of transitionCaseKeys) {
     if (!Object.hasOwn(descriptor.cases, key)) fail(`step '${stepId}' ${field}.cases is missing schema-declared case '${key}'`);
   }
   if (!allowUnreachableCases) {
     for (const key of Object.keys(descriptor.cases)) {
-      if (!possibleCaseKeys.has(key)) fail(`step '${stepId}' ${field}.cases declares unreachable case '${key}' not present in the selector schema`);
+      if (!transitionCaseKeys.has(key)) fail(`step '${stepId}' ${field}.cases declares unreachable case '${key}' not present in the selector schema`);
     }
   }
 
-  return possibleCaseKeys;
+  return transitionCaseKeys;
+}
+
+function recoverableBlockedOutputSelector(step, expression) {
+  return expression?.root === 'output' &&
+    expression.path?.length === 1 &&
+    ((step.kind === 'worker' && expression.path[0] === 'outcome') ||
+      (step.kind === 'approval' && expression.path[0] === 'approval'));
 }
 
 function targetSetsForMatchCases(possibleCaseKeys, cases) {

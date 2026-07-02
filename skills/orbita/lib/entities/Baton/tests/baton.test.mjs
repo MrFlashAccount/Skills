@@ -10,11 +10,9 @@ const workflow = {
   version: 1,
   start: 'worker',
   done: 'done',
-  blocked: 'blocked',
   steps: {
     worker: { name: 'Worker', kind: 'worker', next: 'done' },
     done: { name: 'Done', kind: 'done' },
-    blocked: { name: 'Blocked', kind: 'blocked' },
   },
 };
 

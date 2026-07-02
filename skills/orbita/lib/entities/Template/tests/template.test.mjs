@@ -9,7 +9,6 @@ const workflow = {
   instruction: 'Keep workflow-level context visible.',
   start: 'consumer',
   done: 'done',
-  blocked: 'blocked',
   steps: {
     producer: { name: 'Producer', kind: 'worker', output: { schema: 'producer.schema.json' }, next: 'consumer' },
     consumer: {
@@ -20,7 +19,6 @@ const workflow = {
       next: 'done',
     },
     done: { name: 'Done', kind: 'done' },
-    blocked: { name: 'Blocked', kind: 'blocked' },
   },
 };
 

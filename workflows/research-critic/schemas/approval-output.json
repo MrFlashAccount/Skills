@@ -12,7 +12,7 @@
         "blocked"
       ],
       "description": "Human answer gate decision for the research questions step.",
-      "x-usage": "Use approved when user answers are ready for research_answered_draft, and blocked only when blocker explains why research cannot continue."
+      "x-usage": "Use approved when user answers are ready for research_answered_draft, and blocked only when blocker explains why research must pause."
     },
     "answers": {
       "type": "array",

@@ -4,7 +4,6 @@
   "description": "Pre-implementation Researcher draft -> Researcher attack workflow for closing task context before downstream planning or implementation. Use when a task needs evidence gathering, assumption pressure, ambiguity cleanup, readiness judgment, or a reusable reasons-canvas-research artifact. Do not use when the task is already approved for direct implementation, needs PR/code review, or should be executed through a larger planning/development workflow.",
   "start": "research_draft",
   "done": "done",
-  "blocked": "blocked",
   "steps": {
     "research_draft": {
       "name": "Research draft",
@@ -34,8 +33,7 @@
         "match": "${{ output.outcome }}",
         "cases": {
           "ready_for_attack": "research_attack",
-          "needs_input": "ask_research_questions",
-          "blocked": "blocked"
+          "needs_input": "ask_research_questions"
         }
       }
     },
@@ -63,8 +61,7 @@
       "next": {
         "match": "${{ output.approval }}",
         "cases": {
-          "approved": "research_answered_draft",
-          "blocked": "blocked"
+          "approved": "research_answered_draft"
         }
       },
       "output": {
@@ -105,8 +102,7 @@
         "match": "${{ output.outcome }}",
         "cases": {
           "ready_for_attack": "research_attack",
-          "needs_input": "ask_research_questions",
-          "blocked": "blocked"
+          "needs_input": "ask_research_questions"
         }
       }
     },
@@ -117,7 +113,7 @@
         "role": "researcher",
         "prompt": [
           "Start from a hostile prior: assume the change, proposal, draft, or Canvas is wrong, incomplete, overcomplicated, or under-evidenced until the artifact proves otherwise. Do not give credit for intent, author confidence, green self-reports, or plausible-sounding structure. PASS is allowed only after serious attack finds no evidence-backed blocker or important finding. Do not invent bugs. Any FAIL must be evidence-backed with file/function/line or equivalent precise location, and explain why existing tests/checks did not catch it. Prefer small, evidence-backed blockers over broad commentary.",
-          "Attack the latest available `reasons-canvas-research` artifact for weak evidence, unsafe assumptions, missing user input, misclassified blockers, over-broad candidate approaches, and fake architecture/implementation certainty. Verify the artifact captures research-owned Requirements and observed Entities while leaving architecture/implementation-owned detail as explicit questions, constraints, or tensions. Treat a missing `reasons-canvas-research` artifact as a blocking research failure. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Return approved only when the Canvas is ready for downstream handoff, needs_revision when a bounded revision should loop through a fresh draft-producing output, needs_input when user answers are required, or blocked for an unsafe stop.",
+          "Attack the latest available `reasons-canvas-research` artifact for weak evidence, unsafe assumptions, missing user input, misclassified blockers, over-broad candidate approaches, and fake architecture/implementation certainty. Verify the artifact captures research-owned Requirements and observed Entities while leaving architecture/implementation-owned detail as explicit questions, constraints, or tensions. Treat a missing `reasons-canvas-research` artifact as a blocking research failure. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Return approved only when the Canvas is ready for downstream handoff, needs_revision when a bounded revision should loop through a fresh draft-producing output, needs_input when user answers are required, or blocked for an unsafe recoverable pause.",
           "Loop continuity across workflow loop iterations is prompt based: rely only on explicit input.prompt context and prior step outputs; do not assume persistent draft/attack worker reuse across iterations. If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
           "",
           "Input context:",
@@ -140,8 +136,7 @@
         "cases": {
           "approved": "save_research_canvas",
           "needs_revision": "research_revision",
-          "needs_input": "ask_research_questions",
-          "blocked": "blocked"
+          "needs_input": "ask_research_questions"
         }
       }
     },
@@ -179,8 +174,7 @@
         "match": "${{ output.outcome }}",
         "cases": {
           "ready_for_attack": "research_attack",
-          "needs_input": "ask_research_questions",
-          "blocked": "blocked"
+          "needs_input": "ask_research_questions"
         }
       }
     },
@@ -214,8 +208,7 @@
       "next": {
         "match": "${{ output.outcome }}",
         "cases": {
-          "saved": "done",
-          "blocked": "blocked"
+          "saved": "done"
         }
       }
     },
@@ -224,13 +217,6 @@
       "kind": "done",
       "input": {
         "prompt": "Research Canvas approved and saved."
-      }
-    },
-    "blocked": {
-      "name": "Blocked",
-      "kind": "blocked",
-      "input": {
-        "prompt": "Research workflow is blocked. Surface the blocker and required input."
       }
     }
   }

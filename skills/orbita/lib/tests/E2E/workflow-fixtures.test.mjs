@@ -222,7 +222,7 @@ test('E2E fixture: DevHarness-style artifact path is required-read context for d
   assert.doesNotMatch(reviewInstructions, /Concrete implementation artifact content for reviewer\./);
 });
 
-test('E2E fixture: match route covers retry loop and blocked terminal variant', () => {
+test('E2E fixture: match route covers retry loop and recoverable blocked output', () => {
   const workflow = fixture('route-retry-blocked.workflow.json');
   const retryRun = runDir('route-retry');
 
@@ -241,10 +241,11 @@ test('E2E fixture: match route covers retry loop and blocked terminal variant', 
   const blockedRun = runDir('route-blocked');
   next(blockedRun, workflow);
   const blocked = continueWith(blockedRun, workflow, output('triage-blocked.json'), 'continue triage blocked');
-  assert.equal(blocked.status, 'blocked');
-  assert.equal(blocked.baton.cursor, 'blocked');
-  assert.deepEqual(blocked.baton.blocker, { reason: 'missing decision' });
-  assert.match(readHistory(blockedRun), /blocker: \{"reason":"missing decision"\}/);
+  assert.equal(blocked.status, 'needs_host_actions');
+  assert.equal(blocked.baton.cursor, 'triage');
+  assert.deepEqual(blocked.baton.recoverableWorkerBlockers.triage, { reason: 'missing decision' });
+  assert.equal(blocked.requests[0].stepId, 'triage');
+  assert.match(readHistory(blockedRun), /Recoverable blocker/);
 });
 
 test('E2E fixture: mixed static and match fanout requires named branch outputs and exposes join state', () => {
