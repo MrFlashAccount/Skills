@@ -148,7 +148,7 @@ function resolveParallelItemsDescriptor({ workflow, baton, stepId, step, output,
 export function resolveTransition({ workflow, baton, stepId, step, output }) {
   const wf = workflowData(workflow);
   requireObject(output, 'worker output');
-  invariant(step.kind !== 'done' && step.kind !== 'blocked', `cursor '${stepId}' is terminal and cannot be applied`);
+  invariant(step.kind !== 'done', `cursor '${stepId}' is terminal and cannot be applied`);
   validateOutputKind(step, output, stepId);
 
   const descriptor = normalizeTransitionNext(step.next);
@@ -236,7 +236,6 @@ export class Step {
       status: statusForStep(wf, transition.targetStepId, targetStep),
     };
     delete updatedBaton.blocker;
-    if (updatedBaton.status === 'blocked' && output.blocker) updatedBaton.blocker = output.blocker;
     return { ...transition, targetStep, baton: updatedBaton };
   }
 }

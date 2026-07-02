@@ -8,7 +8,6 @@ const workflowDoc = {
   version: 1,
   start: 'producer',
   done: 'done',
-  blocked: 'blocked',
   steps: {
     producer: {
       name: 'Producer',
@@ -20,7 +19,6 @@ const workflowDoc = {
     branch_b: { name: 'Branch B', kind: 'worker', output: { template: 'branch-b.md' }, next: 'join' },
     join: { name: 'Join', kind: 'worker', next: 'done' },
     done: { name: 'Done', kind: 'done' },
-    blocked: { name: 'Blocked', kind: 'blocked' },
   },
 };
 

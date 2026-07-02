@@ -21,7 +21,6 @@ function workflowDoc(name, prompt = 'Prepare branch.') {
     version: 1,
     start: 'prepare',
     done: 'done',
-    blocked: 'blocked',
     steps: {
       prepare: {
         name: 'Prepare',
@@ -31,7 +30,6 @@ function workflowDoc(name, prompt = 'Prepare branch.') {
         next: 'done',
       },
       done: { name: 'Done', kind: 'done' },
-      blocked: { name: 'Blocked', kind: 'blocked' },
     },
   };
 }

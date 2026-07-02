@@ -52,7 +52,7 @@ function firstStaticWorkerTarget({ workflow, stepId, visited = new Set() }) {
   const step = workflow?.steps?.[stepId];
   if (!step) throw new Error(`cannot determine stable startup user prompt target: transition target not found in workflow: ${stepId}`);
   if (step.kind === 'worker') return stepId;
-  if (step.kind === 'done' || step.kind === 'blocked') return undefined;
+  if (step.kind === 'done') return undefined;
   if (step.next === undefined) return undefined;
 
   const descriptor = normalizeTransitionNext(step.next);
@@ -101,7 +101,7 @@ export function assertStartupUserPromptTargetRenderable({ workflow, baton, steps
   const targetStep = workflow?.steps?.[target];
   if (!targetStep) throw new Error(`startup user prompt target '${target}' is no longer defined in the workflow`);
   if (targetStep.kind !== 'worker') throw new Error(`startup user prompt target '${target}' is not a worker step`);
-  const terminalStepIds = steps.filter((entry) => entry.step?.kind === 'done' || entry.step?.kind === 'blocked').map((entry) => entry.id);
+  const terminalStepIds = steps.filter((entry) => entry.step?.kind === 'done').map((entry) => entry.id);
   if ((workerStepIds.length > 0 || terminalStepIds.length > 0) && !workerStepIds.includes(target)) {
     throw new Error(`startup user prompt target '${target}' is not renderable in the current workflow response; refusing to drop the startup user prompt`);
   }

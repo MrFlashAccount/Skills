@@ -22,7 +22,7 @@ test('issue 197: dev-harness implementation instructions and schema align on sel
 
   const schemaText = readFileSync(path.join(REPO_ROOT, 'workflows/dev-harness/schemas/implementation-output.json'), 'utf8');
   assert.match(schemaText, /own in-scope changes are implementation work to fix and rerun/);
-  assert.match(schemaText, /external or contract-level stop condition/);
+  assert.match(schemaText, /external or contract-level recoverable pause/);
   assert.doesNotMatch(schemaText, /failed checks as blockers by themselves|red tests.*blockers by themselves/);
 
   const testingReference = readFileSync(path.join(REPO_ROOT, 'skills/implementation-harness/references/testing.md'), 'utf8');

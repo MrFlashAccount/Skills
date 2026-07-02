@@ -26,7 +26,6 @@ function parityWorkflowDoc(schemaRef) {
     version: 1,
     start: 'prepare',
     done: 'done',
-    blocked: 'blocked',
     steps: {
       prepare: {
         name: 'Prepare',
@@ -36,7 +35,6 @@ function parityWorkflowDoc(schemaRef) {
         next: 'done',
       },
       done: { name: 'Done', kind: 'done' },
-      blocked: { name: 'Blocked', kind: 'blocked' },
     },
   };
 }

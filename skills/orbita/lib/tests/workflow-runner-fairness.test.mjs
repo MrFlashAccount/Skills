@@ -18,7 +18,6 @@ const workflowDoc = {
   version: 1,
   start: 'prepare',
   done: 'done',
-  blocked: 'blocked',
   steps: {
     prepare: {
       name: 'Prepare',
@@ -28,7 +27,6 @@ const workflowDoc = {
       next: 'done',
     },
     done: { name: 'Done', kind: 'done', input: { prompt: 'Finished.' } },
-    blocked: { name: 'Blocked', kind: 'blocked', input: { prompt: 'Blocked.' } },
   },
 };
 

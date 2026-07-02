@@ -3,7 +3,6 @@
  * @property {string} name Workflow identifier.
  * @property {string} start Start step id.
  * @property {string} done Done terminal step id.
- * @property {string} blocked Blocked terminal step id.
  * @property {Record<string, Record<string, unknown>>} steps Workflow step map keyed by step id.
  */
 import { cloneFrozen } from './_dto-utils.mjs';

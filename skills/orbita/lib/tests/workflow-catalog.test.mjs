@@ -89,10 +89,8 @@ test('workflow catalog rejects catalog workflows without top-level description',
     version: 1,
     start: 'done',
     done: 'done',
-    blocked: 'blocked',
     steps: {
       done: { name: 'Done', kind: 'done' },
-      blocked: { name: 'Blocked', kind: 'blocked' },
     },
   }, null, 2)}\n`);
 

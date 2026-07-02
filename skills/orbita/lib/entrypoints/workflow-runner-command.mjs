@@ -20,6 +20,8 @@ import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot, upsertRunInd
 import { withRunStateLock } from '../persistence/run-state/lock.mjs';
 import { publicErrorMessage } from '../public-error.mjs';
 import { assertAbsoluteWorkflowPath } from '../workflow-path-boundary.mjs';
+import { isRecoverableWorkerBlockerOutput, publicRecoverableBlockerDetails } from '../runtime/recoverable-worker-blocker.mjs';
+import { applyOutputToBatonState } from '../runtime/baton-state.mjs';
 
 async function readJson(pathname, kind) {
   let content;
@@ -295,15 +297,71 @@ function outputForAcceptedState(currentBaton, requests, { isPreparedParallelCont
   return { outputValue: { steps }, historyOutput: historyOutput.join(', '), currentBaton };
 }
 
+function recoverableWorkerBlockersForAcceptedState({ workflow, requests, valuesByRequestId, runsRoot }) {
+  const blockers = {};
+  for (const request of requests) {
+    const stepId = stepIdForRequest(request);
+    const step = workflow.steps?.[stepId];
+    const output = valuesByRequestId.get(request.id);
+    if (isRecoverableWorkerBlockerOutput({ workflow, stepId, step, output })) {
+      blockers[stepId] = publicRecoverableBlockerDetails(output.blocker, { stepId, runsRoot });
+    }
+  }
+  return blockers;
+}
+
+function acceptedOutputsExcludingRecoverableBlockers({ requests, valuesByRequestId, recoverableWorkerBlockers }) {
+  const outputs = {};
+  for (const request of requests) {
+    const stepId = stepIdForRequest(request);
+    if (Object.hasOwn(recoverableWorkerBlockers, stepId)) continue;
+    outputs[stepId] = valuesByRequestId.get(request.id);
+  }
+  return outputs;
+}
+
+function outputOrRecoveryForAcceptedState(currentBaton, requests, { isPreparedParallelContinuation, workflow, runsRoot }) {
+  const parsedOutputRefs = parsedOutputRefsForAcceptedState(currentBaton, requests);
+  assertNamedOutputRefsMatchRequests(parsedOutputRefs, requests);
+  const { valuesByRequestId, missing } = acceptedOutputsForRequests(currentBaton, requests);
+  if (missing.length > 0) {
+    throw new Error(`missing accepted host output for workflow step ${missing.join(', ')}; run workflow-runner write-output first`);
+  }
+
+  const recoverableWorkerBlockers = recoverableWorkerBlockersForAcceptedState({
+    workflow,
+    requests,
+    valuesByRequestId,
+    runsRoot,
+  });
+  if (Object.keys(recoverableWorkerBlockers).length > 0) {
+    const historyOutput = requests
+      .map((request) => `accepted:${stepIdForRequest(request)}`)
+      .join(', ');
+    const acceptedOutputs = acceptedOutputsExcludingRecoverableBlockers({
+      requests,
+      valuesByRequestId,
+      recoverableWorkerBlockers,
+    });
+    return { recoverableWorkerBlockers, acceptedOutputs, historyOutput, currentBaton };
+  }
+
+  return outputForAcceptedState(currentBaton, requests, { isPreparedParallelContinuation });
+}
+
 async function outputForCurrentState(paths) {
   await recoverDurableCommit(paths);
   const current = await readPersistedRunState(paths);
-  const { response } = await renderCurrentHostResponse(paths, current.baton);
+  const { runtime, response } = await renderCurrentHostResponse(paths, current.baton);
   if (response.status !== 'needs_host_actions') throw new Error(`current runner response is '${response.status}', not needs_host_actions`);
 
   const requests = response.requests ?? [];
   const isPreparedParallelContinuation = Array.isArray(current.baton?.cursor) || requests.some((request) => stepIdForRequest(request) !== current.baton?.cursor);
-  return outputForAcceptedState(current.baton, requests, { isPreparedParallelContinuation });
+  return outputOrRecoveryForAcceptedState(current.baton, requests, {
+    isPreparedParallelContinuation,
+    workflow: runtime.workflow,
+    runsRoot: paths.runsRoot,
+  });
 }
 
 async function resolveIndexedRunPaths({ runId, workflowPath, runsRoot }) {
@@ -327,6 +385,30 @@ export async function next(options = {}) {
   return publicApiCall(() => nextInternal(options), { ...options, command: 'next' });
 }
 
+function cursorForRecoverableWorkerBlockers(recoverableWorkerBlockers) {
+  const stepIds = Object.keys(recoverableWorkerBlockers);
+  return stepIds.length === 1 ? stepIds[0] : stepIds;
+}
+
+function batonWithRecoverableWorkerBlockers(baton, recoverableWorkerBlockers, acceptedOutputs = {}) {
+  const nextBaton = structuredClone(baton);
+  nextBaton.state = { ...(nextBaton.state ?? {}) };
+  for (const [stepId, output] of Object.entries(acceptedOutputs)) {
+    nextBaton.state = applyOutputToBatonState(nextBaton, output, undefined, stepId);
+  }
+  for (const stepId of Object.keys(recoverableWorkerBlockers)) {
+    delete nextBaton.state[stepId];
+  }
+  nextBaton.cursor = cursorForRecoverableWorkerBlockers(recoverableWorkerBlockers);
+  nextBaton.status = 'running';
+  nextBaton.recoverableWorkerBlockers = {
+    ...(nextBaton.recoverableWorkerBlockers ?? {}),
+    ...structuredClone(recoverableWorkerBlockers),
+  };
+  delete nextBaton.blocker;
+  return nextBaton;
+}
+
 async function continueRunInternal({ runId, workflowPath, output, includeDiagnostics = false, leaseToken, now = new Date(), runsRoot } = {}) {
   await migrateLegacyWorkflowRunsRootIfNeeded(runsRoot);
   if (output !== undefined && (!Array.isArray(output) || output.length > 0)) {
@@ -339,8 +421,28 @@ async function continueRunInternal({ runId, workflowPath, output, includeDiagnos
     await assertWorkerLeaseAuthority(paths, { leaseToken, now, allowStale: true });
     await ensureRunFiles(paths);
     await recoverDurableCommit(paths);
-    const { outputValue, historyOutput, currentBaton } = await outputForCurrentState(paths);
+    const { outputValue, historyOutput, currentBaton, recoverableWorkerBlockers, acceptedOutputs } = await outputForCurrentState(paths);
     const runtime = loadWorkflowRuntime({ workflowPath: paths.workflowPath, batonPath: paths.batonPath, baton: currentBaton });
+    if (recoverableWorkerBlockers) {
+      const recoveryBaton = batonWithRecoverableWorkerBlockers(runtime.baton, recoverableWorkerBlockers, acceptedOutputs);
+      const recoveryRuntime = loadWorkflowRuntime({ workflowPath: paths.workflowPath, batonPath: paths.batonPath, baton: recoveryBaton });
+      const renderResources = resourcesWithValidatingWriter(recoveryRuntime.resources, paths, { leaseToken });
+      const rendered = runNext({ workflowDoc: recoveryRuntime.workflow, batonDoc: recoveryRuntime.baton, resources: renderResources, includeDiagnostics });
+      const response = await runnerResponseForRendered(paths, rendered, { initialized: false, resumed: true, leaseToken, includeInlineInstructions: true });
+      const workerLease = await renewedWorkerLeaseAuthority(paths, { leaseToken, now });
+      await writePersistedRunStateUpdate(paths, {
+        baton: response.baton,
+        history: {
+          source: 'workflow-runner-continue',
+          baton: response.baton,
+          output: historyOutput,
+          requests: response.requests,
+          details: transitionHistoryDetails({ before: runtime.baton, after: response.baton, output: historyOutput, requests: response.requests }),
+        },
+      });
+      await upsertRunIndexEntry(paths, { status: response.status, workflowPath: paths.workflowPath, workerLease });
+      return response;
+    }
     const applied = applyWorkflowOutput({ workflowDoc: runtime.workflow, batonDoc: runtime.baton, outputValue, resources: runtime.resources });
     const renderResources = resourcesWithValidatingWriter(runtime.resources, paths, { leaseToken });
     const rendered = renderAppliedResponse({ workflowDoc: runtime.workflow, response: applied, resources: renderResources, includeDiagnostics });
@@ -411,6 +513,10 @@ function batonWithAcceptedOutput(baton, stepId, output) {
     ...nextBaton.state,
     [stepId]: structuredClone(output),
   };
+  if (nextBaton.recoverableWorkerBlockers?.[stepId]) {
+    delete nextBaton.recoverableWorkerBlockers[stepId];
+    if (Object.keys(nextBaton.recoverableWorkerBlockers).length === 0) delete nextBaton.recoverableWorkerBlockers;
+  }
   return nextBaton;
 }
 

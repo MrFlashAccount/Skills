@@ -9,14 +9,13 @@ const workflow = {
   version: 1,
   start: 'producer',
   done: 'done',
-  blocked: 'blocked',
   steps: {
     producer: {
       name: 'Producer',
       kind: 'worker',
       input: {},
       output: { schema: 'producer.schema.json' },
-      next: { match: '${{ output.route }}', cases: { direct: 'done', split: ['branch_a', 'branch_b'], blocked: 'blocked' } },
+      next: { match: '${{ output.route }}', cases: { direct: 'done', split: ['branch_a', 'branch_b'] } },
     },
     dynamic: { name: 'Dynamic', kind: 'worker', input: {}, next: '${{ input.seed.next }}' },
     mixed_parallel: { name: 'Mixed', kind: 'worker', next: ['branch_a', '${{ output.extra }}'] },
@@ -25,7 +24,6 @@ const workflow = {
     branch_b: { name: 'Branch B', kind: 'worker', next: 'join' },
     join: { name: 'Join', kind: 'worker', input: {}, next: 'done' },
     done: { name: 'Done', kind: 'done' },
-    blocked: { name: 'Blocked', kind: 'blocked' },
   },
 };
 

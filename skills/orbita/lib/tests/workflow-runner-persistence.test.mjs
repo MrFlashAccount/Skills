@@ -35,7 +35,6 @@ const workflowDoc = {
     version: 1,
     start: 'prepare',
     done: 'done',
-    blocked: 'blocked',
     steps: {
       prepare: {
         name: 'Prepare',
@@ -66,7 +65,6 @@ const workflowDoc = {
         next: 'done',
       },
       done: { name: 'Done', kind: 'done', input: { prompt: 'Finished.' } },
-      blocked: { name: 'Blocked', kind: 'blocked', input: { prompt: 'Blocked.' } },
     },
 
 };
@@ -323,11 +321,10 @@ test('runner: wait_for_approval request accepts request-specific host output JSO
       name: 'Choose path',
       kind: 'approval',
       input: { prompt: 'Ask the user to choose option_a, option_b, or free-form blocked reason.' },
-      next: { match: '${{ output.choice }}', cases: { option_a: 'done', option_b: 'join', blocked: 'blocked' } },
+      next: { match: '${{ output.choice }}', cases: { option_a: 'done', option_b: 'join' } },
     },
     join: approvalWorkflow.steps.join,
     done: approvalWorkflow.steps.done,
-    blocked: approvalWorkflow.steps.blocked,
   };
   approvalWorkflow.steps.join.input.prompt = 'Join without branch prompt input.';
   approvalWorkflow.steps.join.next = 'done';
@@ -360,7 +357,6 @@ test('runner: single approval request applies output by current stepId', () => {
     },
     join: approvalWorkflow.steps.join,
     done: approvalWorkflow.steps.done,
-    blocked: approvalWorkflow.steps.blocked,
   };
   approvalWorkflow.steps.join.input.prompt = 'Join without branch prompt input.';
   approvalWorkflow.steps.join.next = 'done';
@@ -387,7 +383,7 @@ test('runner: approval request exposes optional output schema reference', () => 
     $schema: 'https://json-schema.org/draft/2020-12/schema',
     type: 'object',
     required: ['choice'],
-    properties: { choice: { enum: ['approved', 'blocked'] } },
+    properties: { choice: { enum: ['approved'] } },
     additionalProperties: false,
   });
   const approvalWorkflow = structuredClone(workflowDoc);
@@ -398,10 +394,9 @@ test('runner: approval request exposes optional output schema reference', () => 
       kind: 'approval',
       input: { prompt: 'Ask the user whether to approve or block.' },
       output: { schema: path.basename(schemaPath) },
-      next: { match: '${{ output.choice }}', cases: { approved: 'done', blocked: 'blocked' } },
+      next: { match: '${{ output.choice }}', cases: { approved: 'done' } },
     },
     done: approvalWorkflow.steps.done,
-    blocked: approvalWorkflow.steps.blocked,
   };
   writeJson(workflowPath, approvalWorkflow);
 
@@ -423,7 +418,7 @@ test('runner: typed approval retry preserves validation feedback in instructions
     $schema: 'https://json-schema.org/draft/2020-12/schema',
     type: 'object',
     required: ['choice'],
-    properties: { choice: { enum: ['approved', 'blocked'] } },
+    properties: { choice: { enum: ['approved'] } },
     additionalProperties: false,
   });
   const approvalWorkflow = structuredClone(workflowDoc);
@@ -434,10 +429,9 @@ test('runner: typed approval retry preserves validation feedback in instructions
       kind: 'approval',
       input: { prompt: 'Ask the user whether to approve or block.' },
       output: { schema: path.basename(schemaPath) },
-      next: { match: '${{ output.choice }}', cases: { approved: 'done', blocked: 'blocked' } },
+      next: { match: '${{ output.choice }}', cases: { approved: 'done' } },
     },
     done: approvalWorkflow.steps.done,
-    blocked: approvalWorkflow.steps.blocked,
   };
   writeJson(workflowPath, approvalWorkflow);
 
@@ -490,7 +484,6 @@ test('runner: typed approval static parallel next preserves approval output in s
     branch_b: approvalWorkflow.steps.branch_b,
     join: approvalWorkflow.steps.join,
     done: approvalWorkflow.steps.done,
-    blocked: approvalWorkflow.steps.blocked,
   };
   approvalWorkflow.steps.branch_a.input.prompt = 'Run branch A from approval output:\n${{ input.choose_path }}';
   approvalWorkflow.steps.branch_b.input.prompt = 'Run branch B from approval output:\n${{ input.choose_path }}';
@@ -529,7 +522,6 @@ test('runner: generic approval static parallel next preserves approval output in
     branch_b: approvalWorkflow.steps.branch_b,
     join: approvalWorkflow.steps.join,
     done: approvalWorkflow.steps.done,
-    blocked: approvalWorkflow.steps.blocked,
   };
   approvalWorkflow.steps.branch_a.input.prompt = 'Run branch A from approval output:\n${{ input.choose_path }}';
   approvalWorkflow.steps.branch_b.input.prompt = 'Run branch B from approval output:\n${{ input.choose_path }}';
@@ -568,7 +560,6 @@ test('runner: selected startup prompt target survives static parallel workflow o
     branch_b: approvalWorkflow.steps.branch_b,
     join: approvalWorkflow.steps.join,
     done: approvalWorkflow.steps.done,
-    blocked: approvalWorkflow.steps.blocked,
   };
   approvalWorkflow.steps.branch_a.input.prompt = 'Run branch A.';
   approvalWorkflow.steps.branch_b.input.prompt = 'Run branch B.';
@@ -624,7 +615,6 @@ test('runner: startup prompt static fanout selects renderable worker instead of 
     },
     join: fanoutWorkflow.steps.join,
     done: fanoutWorkflow.steps.done,
-    blocked: fanoutWorkflow.steps.blocked,
   };
   fanoutWorkflow.steps.work_b.input.prompt = 'Run worker B.';
   fanoutWorkflow.steps.join.input.prompt = 'Join approval and worker B.';
@@ -667,7 +657,6 @@ test('runner: startup prompt target removal before first output fails loudly ins
     branch_b: approvalWorkflow.steps.branch_b,
     join: approvalWorkflow.steps.join,
     done: approvalWorkflow.steps.done,
-    blocked: approvalWorkflow.steps.blocked,
   };
   approvalWorkflow.steps.branch_a.input.prompt = 'Run branch A.';
   approvalWorkflow.steps.branch_b.input.prompt = 'Run branch B.';
@@ -705,7 +694,6 @@ test('runner: untyped approval static parallel applies branch outputs and persis
     branch_b: approvalWorkflow.steps.branch_b,
     join: approvalWorkflow.steps.join,
     done: approvalWorkflow.steps.done,
-    blocked: approvalWorkflow.steps.blocked,
   };
   approvalWorkflow.steps.branch_a.input.prompt = 'Run branch A from approval output:\n${{ input.choose_path }}';
   approvalWorkflow.steps.branch_b.input.prompt = 'Run branch B from approval output:\n${{ input.choose_path }}';

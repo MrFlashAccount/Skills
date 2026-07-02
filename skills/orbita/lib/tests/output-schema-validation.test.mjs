@@ -27,23 +27,21 @@ const workflowDoc = {
     version: 1,
     start: 'worker_step',
     done: 'done',
-    blocked: 'blocked',
     steps: {
       worker_step: {
         name: 'Worker step',
         kind: 'worker',
         input: { prompt: 'Run worker.' },
         output: { template: 'output.md', schema: 'worker-output.schema.json' },
-        next: { match: '${{ output.outcome }}', cases: { ready: 'done', blocked: 'blocked' } },
+        next: { match: '${{ output.outcome }}', cases: { ready: 'done' } },
       },
       consumer_step: {
         name: 'Consumer step',
         kind: 'approval',
         input: { prompt: 'Use prior worker output.' },
-        next: { match: '${{ output.approval }}', cases: { approved: 'done', blocked: 'blocked' } },
+        next: { match: '${{ output.approval }}', cases: { approved: 'done' } },
       },
       done: { name: 'Done', kind: 'done' },
-      blocked: { name: 'Blocked', kind: 'blocked' },
     },
 
 };

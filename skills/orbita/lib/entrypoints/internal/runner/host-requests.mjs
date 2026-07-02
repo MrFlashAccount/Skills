@@ -8,8 +8,9 @@ import {
   recordOrchestratorCommandForRun,
   writeOutputCommandForStep,
 } from "./runner-command-builder.mjs";
+import { publicRecoverableBlockerDetails } from "../../../runtime/recoverable-worker-blocker.mjs";
 
-const TERMINAL_ACTIONS = new Set(["stop_done", "stop_blocked"]);
+const TERMINAL_ACTIONS = new Set(["stop_done"]);
 const SUPERSEDES_STDOUT_INSTRUCTION =
   "Supersedes all previous workflow-runner stdout.";
 
@@ -18,8 +19,6 @@ export { assertSafeStepId };
 export function responseStatusForInterpreterResponse(interpreterResponse) {
   const steps = interpreterResponse.steps ?? [];
   if (steps.length === 1 && steps[0].action === "stop_done") return "done";
-  if (steps.length === 1 && steps[0].action === "stop_blocked")
-    return "blocked";
   return "needs_host_actions";
 }
 
@@ -35,8 +34,6 @@ const TERMINAL_ORCHESTRATOR_INSTRUCTIONS_BY_STATUS = Object.freeze({
   ].filter(Boolean).join("\n"),
   done: (ctx) =>
     `Stop now. Do not call another runner command. Terminal response JSON: ${JSON.stringify({ status: "done", baton: ctx.baton })}\nReport the completed result from that JSON; status done is the terminal result.`,
-  blocked: (ctx) =>
-    `Stop now. Do not call another runner command. Terminal response JSON: ${JSON.stringify({ status: "blocked", baton: ctx.baton })}\nReport the blocker from that JSON; status blocked is the terminal result.`,
 });
 
 function orchestratorInstructionForStatus(status, ctx) {
@@ -74,7 +71,7 @@ function inlineInstructionForStep(step, { runId, runsRoot, leaseToken } = {}) {
           "",
           writeOutputCommand,
         ].join("\n")
-      : "If no validating write-output command is present, stop as blocked with a runner contract bug.",
+      : "If no validating write-output command is present, stop with a runner contract bug.",
     "",
     prompt.trimEnd(),
   ].join("\n");
@@ -123,6 +120,12 @@ function preferredAgentIdForStep(baton, stepId, stepDoc) {
     : null;
 }
 
+function recoverableBlockerForStep(baton, stepId, options = {}) {
+  const blocker = baton?.recoverableWorkerBlockers?.[stepId];
+  if (!blocker || typeof blocker !== "object" || Array.isArray(blocker)) return undefined;
+  return publicRecoverableBlockerDetails(blocker, { stepId, runsRoot: options.runsRoot });
+}
+
 export function buildHostRequests(
   interpreterResponse,
   { runId, workflow, workflowPath, repositoryRoot, runsRoot, leaseToken },
@@ -158,6 +161,8 @@ export function buildHostRequests(
           runsRoot,
           leaseToken,
         });
+        const recoverableBlocker = recoverableBlockerForStep(interpreterResponse.baton, step.id, { runsRoot });
+        if (recoverableBlocker) request.recoverableBlocker = recoverableBlocker;
       }
       const resolvedOutputSchema = resolvedOutputSchemaForStep(step, {
         workflow,

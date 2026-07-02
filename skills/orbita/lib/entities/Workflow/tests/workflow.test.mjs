@@ -12,11 +12,9 @@ function workflowDoc(overrides = {}) {
     version: 1,
     start: 'start',
     done: 'done',
-    blocked: 'blocked',
     steps: {
       start: { name: 'Start', kind: 'worker', output: { schema: 'start.schema.json' }, next: 'done' },
       done: { name: 'Done', kind: 'done' },
-      blocked: { name: 'Blocked', kind: 'blocked' },
     },
     ...overrides,
   };
@@ -33,7 +31,7 @@ const outputSchema = {
 test('Workflow clones input and returns plain step data for start/current cursor lookups', () => {
   const doc = workflowDoc();
   const workflow = new Workflow(doc);
-  doc.steps.start.next = 'blocked';
+  doc.steps.start.next = 'mutated';
 
   assert.equal(workflow.getStartStep().id, 'start');
   assert.equal(workflow.getStartStep().next, 'done');
@@ -57,7 +55,6 @@ test('Workflow validates parallel branches converge directly into one join step'
       branch_b: { name: 'Branch B', kind: 'worker', next: 'join' },
       join: { name: 'Join', kind: 'worker', next: 'done' },
       done: { name: 'Done', kind: 'done' },
-      blocked: { name: 'Blocked', kind: 'blocked' },
     },
   });
 
@@ -104,7 +101,7 @@ test('Workflow validates parallel branches converge directly into one join step'
   );
 });
 
-test('Workflow rejects terminal steps as shared parallel branch joins', () => {
+test('Workflow rejects done as a shared parallel branch join', () => {
   const valid = workflowDoc({
     steps: {
       start: { name: 'Start', kind: 'worker', next: ['branch_a', 'branch_b'] },
@@ -112,7 +109,6 @@ test('Workflow rejects terminal steps as shared parallel branch joins', () => {
       branch_b: { name: 'Branch B', kind: 'worker', next: 'join' },
       join: { name: 'Join', kind: 'worker', next: 'done' },
       done: { name: 'Done', kind: 'done' },
-      blocked: { name: 'Blocked', kind: 'blocked' },
     },
   });
 
@@ -125,14 +121,6 @@ test('Workflow rejects terminal steps as shared parallel branch joins', () => {
     /parallel branch targets must converge on a non-terminal join step 'done'/,
   );
 
-  const blockedJoin = structuredClone(valid);
-  blockedJoin.steps.branch_a.next = 'blocked';
-  blockedJoin.steps.branch_b.next = 'blocked';
-
-  assert.throws(
-    () => new Workflow(blockedJoin).validateStaticTransitions(),
-    /parallel branch targets must converge on a non-terminal join step 'blocked'/,
-  );
 });
 
 test('Workflow output schema validation returns compiled schemas and worker contract errors', () => {
@@ -160,14 +148,13 @@ test('Workflow state-key and role-ref helpers define safe selector and role cont
   assert.throws(() => assertRoleDirectoryName('../backend'), /input.role must be a role directory name/);
 });
 
-test('Workflow status/action helpers classify worker, approval, done, and blocked steps', () => {
+test('Workflow status/action helpers classify worker, approval, and done steps', () => {
   const doc = workflowDoc();
 
   assert.equal(actionForStep({ kind: 'worker' }), 'run_worker');
   assert.equal(actionForStep({ kind: 'approval' }), 'wait_for_approval');
   assert.equal(statusForStep(doc, 'start', doc.steps.start), 'running');
   assert.equal(statusForStep(doc, 'done', doc.steps.done), 'done');
-  assert.equal(statusForStep(doc, 'blocked', doc.steps.blocked), 'blocked');
 });
 
 test('compileWorkflowOutputSchema accepts external referenced schemas', () => {

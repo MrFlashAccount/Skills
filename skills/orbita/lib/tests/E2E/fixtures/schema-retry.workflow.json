@@ -3,16 +3,25 @@
   "version": 1,
   "start": "schema_worker",
   "done": "done",
-  "blocked": "blocked",
   "steps": {
     "schema_worker": {
       "name": "Schema Worker",
       "kind": "worker",
-      "input": { "prompt": "Return strict ready ticket output." },
-      "output": { "template": "output.md", "schema": "schemas/strict-ready.schema.json" },
+      "input": {
+        "prompt": "Return strict ready ticket output."
+      },
+      "output": {
+        "template": "output.md",
+        "schema": "schemas/strict-ready.schema.json"
+      },
       "next": "done"
     },
-    "done": { "name": "Done", "kind": "done", "input": { "prompt": "Finished." } },
-    "blocked": { "name": "Blocked", "kind": "blocked", "input": { "prompt": "Blocked." } }
+    "done": {
+      "name": "Done",
+      "kind": "done",
+      "input": {
+        "prompt": "Finished."
+      }
+    }
   }
 }

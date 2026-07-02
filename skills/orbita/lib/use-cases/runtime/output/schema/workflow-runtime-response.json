@@ -19,7 +19,7 @@
       "required": ["id", "action", "step"],
       "properties": {
         "id": { "type": "string", "minLength": 1 },
-        "action": { "enum": ["run_worker", "wait_for_approval", "stop_done", "stop_blocked"] },
+        "action": { "enum": ["run_worker", "wait_for_approval", "stop_done"] },
         "step": { "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/workflow#/$defs/step" },
         "compiledPrompt": { "$ref": "#/$defs/compiledPrompt" }
       },

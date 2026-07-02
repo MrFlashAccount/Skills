@@ -15,7 +15,6 @@ function minimalWorkflowDoc(overrides = {}) {
     version: 1,
     start: 'worker_step',
     done: 'done',
-    blocked: 'blocked',
     steps: {
       worker_step: {
         name: 'Worker step',
@@ -24,7 +23,6 @@ function minimalWorkflowDoc(overrides = {}) {
         next: 'done',
       },
       done: { name: 'Done', kind: 'done' },
-      blocked: { name: 'Blocked', kind: 'blocked' },
     },
     ...overrides,
   };
@@ -119,7 +117,6 @@ test('workflow schema accepts prompt arrays for multiline authoring', () => {
         next: 'done',
       },
       done: { name: 'Done', kind: 'done', input: { prompt: ['Finished.'] } },
-      blocked: { name: 'Blocked', kind: 'blocked', input: { prompt: ['Blocked.'] } },
     },
   })));
 });
@@ -146,6 +143,33 @@ test('runner host response schema enforces action-conditional reuse hint fields'
       },
     ],
   };
+  const validRecoverableRunWorker = {
+    ...validRunWorker,
+    baton: {
+      ...validRunWorker.baton,
+      recoverableWorkerBlockers: {
+        worker_step: {
+          summary: 'Need a decision.',
+          source_step_id: 'worker_step',
+          needed: 'Provide approved input.',
+          evidence: ['bounded public evidence'],
+          risk: 'Cannot continue safely without the decision.',
+        },
+      },
+    },
+    requests: [
+      {
+        ...validRunWorker.requests[0],
+        recoverableBlocker: {
+          summary: 'Need a decision.',
+          source_step_id: 'worker_step',
+          needed: 'Provide approved input.',
+          evidence: ['bounded public evidence'],
+          risk: 'Cannot continue safely without the decision.',
+        },
+      },
+    ],
+  };
   const validApproval = {
     ...validRunWorker,
     requests: [
@@ -158,6 +182,7 @@ test('runner host response schema enforces action-conditional reuse hint fields'
   };
 
   assert.equal(validateJsonSchema(runnerHostResponseSchema, validRunWorker, { schemas: runtimeSchemas }).ok, true);
+  assert.equal(validateJsonSchema(runnerHostResponseSchema, validRecoverableRunWorker, { schemas: runtimeSchemas }).ok, true);
   assert.equal(validateJsonSchema(runnerHostResponseSchema, {
     ...validRunWorker,
     requests: [{ ...validRunWorker.requests[0], preferredAgentId: undefined }],
@@ -183,7 +208,19 @@ test('runner host response schema enforces action-conditional reuse hint fields'
     requests: [{ ...validApproval.requests[0], loadFollowupInstructionsCommand: 'node workflow-runner.mjs instructions --follow-up' }],
   }, { schemas: runtimeSchemas }).ok, false);
   assert.equal(validateJsonSchema(runnerHostResponseSchema, {
+    ...validApproval,
+    requests: [{ ...validApproval.requests[0], recoverableBlocker: validRecoverableRunWorker.requests[0].recoverableBlocker }],
+  }, { schemas: runtimeSchemas }).ok, false);
+  assert.equal(validateJsonSchema(runnerHostResponseSchema, {
     ...validRunWorker,
     requests: [{ ...validRunWorker.requests[0], attemptId: 'attempt-1' }],
+  }, { schemas: runtimeSchemas }).ok, false);
+  assert.equal(validateJsonSchema(runnerHostResponseSchema, {
+    ...validRecoverableRunWorker,
+    requests: [{ ...validRecoverableRunWorker.requests[0], recoverableBlocker: { summary: 'missing required fields' } }],
+  }, { schemas: runtimeSchemas }).ok, false);
+  assert.equal(validateJsonSchema(runnerHostResponseSchema, {
+    ...validRecoverableRunWorker,
+    requests: [{ ...validRecoverableRunWorker.requests[0], loadInstructionsCommand: undefined }],
   }, { schemas: runtimeSchemas }).ok, false);
 });

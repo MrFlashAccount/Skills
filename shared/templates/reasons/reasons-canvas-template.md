@@ -202,7 +202,7 @@ Output:
 6. Error-handling constraints: required error classes, messages, status codes, or redaction rules.
 7. Technical constraints: forbidden imports, placements, dependencies, or runtime assumptions.
 8. Data constraints: validation, persistence, serialization, or migration rules.
-9. Review and rollback constraints: checks, approvals, rollback triggers, or stop conditions.
+9. Review and rollback constraints: checks, approvals, rollback triggers, or recoverable pause conditions.
 
 Construction guidance:
 - State what cannot be compromised.

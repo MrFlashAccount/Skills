@@ -153,7 +153,7 @@ export function transitionHistoryDetails({ before, after, output, requests } = {
     `- transition: cursor=${compactValue(before?.cursor, 'unknown')} status=${compactValue(before?.status, 'unknown')} -> cursor=${compactValue(after?.cursor, 'unknown')} status=${compactValue(after?.status, 'unknown')}`,
   ];
   if (output) details.push(`- applied output: ${compactValue(output)}`);
-  if (after?.status === 'done' || after?.status === 'blocked') details.push(`- terminal: status=${after.status} cursor=${compactValue(after.cursor, 'unknown')}`);
+  if (after?.status === 'done') details.push(`- terminal: status=${after.status} cursor=${compactValue(after.cursor, 'unknown')}`);
   const nextRequests = Array.isArray(requests) && requests.length > 0
     ? requests.map((request) => `id=${request.id} action=${request.action}`).join('; ')
     : 'none';

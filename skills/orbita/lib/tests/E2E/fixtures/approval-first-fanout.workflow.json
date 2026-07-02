@@ -3,7 +3,6 @@
   "version": 1,
   "start": "intake_approval",
   "done": "done",
-  "blocked": "blocked",
   "steps": {
     "intake_approval": {
       "name": "Intake Approval",
@@ -96,8 +95,7 @@
       "next": {
         "match": "${{ output.approval }}",
         "cases": {
-          "approved": "done",
-          "blocked": "blocked"
+          "approved": "done"
         }
       }
     },
@@ -106,13 +104,6 @@
       "kind": "done",
       "input": {
         "prompt": "Finished."
-      }
-    },
-    "blocked": {
-      "name": "Blocked",
-      "kind": "blocked",
-      "input": {
-        "prompt": "Blocked."
       }
     }
   }

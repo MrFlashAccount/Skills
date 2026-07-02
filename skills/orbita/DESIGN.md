@@ -220,8 +220,8 @@ Degraded:
 - degraded is observer/read health, not the same as workflow blocked
 
 Blocked:
-- blocked is a workflow terminal/problem state
-- show blocker summary when available
+- blocked is a recoverable active-work lane, not a workflow terminal state
+- show recoverable blocker summary when available
 
 Done:
 - visually subdued

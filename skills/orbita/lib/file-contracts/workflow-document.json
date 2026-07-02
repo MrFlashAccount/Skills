@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/workflow",
   "title": "Workflow Document",
-  "description": "Workflow documents use the flat workflow root: name, version, start, done, blocked, and steps are defined at the JSON root.",
+  "description": "Workflow documents use the flat workflow root: name, version, start, done, and steps are defined at the JSON root.",
   "$ref": "#/$defs/workflow",
   "$defs": {
     "step": {
@@ -13,9 +13,6 @@
         },
         {
           "$ref": "#/$defs/approvalStep"
-        },
-        {
-          "$ref": "#/$defs/blockedStep"
         },
         {
           "$ref": "#/$defs/doneStep"
@@ -95,26 +92,6 @@
         },
         "kind": {
           "const": "done"
-        },
-        "input": {
-          "$ref": "#/$defs/input"
-        }
-      },
-      "additionalProperties": false
-    },
-    "blockedStep": {
-      "type": "object",
-      "required": [
-        "name",
-        "kind"
-      ],
-      "properties": {
-        "name": {
-          "type": "string",
-          "minLength": 1
-        },
-        "kind": {
-          "const": "blocked"
         },
         "input": {
           "$ref": "#/$defs/input"
@@ -270,7 +247,6 @@
         "version",
         "start",
         "done",
-        "blocked",
         "steps"
       ],
       "not": {
@@ -295,10 +271,6 @@
           "minLength": 1
         },
         "done": {
-          "type": "string",
-          "minLength": 1
-        },
-        "blocked": {
           "type": "string",
           "minLength": 1
         },

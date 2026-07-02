@@ -81,6 +81,6 @@ export function applyParallelOutputs({ workflow, baton, cursorStep, allOutput, t
   });
   updatedBaton.cursor = targetStepId;
   updatedBaton.status = statusForStep(workflow, targetStepId, targetStep);
-  if (updatedBaton.status !== 'blocked') delete updatedBaton.blocker;
+  delete updatedBaton.blocker;
   return responseFor(updatedBaton, targetStepId, targetStep, workflow);
 }

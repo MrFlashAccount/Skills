@@ -13,7 +13,7 @@
         "blocked"
       ],
       "description": "Human workflow-design gate decision.",
-      "x-usage": "Use approved to implement, rejected to revise workflow_design_draft, and blocked only when blocker explains why authoring cannot continue."
+      "x-usage": "Use approved to implement, rejected to revise workflow_design_draft, and blocked only when blocker explains why authoring must pause."
     },
     "results": {
       "type": "array",

@@ -79,20 +79,19 @@ const schemaWorkflowDoc = {
     version: 1,
     start: 'worker_step',
     done: 'done',
-    blocked: 'blocked',
     steps: {
       worker_step: {
         name: 'Worker step',
         kind: 'worker',
         input: { template: 'worker.md', role: 'backend', prompt: 'Run worker.' },
         output: outputContract(),
-        next: { match: '${{ output.outcome }}', cases: { ready: 'approval_step', retry: 'worker_step', blocked: 'blocked' } },
+        next: { match: '${{ output.outcome }}', cases: { ready: 'approval_step', retry: 'worker_step' } },
       },
       approval_step: {
         name: 'Approval step',
         kind: 'approval',
         input: { prompt: 'Approve.' },
-        next: { match: '${{ output.approval }}', cases: { approved: 'direct_next_worker', rejected: 'worker_step', blocked: 'blocked' } },
+        next: { match: '${{ output.approval }}', cases: { approved: 'direct_next_worker', rejected: 'worker_step' } },
       },
       direct_next_worker: {
         name: 'Direct next worker',
@@ -102,7 +101,6 @@ const schemaWorkflowDoc = {
         next: 'done',
       },
       done: { name: 'Done', kind: 'done', input: { prompt: 'Finished.' } },
-      blocked: { name: 'Blocked', kind: 'blocked', input: { prompt: 'Blocked.' } },
     },
 
 };
@@ -957,7 +955,6 @@ test('workflow resource refs resolve from the workflow package directory after p
     version: 1,
     start: 'worker_step',
     done: 'done',
-    blocked: 'blocked',
     steps: {
       worker_step: {
         name: 'Worker step',
@@ -967,7 +964,6 @@ test('workflow resource refs resolve from the workflow package directory after p
         next: 'done',
       },
       done: { name: 'Done', kind: 'done' },
-      blocked: { name: 'Blocked', kind: 'blocked' },
     },
   };
   const workflowPath = path.join(workflowDir, 'workflow.json');
@@ -1082,7 +1078,6 @@ test('prompt renderer: shared template refs are explicit and reusable across wor
     version: 1,
     start: 'worker_step',
     done: 'done',
-    blocked: 'blocked',
     steps: {
       worker_step: {
         name: 'Worker step',
@@ -1092,7 +1087,6 @@ test('prompt renderer: shared template refs are explicit and reusable across wor
         next: 'done',
       },
       done: { name: 'Done', kind: 'done' },
-      blocked: { name: 'Blocked', kind: 'blocked' },
     },
   };
 
@@ -1139,11 +1133,9 @@ test('prompt renderer: workflow resource refs cannot escape repository root', ()
     version: 1,
     start: 'worker_step',
     done: 'done',
-    blocked: 'blocked',
     steps: {
       worker_step: { name: 'Worker step', kind: 'worker', input: { prompt: 'Run.' }, next: 'done' },
       done: { name: 'Done', kind: 'done' },
-      blocked: { name: 'Blocked', kind: 'blocked' },
     },
   };
 

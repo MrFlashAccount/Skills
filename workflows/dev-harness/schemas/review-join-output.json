@@ -3,8 +3,7 @@
   "description": "Producer output contract for joining DevHarness review branch verdicts and selecting the next loop target.",
   "type": "object",
   "required": [
-    "outcome",
-    "next"
+    "outcome"
   ],
   "properties": {
     "outcome": {
@@ -13,7 +12,7 @@
         "needs_changes",
         "blocked"
       ],
-      "description": "Producer must emit the single enum value that reflects the completed stage state; use blocked only when blocker explains the stop condition.",
+      "description": "Producer must emit the single enum value that reflects the completed stage state; use blocked only when blocker explains a recoverable pause.",
       "x-usage": "Treat this as the authoritative workflow state for this output. Do not infer success from other populated fields when this says blocked or needs revision."
     },
     "verdict": {
@@ -90,10 +89,7 @@
     "next": {
       "oneOf": [
         {
-          "enum": [
-            "done",
-            "blocked"
-          ]
+          "const": "done"
         },
         {
           "type": "array",
@@ -108,8 +104,8 @@
           }
         }
       ],
-      "description": "Producer must set the next workflow target: done, blocked, or the implementation branch ids selected for rework.",
-      "x-usage": "Execute this as the workflow loop target. done terminates, blocked stops, and arrays rerun only the listed implementation branches."
+      "description": "Producer must set the next workflow target: done or the implementation branch ids selected for rework.",
+      "x-usage": "Execute this as the workflow loop target. done terminates, and arrays rerun only the listed implementation branches. Do not set next for blocked outputs; they are recoverable pauses."
     },
     "artifacts": {
       "type": "array",
@@ -169,8 +165,8 @@
         }
       },
       "additionalProperties": false,
-      "description": "Producer must populate this when outcome is blocked, naming the stop reason, owning step, and specific missing input or permission.",
-      "x-usage": "Treat this as a stop condition. Surface the missing input or decision instead of continuing or working around it."
+      "description": "Producer must populate this when outcome is blocked, naming the recoverable pause reason, owning step, and specific missing input or permission.",
+      "x-usage": "Treat this as a recoverable pause. Surface the missing input or decision, then continue this same workflow step after it is resolved."
     }
   },
   "additionalProperties": false,
@@ -448,13 +444,12 @@
       },
       "then": {
         "required": [
-          "blocker",
-          "next"
+          "blocker"
         ],
-        "properties": {
-          "next": {
-            "const": "blocked"
-          }
+        "not": {
+          "required": [
+            "next"
+          ]
         }
       }
     }

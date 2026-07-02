@@ -3,7 +3,6 @@
   "version": 1,
   "start": "prepare",
   "done": "done",
-  "blocked": "blocked",
   "steps": {
     "prepare": {
       "name": "Prepare",
@@ -84,13 +83,6 @@
       "kind": "done",
       "input": {
         "prompt": "Finished."
-      }
-    },
-    "blocked": {
-      "name": "Blocked",
-      "kind": "blocked",
-      "input": {
-        "prompt": "Blocked."
       }
     }
   }

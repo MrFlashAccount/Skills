@@ -4,7 +4,6 @@
   "description": "Create or materially update workflow-runner workflows, including workflow.json, output schemas, catalog description, validation coverage, smoke evidence, analyzer findings, human-reviewed improvement approval, and before/after rerun comparison. Use when the user asks to create, design, add, or significantly change a workflow, or when an Orbita task has no suitable existing workflow and the user wants a reusable workflow built. Do not use when the user only wants to run an existing workflow, list workflows, perform ordinary direct implementation, make a small runner engine fix, or add a runner-level analyzer subsystem.",
   "start": "workflow_design_draft",
   "done": "done",
-  "blocked": "blocked",
   "steps": {
     "workflow_design_draft": {
       "name": "Workflow design draft",
@@ -32,8 +31,7 @@
       "next": {
         "match": "${{ output.outcome }}",
         "cases": {
-          "ready_for_attack": "workflow_design_attack",
-          "blocked": "blocked"
+          "ready_for_attack": "workflow_design_attack"
         }
       }
     },
@@ -58,8 +56,7 @@
         "match": "${{ output.outcome }}",
         "cases": {
           "approved": "approve_workflow_design",
-          "needs_revision": "workflow_design_draft",
-          "blocked": "blocked"
+          "needs_revision": "workflow_design_draft"
         }
       }
     },
@@ -85,8 +82,7 @@
         "match": "${{ output.approval }}",
         "cases": {
           "approved": "workflow_implementation",
-          "rejected": "workflow_design_draft",
-          "blocked": "blocked"
+          "rejected": "workflow_design_draft"
         }
       },
       "output": {
@@ -143,8 +139,7 @@
       "next": {
         "match": "${{ output.outcome }}",
         "cases": {
-          "implemented": "smoke_evidence",
-          "blocked": "blocked"
+          "implemented": "smoke_evidence"
         }
       }
     },
@@ -178,8 +173,7 @@
         "match": "${{ output.outcome }}",
         "cases": {
           "baseline_collected": "analyzer_findings",
-          "rerun_collected": "rerun_comparison",
-          "blocked": "blocked"
+          "rerun_collected": "rerun_comparison"
         }
       }
     },
@@ -213,8 +207,7 @@
         "match": "${{ output.outcome }}",
         "cases": {
           "ready_for_review": "approve_reviewed_improvement",
-          "no_changes": "workflow_implementation_attack",
-          "blocked": "blocked"
+          "no_changes": "workflow_implementation_attack"
         }
       }
     },
@@ -240,8 +233,7 @@
         "match": "${{ output.approval }}",
         "cases": {
           "approved": "reviewed_edit_intent",
-          "rejected": "workflow_implementation_attack",
-          "blocked": "blocked"
+          "rejected": "workflow_implementation_attack"
         }
       },
       "output": {
@@ -277,8 +269,7 @@
       "next": {
         "match": "${{ output.outcome }}",
         "cases": {
-          "ready_for_implementation": "workflow_implementation",
-          "blocked": "blocked"
+          "ready_for_implementation": "workflow_implementation"
         }
       }
     },
@@ -312,8 +303,7 @@
         "match": "${{ output.outcome }}",
         "cases": {
           "compared": "workflow_implementation_attack",
-          "needs_revision": "analyzer_findings",
-          "blocked": "blocked"
+          "needs_revision": "analyzer_findings"
         }
       }
     },
@@ -356,8 +346,7 @@
         "match": "${{ output.outcome }}",
         "cases": {
           "approved": "done",
-          "needs_revision": "workflow_implementation",
-          "blocked": "blocked"
+          "needs_revision": "workflow_implementation"
         }
       }
     },
@@ -366,13 +355,6 @@
       "kind": "done",
       "input": {
         "prompt": "Workflow has been implemented, smoke-tested, analyzer-reviewed, human-reviewed when improvements were needed, compared after reviewed edits, and reviewed."
-      }
-    },
-    "blocked": {
-      "name": "Blocked",
-      "kind": "blocked",
-      "input": {
-        "prompt": "Workflow authoring is blocked. Surface the blocker and required input."
       }
     }
   }
