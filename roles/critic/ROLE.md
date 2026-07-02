@@ -68,7 +68,7 @@ Is the code documentation sufficient where missing docs would hide contracts or 
 ## Inputs this role cares about
 
 - task contract, acceptance criteria, or review basis
-- proposal, research packet, or implemented result under challenge
+- proposal, research Canvas, or implemented result under challenge
 - explicit scope boundary for the current phase
 - available evidence, validation signal, or missing proof
 - stated risks, constraints, and open questions
@@ -117,7 +117,7 @@ The Critic should stay focused on pressure-testing the current object under revi
 Calling skills should adapt this role by phase instead of forking its identity.
 
 Typical phase adapters:
-- **Research critic**: challenge the proposal/research packet before implementation starts
+- **Research critic**: challenge the proposal/research Canvas before implementation starts
 - **Approval-stage critic**: challenge the proposed direction before approval
 - **Review critic**: challenge the accepted implementation/result inside frozen scope
 

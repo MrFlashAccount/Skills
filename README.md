@@ -289,8 +289,8 @@ Shared packages are reference material for skill authors and workflow skills. Th
   - Do not use when: the task only needs a standalone workflow or artifact-specific execution with no shared context dependency.
 
 - `shared/templates`
-  - What it is: reusable artifact-format/output templates for research packets, architecture proposals, immutable REASONS Canvas prompt/spec artifacts, implementation plans, implementation handoffs, review handoffs, review verdicts, and fix-pass handoffs.
-  - Use when: a workflow needs a concise packet/proposal/plan/review answer shape with clear source context, evidence, checklist, verdict, and transition fields.
+  - What it is: reusable artifact-format/output templates for immutable REASONS Canvas prompt/spec artifacts, architecture proposals, implementation plans, implementation handoffs, review handoffs, review verdicts, and fix-pass handoffs.
+  - Use when: a workflow needs a concise Canvas/proposal/plan/review answer shape with clear source context, evidence, checklist, verdict, and transition fields.
   - Do not use when: the task is already approved for direct implementation or only needs a short ad hoc note.
 
 ## Codex custom agents
@@ -353,7 +353,7 @@ Use them when a skill needs a stable specialist identity across phases.
 - `roles/qa-reliability`
   - Failure handling, rollback/recovery, degraded mode, diagnosability, and test signal.
 - `roles/researcher`
-  - Research packet building, context closure, ambiguity cleanup, and readiness preparation before critique and downstream ownership.
+  - Research Canvas building, context closure, ambiguity cleanup, and readiness preparation before critique and downstream ownership.
 - `roles/security`
   - Exploitability, auth, injection, secrets, and trust-boundary review.
 - `roles/tech-writer`

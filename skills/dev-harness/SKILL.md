@@ -1,6 +1,6 @@
 ---
 name: dev-harness
-description: Orchestrate software work through execution planning and high-level delegation after research has produced a human-approved research packet and, when the architecture gate runs, an Architect-owned successor contract. In the repo's flow, this is primarily the `execution plan` stage: planning consumes the nearest approved upstream contract, preferring architecture artifacts over direct research when architecture has run, then produces an implementation contract. Use when planning or delegating implementation/refactor tasks, especially multi-file, risky, or sliceable work, or when durable learnings should be captured.
+description: Orchestrate software work through execution planning and high-level delegation after research has produced a human-approved `reasons-canvas-research` artifact and, when the architecture gate runs, an Architect-owned successor contract. In the repo's flow, this is primarily the `execution plan` stage: planning consumes the nearest approved upstream contract, preferring architecture artifacts over direct research when architecture has run, then produces an implementation contract. Use when planning or delegating implementation/refactor tasks, especially multi-file, risky, or sliceable work, or when durable learnings should be captured.
 ---
 
 # Dev Harness
@@ -17,7 +17,7 @@ Keep path small. Use the full harness only when needed.
 
 - Use for one-file fixes too; keep the plan compact.
 - Use the full harness for multi-file, multi-domain, risky, ownership-unclear, or architecture-sensitive work.
-- If the task is vague, finish research, show the research review packet to the user, and get explicit approval before Architect or execution planning.
+- If the task is vague, finish research, show `reasons-canvas-research` to the user, and get explicit approval before Architect or execution planning.
 
 ## Read order
 
@@ -81,12 +81,12 @@ Implementation entities are planner-level handoff objects. They are not Research
 ## Workflow
 
 1. Read existing task context and relevant knowledge base.
-2. If a human-approved research packet does not exist yet, route or perform the `research` stage first.
+2. If a human-approved `reasons-canvas-research` artifact does not exist yet, route or perform the `research` stage first.
    - default reusable path: `research-critic`
    - do not let execution planning absorb broad discovery/proposal work
-3. For non-trivial work, show the research review packet to the user and wait for explicit approval before starting Architect or execution planning.
+3. For non-trivial work, show `reasons-canvas-research` to the user and wait for explicit approval before starting Architect or execution planning.
    - the research wrapper verdict is not self-approving
-   - `approve_with_changes` is not ready for this gate until required changes are folded back into the Researcher packet
+   - `approve_with_changes` is not ready for this gate until required changes are folded back into `reasons-canvas-research`
 4. Run the architecture gate before planning:
    - If the task is to create, revise, or ship a full architecture process/package, route through `create-architecture`; do not replace that workflow with the internal DevHarness Architect gate.
    - For architecture-sensitive scope, run `Architect A -> Architect B attack -> one bounded revise/re-review loop` using [references/roles/architect-planning.md](references/roles/architect-planning.md) and produce the structural contract before execution planning unless the caller explicitly approves another loop.
@@ -148,7 +148,7 @@ Before approval, execution plans must not include:
 
 ## Rules
 
-- Research must be a human-approved research packet before Architect or execution planning starts for non-trivial work: wrapper `approve_as_is`, or `approve_with_changes` only after required changes are folded back in, must still be shown to the user for explicit approval.
+- Research must be a human-approved `reasons-canvas-research` artifact before Architect or execution planning starts for non-trivial work: wrapper `approve_as_is`, or `approve_with_changes` only after required changes are folded back in, must still be shown to the user for explicit approval.
 - Architecture-sensitive implementation scope must pass through Architect before execution planning.
 - Full architecture process/package work must route through `create-architecture`; DevHarness's internal Architect gate is only the planning-time structural contract for an implementation slice.
 - Do not create parallel architecture ceremony: use [references/roles/architect-planning.md](references/roles/architect-planning.md) for the existing planning-time architecture gate, or `create-architecture` for a full architecture package.

@@ -7,7 +7,7 @@ Append-only durable memory for the Researcher role.
 Add short entries for:
 - recurring normalization mistakes
 - clarified blocker/readiness rules
-- reusable packet-shaping heuristics
+- reusable Canvas-shaping heuristics
 - corrections to earlier researcher behavior
 
 Keep entries concrete and reusable.

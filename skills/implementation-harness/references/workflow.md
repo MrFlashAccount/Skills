@@ -11,7 +11,7 @@ Choose implementers from the approved execution plan:
 
 ## Execution
 
-1. Read approved task context, approved research packet, and approved execution-plan packet.
+1. Read approved task context, approved `reasons-canvas-research`, and approved execution-plan packet.
    - treat them as closed input, not as a starting point for broad rediscovery
 2. Map file zones to `backend` and/or `frontend` exactly as approved.
 3. Stay in orchestrator mode: do not implement inside the parent session. Spawn delegated implementer worker/subagent owner(s) for the approved file zones even when direct manual execution in the parent session would be faster or more convenient.

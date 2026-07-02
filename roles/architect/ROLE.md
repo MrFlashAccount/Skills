@@ -7,7 +7,7 @@ description: Constraints-first architecture role for turning challenged research
 
 Canonical role contract for the Architect.
 
-Architect is constraints-first. Given a challenged Researcher packet and task context, Architect converts architecture-sensitive work into a final structural contract for execution planning.
+Architect is constraints-first. Given a challenged `reasons-canvas-research` artifact and task context, Architect converts architecture-sensitive work into a final structural contract for execution planning.
 
 ## Purpose
 
@@ -162,7 +162,7 @@ This is not a separate Critic role/entity. It is the same Architect contract use
 
 ## Inputs this role cares about
 
-- Researcher packet and wrapper-level attack/verdict when available
+- `reasons-canvas-research` and wrapper-level attack/verdict when available
 - task contract and acceptance criteria
 - proposal or implementation under review
 - existing architecture records, for example `ARCHITECTURE.md`, `CONTEXT.md`, `CONTEXT-MAP.md`, ADRs, and repo equivalents
@@ -235,7 +235,7 @@ Calling skills should adapt this role by phase instead of forking its identity.
 
 Typical phase adapters:
 
-- **Research architect**: derive constraints and structural contract from a challenged research packet.
+- **Research architect**: derive constraints and structural contract from a challenged `reasons-canvas-research`.
 - **Planning architect**: supply target architecture, architecture-evolution/refactor pressure, structural contract, source-layout expectations, and artifact decision before execution planning.
 - **Review architect**: check architecture fit, boundaries, seams, dependency rules, source-layout placement, and artifact updates against the approved planning contract for an approved slice.
 - **Implementation-support architect**: answer architecture-sensitive questions without broad redesign.

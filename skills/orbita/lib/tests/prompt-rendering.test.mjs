@@ -56,13 +56,13 @@ writeFileSync(path.join(tempDir, 'approval-output.schema.json'), `${JSON.stringi
 }, null, 2)}\n`);
 mkdirSync(path.join(tempDir, 'templates'), { recursive: true });
 writeFileSync(path.join(tempDir, 'templates', 'implementation-plan-template.md'), '## Implementation plan\nReturn implementation plan.\n');
-writeFileSync(path.join(tempDir, 'templates', 'research-packet-template.md'), '## Research packet\nReturn research packet.\n');
+writeFileSync(path.join(tempDir, 'templates', 'reasons-canvas-template.md'), '## REASONS Canvas\nReturn research Canvas.\n');
 writeFileSync(path.join(tempDir, 'templates', 'review-verdict-template.md'), '## Review verdict\nReturn review verdict.\n');
 
 function outputContract(name = 'worker') {
   const templates = {
     worker: 'templates/implementation-plan-template.md',
-    research: 'templates/research-packet-template.md',
+    research: 'templates/reasons-canvas-template.md',
     review: 'templates/review-verdict-template.md',
   };
   const schemas = {

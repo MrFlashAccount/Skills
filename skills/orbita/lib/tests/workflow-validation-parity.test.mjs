@@ -57,7 +57,7 @@ test('validate-workflow, direct Workflow validation, Workflow.validateOutputSche
   });
   assert.equal(schemaValidation.ok, true);
   assert.equal(schemaValidation.warnings.length, 0);
-  assert.equal(schemaValidation.schemasByStep.has('save_research_packet'), true);
+  assert.equal(schemaValidation.schemasByStep.has('save_research_canvas'), true);
   assert.deepEqual(validation, {
     ok: true,
     workflow: 'research-critic',

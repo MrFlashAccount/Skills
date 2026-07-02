@@ -13,12 +13,10 @@
         "role": "researcher",
         "prompt": [
           "Read the task context, gather local/project evidence, identify constraints, risks, open questions, and architecture-sensitive pressure.",
-          "Create a full human-facing research packet artifact named `research-packet` as a workflow artifact/output artifact.",
-          "In the research packet, decide explicitly whether this slice needs a REASONS Canvas. Use yes for fuzzy requirements, AI-assisted non-trivial work, multi-step generation, repeated evolution, cross-role alignment, or meaningful drift risk between intent and code.",
-          "When a REASONS Canvas is required, also create a separate immutable human-facing workflow artifact named `reasons-canvas-research`. Fill only the research-owned depth: evidence-backed Requirements, observed domain Entities, and research-level constraints, candidate options, risks, norms, safeguards, and open tensions. Do not finalize architecture, file-level operations, or implementation work; mark those as questions or constraints for later phases. Emit artifact metadata for both `research-packet` and `reasons-canvas-research` in artifacts[].",
-          "When a REASONS Canvas is not required, state the reason in the research packet and do not create a placeholder Canvas artifact.",
+          "Create exactly one first-class human-facing research artifact named `reasons-canvas-research`. Do not create any separate legacy research artifact or structured legacy output.",
+          "Fill only the research-owned depth in `reasons-canvas-research`: evidence-backed Requirements, observed domain Entities, and research-level constraints, candidate options, risks, norms, safeguards, and open tensions. Do not finalize architecture, file-level operations, or implementation work; mark those as questions or constraints for later phases. Emit artifact metadata for `reasons-canvas-research` in artifacts[].",
           "Do not create arbitrary temp/export files for handoff; the artifact metadata/path accepted into baton is the source of truth.",
-          "Return outcome ready_for_attack when the research_packet is ready.",
+          "Return outcome ready_for_attack when the required research Canvas artifact is ready.",
           "When missing implementation-critical input is answerable by the user, do not return blocked; return a focused user-facing request for the orchestrator to relay.",
           "Return blocked with blocker.source_step_id = research_draft only when progress is unsafe or impossible, or when the missing input is external/non-user-answerable.",
           "When revising after research_attack feedback or approve_research rejection, read feedback from input.research_attack and input.approve_research and address it explicitly while preserving approved constraints.",
@@ -26,13 +24,13 @@
           "If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
           "",
           "Input context:",
-          "- Previous research packet: ${{ input.research_draft.research_packet | default: \"No previous research draft in input context.\" }}",
+          "- Previous research artifacts: ${{ input.research_draft.artifacts | default: \"No previous research artifacts in input context.\" }}",
           "- Research attack feedback to address: ${{ input.research_attack.verdict | default: \"No prior research_attack feedback.\" }}",
           "- Human research gate feedback to address: ${{ input.approve_research | default: \"No prior approve_research decision or feedback.\" }}"
         ]
       },
       "output": {
-        "template": "../../shared/templates/research-packet-template.md",
+        "template": "../../shared/templates/reasons/reasons-canvas-template.md",
         "schema": "schemas/research-draft-output.json"
       },
       "next": {
@@ -49,15 +47,12 @@
       "input": {
         "role": "researcher",
         "prompt": [
-          "Start from a hostile prior: assume the change, proposal, draft, or packet is wrong, incomplete, overcomplicated, or under-evidenced until the artifact proves otherwise. Do not give credit for intent, author confidence, green self-reports, or plausible-sounding structure. PASS is allowed only after serious attack finds no evidence-backed blocker or important finding. Do not invent bugs. Any FAIL must be evidence-backed with file/function/line or equivalent precise location, and explain why existing tests/checks did not catch it. Prefer small, evidence-backed blockers over broad commentary.",
-          "Read artifact `research-packet` from `research_draft` and attack it for missing evidence, unsafe assumptions, scope drift, sensitive surfaces, and unclear approval questions.",
-          "Attack the REASONS Canvas decision. If the packet says a Canvas is required, verify the immutable `reasons-canvas-research` artifact exists, captures research-owned Requirements and observed Entities, and leaves architecture/implementation-owned detail as explicit questions, constraints, or tensions rather than fake certainty. If the packet says no Canvas is required, challenge that decision against fuzzy requirements, AI-assistance, non-triviality, drift risk, repeated evolution, and cross-role alignment pressure.",
-          "Use structured research_packet JSON only for branching/context.",
+          "Start from a hostile prior: assume the change, proposal, draft, or Canvas is wrong, incomplete, overcomplicated, or under-evidenced until the artifact proves otherwise. Do not give credit for intent, author confidence, green self-reports, or plausible-sounding structure. PASS is allowed only after serious attack finds no evidence-backed blocker or important finding. Do not invent bugs. Any FAIL must be evidence-backed with file/function/line or equivalent precise location, and explain why existing tests/checks did not catch it. Prefer small, evidence-backed blockers over broad commentary.",
+          "Read artifact `reasons-canvas-research` from `research_draft` and attack it for missing evidence, unsafe assumptions, scope drift, sensitive surfaces, unclear approval questions, and fake architecture/implementation certainty. Treat a missing `reasons-canvas-research` artifact as a blocking research failure.",
           "Return approved, needs_revision, or blocked.",
           "If blocked, set blocker.source_step_id = research_attack.",
           "",
           "Input context:",
-          "- Research packet under review: ${{ input.research_draft.research_packet }}",
           "- Research artifacts: ${{ input.research_draft.artifacts | default: \"No research artifacts are available in input context.\" }}"
         ]
       },
@@ -79,13 +74,12 @@
       "kind": "approval",
       "input": {
         "prompt": [
-          "Present artifact `research-packet` from `research_draft`, the `reasons-canvas-research` artifact when present, and research_attack.verdict to the user for human approval.",
+          "Present artifact `reasons-canvas-research` from `research_draft` and research_attack.verdict to the user for human approval.",
           "If the user asks for a packet/proposal file, retrieve/export the existing artifact referenced by baton/output artifacts; do not ask a worker to recreate it in a temp path.",
           "Continue only after explicit approval.",
           "Return approval approved to continue to architecture_draft, rejected to revise research_draft, or blocked with a blocker.",
           "",
           "Input context:",
-          "- Research packet for approval: ${{ input.research_draft.research_packet }}",
           "- Research attack verdict: ${{ input.research_attack.verdict }}",
           "- Research artifacts: ${{ input.research_draft.artifacts | default: \"No research artifacts are available in input context.\" }}"
         ]
@@ -109,7 +103,7 @@
       "input": {
         "role": "architect",
         "prompt": [
-          "Read the approved/current `research-packet` and `reasons-canvas-research` artifacts from `research_draft` as the research source of truth and strictly follow them.",
+          "Read the approved/current `reasons-canvas-research` artifact from `research_draft` as the research source of truth and strictly follow it.",
           "Produce the minimal architecture decision or structural contract required by the approved research in architecture_contract.",
           "When `reasons-canvas-research` exists, derive one new immutable human-facing workflow artifact named `reasons-canvas-architecture`. Copy forward research-owned Requirements and observed domain Entities as frozen input unless new evidence proves a conflict; record any correction in the new architecture artifact instead of editing the research artifact. Own the architecture-depth sections: structural Entities, Approach, Structure, Operations at planning depth, Norms, Safeguards, and remaining open tensions.",
           "Do not create arbitrary temp/export files for handoff; the artifact metadata/path accepted into baton is the source of truth.",
@@ -120,8 +114,7 @@
           "If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
           "",
           "Input context:",
-          "- Approved research packet: ${{ input.research_draft.research_packet }}",
-          "- Research artifacts, including `reasons-canvas-research` when present: ${{ input.research_draft.artifacts | default: \"No research artifacts are available in input context.\" }}",
+          "- Research artifacts, including required `reasons-canvas-research`: ${{ input.research_draft.artifacts | default: \"No research artifacts are available in input context.\" }}",
           "- Research attack verdict: ${{ input.research_attack.verdict }}",
           "- Human research approval: ${{ input.approve_research }}",
           "- Previous architecture contract: ${{ input.architecture_draft.architecture_contract | default: \"No previous architecture_draft contract in input context.\" }}",

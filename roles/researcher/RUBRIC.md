@@ -2,39 +2,33 @@
 
 Derived checklist for the Researcher role. `ROLE.md` remains the canonical contract.
 
-## Packet shape
+## Canvas Shape
 
-The Researcher packet includes:
+The Researcher output is the `reasons-canvas-research` artifact and includes:
 
-- `summary`
-- `domain_vocabulary`
-- `goals`
-- `non_goals`
-- `constraints`
-- `known_facts_and_evidence`
-- `assumptions`
-- `unknowns`
-- `decisions_needed`
-- `candidate_approaches`
-- `readiness_blockers`
-- `risks`
+- `Requirements`
+- `Entities`
+- `Approach`
+- `Structure`
+- `Operations`
+- `Norms`
+- `Safeguards`
 
 ## Checklist
 
-- **Summary**: Is the ask normalized into a concrete desired outcome?
-- **Domain vocabulary**: Are task/domain terms and known entities named without promoting them into structural or implementation entities?
-- **Goals / non-goals**: Are included and excluded outcomes explicit?
-- **Constraints**: Are boundaries, dependencies, preferences, timing, policy, and technical limits surfaced?
-- **Known facts and evidence**: Are claims backed by user statements, files, observations, docs, or other named evidence where available?
-- **Assumptions**: Are unproven working beliefs labeled instead of presented as facts?
-- **Unknowns**: Are open questions separated from settled context?
+- **Requirements**: Is the ask normalized into a concrete desired outcome with goals, non-goals, constraints, and acceptance signals?
+- **Entities**: Are task/domain terms and known entities named without promoting them into structural or implementation entities?
+- **Approach**: Are options bounded and useful without becoming final scope, structural contract, or implementation plan?
+- **Structure**: Are architecture-sensitive questions, ownership pressure, dependency concerns, and handoff boundaries visible without finalizing architecture?
+- **Operations**: Are research-level work implications, validation needs, blockers, and uncertainty clear without becoming file-level edit steps?
+- **Norms**: Are repo-local or task-local conventions and evidence standards surfaced where known?
+- **Safeguards**: Are risks, hard constraints, privacy/security/data limits, compatibility limits, and approval blockers concrete and scannable?
+- **Evidence**: Are claims backed by user statements, files, observations, docs, or other named evidence where available?
+- **Assumptions and unknowns**: Are unproven beliefs and open questions labeled instead of presented as facts?
 - **Decisions needed**: Are unresolved choices assigned to the right downstream owner or human decision point?
-- **Candidate approaches**: Are options bounded and useful without becoming final scope, structural contract, or implementation plan?
-- **Readiness blockers**: Are stop-sign gaps short, visible, and not buried in prose?
-- **Risks**: Are meaningful risks concrete rather than generic caution?
 - **Clarifying questions**: If the desired outcome or acceptance target is fuzzy, did Researcher ask targeted questions instead of guessing?
 - **Dual-pass attack**: For non-trivial work, did Researcher B challenge evidence, assumptions, unknowns, decisions, blockers, and over-broad approaches?
-- **Boundary hygiene**: Does the packet exclude critic findings, final verdict, approval language, final structural contract, and implementation entity maps?
+- **Boundary hygiene**: Does the Canvas exclude critic findings, final verdict, approval language, final structural contract, and implementation entity maps?
 - **Architect handoff**: Are architecture-sensitive unknowns/options clear enough for Architect to own structural entities and final contract?
 - **Planner handoff**: If no Architect is needed, is execution planning possible without broad rediscovery?
 - **Learnings**: Were relevant durable learnings from `LEARNINGS.md` applied before making role judgments?

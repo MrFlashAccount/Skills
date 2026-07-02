@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/research-critic/save-research-packet-output",
-  "title": "Research Critic Save Research Packet Output",
-  "description": "Neutral reusable output contract for final research packet persistence metadata.",
+  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/research-critic/save-research-canvas-output",
+  "title": "Research Critic Save Research Canvas Output",
+  "description": "Neutral reusable output contract for final research Canvas persistence metadata.",
   "type": "object",
   "required": [
     "outcome"
@@ -37,8 +37,20 @@
         "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact"
       },
       "minItems": 1,
-      "description": "Saved research packet artifact metadata, plus the saved reasons-canvas-research artifact when one was required and approved.",
-      "x-usage": "Use artifact files as the source of truth for human-facing research content and optional REASONS research Canvas content; structured JSON remains for workflow branching. Exact artifact field semantics come from the shared baton artifact schema."
+      "maxItems": 1,
+      "contains": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "const": "reasons-canvas-research"
+          }
+        }
+      },
+      "description": "Saved artifact metadata for the required approved reasons-canvas-research artifact.",
+      "x-usage": "Use artifact files as the source of truth for human-facing research content and required REASONS research Canvas content; structured JSON remains for workflow branching. Exact artifact field semantics come from the shared baton artifact schema."
     },
     "results": {
       "type": "array",

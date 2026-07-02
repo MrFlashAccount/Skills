@@ -2,35 +2,30 @@
 
 Paths in this output contract are resolved relative to the `research-critic` skill root (`skills/research-critic/`), not relative to this reference file.
 
-Return one structured wrapper packet. Keep the Researcher packet distinct from wrapper-level findings and verdict.
+Return one structured wrapper result for the approved `reasons-canvas-research` artifact. Do not create or persist a separate legacy research artifact. Keep the Research Canvas distinct from transient wrapper-level findings and verdict.
 
 ## Required fields
 
-- `researcher_packet`
+- `reasons_canvas_artifact`
 - `critic_findings`
 - `missing_evidence`
 - `unresolved_blockers`
 - `verdict`
 - `readiness_note`
 
-## `researcher_packet`
+## `reasons_canvas_artifact`
 
-Embed the canonical Researcher packet from `../../roles/researcher/ROLE.md`:
+Reference or embed the canonical `reasons-canvas-research` artifact from `../../roles/researcher/ROLE.md`:
 
-- `summary`
-- `domain_vocabulary`
-- `goals`
-- `non_goals`
-- `constraints`
-- `known_facts_and_evidence`
-- `assumptions`
-- `unknowns`
-- `decisions_needed`
-- `candidate_approaches`
-- `readiness_blockers`
-- `risks`
+- `Requirements`
+- `Entities`
+- `Approach`
+- `Structure`
+- `Operations`
+- `Norms`
+- `Safeguards`
 
-Researcher-owned fields must not include critic findings, final verdict, approval language, final structural contract, or implementation entity map.
+Canvas content must not include critic findings, final verdict, approval language, final structural contract, or implementation entity map.
 
 ## Wrapper-level fields
 
@@ -73,7 +68,7 @@ A short final recommendation about whether the wrapper is ready to present for h
 ## Rules
 
 - All fields must be present, even if some are empty lists.
-- Keep the packet structured and adapter-friendly.
+- Keep the Canvas structured and adapter-friendly.
 - If anything is unresolved enough to block human approval, architecture handoff, routing, or execution-planning start, `unresolved_blockers` must be non-empty.
 - Keep `unresolved_blockers` short and highly scannable.
 - Do not hide critical blockers inside prose, `critic_findings`, or `missing_evidence` only.

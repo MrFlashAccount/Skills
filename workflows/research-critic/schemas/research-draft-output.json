@@ -16,60 +16,6 @@
       ],
       "description": "Authoritative routing state for the research draft."
     },
-    "research_packet": {
-      "type": "object",
-      "required": [
-        "summary",
-        "goals",
-        "known_facts_and_evidence",
-        "unknowns",
-        "risks",
-        "recommendation"
-      ],
-      "properties": {
-        "summary": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "goals": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "known_facts_and_evidence": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "unknowns": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "risks": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "recommendation": {
-          "type": "string",
-          "minLength": 1
-        }
-      },
-      "additionalProperties": true
-    },
     "questions": {
       "type": "array",
       "description": "Blocking user questions when outcome is needs_input.",
@@ -84,8 +30,21 @@
       "items": {
         "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact"
       },
-      "description": "Producer may emit the research packet artifact and, when required by the REASONS Canvas decision, a separate immutable reasons-canvas-research artifact.",
-      "x-usage": "Use artifact files as the human-facing source of truth; structured JSON remains for workflow branching."
+      "minItems": 1,
+      "maxItems": 1,
+      "contains": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "const": "reasons-canvas-research"
+          }
+        }
+      },
+      "description": "Producer must emit artifact metadata for the required immutable reasons-canvas-research artifact.",
+      "x-usage": "Use artifact files as the human-facing source of truth; structured JSON remains for workflow branching. The reasons-canvas-research artifact is required for ready_for_attack."
     },
     "results": {
       "type": "array",
@@ -147,7 +106,7 @@
       },
       "then": {
         "required": [
-          "research_packet"
+          "artifacts"
         ]
       }
     },

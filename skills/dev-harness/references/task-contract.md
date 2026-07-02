@@ -1,6 +1,6 @@
 # Execution Plan Contract
 
-Use this after research has produced a human-approved research packet and, when the architecture gate runs, after Architect has produced the active successor contract. For tiny work, this may be a compact one-paragraph or short-bullet version of the same contract.
+Use this after research has produced a human-approved `reasons-canvas-research` artifact and, when the architecture gate runs, after Architect has produced the active successor contract. For tiny work, this may be a compact one-paragraph or short-bullet version of the same contract.
 
 Execution planning must be concrete enough for implementation shape, ownership, verification, and rollback. It must not become code, pseudocode, algorithms, edit recipes, or a patch plan.
 
@@ -8,8 +8,8 @@ Execution planning must be concrete enough for implementation shape, ownership, 
 
 - Goal:
 - Non-goals:
-- Upstream evidence: research packet reference plus any carried-forward artifact lineage
-- Active planning basis: approved research packet if no architecture gate ran / approved Architect output when architecture ran
+- Upstream evidence: `reasons-canvas-research` reference plus any carried-forward artifact lineage
+- Active planning basis: approved `reasons-canvas-research` if no architecture gate ran / approved Architect output when architecture ran
 - Structural contract: none / reference to Architect output
 - REASONS architecture artifact: none / reference to `reasons-canvas-architecture`
 - Project baseline: `not-required` / `required` + current docs, meaningful source ownership zones, and gaps/deferred items

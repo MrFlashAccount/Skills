@@ -10,10 +10,10 @@ The shared baton schema owns artifact metadata under `./lib/entities/Baton/schem
 
 ```json
 {
-  "id": "research-packet",
+  "id": "reasons-canvas-research",
   "content_type": "text/markdown",
-  "path": "/path/to/run/research_draft/artifacts/research-packet.md",
-  "summary": "Research packet for approval."
+  "path": "/path/to/run/research_draft/artifacts/reasons-canvas-research.md",
+  "summary": "Research Canvas for approval."
 }
 ```
 
@@ -54,10 +54,10 @@ This keeps low-level mechanics out of reusable markdown templates and workflow p
 
 Workflow step prompts may say semantic things like:
 
-- create the human-facing research packet as a markdown artifact;
-- attack the prompt input research packet artifact as the approval source of truth;
-- show the prompt input research packet artifact and critic verdict to the user;
-- produce architecture decisions from the approved research packet.
+- create the human-facing research Canvas as a markdown artifact;
+- attack the prompt input research Canvas artifact as the approval source of truth;
+- show the prompt input research Canvas artifact and critic verdict to the user;
+- produce architecture decisions from the approved research Canvas.
 
 Workflow step prompts and markdown templates must not repeat low-level mechanics:
 
@@ -70,23 +70,23 @@ Those mechanics belong in schema definitions and renderer-generated field notes.
 
 ## DevHarness end-to-end flow
 
-1. `research_draft` creates the structured `research_packet` and emits `artifacts[0]` for the full human-facing markdown packet, for example:
+1. `research_draft` emits `artifacts[0]` for the full human-facing research Canvas, for example:
 
    ```json
    {
-     "id": "research-packet",
+     "id": "reasons-canvas-research",
      "content_type": "text/markdown",
-     "path": "/path/to/run/research_draft/artifacts/research-packet.md",
-     "summary": "Research packet for approval."
+     "path": "/path/to/run/research_draft/artifacts/reasons-canvas-research.md",
+     "summary": "Research Canvas for approval."
    }
    ```
 
-2. `research_attack` reads artifact `research-packet` from `research_draft` and reviews/attacks that artifact; structured JSON remains branching/context metadata.
-3. If attack returns `needs_revision`, `research_draft` projects `research_attack`, revises the packet, and emits a fresh artifact for the revised packet using the same central schema contract.
-4. `approve_research` presents artifact `research-packet` from `research_draft` plus `research_attack.verdict` and waits for explicit human approval.
-5. On approval, `architecture_draft` uses the approved/current `research-packet` artifact from `research_draft` as the research source of truth and produces the minimal architecture decision/structural contract required by that approved research. If architecture work is unnecessary, it records the explicit no-artifact decision in `architecture_contract`.
+2. `research_attack` reads artifact `reasons-canvas-research` from `research_draft` and reviews/attacks that artifact.
+3. If attack returns `needs_revision`, `research_draft` projects `research_attack`, revises the Canvas, and emits a fresh artifact for the revised Canvas using the same central schema contract.
+4. `approve_research` presents artifact `reasons-canvas-research` from `research_draft` plus `research_attack.verdict` and waits for explicit human approval.
+5. On approval, `architecture_draft` uses the approved/current `reasons-canvas-research` artifact from `research_draft` as the research source of truth and produces the minimal architecture decision/structural contract required by that approved research. If architecture work is unnecessary, it records the explicit no-artifact decision in `architecture_contract`.
 
-The JSON output remains authoritative for workflow branching, prompt input context, and gates. The markdown artifact is the human-facing packet for review/approval. If the user asks the orchestrator for the packet/proposal as a file, the orchestrator must retrieve or export the existing run artifact referenced by prompt input/output artifacts; it must not ask a worker to recreate the packet in an arbitrary temp path.
+The JSON output remains authoritative for workflow branching, prompt input context, and gates. The markdown artifact is the human-facing Canvas for review/approval. If the user asks the orchestrator for the research/proposal file, the orchestrator must retrieve or export the existing run artifact referenced by prompt input/output artifacts; it must not ask a worker to recreate the Canvas in an arbitrary temp path.
 
 ## Open questions
 
