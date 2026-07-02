@@ -40,7 +40,7 @@ function workflowDoc() {
   };
 }
 
-test('runner: API next acquires run-state lock before loading and rendering current state', async () => {
+test('runner: API next waits on a fresh run-state lock before loading and rendering current state', async () => {
   const runId = `lock-${process.pid}-api-next-lock-before-render`;
   const workflowPath = path.join(tempDir, 'api-next-lock-before-render-workflow.json');
   const runDir = resolveRunPaths({ runId, workflowPath, runsRoot }).runDir;
@@ -51,7 +51,7 @@ test('runner: API next acquires run-state lock before loading and rendering curr
 
   await assert.rejects(
     runnerNext({ runId, workflowPath, runsRoot, leaseToken: `held-run-lock-token-${process.pid}` }),
-    /workflow-runner continue is already in progress/,
+    /workflow-runner run-state lock contention timed out/,
   );
   assert.equal(existsSync(path.join(runDir, 'baton.json')), false);
 });
@@ -153,7 +153,7 @@ test('runner: API next metadata upsert failure marks newly indexed run failed an
   assert.equal(Object.hasOwn(index.runs[runId], 'taskFingerprint'), false);
 });
 
-test('runner: API next keeps fresh-heartbeat run-state lock held by live owner', async () => {
+test('runner: API next times out distinctly when a fresh-heartbeat run-state lock stays held by a live owner', async () => {
   const runId = `lock-${process.pid}-api-next-fresh-heartbeat-continue-lock`;
   const workflowPath = path.join(tempDir, 'api-next-fresh-heartbeat-continue-lock-workflow.json');
   const paths = resolveRunPaths({ runId, workflowPath, runsRoot });
@@ -164,9 +164,45 @@ test('runner: API next keeps fresh-heartbeat run-state lock held by live owner',
 
   await assert.rejects(
     runnerNext({ runId, workflowPath, runsRoot, leaseToken: `fresh-heartbeat-run-lock-token-${process.pid}` }),
-    /workflow-runner continue is already in progress/,
+    /workflow-runner run-state lock contention timed out/,
   );
   assert.equal(existsSync(paths.continueLockPath), true);
+});
+
+test('run-state lock waits on fresh live contention and proceeds after release', async () => {
+  const runId = `lock-${process.pid}-waits-then-acquires`;
+  const workflowPath = path.join(tempDir, 'waits-then-acquires-workflow.json');
+  const paths = resolveRunPaths({ runId, workflowPath, runsRoot });
+  rmSync(paths.runDir, { recursive: true, force: true });
+  mkdirSync(paths.runnerDir, { recursive: true });
+  writeFileSync(paths.continueLockPath, `${JSON.stringify({ lockId: 'fresh-release', pid: process.pid, createdAt: '1970-01-01T00:00:00.000Z', heartbeatAt: new Date().toISOString() })}\n`);
+
+  setTimeout(() => rmSync(paths.continueLockPath, { force: true }), 20);
+
+  let acquired = false;
+  await withRunStateLock(paths, async () => {
+    acquired = true;
+    assert.equal(existsSync(paths.continueLockPath), true);
+  }, { lockWaitTimeoutMs: 200, lockWaitIntervalMs: 5 });
+
+  assert.equal(acquired, true);
+  assert.equal(existsSync(paths.continueLockPath), false);
+});
+
+test('run-state lock times out distinctly on fresh live contention', async () => {
+  const runId = `lock-${process.pid}-fresh-contention-timeout`;
+  const workflowPath = path.join(tempDir, 'fresh-contention-timeout-workflow.json');
+  const paths = resolveRunPaths({ runId, workflowPath, runsRoot });
+  rmSync(paths.runDir, { recursive: true, force: true });
+  mkdirSync(paths.runnerDir, { recursive: true });
+  writeFileSync(paths.continueLockPath, `${JSON.stringify({ lockId: 'fresh-timeout', pid: process.pid, createdAt: '1970-01-01T00:00:00.000Z', heartbeatAt: new Date().toISOString() })}\n`);
+
+  await assert.rejects(
+    () => withRunStateLock(paths, async () => {}, { lockWaitTimeoutMs: 1, lockWaitIntervalMs: 1 }),
+    /workflow-runner run-state lock contention timed out/,
+  );
+  assert.equal(JSON.parse(readFileSync(paths.continueLockPath, 'utf8')).lockId, 'fresh-timeout');
+  rmSync(paths.continueLockPath, { force: true });
 });
 
 test('run-state stale cleanup does not delete a fresh replacement observed before stale rename', async () => {

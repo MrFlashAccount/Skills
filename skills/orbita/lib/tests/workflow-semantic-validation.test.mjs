@@ -564,8 +564,6 @@ test('dev harness blocked outputs require only blocker plus routing fields, not 
   }
 });
 
-
-
 test('dev harness planning draft always requires selected review steps', () => {
   const workflowPath = path.join(REPO_ROOT, 'workflows/dev-harness/workflow.json');
   const result = validateAgainstOutputSchema({

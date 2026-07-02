@@ -11,8 +11,8 @@
         "implemented",
         "blocked"
       ],
-      "description": "Producer must emit the single enum value that reflects the completed stage state; use blocked only when blocker explains the stop condition.",
-      "x-usage": "Treat this as the authoritative workflow state for this output. Do not infer success from other populated fields when this says blocked or needs revision."
+      "description": "Producer must emit the single enum value that reflects the completed stage state; use blocked only when blocker explains a concrete external or contract-level stop condition.",
+      "x-usage": "Treat this as the authoritative workflow state for this output. Do not infer success from other populated fields when this says blocked or needs revision. Verification failures caused by the worker's own in-scope changes are implementation work to fix and rerun, not blockers by themselves."
     },
     "implementation_handoff": {
       "type": "object",
@@ -83,8 +83,8 @@
         },
         "additionalProperties": true
       },
-      "description": "Producer must list verification commands or checks run for this slice and their results.",
-      "x-usage": "Compare these checks against the required verification. Treat missing, skipped, or failed checks as unresolved until explained or fixed."
+      "description": "Producer must list verification commands or checks run for this slice and their results, including any failures and how they were fixed, skipped, or classified.",
+      "x-usage": "Compare these checks against the required verification. Treat missing, skipped, or failed checks as unresolved until explained or fixed. Self-caused in-scope failures should be fixed and rerun unless doing so requires an external blocker."
     },
     "artifacts": {
       "type": "array",
@@ -144,8 +144,8 @@
         }
       },
       "additionalProperties": false,
-      "description": "Producer must populate this when outcome is blocked, naming the stop reason, owning step, and specific missing input or permission.",
-      "x-usage": "Treat this as a stop condition. Surface the missing input or decision instead of continuing or working around it."
+      "description": "Producer must populate this when outcome is blocked, naming the stop reason, owning step, and specific missing input, permission, approved-contract change, redesign/plan decision, or unsafe repo/environment state.",
+      "x-usage": "Treat this as a stop condition. Surface the missing input or decision instead of continuing or working around it. Do not use blocker for red tests caused by the worker's own in-scope changes unless fixing them requires an external or contract-level stop condition."
     }
   },
   "additionalProperties": false,

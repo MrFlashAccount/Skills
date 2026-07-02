@@ -42,7 +42,7 @@ Field intent:
 - `change_summary`: concise user-visible changes.
 - `verification_results`: commands/checks run, results, notable gaps, and whether each delegated implementer satisfied loaded role material's additional, final-answer, or output requirements, or the `blocked` state if required role material could not be used.
 - `review_handoff`: compact handoff for the separate review stage, including intended reviewer coverage and any review-sensitive hotspots. For architecture-sensitive work, include resolved proof obligations, deviations from the architecture contract, unresolved compatibility surfaces, and negative checks run.
-- `blockers`: unresolved blockers that prevent safe progress. Keep this limited to concrete execution blockers, contradictions, or missing implementation-critical facts that survived earlier stages.
+- `blockers`: unresolved blockers that prevent safe progress. Keep this limited to concrete execution blockers, contradictions, missing implementation-critical facts that survived earlier stages, missing external input or permission, required approved-contract changes, redesign/plan decisions, or unsafe repo/environment state. Red tests caused by your own in-scope changes are implementation work to fix and rerun, not blockers by themselves.
 - `warnings`: non-blocking risks, follow-ups, or caveats.
 - `next_action`: one explicit next step for the caller.
 - `issue_comment`: transport-ready comment body another layer can persist.

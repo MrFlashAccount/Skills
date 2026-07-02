@@ -132,12 +132,13 @@ If the instructions cannot be loaded, stop with an error and do not continue.
 
 `run_worker` watchdog:
 
-- Wait at most 10 minutes for the worker to return accepted output or a blocker.
-- If the worker is still running, interrupt that same worker with a focused status request asking it to immediately run validating `write-output` or report the exact blocker.
-- Wait at most 2 more minutes for that status request.
-- If the worker still gives no accepted output or blocker, close that worker and retry the same current host request once with a fresh worker.
-- If the retry also gives no accepted output or blocker within the same 10 minute plus 2 minute watchdog window, stop as blocked and report the hung worker/request ids.
-- Do not use heartbeat as a substitute for this watchdog; worker bootstrap hangs must be detected before waiting out the run lease.
+- Treat bootstrap/instruction-load silence separately from active implementation progress. If instructions cannot load, or the worker stays silent before showing concrete progress, use the existing bounded startup path: wait at most 10 minutes, interrupt that same worker with a focused status request, then wait at most 2 more minutes.
+- Concrete active implementation progress must name current work, inspected or changed surfaces, verification state, and the next bounded checkpoint. Generic reassurance, heartbeat, or "still working" is not enough evidence.
+- If the same worker returns concrete active implementation progress evidence, continue that same worker and ask for the next bounded checkpoint instead of forcing immediate terminal `write-output`.
+- If the worker gives vague status, misses a checkpoint, or cannot show progress evidence, ask it to immediately run validating `write-output` or report the exact blocker.
+- If the worker still gives no accepted output, concrete progress evidence, or blocker after the bootstrap/status-pressure window, close that worker and retry the same current host request once with a fresh worker.
+- If the retry also gives no accepted output, concrete progress evidence, or blocker within the same 10 minute plus 2 minute watchdog window, stop as blocked and report the hung worker/request ids.
+- Do not use heartbeat as a substitute for this watchdog; worker bootstrap hangs must be detected before waiting out the run lease. Do not persist progress in baton, scrape transcripts, read private runner state, or add durable worker status storage.
 
 For `wait_for_approval`, the orchestrator handles the request directly from the latest stdout compiled approval prompt. Treat that prompt as the complete user-facing source: workflow prompt, required-read files, prompt input context, output contract, and validating `write-output` command.
 
