@@ -5,8 +5,7 @@
   "description": "Selection contract for flat delegated reviewer fanout.",
   "type": "object",
   "required": [
-    "outcome",
-    "selected_review_steps"
+    "outcome"
   ],
   "properties": {
     "outcome": {

@@ -5,7 +5,8 @@
   "description": "Dispatch output that echoes flat selected reviewer fanout.",
   "type": "object",
   "required": [
-    "outcome"
+    "outcome",
+    "selected_review_steps"
   ],
   "properties": {
     "outcome": {
@@ -16,7 +17,17 @@
       "minItems": 1,
       "uniqueItems": true,
       "items": {
-        "$ref": "#/$defs/reviewStep"
+        "enum": [
+          "critic_review",
+          "architect_review",
+          "backend_review",
+          "frontend_review",
+          "frontend_taste_review",
+          "security_review",
+          "privacy_review",
+          "qa_review",
+          "performance_review"
+        ]
       }
     },
     "summary": {

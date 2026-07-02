@@ -457,6 +457,50 @@ test('workflow semantic validation accepts the checked-in Code Review workflow',
   assert.equal(Object.hasOwn(codeReviewWorkflowDoc.steps, 'semantic_slice_planning'), false);
   assert.match(promptText(codeReviewWorkflowDoc.steps.review_context), /Do not add semantic PR slicing/);
   assert.match(promptText(codeReviewWorkflowDoc.steps.reviewer_selection), /Do not select all reviewers by default/);
+  assert.match(promptText(codeReviewWorkflowDoc.steps.review_join), /next rereview_gate/);
+  assert.doesNotMatch(promptText(codeReviewWorkflowDoc.steps.review_join), /rerun_review/);
+});
+
+test('code review reviewer selection blocked output does not require dispatch payloads', () => {
+  const workflowPath = path.join(REPO_ROOT, 'workflows/code-review/workflow.json');
+  const schemaContext = {
+    workflow: codeReviewWorkflowDoc,
+    workflowPath,
+    schemaRef: codeReviewWorkflowDoc.steps.reviewer_selection.output.schema,
+    repositoryRoot: REPO_ROOT,
+  };
+
+  const blocked = validateAgainstOutputSchema({
+    ...schemaContext,
+    output: {
+      outcome: 'blocked',
+      blocker: { summary: 'Cannot inspect target.', source_step_id: 'reviewer_selection', needed: 'Repository access.' },
+    },
+  });
+  assert.equal(blocked.ok, true);
+
+  const readyWithoutSelection = validateAgainstOutputSchema({ ...schemaContext, output: { outcome: 'ready_for_dispatch' } });
+  assert.equal(readyWithoutSelection.ok, false);
+  assert.match(readyWithoutSelection.errors, /selected_review_steps/);
+});
+
+test('workflow authoring hardens prompt schema route review against generated workflow drift', () => {
+  const designPrompt = promptText(workflowAuthoringWorkflowDoc.steps.workflow_design_draft);
+  const implementationPrompt = promptText(workflowAuthoringWorkflowDoc.steps.workflow_implementation);
+  const analyzerPrompt = promptText(workflowAuthoringWorkflowDoc.steps.analyzer_findings);
+  const attackPrompt = promptText(workflowAuthoringWorkflowDoc.steps.workflow_implementation_attack);
+
+  for (const prompt of [designPrompt, implementationPrompt]) {
+    assert.match(prompt, /workflow-authoring-quality-gate\.md/);
+    assert.match(prompt, /workflow-prompt-input-rendering\.md/);
+    assert.match(prompt, /workflow-dynamic-next-expressions\.md/);
+    assert.match(prompt, /validation-agent-instructions\.md/);
+  }
+
+  assert.match(designPrompt, /prompt\/schema\/route consistency gate/);
+  assert.match(implementationPrompt, /Before returning implemented, self-check workflow\.json plus every touched output schema/);
+  assert.match(analyzerPrompt, /Treat prompt\/schema\/route drift as a finding/);
+  assert.match(attackPrompt, /blocked branches must not require success-only payloads/);
 });
 
 test('revision loop continuity separates prompt context from clarification-session continuation', () => {

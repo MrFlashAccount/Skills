@@ -85,7 +85,7 @@
         "template": "../../shared/templates/review-verdict-template.md",
         "schema": "schemas/review-dispatch-output.json"
       },
-      "next": "${{ input.reviewer_selection.selected_review_steps }}"
+      "next": "${{ output.selected_review_steps }}"
     },
     "critic_review": {
       "name": "Critic review",
@@ -312,7 +312,7 @@
           "Aggregate exactly the reviewer outputs named by reviewer_selection.selected_review_steps from input.<step_id> fields.",
           "This is a strict join/decision step, not another critique pass.",
           "If any selected reviewer output is missing, blocked, or unusable, return blocked with missing_review_steps and blocker.source_step_id = review_join.",
-          "If any selected reviewer reports needs_changes, return needs_changes with must_fix/should_fix/can_delay findings, disagreements, known_debt_findings, and next rerun_review.",
+          "If any selected reviewer reports needs_changes, return needs_changes with must_fix/should_fix/can_delay findings, disagreements, known_debt_findings, and next rereview_gate.",
           "If every selected reviewer passed, return passed with next done.",
           "Preserve disagreements. Surface known debt with downgrade evidence in can_delay for separate user decision. Do not convert can_delay known debt into automatic fix work.",
           "Do not infer unselected reviewer results and do not pass when selected privacy_review is missing.",
