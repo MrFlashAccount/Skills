@@ -80,10 +80,16 @@ function isSource(file) {
   return /\.(?:mjs|js|json|md)$/.test(file);
 }
 
+function isTopLevelUseCase(file, useCasesRoot) {
+  return path.dirname(file) === useCasesRoot && /^[A-Z]/.test(path.basename(file)) && /\.mjs$/.test(file);
+}
+
 function checkBoundaries() {
   const orbitaLib = abs('skills/orbita/lib');
+  const useCasesRoot = abs('skills/orbita/lib/use-cases');
   const entrypointFiles = walk(abs('skills/orbita/lib/entrypoints')).filter(isSource);
   const cliEntrypointFiles = walk(abs('skills/orbita/lib/entrypoints/cli')).filter(isSource);
+  const topLevelUseCaseFiles = walk(useCasesRoot).filter((file) => isSource(file) && isTopLevelUseCase(file, useCasesRoot));
   const runtimeHelperFiles = walk(abs('skills/orbita/lib/use-cases/runtime')).filter(isSource);
   const persistenceFiles = walk(abs('skills/orbita/lib/persistence')).filter(isSource);
   const docsAndExports = [
@@ -102,16 +108,23 @@ function checkBoundaries() {
     'skills/orbita/lib/entrypoints/cli/schema/workflow-interpreter-args-schema.mjs',
     'skills/orbita/lib/entrypoints/api/runner/host-requests.mjs',
     'skills/orbita/lib/entrypoints/api/runner/runner-command-builder.mjs',
-    'skills/orbita/lib/use-cases/runtime/output/schema/workflow-interpreter-response.json',
-  ].forEach(assertAbsent);
-
-  [
-    'skills/orbita/ARCHITECTURE.md',
     'skills/orbita/lib/use-cases/WorkflowRunnerCommand.mjs',
     'skills/orbita/lib/use-cases/WorkflowRuns.mjs',
     'skills/orbita/lib/use-cases/ValidateWorkflowFile.mjs',
     'skills/orbita/lib/use-cases/internal/runner/host-requests.mjs',
     'skills/orbita/lib/use-cases/internal/runner/runner-command-builder.mjs',
+    'skills/orbita/lib/use-cases/runtime/output/schema/workflow-interpreter-response.json',
+  ].forEach(assertAbsent);
+
+  [
+    'skills/orbita/ARCHITECTURE.md',
+    'skills/orbita/lib/entrypoints/workflow-runner-command.mjs',
+    'skills/orbita/lib/entrypoints/workflow-runs-api.mjs',
+    'skills/orbita/lib/entrypoints/validate-workflow-file.mjs',
+    'skills/orbita/lib/entrypoints/internal/runner/host-requests.mjs',
+    'skills/orbita/lib/entrypoints/internal/runner/runner-command-builder.mjs',
+    'skills/orbita/lib/use-cases/WorkflowRunnerOutputValidation.mjs',
+    'skills/orbita/lib/use-cases/internal/workflow-output/apply.mjs',
     'skills/orbita/lib/use-cases/runtime/output/schema/workflow-runtime-response.json',
     'skills/orbita/lib/public-error.mjs',
     'skills/orbita/scripts/check-workflow-runtime-boundaries.mjs',
@@ -119,9 +132,12 @@ function checkBoundaries() {
 
   assertNoResolvedImport(entrypointFiles, (imported) => rel(imported).startsWith('skills/orbita/lib/use-cases/runtime/'), 'entrypoints must not import runtime internals');
   assertNoResolvedImport(cliEntrypointFiles, (imported) => rel(imported).startsWith('skills/orbita/lib/entrypoints/api/'), 'CLI entrypoints must not import API entrypoints');
+  assertNoResolvedImport(topLevelUseCaseFiles, (imported) => isTopLevelUseCase(imported, useCasesRoot), 'top-level use cases must not import other top-level use cases');
+  assertNoResolvedImport(topLevelUseCaseFiles, (imported) => rel(imported).startsWith('skills/orbita/lib/persistence/'), 'top-level use cases must not import persistence');
   assertNoResolvedImport(runtimeHelperFiles, (imported) => rel(imported).startsWith('skills/orbita/lib/persistence/'), 'runtime helpers must not import persistence');
   assertNoResolvedImport(persistenceFiles, (imported) => rel(imported).startsWith('skills/orbita/lib/use-cases/'), 'persistence must not import use cases');
 
+  scan(topLevelUseCaseFiles, /from ['"]node:(?:fs|path)|from ['"]fs['"]|from ['"]path['"]/, 'top-level use cases must stay IO-free');
   scan(runtimeHelperFiles, /from ['"]node:(?:fs|path)|from ['"]fs['"]|from ['"]path['"]/, 'runtime helpers must stay IO-free');
   scan(docsAndExports, /entrypoints\/cli\/(?:start-run|persist-run-state|workflow-interpreter)\.mjs|workflow-interpreter-response|workflow-interpreter-args|entrypoints\/api\/runner\//, 'retired workflow-runner surface reference', {
     exclude: (file) => rel(file) === 'skills/orbita/ARCHITECTURE.md' || rel(file).endsWith('check-workflow-runtime-boundaries.mjs'),
@@ -151,6 +167,25 @@ if (runNegativeBoundaryCheck(
   () => writeFileSync(cliApiFixture, "import '../api/workflowRunner.mjs';\n"),
   () => rmSync(cliApiFixture, { force: true }),
 )) fail('boundary negative self-test failed: CLI API import was accepted');
+
+const topLevelUseCaseFixtureA = abs('skills/orbita/lib/use-cases/BoundaryFixtureA.mjs');
+const topLevelUseCaseFixtureB = abs('skills/orbita/lib/use-cases/BoundaryFixtureB.mjs');
+if (runNegativeBoundaryCheck(
+  () => {
+    writeFileSync(topLevelUseCaseFixtureA, "import './BoundaryFixtureB.mjs';\n");
+    writeFileSync(topLevelUseCaseFixtureB, "export const ok = true;\n");
+  },
+  () => {
+    rmSync(topLevelUseCaseFixtureA, { force: true });
+    rmSync(topLevelUseCaseFixtureB, { force: true });
+  },
+)) fail('boundary negative self-test failed: top-level use-case import was accepted');
+
+const topLevelPersistenceFixture = abs('skills/orbita/lib/use-cases/BoundaryPersistenceFixture.mjs');
+if (runNegativeBoundaryCheck(
+  () => writeFileSync(topLevelPersistenceFixture, "import '../persistence/run-state/paths.mjs';\n"),
+  () => rmSync(topLevelPersistenceFixture, { force: true }),
+)) fail('boundary negative self-test failed: top-level use-case persistence import was accepted');
 
 const retiredFixture = abs('skills/orbita/lib/docs/__boundary-negative-fixture.md');
 if (runNegativeBoundaryCheck(

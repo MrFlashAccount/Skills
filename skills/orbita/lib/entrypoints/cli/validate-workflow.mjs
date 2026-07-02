@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { WorkflowRuntimeError } from '../../errors.mjs';
-import { validateWorkflowFile } from '../../use-cases/ValidateWorkflowFile.mjs';
+import { validateWorkflowFile } from '../validate-workflow-file.mjs';
 
 function fail(message) {
   console.error(`validate-workflow: ${message}`);

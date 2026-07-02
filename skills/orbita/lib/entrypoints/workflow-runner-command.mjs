@@ -1,12 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { applyWorkflowOutput } from './ApplyWorkflowOutput.mjs';
-import { validateAgainstOutputSchema } from './runtime/output/output-schema-validation.mjs';
+import { applyWorkflowOutput } from '../use-cases/ApplyWorkflowOutput.mjs';
+import { validateRunnerAcceptedOutput } from '../use-cases/WorkflowRunnerOutputValidation.mjs';
 import { acceptedOutputHistoryDetails, orchestratorDebugHistoryDetails, publicFailureHistoryDetails, transitionHistoryDetails } from './internal/runner/history-projection.mjs';
-import { workerOutputSchema } from './runtime/output/worker-output-schema.mjs';
-import { renderAppliedResponse } from './ContinueRun.mjs';
-import { runNext } from './RunNext.mjs';
-import { resolveStartupUserPrompt, startupUserPromptTarget } from './user-prompt.mjs';
+import { renderAppliedResponse } from '../use-cases/ContinueRun.mjs';
+import { runNext } from '../use-cases/RunNext.mjs';
+import { resolveStartupUserPrompt, startupUserPromptTarget } from '../use-cases/user-prompt.mjs';
 import { loadWorkflowRuntime } from '../persistence/workflow-resources/runtime-reader.mjs';
 import { artifactPathBoundaryErrors } from '../persistence/workflow-resources/artifact-path-boundaries.mjs';
 import { writePersistedRunStateUpdate } from '../persistence/run-state/PersistedRunStateWriter.mjs';
@@ -395,23 +394,15 @@ function staleWorkflowCommandError(stepId, response) {
 function validateAcceptedOutputForRequest({ workflow, resources, request, output }) {
   const requestStepId = stepIdForRequest(request);
   const step = workflow.steps?.[requestStepId];
-  if (!step) throw new Error(`unknown current workflow step id: ${requestStepId}`);
-  const schemaRef = step.output?.schema;
   const artifactOutputDir = typeof resources?.artifactOutputDirForStep === 'function' ? resources.artifactOutputDirForStep(requestStepId) : undefined;
-  const loaded = schemaRef
-    ? (resources?.outputSchemas instanceof Map ? resources.outputSchemas.get(schemaRef) : resources?.outputSchemas?.[schemaRef])
-    : undefined;
-  const schema = schemaRef ? (loaded?.schema ?? loaded) : (request.action === 'run_worker' ? workerOutputSchema : undefined);
-  if (schemaRef && !schema) throw new Error(`output schema validation failed: missing output.schema '${schemaRef}'`);
-  if (!schema) return output;
-  const validation = validateAgainstOutputSchema({
-    schemaRef: schemaRef ?? 'worker-output',
-    schema,
+  return validateRunnerAcceptedOutput({
+    requestStepId,
+    step,
+    resources,
+    requestAction: request.action,
     output,
     artifactPathErrors: artifactPathBoundaryErrors(output, artifactOutputDir),
   });
-  if (!validation.ok) throw new Error(`output schema validation failed for step '${requestStepId}': ${validation.errors}`);
-  return validation.output;
 }
 
 function batonWithAcceptedOutput(baton, stepId, output) {

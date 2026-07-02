@@ -33,7 +33,7 @@ After deterministic validation passes, review the changed workflow and schemas f
 - Confirm route names in schema enums/consts are declared workflow steps.
 - Confirm branch selection fields mean exactly what the next agent will execute.
 - Confirm approval outputs are wrapper/user-gate owned and not pretending to be worker-owned schema output.
-- Confirm DevHarness-specific policy stays in DevHarness schemas/prompts, not generic workflow interpreter code.
+- Confirm DevHarness-specific policy stays in DevHarness schemas/prompts, not generic workflow runtime code.
 
 ## Schema annotation review
 

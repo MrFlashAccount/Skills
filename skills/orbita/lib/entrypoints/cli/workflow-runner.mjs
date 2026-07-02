@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
 import { WorkflowRuntimeError } from '../../errors.mjs';
-import { bindAgent, continueRun, loadInstructions, next, recordOrchestrator, writeOutput } from '../../use-cases/WorkflowRunnerCommand.mjs';
+import { bindAgent, continueRun, loadInstructions, next, recordOrchestrator, writeOutput } from '../workflow-runner-command.mjs';
 import { publicErrorMessage } from '../../public-error.mjs';
 
 

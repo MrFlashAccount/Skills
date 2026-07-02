@@ -18,9 +18,12 @@ The canonical workflow-runner command surface is:
 - `write-output`
 - `continue`
 - `bind-agent`
+- `record-orchestrator`
 
 Validation and persistence behavior that supports these commands belongs to the
-current runtime architecture. Obsolete backward-compatibility surfaces do not.
+current runtime architecture. `record-orchestrator` is a current bounded
+debug/history command; it does not navigate workflow state or accept worker
+output. Obsolete backward-compatibility surfaces do not.
 
 Retired surfaces:
 
@@ -67,8 +70,9 @@ Top-level use cases must not import other top-level use cases as a stable
 pattern. Shared application policy belongs in a colocated helper or an internal
 use-case helper zone only when multiple use cases need the same policy.
 
-`ContinueRun -> ApplyWorkflowOutput` is a migration target, not an approved
-compatibility exception.
+`ContinueRun -> ApplyWorkflowOutput` was migrated into an internal workflow-output
+helper. Recurrence of top-level use-case-to-use-case imports must fail boundary
+checks instead of becoming a stable pattern.
 
 ### Entities
 
@@ -141,7 +145,7 @@ for constants or pass-through wrappers.
 
 ### Boundary Checks
 
-Owner: `scripts/check-workflow-runtime-boundaries.mjs`
+Owner: `skills/orbita/scripts/check-workflow-runtime-boundaries.mjs`
 
 Boundary checks enforce resolved architecture rules. They should fail recurrence
 of forbidden imports and retired surfaces, while avoiding hard failures for
@@ -151,10 +155,11 @@ Checks should cover:
 
 - entrypoints importing runtime internals
 - CLI entrypoints importing API entrypoints
+- top-level use cases importing other top-level use cases
+- top-level use cases importing filesystem/path/persistence
 - runtime helpers importing filesystem/path/persistence
 - persistence importing use cases
 - persistence importing entity-owned Baton schema after migration
-- top-level use-case-to-use-case imports
 - retired legacy surfaces exposed as supported commands, exports, docs, or
   allow-list entries
 

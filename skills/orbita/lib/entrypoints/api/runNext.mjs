@@ -1,1 +1,1 @@
-export { next as runNext } from '../../use-cases/WorkflowRunnerCommand.mjs';
+export { next as runNext } from '../workflow-runner-command.mjs';

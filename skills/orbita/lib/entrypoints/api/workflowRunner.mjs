@@ -5,4 +5,4 @@ export {
   next,
   recordOrchestrator,
   writeOutput,
-} from '../../use-cases/WorkflowRunnerCommand.mjs';
+} from '../workflow-runner-command.mjs';

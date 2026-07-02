@@ -7,7 +7,7 @@ import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { publicErrorMessage } from '../public-error.mjs';
-import { next } from '../use-cases/WorkflowRunnerCommand.mjs';
+import { next } from '../entrypoints/workflow-runner-command.mjs';
 import { resolveRunPaths, workflowRunsRoot } from '../persistence/run-state/paths.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');

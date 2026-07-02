@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { next } from '../use-cases/WorkflowRunnerCommand.mjs';
+import { next } from '../entrypoints/workflow-runner-command.mjs';
 import { assertSafeRunId, resolveRunPaths } from '../persistence/run-state/paths.mjs';
 import { readRunsIndex, runsIndexPathsForRoot, upsertRunIndexEntry } from '../persistence/run-state/run-index.mjs';
 import { assertRunsIndexSchema } from '../persistence/run-state/schema/runs-index-schema.mjs';

@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
-import { next as runnerNext } from '../use-cases/WorkflowRunnerCommand.mjs';
+import { next as runnerNext } from '../entrypoints/workflow-runner-command.mjs';
 import { buildTokenLease } from '../persistence/run-state/lease-authority.mjs';
 import { createLockMetadata, removeStaleLock } from '../persistence/run-state/lock-metadata.mjs';
 import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot } from '../persistence/run-state/run-index.mjs';

@@ -4,4 +4,4 @@ export {
   listWorkflowRuns,
   registerWorkflowRun,
   summarizeWorkflowRuns,
-} from '../../use-cases/WorkflowRuns.mjs';
+} from '../workflow-runs-api.mjs';

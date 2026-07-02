@@ -1,6 +1,6 @@
 import { RunsRootObserverReader } from '../../dashboard/server/runs-root-observer-reader.mjs';
 import { startDashboardServer } from '../../dashboard/server/dashboard-server.mjs';
-import { publicErrorMessage } from '../cli/public-error.mjs';
+import { publicErrorMessage } from '../../public-error.mjs';
 
 async function publicDashboardApiCall(callback, { runsRoot } = {}) {
   try { return await callback(); }

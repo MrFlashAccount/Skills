@@ -1,1 +1,1 @@
-export { validateWorkflowFile } from '../../use-cases/ValidateWorkflowFile.mjs';
+export { validateWorkflowFile } from '../validate-workflow-file.mjs';
