@@ -110,9 +110,9 @@
         "role": "architect",
         "prompt": [
           "Read the approved/current `research-packet` and `reasons-canvas-research` artifacts from `research_draft` as the research source of truth and strictly follow them.",
-          "Produce the minimal architecture decision or structural contract required by the approved research.",
-          "When `reasons-canvas-research` exists, derive a new immutable human-facing workflow artifact named `reasons-canvas-architecture`. Copy forward research-owned Requirements and observed domain Entities as frozen input unless new evidence proves a conflict; record any correction in the architecture artifact instead of editing the research artifact. Own the architecture-depth sections: structural Entities, Approach, Structure, Operations at planning depth, Norms, Safeguards, and remaining open tensions.",
-          "When the structural contract is human-facing, emit it as workflow artifact `architecture-proposal`; do not create arbitrary temp/export files for handoff; the artifact metadata/path accepted into baton is the source of truth.",
+          "Produce the minimal architecture decision or structural contract required by the approved research in architecture_contract.",
+          "When `reasons-canvas-research` exists, derive one new immutable human-facing workflow artifact named `reasons-canvas-architecture`. Copy forward research-owned Requirements and observed domain Entities as frozen input unless new evidence proves a conflict; record any correction in the new architecture artifact instead of editing the research artifact. Own the architecture-depth sections: structural Entities, Approach, Structure, Operations at planning depth, Norms, Safeguards, and remaining open tensions.",
+          "Do not create arbitrary temp/export files for handoff; the artifact metadata/path accepted into baton is the source of truth.",
           "If architecture work is not needed, record the explicit no-artifact decision in architecture_contract.",
           "Return ready_for_attack or blocked with blocker.source_step_id = architecture_draft.",
           "When revising after architecture_attack feedback or approve_architecture rejection, read feedback from input.architecture_attack and input.approve_architecture and address it explicitly while preserving frozen research inputs and approved architecture constraints.",
@@ -130,7 +130,7 @@
         ]
       },
       "output": {
-        "template": "../../shared/templates/architecture-proposal-template.md",
+        "template": "../../shared/templates/reasons/reasons-canvas-template.md",
         "schema": "schemas/architecture-draft-output.json"
       },
       "next": {
@@ -175,8 +175,8 @@
       "kind": "approval",
       "input": {
         "prompt": [
-          "Show architecture_draft.architecture_contract, the `architecture-proposal` artifact from architecture_draft when present, the `reasons-canvas-architecture` artifact when present, and architecture_attack.verdict to the user.",
-          "If the user asks for a proposal file, retrieve/export the existing artifact referenced by baton/output artifacts; do not ask a worker to recreate it in a temp path.",
+          "Show architecture_draft.architecture_contract, the `reasons-canvas-architecture` artifact when present, and architecture_attack.verdict to the user.",
+          "If the user asks for an architecture file, retrieve/export the existing artifact referenced by baton/output artifacts, limited to `reasons-canvas-architecture` when present; otherwise use architecture_draft.architecture_contract. Do not ask a worker to recreate it in a temp path.",
           "Continue only after explicit approval when the slice is non-trivial or architecture-sensitive.",
           "Return approval approved to continue to planning_draft, rejected to revise architecture_draft, or blocked with a blocker.",
           "",
@@ -204,7 +204,7 @@
       "input": {
         "role": "architect",
         "prompt": [
-          "Produce the implementation plan contract for approval from the approved architecture contract and architecture-owned artifacts. Treat `reasons-canvas-architecture` as an immutable source contract when present: do not edit it, complete missing Canvas sections, or read earlier research artifacts separately. Convert the approved architecture artifact into workstreams, owners, verification, rollback, and reviewer selection.",
+          "Produce the implementation plan contract for approval from the approved architecture_contract and `reasons-canvas-architecture` when present. Treat `reasons-canvas-architecture` as an immutable source contract when present: do not edit it, complete missing Canvas sections, or read earlier research artifacts separately. Convert the approved architecture contract/artifact into workstreams, owners, verification, rollback, and reviewer selection.",
           "The step id remains planning_draft for compatibility, but once approve_plan approves this output, downstream steps must treat it as the final approved plan contract. selected_implementation_steps must contain only unique canonical implementation step ids needed for the plan: backend_implementation, frontend_implementation, architecture_artifact_update. implementation_route must be the normalized route for exactly that unique selected set: backend, frontend, architecture, backend_frontend, backend_architecture, frontend_architecture, or all.",
           "Collapse overlapping same-role work into one canonical task; do not create duplicate backend/frontend/architecture workers.",
           "If duplicate same-role work cannot be safely collapsed, return blocked with blocker.source_step_id = planning_draft. selected_review_steps must explicitly contain the unique reviewers that must run after implementation; implementation_join must not invent or recompute reviewers.",

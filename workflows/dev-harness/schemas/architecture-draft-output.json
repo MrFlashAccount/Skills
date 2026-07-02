@@ -65,7 +65,7 @@
       "items": {
         "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact"
       },
-      "description": "Producer may emit named structured artifacts created by this stage when they are part of the handoff, including architecture-proposal and reasons-canvas-architecture when a research REASONS artifact exists.",
+      "description": "Producer may emit named structured artifacts created by this stage when they are part of the handoff. When a research REASONS artifact exists, emit the new reasons-canvas-architecture artifact.",
       "x-usage": "Use these as architecture-owned immutable artifacts to preserve or pass along. Do not treat them as routing decisions unless another field explicitly references them."
     },
     "results": {

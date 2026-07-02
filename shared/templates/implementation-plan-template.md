@@ -82,5 +82,5 @@ When a structured output schema asks for reviewer selection, keep this table ali
 - Be concrete and file-level: name file zones, classes, entities, functions, methods, configs, and docs at planning level.
 - Use ABCD workstreams when helpful; keep roles/owners explicit.
 - Include DoD, reviewer roles, rollback, and any source appendices needed to make the plan self-contained.
-- Consume the approved architecture proposal and `reasons-canvas-architecture` as the active contract. Do not consume research separately; rely on the architecture artifact to carry forward any research context that remains valid.
+- Consume the approved `architecture_contract` and `reasons-canvas-architecture` as the active contract when present. Do not consume research separately; rely on the architecture artifact to carry forward any research context that remains valid.
 - Do not include code, diffs, command sequences, or process handoff instructions.
