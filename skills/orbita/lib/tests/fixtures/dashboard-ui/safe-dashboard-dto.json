@@ -1,0 +1,121 @@
+{
+  "rootLabel": "~/.orbita/workflow-runs/v1",
+  "generatedAt": "2026-07-02T14:20:00.000Z",
+  "freshnessLabel": "updated now",
+  "selectedRunId": "run-waiting-1234567890",
+  "runs": [
+    {
+      "runId": "run-waiting-1234567890",
+      "title": "Approve implementation plan",
+      "summary": "Frontend dashboard work is waiting for human approval.",
+      "workflow": { "identity": "dev-harness" },
+      "status": "running",
+      "lane": { "id": "waiting_for_user", "label": "Waiting for user" },
+      "cursor": {
+        "kind": "parallel",
+        "steps": ["backend_implementation", "frontend_implementation"],
+        "display": "backend_implementation + frontend_implementation"
+      },
+      "updatedAt": "2026-07-02T14:19:45.000Z",
+      "artifacts": [
+        {
+          "producerStepId": "planning",
+          "id": "planning_draft",
+          "contentType": "text/markdown",
+          "summary": "Approved plan summary"
+        }
+      ],
+      "historyExcerpt": {
+        "lines": [
+          "Runner requested host approval.",
+          "Worker output accepted."
+        ]
+      },
+      "miniMap": {
+        "currentSteps": ["backend_implementation", "frontend_implementation"],
+        "completedSteps": ["research"],
+        "provenance": "baton.state step outputs and baton.cursor"
+      }
+    },
+    {
+      "runId": "run-worker-222222",
+      "title": "Backend observer daemon",
+      "workflow": { "identity": "dev-harness" },
+      "status": "running",
+      "lane": { "id": "worker_running", "label": "Worker running" },
+      "cursor": {
+        "kind": "single",
+        "steps": ["backend_implementation"],
+        "display": "backend_implementation"
+      },
+      "updatedAt": "2026-07-02T14:18:30.000Z",
+      "artifacts": [],
+      "miniMap": {
+        "currentSteps": ["backend_implementation"],
+        "completedSteps": [],
+        "provenance": "baton.state step outputs and baton.cursor"
+      }
+    },
+    {
+      "runId": "run-blocked-333333",
+      "title": "Architecture decision missing",
+      "workflow": { "identity": "dev-harness" },
+      "status": "blocked",
+      "lane": { "id": "blocked", "label": "Blocked" },
+      "cursor": {
+        "kind": "single",
+        "steps": ["architecture_artifact_update"],
+        "display": "architecture_artifact_update"
+      },
+      "updatedAt": "2026-07-02T14:15:00.000Z",
+      "artifacts": [],
+      "miniMap": {
+        "currentSteps": ["architecture_artifact_update"],
+        "completedSteps": [],
+        "provenance": "baton.state step outputs and baton.cursor"
+      }
+    },
+    {
+      "runId": "run-degraded-444444",
+      "title": "Unreadable run projection",
+      "workflow": { "identity": "unknown" },
+      "status": "failed",
+      "lane": { "id": "degraded", "label": "Degraded" },
+      "cursor": {
+        "kind": "single",
+        "steps": [],
+        "display": ""
+      },
+      "updatedAt": "2026-07-02T14:13:00.000Z",
+      "artifacts": [],
+      "degraded": {
+        "reason": "read_failed",
+        "message": "state file could not be parsed; other runs remain visible."
+      },
+      "miniMap": {
+        "currentSteps": [],
+        "completedSteps": [],
+        "provenance": "baton.state step outputs and baton.cursor"
+      }
+    },
+    {
+      "runId": "run-done-555555",
+      "title": "Workflow complete",
+      "workflow": { "identity": "release-note" },
+      "status": "done",
+      "lane": { "id": "done", "label": "Done" },
+      "cursor": {
+        "kind": "single",
+        "steps": ["done"],
+        "display": "done"
+      },
+      "updatedAt": "2026-07-02T13:20:00.000Z",
+      "artifacts": [],
+      "miniMap": {
+        "currentSteps": ["done"],
+        "completedSteps": ["draft", "review"],
+        "provenance": "baton.state step outputs and baton.cursor"
+      }
+    }
+  ]
+}

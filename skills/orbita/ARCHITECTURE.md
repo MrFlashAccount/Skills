@@ -203,6 +203,112 @@ Schema modules may validate data shape and schema-owned constraints. They are
 not a substitute for entity behavior when the rule is a workflow-domain
 invariant.
 
+## Dashboard Observer Architecture
+
+The Orbita dashboard is a read-only observation surface over durable
+`workflow-runner` run state. It extends the adapter side of Orbita; it does not
+join the runner control protocol and does not become another host adapter.
+
+`skills/orbita/DESIGN.md` is the product/design input for the board, card,
+drawer, lane, mini-map, and no-control UI rules. This architecture section owns
+the backend/UI boundary that makes those design rules safe.
+
+Target shape:
+
+```text
+run-state files -> observer reader -> safe projection -> dashboard API/events -> browser UI
+```
+
+Intended source zones:
+
+- `lib/dashboard/server/**` owns the local daemon/API shell, static UI serving,
+  SSE event stream, file-watch or polling loop, restart rebuild, and degraded
+  read isolation.
+- `lib/dashboard/projection/**` owns safe dashboard read models, lane
+  classification, history excerpt policy, workflow mini-map projection, and
+  redaction policy.
+- `lib/dashboard/contracts/**` owns browser-visible DTO schemas and examples
+  for list, detail, event, degraded diagnostic, artifact summary, cursor chip,
+  and mini-map surfaces.
+- `lib/dashboard/ui/**` owns browser rendering against those DTOs only.
+
+If these zones become substantial, add `lib/dashboard/CONTEXT.md` in the same
+slice to record local ownership and forbidden dependencies. Do not create that
+context file for a placeholder-only or documentation-only change.
+
+### Dashboard Bounded Contexts
+
+Dashboard backend is an observer-owned adapter context. It may read durable
+workflow-runner state through persistence/run-state adapters or explicit
+read-only filesystem adapters, then project the result into dashboard DTOs. It
+must isolate per-run read/parse failures as degraded dashboard records and must
+not persist those degraded records into workflow state.
+
+Dashboard projection is a read-model context. It owns allowlisted DTOs and
+classification policy for `Waiting for user`, `Worker running`, `Blocked`,
+`Degraded`, and `Done`. It may expose bounded, redacted history excerpts and
+artifact metadata, but it must not expose raw baton, raw history, compiled
+instructions, private prompts, token-bearing commands, hidden transcripts,
+instruction storage paths, preferred worker agent ids, bind-agent commands, or
+unnecessary host control-plane metadata.
+
+Dashboard UI is a browser-only inspection context. It consumes safe DTOs from
+the daemon API/event surface and follows `DESIGN.md`. It must not read
+`~/.orbita` directly, infer runner state from filesystem paths, include
+drag/drop movement, or show controls that resemble `next`, `continue`,
+`write-output`, `bind-agent`, retry, repair, or manual lane movement.
+
+### Dashboard Relationships
+
+```mermaid
+flowchart LR
+  runs[(Durable run state\n~/.orbita/workflow-runs/v1)]
+  observer[Dashboard observer reader\nread-only adapter]
+  projection[Safe dashboard projection\nallowlisted DTOs]
+  api[Dashboard daemon API\nlist, detail, events, static UI]
+  sse[SSE-first event surface\nlossy updates]
+  ui[Browser dashboard UI\nboard, drawer, mini-map]
+  design[DESIGN.md\nboard/drawer input]
+
+  runs -->|read only| observer
+  observer --> projection
+  projection --> api
+  api --> sse
+  api --> ui
+  design --> ui
+```
+
+The dashboard daemon may rebuild projections by rereading durable state after
+restart or watcher loss. Event delivery is lossy and observational: SSE/poll
+recovery must never create backpressure into workflow execution, hold run
+leases, or delay `workflow-runner` control commands.
+
+### Dashboard Dependency Rules
+
+Binding rules for dashboard code:
+
+- `lib/dashboard/**` must not import runner mutation/control entrypoints, CLI
+  command builders, lease authority, write-output/continue/next/bind-agent
+  handlers, or host worker lifecycle code.
+- Browser UI code must depend only on dashboard DTO contracts and browser
+  platform APIs; it must not import persistence, filesystem helpers,
+  workflow-runner API shells, or Node-only modules.
+- Projection code may depend on DTO/schema/value helpers and read-only records,
+  but must not depend on CLI argument parsing, process environment, locks,
+  leases, or mutation use cases.
+- Dashboard server code may coordinate read-only IO and response formatting, but
+  workflow-domain decisions still belong in existing entities/use cases and
+  dashboard-specific display decisions belong in projection.
+- Dashboard artifacts, degraded diagnostics, bounded history excerpts, cursor
+  chips, and mini-map data are projections. They are not durable workflow state
+  and must not be written back into run directories.
+
+Add mechanical boundary checks for these rules when dashboard code is added.
+At minimum, tests/checks must prove absence of lease tokens, token-bearing
+commands, raw instruction commands, private prompts, hidden transcripts, raw
+instruction paths, preferred agent ids, bind-agent commands, and unnecessary
+host control-plane metadata in browser-visible DTOs.
+
 ## Dependency Rules
 
 Binding rules:
@@ -219,6 +325,9 @@ Binding rules:
   but must not become the owner of entity rules.
 - Host-specific adapter concepts such as Codex/OpenClaw worker lifecycle must
   not leak into entities, pure runtime helpers, or use-case output schemas.
+- Dashboard code is read-only observation. It must not mutate run state, acquire
+  leases, invoke runner navigation/output commands, or expose private runner
+  control data through browser-visible DTOs.
 
 The current mechanical boundary guard is
 `scripts/check-workflow-runtime-boundaries.mjs`. New architecture rules should be
@@ -353,6 +462,12 @@ implementation is accepted:
   `lib/docs/workflow-runtime-adapter.md` and tests change with it?
 - Did durable state behavior change, and if so did
   `lib/persistence/run-state/CONTEXT.md` and tests change with it?
+- For dashboard changes, did the implementation preserve the read-only observer
+  boundary, safe projection layer, SSE/poll recovery behavior, degraded
+  per-run isolation, and `DESIGN.md` board/drawer/no-control contract?
+- For dashboard changes, did tests or boundary checks prove the browser DTOs
+  exclude private runner/control fields and that dashboard code does not import
+  or call runner mutation/control surfaces?
 
 Minimum checks for normal changes:
 
