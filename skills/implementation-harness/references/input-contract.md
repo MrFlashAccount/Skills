@@ -8,7 +8,7 @@ Required input:
   - acceptance criteria
   - repo identifier or path context
   - issue URL if one exists
-- Approved research packet:
+- Approved `reasons-canvas-research`:
   - closed proposal / approved direction
   - facts
   - evidence

@@ -7,7 +7,7 @@ Use only when:
 - the task is clear enough
 - the proposal is internally coherent
 - acceptance is explicit enough
-- the packet is approved for downstream handoff and implementation should not need broad rediscovery
+- the Canvas is approved for downstream handoff and implementation should not need broad rediscovery
 - `unresolved_blockers` is empty
 - no major blocker remains hidden in `critic_findings`, `missing_evidence`, or `readiness_note`
 
@@ -16,7 +16,7 @@ Use when:
 - the core direction is fine
 - at least one concrete fix, clarification, or simplification is still required before approval
 - the remaining gaps are bounded and do not require a full new research pass
-- implementation can wait until those bounded changes are folded back into the packet
+- implementation can wait until those bounded changes are folded back into the Canvas
 - any blocking item is called out explicitly in `unresolved_blockers`
 
 ## `needs_more_research`
@@ -30,4 +30,4 @@ Use when:
 
 ## Rule of thumb
 
-If another layer would be irresponsible to persist or route the packet straight into human approval, do not use `approve_as_is`.
+If another layer would be irresponsible to persist or route the Canvas straight into human approval, do not use `approve_as_is`.

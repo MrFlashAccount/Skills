@@ -1,7 +1,7 @@
 {
   "name": "research-critic",
   "version": 1,
-  "description": "Pre-implementation Researcher draft -> Researcher attack workflow for closing task context before downstream planning or implementation. Use when a task needs evidence gathering, assumption pressure, ambiguity cleanup, readiness judgment, or a reusable research packet. Do not use when the task is already approved for direct implementation, needs PR/code review, or should be executed through a larger planning/development workflow.",
+  "description": "Pre-implementation Researcher draft -> Researcher attack workflow for closing task context before downstream planning or implementation. Use when a task needs evidence gathering, assumption pressure, ambiguity cleanup, readiness judgment, or a reusable reasons-canvas-research artifact. Do not use when the task is already approved for direct implementation, needs PR/code review, or should be executed through a larger planning/development workflow.",
   "start": "research_draft",
   "done": "done",
   "blocked": "blocked",
@@ -12,12 +12,12 @@
       "input": {
         "role": "researcher",
         "prompt": [
-          "Normalize the task input, inspect available evidence, and produce a research packet. In the packet, decide explicitly whether this slice needs a REASONS Canvas. Use yes for fuzzy requirements, AI-assisted non-trivial work, multi-step generation, repeated evolution, cross-role alignment, or meaningful drift risk between intent and code. If yes, also create a separate immutable workflow artifact named `reasons-canvas-research`; fill only the research-owned depth with evidence-backed Requirements, observed domain Entities, candidate options, research-level constraints, risks, norms, safeguards, and explicit open questions or tensions. Do not finalize architecture, file-level operations, or implementation work. If no, state the reason in the research packet. Return ready_for_attack when the packet is ready for researcher attack, needs_input when user answers are required, or blocked when progress is unsafe without external input. If revising after attack feedback or user answers, preserve answered decisions and close only evidence-backed questions.",
+          "Normalize the task input, inspect available evidence, and produce exactly one first-class research artifact named `reasons-canvas-research`. Do not create any separate legacy research artifact or structured legacy output. Fill only the research-owned depth with evidence-backed Requirements, observed domain Entities, candidate options, research-level constraints, risks, norms, safeguards, and explicit open questions or tensions. Do not finalize architecture, file-level operations, or implementation work. Return ready_for_attack when the required Canvas artifact is ready for researcher attack, needs_input when user answers are required, or blocked when progress is unsafe without external input. If revising after attack feedback or user answers, preserve answered decisions and close only evidence-backed questions.",
           "Loop continuity across workflow loop iterations is prompt based: rely only on explicit input.prompt context and prior step outputs; do not assume persistent draft/attack worker reuse across iterations. If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
           "",
           "Input context:",
-          "Previous research draft:",
-          "${{ input.research_draft.research_packet | default: \"No previous research draft.\" }}",
+          "Previous research artifacts:",
+          "${{ input.research_draft.artifacts | default: \"No previous research artifacts.\" }}",
           "",
           "Critic verdict:",
           "${{ input.research_attack.verdict | default: \"No previous research attack verdict.\" }}",
@@ -27,7 +27,7 @@
         ]
       },
       "output": {
-        "template": "../../shared/templates/research-packet-template.md",
+        "template": "../../shared/templates/reasons/reasons-canvas-template.md",
         "schema": "schemas/research-draft-output.json"
       },
       "next": {
@@ -77,7 +77,7 @@
       "input": {
         "role": "researcher",
         "prompt": [
-          "Revise the research packet using the approved user answers from ask_research_questions and any attack feedback if present. Preserve answered decisions and close only evidence-backed questions. Re-evaluate the REASONS Canvas decision and emit a fresh immutable `reasons-canvas-research` artifact at research-owned depth when required; if not required, keep the explicit reason in the research packet. Return ready_for_attack when the packet is ready for researcher attack, needs_input when more user answers are required, or blocked when progress is unsafe without external input.",
+          "Revise the `reasons-canvas-research` artifact using the approved user answers from ask_research_questions and any attack feedback if present. Preserve answered decisions and close only evidence-backed questions. Always emit a fresh immutable `reasons-canvas-research` artifact at research-owned depth. Return ready_for_attack when the required Canvas artifact is ready for researcher attack, needs_input when more user answers are required, or blocked when progress is unsafe without external input.",
           "Loop continuity across workflow loop iterations is prompt based: rely only on explicit input.prompt context and prior step outputs; do not assume persistent draft/attack worker reuse across iterations. If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
           "",
           "Input context:",
@@ -87,18 +87,18 @@
           "Critic verdict:",
           "${{ input.research_attack.verdict | default: \"No prior research_attack verdict.\" }}",
           "",
-          "Latest research revision packet:",
-          "${{ input.research_revision.research_packet | default: \"No research_revision packet.\" }}",
+          "Latest research revision artifacts:",
+          "${{ input.research_revision.artifacts | default: \"No research_revision artifacts.\" }}",
           "",
-          "Prior answered draft packet:",
-          "${{ input.research_answered_draft.research_packet | default: \"No research_answered_draft packet.\" }}",
+          "Prior answered draft artifacts:",
+          "${{ input.research_answered_draft.artifacts | default: \"No research_answered_draft artifacts.\" }}",
           "",
-          "Initial research draft packet:",
-          "${{ input.research_draft.research_packet | default: \"No research_draft packet.\" }}"
+          "Initial research draft artifacts:",
+          "${{ input.research_draft.artifacts | default: \"No research_draft artifacts.\" }}"
         ]
       },
       "output": {
-        "template": "../../shared/templates/research-packet-template.md",
+        "template": "../../shared/templates/reasons/reasons-canvas-template.md",
         "schema": "schemas/research-draft-output.json"
       },
       "next": {
@@ -116,25 +116,16 @@
       "input": {
         "role": "researcher",
         "prompt": [
-          "Start from a hostile prior: assume the change, proposal, draft, or packet is wrong, incomplete, overcomplicated, or under-evidenced until the artifact proves otherwise. Do not give credit for intent, author confidence, green self-reports, or plausible-sounding structure. PASS is allowed only after serious attack finds no evidence-backed blocker or important finding. Do not invent bugs. Any FAIL must be evidence-backed with file/function/line or equivalent precise location, and explain why existing tests/checks did not catch it. Prefer small, evidence-backed blockers over broad commentary.",
-          "Attack the latest available research packet for weak evidence, unsafe assumptions, missing user input, misclassified blockers, and over-broad candidate approaches. Also attack the REASONS Canvas decision: if the packet says a Canvas is required, verify the immutable `reasons-canvas-research` artifact exists, captures research-owned Requirements and observed Entities, and leaves architecture/implementation-owned detail as explicit questions, constraints, or tensions rather than fake certainty; if the packet says no Canvas is required, challenge that decision against fuzzy requirements, AI-assistance, non-triviality, drift risk, repeated evolution, and cross-role alignment pressure. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Return approved only when the packet is ready for downstream handoff, needs_revision when a bounded revision should loop through a fresh draft-producing output, needs_input when user answers are required, or blocked for an unsafe stop.",
+          "Start from a hostile prior: assume the change, proposal, draft, or Canvas is wrong, incomplete, overcomplicated, or under-evidenced until the artifact proves otherwise. Do not give credit for intent, author confidence, green self-reports, or plausible-sounding structure. PASS is allowed only after serious attack finds no evidence-backed blocker or important finding. Do not invent bugs. Any FAIL must be evidence-backed with file/function/line or equivalent precise location, and explain why existing tests/checks did not catch it. Prefer small, evidence-backed blockers over broad commentary.",
+          "Attack the latest available `reasons-canvas-research` artifact for weak evidence, unsafe assumptions, missing user input, misclassified blockers, over-broad candidate approaches, and fake architecture/implementation certainty. Verify the artifact captures research-owned Requirements and observed Entities while leaving architecture/implementation-owned detail as explicit questions, constraints, or tensions. Treat a missing `reasons-canvas-research` artifact as a blocking research failure. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Return approved only when the Canvas is ready for downstream handoff, needs_revision when a bounded revision should loop through a fresh draft-producing output, needs_input when user answers are required, or blocked for an unsafe stop.",
           "Loop continuity across workflow loop iterations is prompt based: rely only on explicit input.prompt context and prior step outputs; do not assume persistent draft/attack worker reuse across iterations. If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
           "",
           "Input context:",
-          "Research revision packet:",
-          "${{ input.research_revision.research_packet | default: \"No research_revision packet.\" }}",
-          "",
           "Research revision artifacts:",
           "${{ input.research_revision.artifacts | default: \"No research_revision artifacts.\" }}",
           "",
-          "Research answered draft packet:",
-          "${{ input.research_answered_draft.research_packet | default: \"No research_answered_draft packet.\" }}",
-          "",
           "Research answered draft artifacts:",
           "${{ input.research_answered_draft.artifacts | default: \"No research_answered_draft artifacts.\" }}",
-          "",
-          "Research draft packet:",
-          "${{ input.research_draft.research_packet | default: \"No research_draft packet.\" }}",
           "",
           "Research draft artifacts:",
           "${{ input.research_draft.artifacts | default: \"No research_draft artifacts.\" }}"
@@ -147,7 +138,7 @@
       "next": {
         "match": "${{ output.outcome }}",
         "cases": {
-          "approved": "save_research_packet",
+          "approved": "save_research_canvas",
           "needs_revision": "research_revision",
           "needs_input": "ask_research_questions",
           "blocked": "blocked"
@@ -160,18 +151,18 @@
       "input": {
         "role": "researcher",
         "prompt": [
-          "Revise the latest available research packet using the latest research_attack verdict and any approved user answers. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Preserve answered decisions, address each bounded attack finding, re-evaluate the REASONS Canvas decision, and emit a fresh immutable `reasons-canvas-research` artifact at research-owned depth when required. Return ready_for_attack when the packet is ready for another researcher attack, needs_input when user answers are required, or blocked when progress is unsafe without external input.",
+          "Revise the latest available `reasons-canvas-research` artifact using the latest research_attack verdict and any approved user answers. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Preserve answered decisions, address each bounded attack finding, and always emit a fresh immutable `reasons-canvas-research` artifact at research-owned depth. Return ready_for_attack when the required Canvas artifact is ready for another researcher attack, needs_input when user answers are required, or blocked when progress is unsafe without external input.",
           "Loop continuity across workflow loop iterations is prompt based: rely only on explicit input.prompt context and prior step outputs; do not assume persistent draft/attack worker reuse across iterations. If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
           "",
           "Input context:",
-          "Latest research revision packet:",
-          "${{ input.research_revision.research_packet | default: \"No research_revision packet.\" }}",
+          "Latest research revision artifacts:",
+          "${{ input.research_revision.artifacts | default: \"No research_revision artifacts.\" }}",
           "",
-          "Research answered draft packet:",
-          "${{ input.research_answered_draft.research_packet | default: \"No research_answered_draft packet.\" }}",
+          "Research answered draft artifacts:",
+          "${{ input.research_answered_draft.artifacts | default: \"No research_answered_draft artifacts.\" }}",
           "",
-          "Research draft packet:",
-          "${{ input.research_draft.research_packet | default: \"No research_draft packet.\" }}",
+          "Research draft artifacts:",
+          "${{ input.research_draft.artifacts | default: \"No research_draft artifacts.\" }}",
           "",
           "Critic verdict:",
           "${{ input.research_attack.verdict }}",
@@ -181,7 +172,7 @@
         ]
       },
       "output": {
-        "template": "../../shared/templates/research-packet-template.md",
+        "template": "../../shared/templates/reasons/reasons-canvas-template.md",
         "schema": "schemas/research-draft-output.json"
       },
       "next": {
@@ -193,30 +184,21 @@
         }
       }
     },
-    "save_research_packet": {
-      "name": "Save research packet",
+    "save_research_canvas": {
+      "name": "Save research Canvas",
       "kind": "worker",
       "input": {
         "role": "researcher",
         "prompt": [
-          "Finalize persistence metadata for the approved research packet and any approved `reasons-canvas-research` artifact using the latest approved research packet and latest research_attack verdict. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Return saved after emitting artifact/result references to the saved packet and research Canvas when present, or blocked if the packet cannot be safely saved.",
+          "Finalize persistence metadata for the approved `reasons-canvas-research` artifact using the latest approved research artifacts and latest research_attack verdict. Prefer draft-producing outputs in this deterministic freshness order: research_revision, then research_answered_draft, then research_draft. Return saved after emitting artifact/result references to the saved research Canvas, or blocked if the artifact cannot be safely saved.",
           "Loop continuity across workflow loop iterations is prompt based: rely only on explicit input.prompt context and prior step outputs; do not assume persistent draft/attack worker reuse across iterations. If concise clarification is needed, do not ask the user directly; return a clarification request for the orchestrator to relay, then continue in the same clarification session after the orchestrator forwards the user's reply without restart or context widening.",
           "",
           "Input context:",
-          "Research revision packet:",
-          "${{ input.research_revision.research_packet | default: \"No research_revision packet.\" }}",
-          "",
           "Research revision artifacts:",
           "${{ input.research_revision.artifacts | default: \"No research_revision artifacts.\" }}",
           "",
-          "Research answered draft packet:",
-          "${{ input.research_answered_draft.research_packet | default: \"No research_answered_draft packet.\" }}",
-          "",
           "Research answered draft artifacts:",
           "${{ input.research_answered_draft.artifacts | default: \"No research_answered_draft artifacts.\" }}",
-          "",
-          "Research draft packet:",
-          "${{ input.research_draft.research_packet | default: \"No research_draft packet.\" }}",
           "",
           "Research draft artifacts:",
           "${{ input.research_draft.artifacts | default: \"No research_draft artifacts.\" }}",
@@ -226,8 +208,8 @@
         ]
       },
       "output": {
-        "template": "../../shared/templates/research-save-metadata-template.md",
-        "schema": "schemas/save-research-packet-output.json"
+        "template": "../../shared/templates/research-canvas-save-metadata-template.md",
+        "schema": "schemas/save-research-canvas-output.json"
       },
       "next": {
         "match": "${{ output.outcome }}",
@@ -241,7 +223,7 @@
       "name": "Done",
       "kind": "done",
       "input": {
-        "prompt": "Research packet approved and saved."
+        "prompt": "Research Canvas approved and saved."
       }
     },
     "blocked": {

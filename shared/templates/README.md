@@ -10,7 +10,7 @@ These files are reusable output templates. Workflow descriptors reference them w
 
 ## Templates
 
-- [`research-packet-template.md`](research-packet-template.md): analytical research packet for business goal, problem, scope, options, risks, and architecture-ready open questions. No file-level implementation detail.
+- [`research-canvas-save-metadata-template.md`](research-canvas-save-metadata-template.md): compact persistence metadata for saved research Canvas artifacts.
 - [`architecture-proposal-template.md`](architecture-proposal-template.md): concise architecture proposal for entities, placement, ownership, dependencies, interfaces, integrations, and docs impact. No implementation plan or code.
 - [`reasons/`](reasons/): shared SPDD structured prompt/spec template for immutable REASONS Canvas artifacts.
 - [`implementation-plan-template.md`](implementation-plan-template.md): concrete approved-work plan with ABCD workstreams, exact file zones, planning-level entities/methods, DoD, owners, reviewers, rollback, and generic source appendices.

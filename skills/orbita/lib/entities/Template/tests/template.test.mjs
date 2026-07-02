@@ -102,7 +102,7 @@ const baton = {
     producer: {
       outcome: 'ready',
       route: 'review',
-      artifacts: [{ id: 'research-packet', content_type: 'text/markdown', path: '/tmp/workflow-runner-test/producer/artifacts/research-packet.md' }],
+      artifacts: [{ id: 'reasons-canvas-research', content_type: 'text/markdown', path: '/tmp/workflow-runner-test/producer/artifacts/reasons-canvas-research.md' }],
     },
     artifacts: [],
     results: [],
@@ -128,20 +128,20 @@ test('template compiler renders already-resolved required read paths without res
     promptInput: {
       value: {
         producer: {
-          artifacts: [{ id: 'research-packet', content_type: 'text/markdown', path: '/abs/run/producer/artifacts/research-packet.md' }],
+          artifacts: [{ id: 'reasons-canvas-research', content_type: 'text/markdown', path: '/abs/run/producer/artifacts/reasons-canvas-research.md' }],
         },
       },
       keys: ['producer'],
     },
     requiredReads: [
       { label: "Role material for 'backend'", path: '/abs/project/roles/backend/ROLE.md' },
-      { label: "Prompt input artifact 'research-packet' from 'producer'", path: '/abs/run/producer/artifacts/research-packet.md', contentType: 'text/markdown' },
+      { label: "Prompt input artifact 'reasons-canvas-research' from 'producer'", path: '/abs/run/producer/artifacts/reasons-canvas-research.md', contentType: 'text/markdown' },
     ],
     roleMetadataPaths: ['/abs/project/roles/backend/ROLE.md'],
   });
 
   assert.match(rendered.prompt, /1\. Role material for 'backend': `\/abs\/project\/roles\/backend\/ROLE\.md`/);
-  assert.match(rendered.prompt, /2\. Prompt input artifact 'research-packet' from 'producer' \(text\/markdown\): `\/abs\/run\/producer\/artifacts\/research-packet\.md`/);
+  assert.match(rendered.prompt, /2\. Prompt input artifact 'reasons-canvas-research' from 'producer' \(text\/markdown\): `\/abs\/run\/producer\/artifacts\/reasons-canvas-research\.md`/);
   assert.doesNotMatch(rendered.prompt, /workflow-runner-test/);
   assert.deepEqual(rendered.metadata.roleMaterial, ['/abs/project/roles/backend/ROLE.md']);
 });
@@ -166,7 +166,7 @@ test('renderWorkflowPrompt assembles templates, required reads, output contract,
   assert.match(rendered.prompt, /## Required reads/);
   assert.match(rendered.prompt, /1\. Role material for 'backend': `\/roles\/backend\/ROLE\.md`/);
   assert.match(rendered.prompt, /2\. Role material for 'backend': `\/roles\/backend\/RUBRIC\.md`/);
-  assert.match(rendered.prompt, /3\. Prompt input artifact 'research-packet' from 'producer' \(text\/markdown\): `\/tmp\/workflow-runner-test\/producer\/artifacts\/research-packet\.md`/);
+  assert.match(rendered.prompt, /3\. Prompt input artifact 'reasons-canvas-research' from 'producer' \(text\/markdown\): `\/tmp\/workflow-runner-test\/producer\/artifacts\/reasons-canvas-research\.md`/);
   assert.match(rendered.prompt, /## Output contract/);
   assert.match(rendered.prompt, /No validating writer command is provided in these instructions, so do not invent one/);
   assert.match(rendered.prompt, /do not create or hand off a separate JSON output path/);

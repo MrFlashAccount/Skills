@@ -359,7 +359,7 @@ test('runner: approval host instruction lists prompt input artifact content as r
     name: 'Approve research',
     kind: 'approval',
     input: {
-      prompt: 'Present artifact `research-packet` from prepare to the user before asking for approval.\n\nArtifacts:\n${{ input.prepare.artifacts }}',
+      prompt: 'Present artifact `reasons-canvas-research` from prepare to the user before asking for approval.\n\nArtifacts:\n${{ input.prepare.artifacts }}',
     },
     output: { schema: path.basename(schemaPath) },
     next: { match: '${{ output.approval }}', cases: { approved: 'done', rejected: 'prepare', blocked: 'blocked' } },
@@ -367,15 +367,15 @@ test('runner: approval host instruction lists prompt input artifact content as r
   writeJson(workflowPath, approvalWorkflow);
 
   expectRunner(['next', '--run-id', runId, '--workflow', workflowPath], 'next before approval inline');
-  const artifactPath = path.join(runDir, 'prepare', 'artifacts', 'research-packet.md');
+  const artifactPath = path.join(runDir, 'prepare', 'artifacts', 'reasons-canvas-research.md');
   mkdirSync(path.dirname(artifactPath), { recursive: true });
-  writeFileSync(artifactPath, '# Research Packet\n\nFull packet body for approval.\n');
+  writeFileSync(artifactPath, '# REASONS Canvas\n\nFull Canvas body for approval.\n');
   const prepareOutputPath = path.join(tempDir, 'approval-inline-instructions-output.json');
   writeJson(prepareOutputPath, {
     outcome: 'ready',
     artifacts: [
       {
-        id: 'research-packet',
+        id: 'reasons-canvas-research',
         content_type: 'text/markdown',
         path: artifactPath,
         summary: 'summary only is insufficient',
@@ -395,7 +395,7 @@ test('runner: approval host instruction lists prompt input artifact content as r
   assert.match(response.orchestratorInstruction, /Use the following compiled approval prompt as the complete source/);
   assert.match(response.orchestratorInstruction, /When the compiled approval prompt lists required-read files or prompt input artifact paths, attach those files through the host\/platform approval mechanism before asking for a decision\./);
   assert.match(response.orchestratorInstruction, /In Codex\/Codex Desktop, attaching means rendering each listed local artifact as a Markdown file link with an absolute target/);
-  assert.match(response.orchestratorInstruction, /\[research-packet\.md\]\(\/absolute\/path\/research-packet\.md\)/);
+  assert.match(response.orchestratorInstruction, /\[reasons-canvas-research\.md\]\(\/absolute\/path\/reasons-canvas-research\.md\)/);
   assert.match(response.orchestratorInstruction, /A plain text path, artifact id, or summary is not an attachment\./);
   assert.match(response.orchestratorInstruction, /Do not replace artifact attachments with summaries, plain paths, or inline full artifact bodies\./);
   assert.match(response.orchestratorInstruction, /If the host cannot attach or render a file link for a listed artifact, state that capability gap explicitly in the approval message and include the path\/reference that could not be attached\./);
@@ -405,14 +405,14 @@ test('runner: approval host instruction lists prompt input artifact content as r
   assert.match(response.orchestratorInstruction, /<paste strict JSON here>/);
   assert.match(response.orchestratorInstruction, /# Approve research/);
   assert.match(response.orchestratorInstruction, /## Required reads/);
-  assert.match(response.orchestratorInstruction, /Prompt input artifact 'research-packet' from 'prepare' \(text\/markdown\):/);
-  assert.match(response.orchestratorInstruction, /prepare\/artifacts\/research-packet\.md/);
+  assert.match(response.orchestratorInstruction, /Prompt input artifact 'reasons-canvas-research' from 'prepare' \(text\/markdown\):/);
+  assert.match(response.orchestratorInstruction, /prepare\/artifacts\/reasons-canvas-research\.md/);
   assert.match(response.orchestratorInstruction, /## Output contract/);
   assert.doesNotMatch(response.orchestratorInstruction, /## Prompt input context/);
   assert.doesNotMatch(response.orchestratorInstruction, /### Prompt input artifact content/);
-  assert.doesNotMatch(response.orchestratorInstruction, /Full packet body for approval\./);
+  assert.doesNotMatch(response.orchestratorInstruction, /Full Canvas body for approval\./);
   assert.match(response.orchestratorInstruction, /## Workflow step prompt/);
-  assert.match(response.orchestratorInstruction, /Present artifact `research-packet`/);
+  assert.match(response.orchestratorInstruction, /Present artifact `reasons-canvas-research`/);
   assert.match(response.orchestratorInstruction, new RegExp(`--lease-token '${leaseToken}'`));
 
 });
