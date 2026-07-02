@@ -243,6 +243,11 @@ Fresh clones can use the committed schema-validation library dist artifact direc
   - Use when: the user wants a repo, diff, branch, or PR reviewed from one or more specialist angles.
   - Do not use when: the main job is pre-implementation planning or direct implementation.
 
+- `workflows/code-review`
+  - What it is: workflow-runner code review gate with flat delegated reviewer fanout, strict merged PASS/FAIL verdict, known-debt reporting, privacy routing, and a three-pass re-review cap.
+  - Use when: the user wants an Orbita/workflow-runner review of a repo, branch, PR, path, or diff with selected specialist reviewers and must-fix / should-fix / can-delay output.
+  - Do not use when: the job is research, implementation planning, direct code changes, workflow authoring, or native workflow sharding / semantic PR slicing.
+
 - `skills/research-critic`
   - What it is: reusable pre-implementation Researcher -> Critic workflow that returns a final research verdict.
   - Use when: a task needs context closure, assumption pressure, readiness judgment, or structured research before downstream ownership.

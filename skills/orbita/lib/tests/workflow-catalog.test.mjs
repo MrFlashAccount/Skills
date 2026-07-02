@@ -25,16 +25,18 @@ test('workflow catalog lists checked-in workflows from top-level descriptions', 
   const parsed = JSON.parse(result.stdout);
   const names = parsed.workflows.map((workflow) => workflow.name);
 
-  assert.deepEqual(names, ['dev-harness', 'research-critic', 'workflow-authoring']);
+  assert.deepEqual(names, ['code-review', 'dev-harness', 'research-critic', 'workflow-authoring']);
   assert.deepEqual(
     parsed.workflows.map((workflow) => workflow.path),
     [
+      path.join(root, 'workflows/code-review/workflow.json'),
       path.join(root, 'workflows/dev-harness/workflow.json'),
       path.join(root, 'workflows/research-critic/workflow.json'),
       path.join(root, 'workflows/workflow-authoring/workflow.json'),
     ],
   );
   assert.equal(parsed.workflows.every((workflow) => path.isAbsolute(workflow.path)), true);
+  assert.match(parsed.workflows.find((workflow) => workflow.name === 'code-review').description, /Orchestrate delegated multi-role code review/);
   assert.match(parsed.workflows.find((workflow) => workflow.name === 'workflow-authoring').description, /Create or materially update workflow-runner workflows/);
 });
 
@@ -67,6 +69,12 @@ test('workflow catalog resolves exact and fuzzy workflow names', () => {
   const parsed = JSON.parse(fuzzy.stdout);
   assert.equal(parsed.status, 'single');
   assert.equal(parsed.candidates[0].name, 'workflow-authoring');
+
+  const review = runCatalog(['resolve', 'code review', '--json']);
+  assert.equal(review.status, 0, review.stderr);
+  const reviewParsed = JSON.parse(review.stdout);
+  assert.equal(reviewParsed.status, 'single');
+  assert.equal(reviewParsed.candidates[0].name, 'code-review');
 });
 
 test('workflow catalog reports no match for unknown workflow names', () => {

@@ -1,0 +1,308 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/code-review/reviewer-selection-output",
+  "title": "Code Review Reviewer Selection Output",
+  "description": "Selection contract for flat delegated reviewer fanout.",
+  "type": "object",
+  "required": [
+    "outcome"
+  ],
+  "properties": {
+    "outcome": {
+      "enum": [
+        "ready_for_dispatch",
+        "blocked"
+      ]
+    },
+    "selected_review_steps": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "critic_review",
+          "architect_review",
+          "backend_review",
+          "frontend_review",
+          "frontend_taste_review",
+          "security_review",
+          "privacy_review",
+          "qa_review",
+          "performance_review"
+        ]
+      }
+    },
+    "reviewers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/reviewer"
+      }
+    },
+    "sensitive_surface_status": {
+      "enum": [
+        "clean",
+        "sensitive",
+        "unknown"
+      ]
+    },
+    "privacy_route_decision": {
+      "type": "object",
+      "required": [
+        "required",
+        "reason"
+      ],
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "known_debt_contract_included": {
+      "const": true,
+      "description": "Must be true only when every selected reviewer is required to load ../../shared/review/known-debt-reviewer-contract.md."
+    },
+    "hostile_prior_included": {
+      "const": true
+    },
+    "v1_scope_absence_check": {
+      "type": "object",
+      "required": [
+        "semantic_pr_slicing_absent",
+        "native_workflow_sharding_absent",
+        "review_slices_absent",
+        "slice_coverage_absent",
+        "large_review_decision_absent",
+        "child_subagent_evidence_absent"
+      ],
+      "properties": {
+        "semantic_pr_slicing_absent": {
+          "const": true
+        },
+        "native_workflow_sharding_absent": {
+          "const": true
+        },
+        "review_slices_absent": {
+          "const": true
+        },
+        "slice_coverage_absent": {
+          "const": true
+        },
+        "large_review_decision_absent": {
+          "const": true
+        },
+        "child_subagent_evidence_absent": {
+          "const": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact"
+      }
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/result"
+      }
+    },
+    "blocker": {
+      "$ref": "#/$defs/blocker"
+    }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "ready_for_dispatch"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "selected_review_steps",
+          "reviewers",
+          "sensitive_surface_status",
+          "privacy_route_decision",
+          "known_debt_contract_included",
+          "hostile_prior_included",
+          "v1_scope_absence_check"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "ready_for_dispatch"
+          },
+          "sensitive_surface_status": {
+            "const": "sensitive"
+          }
+        },
+        "required": [
+          "outcome",
+          "sensitive_surface_status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "selected_review_steps": {
+            "type": "array",
+            "contains": {
+              "const": "privacy_review"
+            }
+          },
+          "privacy_route_decision": {
+            "type": "object",
+            "properties": {
+              "required": {
+                "const": true
+              }
+            },
+            "required": [
+              "required"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "blocked"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "blocker"
+        ]
+      }
+    }
+  ],
+  "$defs": {
+    "reviewStep": {
+      "enum": [
+        "critic_review",
+        "architect_review",
+        "backend_review",
+        "frontend_review",
+        "frontend_taste_review",
+        "security_review",
+        "privacy_review",
+        "qa_review",
+        "performance_review"
+      ]
+    },
+    "role": {
+      "enum": [
+        "critic",
+        "architect",
+        "backend",
+        "frontend",
+        "frontend-taste",
+        "security",
+        "privacy-data-safety",
+        "qa-reliability",
+        "performance"
+      ]
+    },
+    "reviewer": {
+      "type": "object",
+      "required": [
+        "step_id",
+        "role",
+        "reason",
+        "surfaces",
+        "required",
+        "role_material",
+        "known_debt_contract_required"
+      ],
+      "properties": {
+        "step_id": {
+          "$ref": "#/$defs/reviewStep"
+        },
+        "role": {
+          "$ref": "#/$defs/role"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": {
+          "const": true
+        },
+        "role_material": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "known_debt_contract_required": {
+          "const": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "blocker": {
+      "type": "object",
+      "required": [
+        "summary",
+        "source_step_id",
+        "needed"
+      ],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_step_id": {
+          "const": "reviewer_selection"
+        },
+        "needed": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "risk": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

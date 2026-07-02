@@ -1,0 +1,402 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/code-review/review-join-output",
+  "title": "Code Review Join Output",
+  "description": "Strict merge of exactly selected reviewer verdicts into one pass/fail result.",
+  "type": "object",
+  "required": [
+    "outcome",
+    "next"
+  ],
+  "properties": {
+    "outcome": {
+      "enum": [
+        "passed",
+        "needs_changes",
+        "blocked"
+      ]
+    },
+    "next": {
+      "enum": [
+        "done",
+        "rereview_gate",
+        "blocked"
+      ]
+    },
+    "verdict": {
+      "type": "object",
+      "required": [
+        "summary",
+        "review_iteration",
+        "selected_review_steps",
+        "received_review_steps",
+        "missing_review_steps",
+        "must_fix",
+        "should_fix",
+        "can_delay",
+        "known_debt_findings",
+        "disagreements",
+        "contract_docs_drift",
+        "v1_scope_absence_check"
+      ],
+      "properties": {
+        "summary": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "review_iteration": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3
+        },
+        "selected_review_steps": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/reviewStep"
+          }
+        },
+        "received_review_steps": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/reviewStep"
+          }
+        },
+        "missing_review_steps": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/reviewStep"
+          }
+        },
+        "must_fix": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/finding"
+          }
+        },
+        "should_fix": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/finding"
+          }
+        },
+        "can_delay": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/finding"
+          }
+        },
+        "known_debt_findings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/knownDebtFinding"
+          }
+        },
+        "disagreements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "contract_docs_drift": {
+          "enum": [
+            "checked_clear",
+            "failed",
+            "not_required"
+          ]
+        },
+        "v1_scope_absence_check": {
+          "type": "object",
+          "required": [
+            "semantic_pr_slicing_absent",
+            "native_workflow_sharding_absent",
+            "review_slices_absent",
+            "slice_coverage_absent",
+            "large_review_decision_absent",
+            "child_subagent_evidence_absent"
+          ],
+          "properties": {
+            "semantic_pr_slicing_absent": {
+              "const": true
+            },
+            "native_workflow_sharding_absent": {
+              "const": true
+            },
+            "review_slices_absent": {
+              "const": true
+            },
+            "slice_coverage_absent": {
+              "const": true
+            },
+            "large_review_decision_absent": {
+              "const": true
+            },
+            "child_subagent_evidence_absent": {
+              "const": true
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": true
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact"
+      }
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/result"
+      }
+    },
+    "blocker": {
+      "$ref": "#/$defs/blocker"
+    }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "passed"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "verdict"
+        ],
+        "properties": {
+          "next": {
+            "const": "done"
+          },
+          "verdict": {
+            "type": "object",
+            "properties": {
+              "missing_review_steps": {
+                "type": "array",
+                "maxItems": 0
+              },
+              "must_fix": {
+                "type": "array",
+                "maxItems": 0
+              },
+              "should_fix": {
+                "type": "array",
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "needs_changes"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "verdict"
+        ],
+        "properties": {
+          "next": {
+            "const": "rereview_gate"
+          },
+          "verdict": {
+            "type": "object",
+            "anyOf": [
+              {
+                "properties": {
+                  "must_fix": {
+                    "type": "array",
+                    "minItems": 1
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "should_fix": {
+                    "type": "array",
+                    "minItems": 1
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "blocked"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "blocker"
+        ],
+        "properties": {
+          "next": {
+            "const": "blocked"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "reviewStep": {
+      "enum": [
+        "critic_review",
+        "architect_review",
+        "backend_review",
+        "frontend_review",
+        "frontend_taste_review",
+        "security_review",
+        "privacy_review",
+        "qa_review",
+        "performance_review"
+      ]
+    },
+    "finding": {
+      "type": "object",
+      "required": [
+        "summary",
+        "evidence",
+        "severity"
+      ],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "severity": {
+          "enum": [
+            "must_fix",
+            "should_fix",
+            "can_delay"
+          ]
+        },
+        "file": {
+          "type": "string"
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "why_tests_missed": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "knownDebtFinding": {
+      "type": "object",
+      "required": [
+        "summary",
+        "classification",
+        "evidence",
+        "downgrade_evidence"
+      ],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "classification": {
+          "enum": [
+            "must_fix",
+            "should_fix",
+            "can_delay"
+          ]
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "downgrade_evidence": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "blocker": {
+      "type": "object",
+      "required": [
+        "summary",
+        "source_step_id",
+        "needed"
+      ],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_step_id": {
+          "const": "review_join"
+        },
+        "needed": {
+          "type": "string",
+          "minLength": 1
+        },
+        "missing_review_steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/reviewStep"
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "risk": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

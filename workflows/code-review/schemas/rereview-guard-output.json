@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/code-review/rereview-guard-output",
+  "title": "Code Review Re-review Guard Output",
+  "description": "Bounds iterative code-review passes to at most three total passes.",
+  "type": "object",
+  "required": [
+    "outcome",
+    "next"
+  ],
+  "properties": {
+    "outcome": {
+      "enum": [
+        "continue",
+        "blocked"
+      ]
+    },
+    "next": {
+      "enum": [
+        "review_context",
+        "blocked"
+      ]
+    },
+    "next_review_iteration": {
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 3
+    },
+    "summary": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "blocker": {
+      "$ref": "#/$defs/blocker"
+    }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "continue"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "next_review_iteration"
+        ],
+        "properties": {
+          "next": {
+            "const": "review_context"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "blocked"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "blocker"
+        ],
+        "properties": {
+          "next": {
+            "const": "blocked"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "blocker": {
+      "type": "object",
+      "required": [
+        "summary",
+        "source_step_id",
+        "needed"
+      ],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_step_id": {
+          "const": "rereview_guard"
+        },
+        "needed": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "risk": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

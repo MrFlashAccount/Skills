@@ -1,0 +1,335 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/code-review/reviewer-verdict-output",
+  "title": "Code Review Reviewer Verdict Output",
+  "description": "Normalized specialist reviewer verdict with must-fix, should-fix, can-delay, and known-debt handling.",
+  "type": "object",
+  "required": [
+    "outcome"
+  ],
+  "properties": {
+    "outcome": {
+      "enum": [
+        "passed",
+        "needs_changes",
+        "blocked"
+      ]
+    },
+    "reviewer_step_id": {
+      "$ref": "#/$defs/reviewStep"
+    },
+    "role": {
+      "$ref": "#/$defs/role"
+    },
+    "verdict": {
+      "type": "object",
+      "required": [
+        "summary",
+        "evidence_checked",
+        "must_fix",
+        "should_fix",
+        "can_delay",
+        "disagreements",
+        "confidence",
+        "known_debt_contract_applied",
+        "known_debt_findings"
+      ],
+      "properties": {
+        "summary": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "evidence_checked": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "must_fix": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/finding"
+          }
+        },
+        "should_fix": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/finding"
+          }
+        },
+        "can_delay": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/finding"
+          }
+        },
+        "disagreements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "confidence": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "known_debt_contract_applied": {
+          "const": true
+        },
+        "known_debt_findings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/knownDebtFinding"
+          }
+        },
+        "contract_docs_drift": {
+          "enum": [
+            "checked_clear",
+            "failed",
+            "not_required"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact"
+      }
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/result"
+      }
+    },
+    "blocker": {
+      "$ref": "#/$defs/blocker"
+    }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "enum": [
+              "passed",
+              "needs_changes"
+            ]
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "reviewer_step_id",
+          "role",
+          "verdict"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "needs_changes"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "properties": {
+          "verdict": {
+            "type": "object",
+            "anyOf": [
+              {
+                "properties": {
+                  "must_fix": {
+                    "type": "array",
+                    "minItems": 1
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "should_fix": {
+                    "type": "array",
+                    "minItems": 1
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "blocked"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "blocker"
+        ]
+      }
+    }
+  ],
+  "$defs": {
+    "reviewStep": {
+      "enum": [
+        "critic_review",
+        "architect_review",
+        "backend_review",
+        "frontend_review",
+        "frontend_taste_review",
+        "security_review",
+        "privacy_review",
+        "qa_review",
+        "performance_review"
+      ]
+    },
+    "role": {
+      "enum": [
+        "critic",
+        "architect",
+        "backend",
+        "frontend",
+        "frontend-taste",
+        "security",
+        "privacy-data-safety",
+        "qa-reliability",
+        "performance"
+      ]
+    },
+    "finding": {
+      "type": "object",
+      "required": [
+        "summary",
+        "evidence",
+        "severity"
+      ],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "severity": {
+          "enum": [
+            "must_fix",
+            "should_fix",
+            "can_delay"
+          ]
+        },
+        "file": {
+          "type": "string"
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "why_tests_missed": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "knownDebtFinding": {
+      "type": "object",
+      "required": [
+        "summary",
+        "classification",
+        "evidence",
+        "downgrade_evidence"
+      ],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "classification": {
+          "enum": [
+            "must_fix",
+            "should_fix",
+            "can_delay"
+          ]
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "downgrade_evidence": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "blocker": {
+      "type": "object",
+      "required": [
+        "summary",
+        "source_step_id",
+        "needed"
+      ],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_step_id": {
+          "$ref": "#/$defs/reviewStep"
+        },
+        "needed": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "risk": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

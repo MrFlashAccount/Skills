@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/code-review/review-dispatch-output",
+  "title": "Code Review Dispatch Output",
+  "description": "Dispatch output that echoes flat selected reviewer fanout.",
+  "type": "object",
+  "required": [
+    "outcome",
+    "selected_review_steps"
+  ],
+  "properties": {
+    "outcome": {
+      "const": "ready_for_review"
+    },
+    "selected_review_steps": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "critic_review",
+          "architect_review",
+          "backend_review",
+          "frontend_review",
+          "frontend_taste_review",
+          "security_review",
+          "privacy_review",
+          "qa_review",
+          "performance_review"
+        ]
+      }
+    },
+    "summary": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/artifact"
+      }
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "$ref": "https://github.com/MrFlashAccount/Skills/schemas/workflow/baton#/$defs/result"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "ready_for_review"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "selected_review_steps"
+        ]
+      }
+    }
+  ],
+  "$defs": {
+    "reviewStep": {
+      "enum": [
+        "critic_review",
+        "architect_review",
+        "backend_review",
+        "frontend_review",
+        "frontend_taste_review",
+        "security_review",
+        "privacy_review",
+        "qa_review",
+        "performance_review"
+      ]
+    }
+  }
+}
