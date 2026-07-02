@@ -186,12 +186,12 @@ test('workflow semantic validation accepts the checked-in flat DevHarness workfl
   assert.deepEqual(validate(workflowDoc), { ok: true, workflow: 'dev-harness', steps: Object.keys(workflowDoc.steps).length });
 });
 
-test('DevHarness proposal handoff prompts use baton artifacts instead of temp files', () => {
-  assert.match(promptText(workflowDoc.steps.architecture_draft), /emit it as workflow artifact `architecture-proposal`/);
+test('DevHarness architecture handoff uses architecture contract and architecture canvas artifact', () => {
+  assert.match(promptText(workflowDoc.steps.architecture_draft), /derive one new immutable human-facing workflow artifact named `reasons-canvas-architecture`/);
+  assert.equal(workflowDoc.steps.architecture_draft.output.template, '../../shared/templates/reasons/reasons-canvas-template.md');
   assert.match(promptText(workflowDoc.steps.architecture_draft), /artifact metadata\/path accepted into baton is the source of truth/);
-  assert.match(promptText(workflowDoc.steps.approve_architecture), /`architecture-proposal` artifact from architecture_draft/);
   assert.match(promptText(workflowDoc.steps.approve_architecture), /retrieve\/export the existing artifact referenced by baton\/output artifacts/);
-  assert.match(promptText(workflowDoc.steps.approve_architecture), /do not ask a worker to recreate it in a temp path/);
+  assert.match(promptText(workflowDoc.steps.approve_architecture), /Do not ask a worker to recreate it in a temp path/);
   assert.match(promptText(workflowDoc.steps.approve_plan), /retrieve\/export the existing artifact referenced by baton\/output artifacts/);
 });
 
