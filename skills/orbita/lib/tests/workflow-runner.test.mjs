@@ -6,8 +6,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { next as runnerNext } from '../entrypoints/api/workflowRunner.mjs';
-import { WORKFLOW_RUNNER_COMMAND as workflowRunnerCommand } from '../entrypoints/api/runner/runner-command-builder.mjs';
+import { next as runnerNext } from '../use-cases/WorkflowRunnerCommand.mjs';
+import { WORKFLOW_RUNNER_COMMAND as workflowRunnerCommand } from '../use-cases/internal/runner/runner-command-builder.mjs';
 import { resolveRunPaths } from '../persistence/run-state/paths.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');

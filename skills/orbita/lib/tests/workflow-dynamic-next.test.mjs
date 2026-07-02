@@ -124,7 +124,7 @@ function writeJson(fileName, value) {
 function runCli(label, mode, batonDoc, expectSuccess = true, workflowDoc = workflow(), workerOutput) {
   const batonPath = writeJson(`${label}-baton.json`, batonDoc);
   const workflowPath = writeJson(`${label}-workflow.json`, workflowDoc);
-  const args = ['skills/orbita/lib/entrypoints/cli/workflow-interpreter.mjs', mode, workflowPath, batonPath];
+  const args = ['skills/orbita/lib/tests/helpers/workflow-runtime-harness.mjs', mode, workflowPath, batonPath];
   if (workerOutput !== undefined) args.push(writeJson(`${label}-output.json`, workerOutput));
   const result = spawnSync(process.execPath, args, { cwd: root, encoding: 'utf8' });
   assert.equal(

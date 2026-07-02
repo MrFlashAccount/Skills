@@ -6,9 +6,9 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { next as runnerNext } from '../entrypoints/api/workflowRunner.mjs';
+import { next as runnerNext } from '../use-cases/WorkflowRunnerCommand.mjs';
 import { resolveRunPaths } from '../persistence/run-state/paths.mjs';
-import { publicFailureHistoryDetails } from '../use-cases/runtime/output/history-projection.mjs';
+import { publicFailureHistoryDetails } from '../use-cases/internal/runner/history-projection.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
 const tempDir = mkdtempSync(path.join(tmpdir(), 'workflow-runner-check-'));

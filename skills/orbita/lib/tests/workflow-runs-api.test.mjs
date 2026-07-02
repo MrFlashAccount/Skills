@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process';
 import test, { after, beforeEach } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { listWorkflowRuns, summarizeWorkflowRuns } from '../entrypoints/api/workflowRuns.mjs';
-import { publicErrorMessage } from '../entrypoints/cli/public-error.mjs';
+import { publicErrorMessage } from '../public-error.mjs';
 import { claimWorkflowRunAtRoot, heartbeatWorkflowRunAtRoot, listWorkflowRunsAtRoot, registerWorkflowRunAtRoot } from '../persistence/run-state/workflow-runs.mjs';
 import { buildTokenLease, formatLeaseTokenEntropy } from '../persistence/run-state/lease-authority.mjs';
 import { createRunIndexEntry, readRunsIndex, runsIndexPathsForRoot } from '../persistence/run-state/run-index.mjs';

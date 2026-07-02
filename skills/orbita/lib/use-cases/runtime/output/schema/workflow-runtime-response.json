@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/workflow-interpreter-response",
+  "$id": "https://github.com/MrFlashAccount/Skills/schemas/workflow/workflow-runtime-response",
   "title": "Workflow Interpreter Response",
   "type": "object",
   "required": ["baton", "steps"],
